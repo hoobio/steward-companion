@@ -33,12 +33,8 @@
                         <FontIcon
                             Glyph="&#xE7FC;"
                             FontSize="14"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Visibility="{x:Bind GlyphVisibility, Mode=OneWay}" />
-                        <Image
-                            Source="{x:Bind Icon, Mode=OneWay}"
-                            Stretch="UniformToFill"
-                            Visibility="{x:Bind IconVisibility, Mode=OneWay}" />
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Image Source="{x:Bind Icon}" Stretch="UniformToFill" />
                     </Grid>
                 </Border>
 
@@ -70,7 +66,7 @@
                             TextWrapping="Wrap"
                             Style="{StaticResource CaptionTextBlockStyle}"
                             Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-                        <Button Content="Retry" Command="{x:Bind UpdateCommand}" />
+                        <Button Height="32" Content="Retry" Command="{x:Bind UpdateCommand}" />
                     </StackPanel>
                     <TextBlock
                         Text="{x:Bind StatusMessage, Mode=OneWay}"
@@ -92,7 +88,7 @@
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                         Visibility="{x:Bind VersionPairVisibility, Mode=OneWay}" />
                     <TextBlock
-                        Text="-&gt;"
+                        Text="&#x2192;"
                         FontFamily="Cascadia Mono"
                         FontSize="12.5"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
@@ -148,11 +144,13 @@
                     Spacing="8"
                     VerticalAlignment="Center">
                     <Button
+                        Height="32"
                         Content="{x:Bind ActionLabel, Mode=OneWay}"
                         Style="{x:Bind ActionStyle, Mode=OneWay}"
                         Command="{x:Bind UpdateCommand}"
                         Visibility="{x:Bind ActionVisibility, Mode=OneWay}" />
                     <Button
+                        Height="32"
                         Content="Updating"
                         IsEnabled="False"
                         Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
@@ -175,7 +173,7 @@
                         Visibility="{x:Bind MemberPillVisibility, Mode=OneWay}">
                         <TextBlock Text="Update available" FontSize="12" />
                     </Border>
-                    <Button ToolTipService.ToolTip="More">
+                    <Button Width="32" Height="32" Padding="0" ToolTipService.ToolTip="More">
                         <FontIcon Glyph="&#xE712;" FontSize="14" />
                         <Button.Flyout>
                             <MenuFlyout>
@@ -243,7 +241,7 @@
                             <TextBlock Text="{x:Bind CountPillText, Mode=OneWay}" FontSize="12" />
                         </Border>
 
-                        <Button Grid.Column="3" ToolTipService.ToolTip="More">
+                        <Button Grid.Column="3" Width="32" Height="32" Padding="0" ToolTipService.ToolTip="More">
                             <FontIcon Glyph="&#xE712;" FontSize="14" />
                             <Button.Flyout>
                                 <MenuFlyout>
@@ -284,11 +282,14 @@
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center">
                         <Button
+                            Width="32"
+                            Height="32"
+                            Padding="0"
                             Command="{x:Bind ViewModel.RefreshCommand}"
                             ToolTipService.ToolTip="Check now">
                             <FontIcon Glyph="&#xE72C;" FontSize="14" />
                         </Button>
-                        <Button Content="Add install" Command="{x:Bind ViewModel.BrowseCommand}" />
+                        <Button Height="32" Content="Add install" Command="{x:Bind ViewModel.BrowseCommand}" />
                     </StackPanel>
                 </Grid>
 
@@ -338,11 +339,13 @@
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Button
+                                Height="32"
                                 Content="Update all"
                                 Style="{StaticResource AccentButtonStyle}"
                                 Command="{x:Bind ViewModel.UpdateAllCommand}"
                                 Visibility="{x:Bind ViewModel.UpdateAllVisibility, Mode=OneWay}" />
                             <Button
+                                Height="32"
                                 Content="Check again"
                                 Command="{x:Bind ViewModel.RefreshCommand}"
                                 Visibility="{x:Bind ViewModel.CheckAgainVisibility, Mode=OneWay}" />
@@ -386,10 +389,11 @@
                 Text="Steward looks for a flavour folder holding .flavor.info, such as _retail_ or _classic_era_. Point it at one and it reads the patch version from there." />
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                 <Button
+                    Height="32"
                     Content="Add install"
                     Style="{StaticResource AccentButtonStyle}"
                     Command="{x:Bind ViewModel.BrowseCommand}" />
-                <Button Content="Rescan" Command="{x:Bind ViewModel.RescanCommand}" />
+                <Button Height="32" Content="Rescan" Command="{x:Bind ViewModel.RescanCommand}" />
             </StackPanel>
         </StackPanel>
     </Grid>

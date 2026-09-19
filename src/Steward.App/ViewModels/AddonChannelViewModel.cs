@@ -3,6 +3,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Steward.Core;
 
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Steward.App.ViewModels;
 
@@ -22,12 +24,15 @@ public sealed partial class AddonChannelViewModel : ObservableObject
         _addon = addon;
         _stateStore = stateStore;
         _channelChanged = channelChanged;
+        Icon = new BitmapImage(new Uri(new Uri(addon.ManifestBaseUrl), "icon.png"));
         SelectedIndex = -1;
     }
 
     public string AddonId => _addon.Id;
 
     public string Name => _addon.FolderName;
+
+    public ImageSource Icon { get; }
 
     [ObservableProperty]
     public partial string Description { get; set; } = "No releases yet";

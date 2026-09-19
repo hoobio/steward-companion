@@ -48,8 +48,6 @@ public sealed partial class AddonRowViewModel : ObservableObject
         nameof(NoticeVisibility),
     ];
 
-    private static readonly string[] IconNames = [nameof(Icon), nameof(IconVisibility), nameof(GlyphVisibility)];
-
     private readonly WowInstall _install;
     private readonly ManagedAddon _addon;
     private readonly AddonUpdater _updater;
@@ -59,7 +57,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     private AddonChannelStatus? _status;
 
-    public ImageSource? Icon { get; private set; }
+    public ImageSource Icon { get; }
 
     public AddonRowViewModel(
         WowInstall install,
@@ -75,6 +73,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         _stateStore = stateStore;
         _ensureAuthorized = ensureAuthorized;
         _changeChannelRequested = changeChannelRequested;
+        Icon = new BitmapImage(new Uri(new Uri(addon.ManifestBaseUrl), "icon.png"));
         RefreshInstalledVersion();
     }
 
@@ -169,10 +168,6 @@ public sealed partial class AddonRowViewModel : ObservableObject
     public Visibility NoticeVisibility =>
         When(State != AddonRowState.Failed && !string.IsNullOrEmpty(StatusMessage));
 
-    public Visibility IconVisibility => When(Icon is not null);
-
-    public Visibility GlyphVisibility => When(Icon is null);
-
     private bool RecordedChannelDiffers =>
         Record is { } record && Channel is not null && !string.Equals(record.Channel, Channel, StringComparison.OrdinalIgnoreCase);
 
@@ -189,13 +184,6 @@ public sealed partial class AddonRowViewModel : ObservableObject
         var record = state.Installs.GetValueOrDefault(AppStateStore.Key(_install.FlavourPath, _addon.Id));
         InstalledVersion = record?.Version
             ?? TocFile.ReadVersion(Path.Combine(_install.AddOnsPath, _addon.FolderName, $"{_addon.FolderName}.toc"));
-        RefreshIcon();
-    }
-
-    private void RefreshIcon()
-    {
-        var iconPath = Path.Combine(_install.AddOnsPath, _addon.FolderName, "icon.png");
-        Icon = File.Exists(iconPath) ? new BitmapImage(new Uri(iconPath)) : null;
     }
 
     public void Apply(AddonChannelStatus status)
@@ -275,11 +263,6 @@ public sealed partial class AddonRowViewModel : ObservableObject
             _stateStore.Save(state);
 
             InstalledVersion = release.Version;
-            RefreshIcon();
-            foreach (var name in IconNames)
-            {
-                OnPropertyChanged(name);
-            }
         }
         catch (Exception ex)
         {
