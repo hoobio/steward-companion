@@ -292,7 +292,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Spacing="4">
-                        <TextBlock Text="Addons" FontSize="26" FontWeight="SemiBold" />
+                        <TextBlock Text="Addons" FontSize="26" FontWeight="SemiBold" Margin="{StaticResource PageTitleMargin}" />
                         <TextBlock
                             Text="{x:Bind ViewModel.HeaderSubtitle, Mode=OneWay}"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

@@ -246,7 +246,7 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Spacing="4">
-                    <TextBlock Text="Sync" FontSize="26" FontWeight="SemiBold" />
+                    <TextBlock Text="Sync" FontSize="26" FontWeight="SemiBold" Margin="{StaticResource PageTitleMargin}" />
                     <TextBlock
                         Text="{x:Bind ViewModel.LastSyncedText, Mode=OneWay}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
