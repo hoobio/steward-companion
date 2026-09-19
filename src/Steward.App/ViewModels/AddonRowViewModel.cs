@@ -55,6 +55,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
     private readonly AppStateStore _stateStore;
     private readonly Func<CancellationToken, Task<bool>> _ensureAuthorized;
     private readonly Action _changeChannelRequested;
+    private readonly Func<WowInstall, Task> _afterStewardInstalled;
 
     private AddonChannelStatus? _status;
 
@@ -66,7 +67,8 @@ public sealed partial class AddonRowViewModel : ObservableObject
         AddonUpdater updater,
         AppStateStore stateStore,
         Func<CancellationToken, Task<bool>> ensureAuthorized,
-        Action changeChannelRequested)
+        Action changeChannelRequested,
+        Func<WowInstall, Task> afterStewardInstalled)
     {
         _install = install;
         _addon = addon;
@@ -74,6 +76,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         _stateStore = stateStore;
         _ensureAuthorized = ensureAuthorized;
         _changeChannelRequested = changeChannelRequested;
+        _afterStewardInstalled = afterStewardInstalled;
         Icon = new BitmapImage(new Uri(new Uri(addon.ManifestBaseUrl), "icon.png"));
         RefreshInstalledVersion();
     }
@@ -278,6 +281,11 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
             InstalledVersion = release.Version;
             NeedsReload = IsClientRunning;
+
+            if (string.Equals(AddonId, StewardSavedVariables.AddonName, StringComparison.OrdinalIgnoreCase))
+            {
+                await _afterStewardInstalled(_install).ConfigureAwait(true);
+            }
         }
         catch (Exception ex)
         {

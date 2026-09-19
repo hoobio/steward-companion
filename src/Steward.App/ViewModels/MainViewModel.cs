@@ -101,6 +101,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Action? NavigateToSettings { get; set; }
 
+    public Func<Task>? SavedVariablesChanged { get; set; }
+
+    public Func<WowInstall, Task>? AfterStewardInstalled { get; set; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MemberInfoBarText))]
     public partial string? UserName { get; set; }
@@ -259,6 +263,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _recheckTimer?.Stop();
         _signInCts?.Dispose();
         _signInCts = null;
+        DisposeInstalls();
+    }
+
+    private void DisposeInstalls()
+    {
+        foreach (var install in Installs)
+        {
+            install.RowsChanged -= OnInstallRowsChanged;
+            install.Dispose();
+        }
+
+        Installs.Clear();
     }
 
     [RelayCommand]
@@ -318,7 +334,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _sessionService.ClearSession();
         _recheckTimer?.Stop();
-        Installs.Clear();
+        DisposeInstalls();
         _status.Clear();
         _releases.Clear();
         UserName = null;
@@ -432,6 +448,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         Installs.Remove(install);
         install.RowsChanged -= OnInstallRowsChanged;
+        install.Dispose();
         _stateStore.Save(AppStateStore.RemoveInstall(_stateStore.Load(), install.FlavourPath));
         RecomputeSummary();
     }
@@ -506,6 +523,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             StatusMessage = ex.Message;
         }
+
+        await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
     }
 
     private void RefreshClients()
@@ -598,7 +617,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _stateStore,
             EnsureAuthorizedForActionAsync,
             () => NavigateToSettings?.Invoke(),
-            RemoveInstall)
+            RemoveInstall,
+            OnClientExited,
+            wowInstall => AfterStewardInstalled?.Invoke(wowInstall) ?? Task.CompletedTask)
         {
             IsAddedByUser = isAddedByUser,
         };
@@ -609,6 +630,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private void OnInstallRowsChanged(object? sender, EventArgs e) => RecomputeSummary();
+
+    private void OnClientExited(WowInstallViewModel install) => _ = NotifySavedVariablesChangedAsync();
+
+    private Task NotifySavedVariablesChangedAsync() => SavedVariablesChanged?.Invoke() ?? Task.CompletedTask;
 
     private void RecomputeSummary()
     {
@@ -636,6 +661,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void OnTick()
     {
         UpdateLastCheckedText();
+        _ = NotifySavedVariablesChangedAsync();
         if (!_isChecking && DateTimeOffset.Now - _lastPass >= RecheckInterval)
         {
             _ = RunBackgroundPassAsync();

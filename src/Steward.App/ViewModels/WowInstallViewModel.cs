@@ -12,7 +12,7 @@ using Microsoft.UI.Xaml.Media;
 
 namespace Steward.App.ViewModels;
 
-public sealed partial class WowInstallViewModel : ObservableObject
+public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 {
     private static readonly string[] RowTriggers =
     [
@@ -24,6 +24,9 @@ public sealed partial class WowInstallViewModel : ObservableObject
     ];
 
     private readonly Action<WowInstallViewModel> _remove;
+    private readonly Action<WowInstallViewModel> _clientExited;
+
+    private CancellationTokenSource? _watchCts;
 
     public WowInstallViewModel(
         WowInstall install,
@@ -32,15 +35,25 @@ public sealed partial class WowInstallViewModel : ObservableObject
         AppStateStore stateStore,
         Func<CancellationToken, Task<bool>> ensureAuthorized,
         Action changeChannelRequested,
-        Action<WowInstallViewModel> remove)
+        Action<WowInstallViewModel> remove,
+        Action<WowInstallViewModel> clientExited,
+        Func<WowInstall, Task> afterStewardInstalled)
     {
         ArgumentNullException.ThrowIfNull(addons);
 
         Install = install;
         _remove = remove;
+        _clientExited = clientExited;
         foreach (var addon in addons)
         {
-            var row = new AddonRowViewModel(install, addon, updater, stateStore, ensureAuthorized, changeChannelRequested)
+            var row = new AddonRowViewModel(
+                install,
+                addon,
+                updater,
+                stateStore,
+                ensureAuthorized,
+                changeChannelRequested,
+                afterStewardInstalled)
             {
                 IsFirst = AddonRows.Count == 0,
             };
@@ -68,8 +81,10 @@ public sealed partial class WowInstallViewModel : ObservableObject
     public partial bool IsAddedByUser { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RunningDotVisibility))]
-    public partial bool IsClientRunning { get; set; }
+    [NotifyPropertyChangedFor(nameof(IsClientRunning), nameof(RunningDotVisibility))]
+    public partial WowClientProcess? Client { get; set; }
+
+    public bool IsClientRunning => Client is not null;
 
     public Visibility RunningDotVisibility => IsClientRunning ? Visibility.Visible : Visibility.Collapsed;
 
@@ -102,7 +117,18 @@ public sealed partial class WowInstallViewModel : ObservableObject
 
     public void RefreshClientRunning()
     {
-        IsClientRunning = WowClient.IsRunning(Install);
+        var client = WowClient.Find(Install);
+        if (client?.ProcessId != Client?.ProcessId)
+        {
+            StopWatching();
+            if (client is not null)
+            {
+                _watchCts = new CancellationTokenSource();
+                _ = WatchExitAsync(client.ProcessId, _watchCts.Token);
+            }
+        }
+
+        Client = client;
         foreach (var row in AddonRows)
         {
             row.IsClientRunning = IsClientRunning;
@@ -112,6 +138,8 @@ public sealed partial class WowInstallViewModel : ObservableObject
             }
         }
     }
+
+    public void Dispose() => StopWatching();
 
     public void SetIsAdmin(bool isAdmin)
     {
@@ -134,6 +162,33 @@ public sealed partial class WowInstallViewModel : ObservableObject
     [RelayCommand]
     private void OpenFolder() =>
         Process.Start(new ProcessStartInfo(AddOnsPath) { UseShellExecute = true })?.Dispose();
+
+    private void StopWatching()
+    {
+        _watchCts?.Cancel();
+        _watchCts?.Dispose();
+        _watchCts = null;
+    }
+
+    private async Task WatchExitAsync(int processId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await WowClient.WaitForExitAsync(processId, cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        RefreshClientRunning();
+        _clientExited(this);
+    }
 
     private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
