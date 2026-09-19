@@ -8,12 +8,22 @@ using Steward.Core;
 
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 using Windows.Storage.Pickers;
 
 namespace Steward.App.ViewModels;
 
-public sealed partial class MainViewModel : ObservableObject
+public enum GateFailure
+{
+    None,
+    Timeout,
+    SessionExpired,
+    Unreachable,
+}
+
+public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private static readonly TimeSpan RecheckInterval = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
@@ -26,6 +36,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly Dictionary<string, AddonChannelStatus> _status = new(StringComparer.OrdinalIgnoreCase);
 
     private DispatcherQueueTimer? _recheckTimer;
+    private CancellationTokenSource? _signInCts;
     private DateTimeOffset _lastPass;
     private bool _isChecking;
 
@@ -69,29 +80,156 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial string LastCheckedText { get; set; } = "Not checked yet";
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GateVisibility), nameof(ShellChromeVisibility))]
+    public partial bool IsSignedIn { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GateHeading), nameof(CancelSignInVisibility))]
+    [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
+    public partial bool IsSigningIn { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility))]
+    public partial GateFailure Failure { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsOnSettings { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RoleLabel))]
+    public partial string? Role { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UserHandleVisibility))]
+    public partial string? UserHandle { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AvatarImage))]
+    public partial Uri? AvatarUri { get; set; }
+
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["stable", "beta"];
 
     public Visibility StatusMessageVisibility =>
         string.IsNullOrEmpty(StatusMessage) ? Visibility.Collapsed : Visibility.Visible;
 
+    public Visibility GateVisibility => IsSignedIn ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility ShellChromeVisibility => IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility TimeoutVisibility =>
+        Failure == GateFailure.Timeout ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility SessionExpiredVisibility =>
+        Failure == GateFailure.SessionExpired ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility UnreachableVisibility =>
+        Failure == GateFailure.Unreachable ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility CancelSignInVisibility => IsSigningIn ? Visibility.Visible : Visibility.Collapsed;
+
+    public ImageSource? AvatarImage => AvatarUri is null ? null : new BitmapImage(AvatarUri);
+
+    public string GateHeading => IsSigningIn ? "Waiting for Discord" : "Sign in to Steward";
+
+    public Visibility UserHandleVisibility =>
+        string.IsNullOrEmpty(UserHandle) ? Visibility.Collapsed : Visibility.Visible;
+
+    public string RoleLabel => Role switch
+    {
+        "global" => "Global admin",
+        "admin" => "Admin",
+        _ => "Member",
+    };
+
+    public string VersionLabel { get; } = $"Steward {typeof(App).Assembly.GetName().Version?.ToString(3)}";
+
+    public void Dispose()
+    {
+        _signInCts?.Dispose();
+        _signInCts = null;
+    }
+
     [RelayCommand]
     private async Task InitializeAsync()
+    {
+        IsSignedIn = _sessionService.TryRestoreSession();
+        if (!IsSignedIn)
+        {
+            return;
+        }
+
+        await LoadAsync(CancellationToken.None);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSignIn))]
+    private async Task SignInAsync()
+    {
+        Failure = GateFailure.None;
+        IsSigningIn = true;
+        _signInCts = new CancellationTokenSource();
+        try
+        {
+            await _sessionService.SignInAsync(_signInCts.Token);
+            IsSignedIn = true;
+            await LoadAsync(CancellationToken.None);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (TimeoutException)
+        {
+            Failure = GateFailure.Timeout;
+        }
+        catch (HttpRequestException)
+        {
+            Failure = GateFailure.Unreachable;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = ex.Message;
+        }
+        finally
+        {
+            IsSigningIn = false;
+            _signInCts.Dispose();
+            _signInCts = null;
+        }
+    }
+
+    private bool CanSignIn() => !IsSigningIn;
+
+    [RelayCommand]
+    private void CancelSignIn() => _signInCts?.Cancel();
+
+    [RelayCommand]
+    private void SignOut()
+    {
+        _sessionService.ClearSession();
+        _recheckTimer?.Stop();
+        Installs.Clear();
+        SelectedInstall = null;
+        _status.Clear();
+        UserName = null;
+        UserHandle = null;
+        Role = null;
+        AvatarUri = null;
+        IsAuthorized = false;
+        IsGlobalAdmin = false;
+        IsOnSettings = false;
+        StatusMessage = null;
+        Failure = GateFailure.None;
+        IsSignedIn = false;
+    }
+
+    private async Task LoadAsync(CancellationToken cancellationToken)
     {
         IsBusy = true;
         try
         {
-            if (!_sessionService.TryRestoreSession())
+            if (await RecheckAuthorizationAsync(cancellationToken).ConfigureAwait(true) == AuthCheckResult.SessionExpired)
             {
-                StatusMessage = "Signing in...";
-                await _sessionService.SignInAsync(CancellationToken.None);
-            }
-
-            var result = await RecheckAuthorizationAsync(CancellationToken.None);
-            if (result == AuthCheckResult.SessionExpired)
-            {
-                StatusMessage = "Signing in...";
-                await _sessionService.SignInAsync(CancellationToken.None);
-                await RecheckAuthorizationAsync(CancellationToken.None);
+                return;
             }
 
             foreach (var install in WowInstalls.Discover())
@@ -99,7 +237,7 @@ public sealed partial class MainViewModel : ObservableObject
                 Installs.Add(CreateInstallViewModel(install));
             }
 
-            await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
+            await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
 
             SelectedInstall ??= Installs.FirstOrDefault();
             StartRecheckTimer();
@@ -235,6 +373,8 @@ public sealed partial class MainViewModel : ObservableObject
         {
             var me = await _gigagrugClient.GetMeAsync(cancellationToken).ConfigureAwait(true);
             UserName = me.User.Name;
+            Role = me.User.Role;
+            AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = GigagrugClient.IsAdmin(me);
             StatusMessage = IsAuthorized ? null : $"Signed in as {UserName}. Admin role required for updates.";
 
@@ -251,7 +391,11 @@ public sealed partial class MainViewModel : ObservableObject
             IsAuthorized = false;
             IsGlobalAdmin = false;
             UserName = null;
-            StatusMessage = "Your session has expired. Sign in again.";
+            Role = null;
+            AvatarUri = null;
+            StatusMessage = null;
+            IsSignedIn = false;
+            Failure = GateFailure.SessionExpired;
             _recheckTimer?.Stop();
             PropagateAuthorized();
             return AuthCheckResult.SessionExpired;
