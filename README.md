@@ -4,6 +4,8 @@ The desktop half of Steward, a guild toolkit for World of Warcraft. It signs in 
 
 It manages a set of addons rather than one, so the other addons published alongside it ride along. It is not a general-purpose addon manager.
 
+Updates are user-initiated: the app checks each managed addon's release channel when it starts, when you switch channel, or when you add a WoW install, and you apply an update yourself from its row. It does not poll in the background or apply anything while you are not looking.
+
 ## Install
 
 Download the latest MSI from the [Releases](https://github.com/hoobio/steward-companion/releases) page and run it. It installs per-user (no admin prompt) to `%LocalAppData%\Steward`, with a Start Menu shortcut. Requires the [WebView2 Evergreen Runtime](https://developer.microsoft.com/microsoft-edge/webview2/), which ships with Windows 11 and most Windows 10 installs already.

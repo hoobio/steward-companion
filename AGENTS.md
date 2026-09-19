@@ -30,7 +30,29 @@ Each WoW install + addon pair records what was actually installed (version, chan
 
 ## WebView2 API deviations (verified live)
 
-`CoreWebView2Environment.GetAvailableBrowserVersionString` surfaces a missing Evergreen Runtime as a bare `COMException` with `HRESULT 0x80070002` (`ERROR_FILE_NOT_FOUND`) on the WinUI 3 projection, not the classic `WebView2RuntimeNotFoundException` the WPF/WinForms wrapper throws. `SessionService` catches that HRESULT specifically and rewords it.
+The WinUI 3 projection of `Microsoft.Web.WebView2` (pinned at `1.0.4191.47` in `Directory.Packages.props`) exposes neither a `WebView2RuntimeNotFoundException` type nor the documented `CoreWebView2Environment.CreateAsync(browserExecutableFolder, userDataFolder, options)` overload; `SessionService` calls `CreateWithOptionsAsync` instead. `CoreWebView2Environment.GetAvailableBrowserVersionString` surfaces a missing Evergreen Runtime as a bare `COMException` with `HRESULT 0x80070002` (`ERROR_FILE_NOT_FOUND`) on this projection, not the classic `WebView2RuntimeNotFoundException` the WPF/WinForms wrapper throws. `SessionService` catches that HRESULT specifically and rewords it.
+
+## Build and test gotchas
+
+`Steward.slnx` defines no `Release|x64` solution configuration, so a solution-level `dotnet build` must not pass `-p:Platform=x64`; the CI workflow builds the solution without it and passes `-p:Platform=x64` only on the project-level `dotnet publish` of `Steward.App.csproj`.
+
+`global.json` sets `test.runner` to `Microsoft.Testing.Platform`. On .NET SDK 10.0.203, `dotnet test <directory>` fails under that runner; the working form is `dotnet test --project <csproj>`, which is what the CI workflow uses.
+
+`Microsoft.Win32.Registry` is already in-framework on `net10.0-windows`; adding it as an explicit `PackageReference` fails restore with `NU1510`. `WowInstalls.cs` uses `Microsoft.Win32.Registry` directly, and neither `.csproj` in this repo references the package.
+
+CommunityToolkit.Mvvm's field-backed `[ObservableProperty]` triggers diagnostic `MVVMTK0045` under WinUI; the ViewModels here declare partial properties instead (`[ObservableProperty] public partial string? Foo { get; set; }`).
+
+## Saved variables (planned)
+
+Roster, loot and attendance will read WoW SavedVariables files. Those files are one per addon per scope: everything under an addon's `## SavedVariables:` TOC directive lands in one shared account-level file, `## SavedVariablesPerCharacter:` in a separate file per character. The client only serialises them at logout, exit or `/reload`, rewriting the whole file from memory, so any external write to that file while the client is running is lost on the next serialise. The intended data flow is one direction per file: the app only reads the saved-variables file, and only writes a generated Lua file elsewhere in the addon folder, one the client never writes to, calling a function the addon exposes rather than assigning a raw global. Since the sandbox gives the addon no socket or file-IO channel to signal the app, the app will judge whether a client is running by enumerating OS processes whose main module path sits under that WoW flavour's folder, and judge data freshness from the saved-variables file's mtime against that process's start time plus an `exportedAt` timestamp the addon writes. The addon updater replaces the whole addon folder on update, so the app will need to rewrite its generated sync file immediately after an update rather than rely on the extractor preserving it.
+
+None of this is built yet. The full write-up lives in `hoobio/Steward`'s `AGENTS.md`.
+
+## Outstanding work
+
+A tray icon, close-to-tray, minimise-to-tray, start-with-Windows and a settings window were planned and then cancelled before any of it landed; there is no trace of that work in this repo.
+
+Updates are user-initiated only: `AddonRowViewModel.UpdateAsync` is a `RelayCommand` gated on `CanUpdate`, run from the row's own Update button. There is no timer and no unattended apply, so a running instance does not notice a new release until the user switches channel, adds an install, or restarts the app and re-runs the initial `RefreshAvailableAsync` pass. The 15-minute timer in `MainViewModel` only re-checks `/api/admin/me`; it does not poll for addon updates.
 
 ## Addon repos
 
