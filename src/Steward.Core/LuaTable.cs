@@ -42,6 +42,10 @@ public sealed record LuaValue
 
     public static LuaValue FromTable(IReadOnlyList<LuaEntry> entries) => new(LuaKind.Table) { Table = entries };
 
+    public static LuaValue FromTable(params LuaEntry[] entries) => FromTable((IReadOnlyList<LuaEntry>)entries);
+
+    public static LuaValue Array(IEnumerable<LuaValue> items) => FromTable([.. items.Select(item => new LuaEntry(null, item))]);
+
     public LuaValue? Get(string key) =>
         Table.FirstOrDefault(e => e.Key is { Kind: LuaKind.Text } k && string.Equals(k.Text, key, StringComparison.Ordinal))?.Value;
 

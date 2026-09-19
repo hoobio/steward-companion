@@ -71,7 +71,9 @@ The per-character file holds `StewardCharDB` with `["exportedAt"]`, `["character
 
 The client only serialises saved variables at logout, exit or `/reload`, rewriting the whole file from memory, so any external write to that file while the client is running is lost on the next serialise. Data flow is therefore one direction per file: the app only reads the saved-variables file, and only writes a generated Lua file elsewhere in the addon folder, one the client never writes to, calling a function the addon exposes rather than assigning a raw global.
 
-Still to come, in the commits after this one: the generated-file writer, the freshness judgement (the saved-variables mtime against the running client's process start time from `WowClient`, plus `exportedAt`), the rewrite of the generated file after an addon update since the updater replaces the whole addon folder, and the sync page itself. The addon side of the contract lives in `hoobio/Steward`'s `AGENTS.md`.
+The generated-file writer is `StewardSyncFile` (`Interface\AddOns\Steward\StewardSync.lua`, written by calling `Steward.LoadSync({...})`), guarded by the same TOC-existence check as `RemoveExistingInstall` and written temp-then-move; the addon's own TOC must list `StewardSync.lua` for the client to load it, a dependency on the addon repo.
+
+Still to come, in the commits after this one: the freshness judgement (the saved-variables mtime against the running client's process start time from `WowClient`, plus `exportedAt`), the rewrite of the generated file after an addon update since the updater replaces the whole addon folder, and the sync page itself. The addon side of the contract lives in `hoobio/Steward`'s `AGENTS.md`.
 
 ## UI design
 

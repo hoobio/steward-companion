@@ -167,7 +167,7 @@ Same critical `InfoBar` as the Addons page, reworded: "Could not reach api.hoobi
 New and not only a view change:
 
 - **A SavedVariables reader.** Parsing the addon's Lua table dump into records. This is the largest piece and belongs in `Steward.Core` with its own tests, ahead of any UI. Built: `LuaSavedVariables` and `StewardSavedVariables`.
-- **A generated Lua writer.** One file, calling a function the addon exposes. Rewritten after every addon update.
+- **A generated Lua writer.** One file, calling a function the addon exposes. Rewritten after every addon update. Built: `StewardSyncFile`.
 - **Running-client detection.** Process enumeration by main module path, per flavour folder, plus an exit hook that triggers a re-read.
 - **Sync client methods.** On `GigagrugClient`, against a contract that does not exist yet.
 - **`NavigationView` shell.** See [Shell change](#shell-change).

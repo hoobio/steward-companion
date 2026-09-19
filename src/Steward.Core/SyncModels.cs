@@ -40,3 +40,10 @@ public sealed record SavedVariablesSnapshot(
     IReadOnlyList<LootEvent> Loot,
     IReadOnlyList<AttendanceRecord> Attendance,
     int Skipped);
+
+public sealed record SyncPayload(
+    DateTimeOffset WrittenAt,
+    DateTimeOffset? ExportedAt,
+    IReadOnlyList<RosterMember> Roster,
+    IReadOnlyList<LootEvent> Loot,
+    IReadOnlyList<AttendanceRecord> Attendance);
