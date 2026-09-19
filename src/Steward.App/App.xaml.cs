@@ -10,6 +10,8 @@ namespace Steward.App;
 
 public partial class App : Application
 {
+    public static readonly string IconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Steward.ico");
+
     private IHost? _host;
     private MainWindow? _window;
 

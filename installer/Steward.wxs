@@ -35,6 +35,9 @@
 
     <Media Id="1" Cabinet="Steward.cab" EmbedCab="yes" CompressionLevel="high" />
 
+    <Icon Id="StewardIcon" SourceFile="$(var.PayloadDir)\Assets\Steward.ico" />
+
+    <Property Id="ARPPRODUCTICON" Value="StewardIcon" />
     <Property Id="ARPHELPLINK" Value="https://github.com/hoobio/steward-companion" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/hoobio/steward-companion" />
     <Property Id="ARPNOREPAIR" Value="1" />
@@ -49,7 +52,8 @@
                   Name="Steward"
                   Description="Keeps Hoobi's WoW addons current"
                   Target="[INSTALLFOLDER]Steward.App.exe"
-                  WorkingDirectory="INSTALLFOLDER" />
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="StewardIcon" />
         <RegistryValue Root="HKCU"
                        Key="Software\hoobio\Steward"
                        Name="StartMenuShortcut"

@@ -10,6 +10,7 @@ public sealed partial class MainWindow : Window
     public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
+        AppWindow.SetIcon(App.IconPath);
         ViewModel = viewModel;
         SystemBackdrop = new MicaBackdrop();
         ViewModel.OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);

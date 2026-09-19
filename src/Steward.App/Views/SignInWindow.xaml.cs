@@ -12,6 +12,7 @@ public sealed partial class SignInWindow : Window
     public SignInWindow(CoreWebView2Environment environment, string baseUrl, string sessionCookieName)
     {
         InitializeComponent();
+        AppWindow.SetIcon(App.IconPath);
         _baseUrl = baseUrl;
         _sessionCookieName = sessionCookieName;
         _ = InitializeWebViewAsync(environment);
