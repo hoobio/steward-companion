@@ -84,8 +84,8 @@ Two pages, so no navigation pane.
 | State | Trigger |
 | --- | --- |
 | Gate | No token in `state.json`, or the persisted token was cleared |
-| Signing in | WebView2 window open, `gg_session` not seen yet |
-| Sign-in failure | Missing WebView2 runtime, cookie timeout, or unreachable host |
+| Signing in | Browser opened on the desktop sign-in URL, no code received yet |
+| Sign-in failure | Browser timeout, expired session, or unreachable host |
 | No installs | Discovery returned nothing |
 | Member role | Session valid, role outside `global`/`admin` |
 | Admin, updates available | Role `global`/`admin` and a manifest version differs from what is recorded |
@@ -97,19 +97,19 @@ Two pages, so no navigation pane.
 
 The signed-out window is the sign-in and nothing else. No install list, no settings gear, no account chip.
 
-Centred stack: app mark at 56px, `Sign in to Steward` at 28/600, one line of body copy at 46ch, then the Discord button (`#5865f2`, white label, 38px tall). Below it, muted at 12px: "Opens a Discord window. Steward stores the session locally and never sees your password." Version and a Help link sit in the lower-left corner of the window, outside the centred stack.
+Centred stack: app mark at 56px, `Sign in to Steward` at 28/600, one line of body copy at 46ch, then the Discord button (`#5865f2`, white label, 38px tall). Below it, muted at 12px: "Opens your browser. Steward stores the session locally and never sees your password." Version and a Help link sit in the lower-left corner of the window, outside the centred stack.
 
 This replaces the current behaviour, where `InitializeAsync` calls `SignInAsync` immediately and the user never sees a signed-out window.
 
 ### Signing in
 
-The main window stays on the gate behind the WebView2 window. The heading changes to "Waiting for Discord", the button goes to its busy state with a spinner and keeps its label, and a Cancel button appears beside it.
+The main window stays on the gate while the default browser handles Discord and lands on the loopback page. The heading changes to "Waiting for Discord", the button goes to its busy state with a spinner and keeps its label, and a Cancel button appears beside it.
 
 ### Sign-in failures
 
 An `InfoBar` directly above the sign-in button, inside the centred stack. The button stays available.
 
-- Missing runtime, critical: "WebView2 Runtime is missing. Steward signs in through a Microsoft Edge WebView. Install the Evergreen Runtime, then try again." Action button opens the download page. Raised by the `0x80070002` `COMException` that `SessionService` already catches.
+- Browser timeout, caution: "Steward did not hear back from your browser. Sign in again." Raised when the loopback listener sees no code within 5 minutes or the tab was closed.
 - Expired session, caution: "Your session expired. Sessions last 90 days from last use. Sign in again to carry on."
 - Unreachable host, critical: "Could not reach guild.hoobi.io. Check your connection. Steward will not have current addon versions until it can." Action button retries.
 
@@ -212,7 +212,7 @@ Removing an install is new. It drops the install from the list and its records f
 
 ## Scope
 
-Already in the app and unchanged by this design: the WebView2 sign-in and DPAPI token, the role re-check at startup and on the 15-minute timer, the `unstable` gate on role `global`, per-row update with progress and SHA-256 verification, install discovery and the folder picker.
+Already in the app and unchanged by this design: the default-browser sign-in and DPAPI token, the role re-check at startup and on the 15-minute timer, the `unstable` gate on role `global`, per-row update with progress and SHA-256 verification, install discovery and the folder picker.
 
 New: the settings page and the gear that reaches it, the signed-out gate as a real state, the summary banner and `Update all`, all installs visible at once in place of the install dropdown, removing an install, and rescanning.
 
