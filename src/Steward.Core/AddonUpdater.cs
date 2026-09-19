@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -27,6 +28,33 @@ public sealed class AddonUpdater
         return await response.Content
             .ReadFromJsonAsync(CompanionJsonContext.Default.AddonRelease, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyDictionary<string, AddonRelease?>> ProbeChannelsAsync(
+        ManagedAddon addon, IReadOnlyList<string> channels, CancellationToken cancellationToken)
+    {
+        var releases = await Task.WhenAll(channels.Select(channel => ProbeChannelAsync(addon, channel, cancellationToken)))
+            .ConfigureAwait(false);
+
+        var result = new Dictionary<string, AddonRelease?>(channels.Count);
+        for (var i = 0; i < channels.Count; i++)
+        {
+            result[channels[i]] = releases[i];
+        }
+
+        return result;
+    }
+
+    private async Task<AddonRelease?> ProbeChannelAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await GetLatestAsync(addon, channel, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
     }
 
     public async Task InstallAsync(

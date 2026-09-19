@@ -22,6 +22,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly AddonUpdater _addonUpdater;
     private readonly AppStateStore _stateStore;
     private readonly IReadOnlyList<ManagedAddon> _addons;
+    private readonly Dictionary<string, AddonChannelStatus> _status = new(StringComparer.OrdinalIgnoreCase);
 
     private DispatcherQueueTimer? _recheckTimer;
 
@@ -41,8 +42,6 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<WowInstallViewModel> Installs { get; } = [];
 
-    public ObservableCollection<string> AvailableChannels { get; } = ["stable", "beta"];
-
     public nint OwnerWindowHandle { get; set; }
 
     [ObservableProperty]
@@ -56,10 +55,15 @@ public sealed partial class MainViewModel : ObservableObject
     public partial bool IsAuthorized { get; set; }
 
     [ObservableProperty]
+    public partial bool IsGlobalAdmin { get; set; }
+
+    [ObservableProperty]
     public partial WowInstallViewModel? SelectedInstall { get; set; }
 
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
+
+    private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["stable", "beta"];
 
     public Visibility StatusMessageVisibility =>
         string.IsNullOrEmpty(StatusMessage) ? Visibility.Collapsed : Visibility.Visible;
@@ -86,10 +90,10 @@ public sealed partial class MainViewModel : ObservableObject
 
             foreach (var install in WowInstalls.Discover())
             {
-                var viewModel = CreateInstallViewModel(install);
-                await viewModel.RefreshAvailableAsync(CancellationToken.None);
-                Installs.Add(viewModel);
+                Installs.Add(CreateInstallViewModel(install));
             }
+
+            await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
 
             SelectedInstall ??= Installs.FirstOrDefault();
             StartRecheckTimer();
@@ -125,9 +129,33 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         var viewModel = CreateInstallViewModel(install);
-        await viewModel.RefreshAvailableAsync(CancellationToken.None);
         Installs.Add(viewModel);
+        viewModel.ApplyStatus(_status, background: false);
         SelectedInstall = viewModel;
+    }
+
+    private async Task CheckAsync(bool background, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var state = _stateStore.Load();
+            foreach (var addon in _addons)
+            {
+                _status[addon.Id] = AddonChannelStatus.Resolve(
+                    state.Channels.GetValueOrDefault(addon.Id),
+                    await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken).ConfigureAwait(true));
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            StatusMessage = ex.Message;
+            return;
+        }
+
+        foreach (var install in Installs)
+        {
+            install.ApplyStatus(_status, background);
+        }
     }
 
     private WowInstallViewModel CreateInstallViewModel(WowInstall install)
@@ -160,10 +188,7 @@ public sealed partial class MainViewModel : ObservableObject
 
             // Client-side gate only: gigagrug does not restrict who can fetch the unstable
             // manifest, and this re-check is likewise a UI truth-teller, not enforcement.
-            if (GigagrugClient.IsGlobalAdmin(me) && !AvailableChannels.Contains("unstable"))
-            {
-                AvailableChannels.Add("unstable");
-            }
+            IsGlobalAdmin = GigagrugClient.IsGlobalAdmin(me);
 
             PropagateAuthorized();
             return IsAuthorized ? AuthCheckResult.Authorized : AuthCheckResult.NotAuthorized;
@@ -172,6 +197,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             _sessionService.ClearSession();
             IsAuthorized = false;
+            IsGlobalAdmin = false;
             UserName = null;
             StatusMessage = "Your session has expired. Sign in again.";
             _recheckTimer?.Stop();

@@ -13,7 +13,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
     private readonly AppStateStore _stateStore;
     private readonly Func<CancellationToken, Task<bool>> _ensureAuthorized;
 
-    private AddonRelease? _latestRelease;
+    private AddonChannelStatus? _status;
 
     public AddonRowViewModel(
         WowInstall install,
@@ -27,7 +27,6 @@ public sealed partial class AddonRowViewModel : ObservableObject
         _updater = updater;
         _stateStore = stateStore;
         _ensureAuthorized = ensureAuthorized;
-        Channel = stateStore.Load().Channels.GetValueOrDefault(addon.Id) ?? AppStateStore.DefaultChannel;
         RefreshInstalledVersion();
     }
 
@@ -36,7 +35,8 @@ public sealed partial class AddonRowViewModel : ObservableObject
     public string FolderName => _addon.FolderName;
 
     [ObservableProperty]
-    public partial string Channel { get; set; }
+    [NotifyCanExecuteChangedFor(nameof(UpdateCommand))]
+    public partial string? Channel { get; set; }
 
     [ObservableProperty]
     public partial string? InstalledVersion { get; set; }
@@ -69,31 +69,26 @@ public sealed partial class AddonRowViewModel : ObservableObject
             ?? TocFile.ReadVersion(Path.Combine(_install.AddOnsPath, _addon.FolderName, $"{_addon.FolderName}.toc"));
     }
 
-    public async Task RefreshAvailableAsync(CancellationToken cancellationToken)
+    public void Apply(AddonChannelStatus status)
     {
-        try
-        {
-            _latestRelease = await _updater.GetLatestAsync(_addon, Channel, cancellationToken).ConfigureAwait(false);
-            AvailableVersion = _latestRelease?.Version;
-            StatusMessage = _latestRelease is null ? $"Nothing released on {Channel} yet." : null;
-        }
-        catch (Exception ex)
-        {
-            _latestRelease = null;
-            AvailableVersion = null;
-            StatusMessage = ex.Message;
-        }
+        _status = status;
+        Channel = status.Channel;
+        AvailableVersion = status.Release?.Version;
+        StatusMessage = status.Notice;
     }
 
     private bool CanUpdate =>
         IsAdmin &&
-        _latestRelease is not null &&
-        TocFile.HasUpdate(_latestRelease.Version, InstalledVersion);
+        _status?.Release is not null &&
+        Channel is not null &&
+        TocFile.HasUpdate(_status.Release.Version, InstalledVersion);
 
     [RelayCommand(CanExecute = nameof(CanUpdate))]
     private async Task UpdateAsync()
     {
-        if (_latestRelease is null)
+        var release = _status?.Release;
+        var channel = Channel;
+        if (release is null || channel is null)
         {
             return;
         }
@@ -109,16 +104,16 @@ public sealed partial class AddonRowViewModel : ObservableObject
         try
         {
             var progress = new Progress<double>(value => UpdateProgress = value);
-            await _updater.InstallAsync(_addon, Channel, _latestRelease, _install.AddOnsPath, progress, CancellationToken.None)
+            await _updater.InstallAsync(_addon, channel, release, _install.AddOnsPath, progress, CancellationToken.None)
                 .ConfigureAwait(true);
 
             var state = _stateStore.Load();
             state.Installs[AppStateStore.Key(_install.FlavourPath, _addon.Id)] =
-                new InstalledAddonRecord(_latestRelease.Version, Channel, _latestRelease.Sha256);
+                new InstalledAddonRecord(release.Version, channel, release.Sha256);
             _stateStore.Save(state);
 
-            InstalledVersion = _latestRelease.Version;
-            StatusMessage = $"Updated to {_latestRelease.Version}.";
+            InstalledVersion = release.Version;
+            StatusMessage = $"Updated to {release.Version}.";
         }
         catch (Exception ex)
         {

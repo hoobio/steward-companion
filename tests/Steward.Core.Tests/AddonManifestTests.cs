@@ -29,6 +29,22 @@ public sealed class AddonManifestTests
         return (new AddonUpdater(new HttpClient(handler)), handler);
     }
 
+    private sealed class RoutingStubHandler(Func<Uri, (HttpStatusCode Status, string Body)> route) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var (status, body) = route(request.RequestUri!);
+            return Task.FromResult(new HttpResponseMessage(status)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+            });
+        }
+    }
+
+    private static AddonUpdater UpdaterFor(Func<Uri, (HttpStatusCode Status, string Body)> route) =>
+        new(new HttpClient(new RoutingStubHandler(route)));
+
     [Fact]
     public async Task GetLatestAsync_EmptyChannelPublishesNull_ReturnsNull()
     {
@@ -76,5 +92,46 @@ public sealed class AddonManifestTests
 
         await Assert.ThrowsAsync<HttpRequestException>(
             () => updater.GetLatestAsync(Addon, "beta", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ProbeChannelsAsync_MissingManifest_IsNullNotAnError()
+    {
+        const string releaseBody = """
+        {"version":"1.0.0","channel":"stable","zip":"HoobiScripts-1.0.0.zip",
+         "sha256":"abc123","size":100,"released":"2026-09-19T12:12:01+10:00"}
+        """;
+        var updater = UpdaterFor(uri => uri.ToString().EndsWith("latest-stable.json", StringComparison.Ordinal)
+            ? (HttpStatusCode.OK, releaseBody)
+            : uri.ToString().EndsWith("latest-beta.json", StringComparison.Ordinal)
+                ? (HttpStatusCode.OK, "null")
+                : (HttpStatusCode.NotFound, "not found"));
+
+        var releases = await updater.ProbeChannelsAsync(Addon, ["stable", "beta", "unstable"], CancellationToken.None);
+
+        Assert.NotNull(releases["stable"]);
+        Assert.Null(releases["beta"]);
+        Assert.Null(releases["unstable"]);
+    }
+
+    [Fact]
+    public async Task ProbeChannelsAsync_ServerError_Propagates()
+    {
+        var updater = UpdaterFor(uri => uri.ToString().EndsWith("latest-beta.json", StringComparison.Ordinal)
+            ? (HttpStatusCode.InternalServerError, "boom")
+            : (HttpStatusCode.OK, "null"));
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => updater.ProbeChannelsAsync(Addon, ["stable", "beta"], CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ProbeChannelsAsync_ReturnsOneEntryPerRequestedChannel()
+    {
+        var updater = UpdaterFor(_ => (HttpStatusCode.OK, "null"));
+
+        var releases = await updater.ProbeChannelsAsync(Addon, ["stable", "beta"], CancellationToken.None);
+
+        Assert.Equal(["beta", "stable"], releases.Keys.OrderBy(k => k));
     }
 }

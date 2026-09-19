@@ -4,8 +4,6 @@ namespace Steward.Core;
 
 public sealed class AppStateStore
 {
-    public const string DefaultChannel = "beta";
-
     private readonly IReadOnlyList<string> _addonIds;
     private readonly string _path;
 
@@ -30,7 +28,7 @@ public sealed class AppStateStore
         var json = File.ReadAllText(_path);
         var state = JsonSerializer.Deserialize(json, CompanionJsonContext.Default.AppState)
             ?? new AppState([], []);
-        return SeedLegacyChannel(state, _addonIds);
+        return SeedLegacyChannel(state with { Channels = state.Channels ?? [] }, _addonIds);
     }
 
     internal static AppState SeedLegacyChannel(AppState state, IReadOnlyList<string> addonIds)
@@ -40,7 +38,7 @@ public sealed class AppStateStore
             return state;
         }
 
-        var channels = new Dictionary<string, string>(state.Channels ?? [], StringComparer.OrdinalIgnoreCase);
+        var channels = new Dictionary<string, string>(state.Channels, StringComparer.OrdinalIgnoreCase);
         foreach (var addonId in addonIds)
         {
             channels.TryAdd(addonId, state.LegacyChannel);

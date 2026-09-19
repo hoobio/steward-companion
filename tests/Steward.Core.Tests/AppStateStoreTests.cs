@@ -71,5 +71,12 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
-    public void DefaultChannel_IsBeta() => Assert.Equal("beta", AppStateStore.DefaultChannel);
+    public void Load_FileWithNeitherChannelKey_ReturnsEmptyChannels()
+    {
+        File.WriteAllText(StatePath, """{"installs":{}}""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Empty(state.Channels);
+    }
 }
