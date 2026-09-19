@@ -1,10 +1,12 @@
 # Steward
 
-.NET 10 WinUI 3 desktop app, public repo, ships as an unpackaged self-contained MSI (x64 only). Keeps a set of WoW addons current against their published release channels, reading admin state from gigagrug.
+.NET 10 WinUI 3 desktop app, public repo, ships as an unpackaged self-contained MSI (x64 only). The desktop half of Steward, a guild toolkit for World of Warcraft: it keeps the Steward addon current and will carry guild roster, loot history and attendance between the game and gigagrug, combining several officers' records into one view.
+
+Updating is the whole of it today. It manages a set of addons rather than one, against their published release channels, reading admin state from gigagrug.
 
 ## Managed addons
 
-`appsettings.json` holds an `Addons` array of `{ Id, FolderName, ManifestBaseUrl }` (`ManagedAddon` in `Steward.Core`). Today it ships one entry, `hoobiscripts`. Adding a second addon (Steward's own future addon release included) is a config entry, nothing more: `AddonUpdater` takes the `ManagedAddon` and channel as parameters rather than hardcoding a folder name or manifest URL, and the UI iterates the configured list per WoW install.
+`appsettings.json` holds an `Addons` array of `{ Id, FolderName, ManifestBaseUrl }` (`ManagedAddon` in `Steward.Core`). The Steward addon does not exist yet, so the only entry shipped today is `hoobiscripts`, and Steward joins as a second entry once it publishes manifests of its own. Adding one is a config entry, nothing more: `AddonUpdater` takes the `ManagedAddon` and channel as parameters rather than hardcoding a folder name or manifest URL, and the UI iterates the configured list per WoW install.
 
 The manifest for an addon+channel is `{ManifestBaseUrl}latest-{channel}.json`; the release zip resolves relative to that manifest URI. The manifest fetch sends `Cache-Control: no-cache` per request rather than trusting the Static Web App's own cache headers, since the SWA route's header behaviour for a nested path is unconfirmed. SHA-256 verification, the zip-slip guard, and the rule that an existing addon folder is only deleted when it holds that addon's own `.toc` are unchanged from the single-addon version.
 
@@ -30,6 +32,10 @@ Each WoW install + addon pair records what was actually installed (version, chan
 
 `CoreWebView2Environment.GetAvailableBrowserVersionString` surfaces a missing Evergreen Runtime as a bare `COMException` with `HRESULT 0x80070002` (`ERROR_FILE_NOT_FOUND`) on the WinUI 3 projection, not the classic `WebView2RuntimeNotFoundException` the WPF/WinForms wrapper throws. `SessionService` catches that HRESULT specifically and rewords it.
 
-## Addon repo this maintains
+## Addon repos
 
-[`HoobiScripts`](C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\HoobiScripts), private, the WoW addon this app updates. Its own `AGENTS.md` documents the addon side of the integration and the release-please channel mechanics that produce the manifests this app reads.
+The Steward addon is the app's reason to exist and has not been built yet. It gets its own private repo, and becomes a second `Addons` entry once it publishes manifests.
+
+`HoobiScripts` (private, `hoobio/HoobiScripts`, cloned in place under the live client at `C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\HoobiScripts`) is the addon currently configured. Its `AGENTS.md` documents the addon side of the integration and the release-please channel mechanics.
+
+`hoobio/addons` (private) builds the channel manifests and zips this app reads and publishes them to the Static Web App. The `/<addon-id>/` path layout there is a contract: installed clients bake the manifest URL in, so it cannot be changed once anyone is running the app.

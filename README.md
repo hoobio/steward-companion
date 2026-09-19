@@ -1,8 +1,8 @@
 # Steward
 
-A small Windows desktop app that keeps Hoobi's WoW addons up to date. It signs in against gigagrug, finds your WoW installs, and shows the installed and available version of each managed addon so you can update it in one click.
+The desktop half of Steward, a guild toolkit for World of Warcraft. It signs in with Discord, finds your WoW installs, and keeps the Steward addon current. In time it carries guild roster, loot history and attendance between the game and the guild admin panel, and combines what several officers record into one view.
 
-It's built for Hoobi's own addons and guild tooling, not a general-purpose addon manager.
+It manages a set of addons rather than one, so the other addons published alongside it ride along. It is not a general-purpose addon manager.
 
 ## Install
 
