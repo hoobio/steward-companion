@@ -24,6 +24,9 @@ public sealed partial class SettingsPage : Page
         Bindings.Update();
     }
 
+    private void OnSizeChanged(object sender, SizeChangedEventArgs e) =>
+        Column.Width = Math.Min(e.NewSize.Width, Column.MaxWidth);
+
     private static void Open(string target) =>
         Process.Start(new ProcessStartInfo(target) { UseShellExecute = true })?.Dispose();
 

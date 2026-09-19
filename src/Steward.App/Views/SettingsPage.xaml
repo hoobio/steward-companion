@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
-    xmlns:vm="using:Steward.App.ViewModels">
+    xmlns:vm="using:Steward.App.ViewModels"
+    SizeChanged="OnSizeChanged">
 
     <Page.Resources>
         <DataTemplate x:Key="ChannelCardTemplate" x:DataType="vm:AddonChannelViewModel">
@@ -78,8 +79,9 @@
 
     <ScrollViewer>
         <StackPanel
+            x:Name="Column"
             MaxWidth="1064"
-            HorizontalAlignment="Stretch"
+            HorizontalAlignment="Center"
             Padding="{StaticResource PageGutter}"
             Spacing="4">
 
