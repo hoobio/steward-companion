@@ -24,6 +24,8 @@ Unconfirmed. The shapes below are what the page needs, not an agreed API. Get th
 | Push one dataset | `POST /api/guild/sync/{roster\|loot\|attendance}` with the parsed records and the addon's `exportedAt` |
 | Pull the merged view | `GET /api/guild/sync/export` returning the merged datasets for writing into the generated Lua file |
 
+Until that contract is agreed, the app runs the page against `InMemoryGuildSyncApi`, the only implementation of `IGuildSyncApi` registered today. It answers with mock counts and a mock local snapshot, so every card, count and banner renders without the endpoints existing. `Send`, `Sync now`, `Write again` and `Update in game` are rendered per this design but disabled, tooltipped "Available once the guild API ships". The fake's `Scenario` property carries `InSync`, `Ready`, `DatasetFailure`, `Unreachable` and `Slow`, defaulting to `Ready`; it is set from code, with no picker in the UI, and is how each state below is reached while the real endpoints are absent. A card drawing on the fake's records carries a `Sample` pill.
+
 Two things to settle with the API owner before implementing:
 
 - **Whether a member role may push.** This design gates pushing behind `global`/`admin`, matching every other privileged action in the app, and leaves pulling open to any signed-in user. If members are meant to contribute their own attendance, that inverts and the role gate moves off push entirely.
@@ -168,9 +170,10 @@ New and not only a view change:
 
 - **A SavedVariables reader.** Parsing the addon's Lua table dump into records. This is the largest piece and belongs in `Steward.Core` with its own tests, ahead of any UI. Built: `LuaSavedVariables` and `StewardSavedVariables`.
 - **A generated Lua writer.** One file, calling a function the addon exposes. Rewritten after every addon update. Built: `StewardSyncFile`.
-- **Running-client detection.** Process enumeration by main module path, per flavour folder, plus an exit hook that triggers a re-read.
-- **Sync client methods.** On `GigagrugClient`, against a contract that does not exist yet.
-- **`NavigationView` shell.** See [Shell change](#shell-change).
+- **Running-client detection.** Process enumeration by main module path, per flavour folder, plus an exit hook that triggers a re-read. Built: `WowClient`, and the per-install watcher in `WowInstallViewModel`.
+- **Sync client methods.** On `GigagrugClient`, against a contract that does not exist yet. Built against the fake only: `IGuildSyncApi` and `InMemoryGuildSyncApi`.
+- **`NavigationView` shell.** See [Shell change](#shell-change). Built.
+- **The page itself.** Built: `SyncViewModel` and `SyncPage`, against the fake.
 
 Deliberately absent:
 

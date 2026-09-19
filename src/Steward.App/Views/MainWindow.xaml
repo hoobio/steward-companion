@@ -254,6 +254,7 @@
                 <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent" />
                 <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent" />
                 <Thickness x:Key="NavigationViewContentGridBorderThickness">0</Thickness>
+                <Thickness x:Key="NavigationViewContentMargin">0</Thickness>
             </NavigationView.Resources>
             <NavigationView.MenuItems>
                 <NavigationViewItem x:Name="AddonsItem" Content="Addons" Tag="addons">

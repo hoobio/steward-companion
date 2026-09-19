@@ -71,7 +71,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AddonUpdater addonUpdater,
         AppStateStore stateStore,
         IReadOnlyList<ManagedAddon> addons,
-        IReadOnlyDictionary<string, string> supportedProducts)
+        IReadOnlyDictionary<string, string> supportedProducts,
+        IGuildSyncApi guildSyncApi)
     {
         ArgumentNullException.ThrowIfNull(addons);
         ArgumentNullException.ThrowIfNull(supportedProducts);
@@ -91,7 +92,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isLoadingState = true;
         KeepInTray = stateStore.Load().KeepInTray;
         _isLoadingState = false;
+
+        Sync = new SyncViewModel(this, guildSyncApi)
+        {
+            StateChanged = () => OnPropertyChanged(nameof(SyncBadgeVisibility)),
+        };
+        SavedVariablesChanged = Sync.ReloadAsync;
+        AfterStewardInstalled = Sync.WriteGeneratedFileAsync;
     }
+
+    public SyncViewModel Sync { get; }
 
     public ObservableCollection<WowInstallViewModel> Installs { get; } = [];
 
@@ -221,7 +231,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility ShellChromeVisibility => When(IsSignedIn);
 
-    public Visibility SyncBadgeVisibility { get; } = Visibility.Collapsed;
+    public Visibility SyncBadgeVisibility => When(Sync.HasWaiting);
 
     public Visibility TimeoutVisibility => When(Failure == GateFailure.Timeout);
 

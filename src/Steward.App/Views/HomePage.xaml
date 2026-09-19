@@ -12,7 +12,8 @@
             <Grid
                 BorderThickness="{x:Bind HairlineThickness}"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
-                Padding="12,10"
+                Padding="{StaticResource CardRowPadding}"
+                MinHeight="{StaticResource CardRowMinHeight}"
                 ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="30" />
@@ -178,7 +179,12 @@
                         Visibility="{x:Bind MemberPillVisibility, Mode=OneWay}">
                         <TextBlock Text="Update available" FontSize="12" />
                     </Border>
-                    <Button Width="32" Height="32" Padding="0" ToolTipService.ToolTip="More">
+                    <Button
+                        Width="32"
+                        Height="32"
+                        Padding="0"
+                        ToolTipService.ToolTip="More"
+                        Visibility="{x:Bind OverflowVisibility, Mode=OneWay}">
                         <FontIcon Glyph="&#xE712;" FontSize="14" />
                         <Button.Flyout>
                             <MenuFlyout>
@@ -196,6 +202,7 @@
         <DataTemplate x:Key="InstallCardTemplate" x:DataType="vm:WowInstallViewModel">
             <Expander
                 IsExpanded="True"
+                Padding="0"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Stretch"
                 Background="{ThemeResource LayerFillColorDefaultBrush}"
@@ -205,6 +212,7 @@
                     <Thickness x:Key="ExpanderContentBorderThickness">0</Thickness>
                     <Thickness x:Key="ExpanderContentDownBorderThickness">0</Thickness>
                     <Thickness x:Key="ExpanderContentUpBorderThickness">0</Thickness>
+                    <Thickness x:Key="ExpanderHeaderPadding">16,0,0,0</Thickness>
                 </Expander.Resources>
                 <Expander.Header>
                     <Grid ColumnSpacing="12" VerticalAlignment="Center">

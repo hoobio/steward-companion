@@ -49,3 +49,10 @@ public sealed record SyncPayload(
     IReadOnlyList<RosterMember> Roster,
     IReadOnlyList<LootEvent> Loot,
     IReadOnlyList<AttendanceRecord> Attendance);
+
+public sealed record SyncServerState(
+    IReadOnlyDictionary<string, int> RecordCounts,
+    string Cursor,
+    DateTimeOffset? LastSyncedAt);
+
+public sealed record SyncPushResult(bool Accepted, int Taken, string? Error);

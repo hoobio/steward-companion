@@ -47,6 +47,7 @@
                             </media:RadialGradientBrush>
                             <SolidColorBrush x:Key="SuccessTintBrush" Color="#21BAE67E" />
                             <SolidColorBrush x:Key="CautionTintBrush" Color="#21FFD580" />
+                            <SolidColorBrush x:Key="InfoTintBrush" Color="#21409FFF" />
                             <SolidColorBrush x:Key="DiscordBrush" Color="#FF5865F2" />
                         </ResourceDictionary>
                         <ResourceDictionary x:Key="HighContrast">
@@ -57,6 +58,7 @@
                             <SolidColorBrush x:Key="GroundGlowTopRight" Color="Transparent" />
                             <SolidColorBrush x:Key="SuccessTintBrush" Color="Transparent" />
                             <SolidColorBrush x:Key="CautionTintBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="InfoTintBrush" Color="Transparent" />
                             <SolidColorBrush x:Key="DiscordBrush" Color="{ThemeResource SystemColorButtonFaceColor}" />
                         </ResourceDictionary>
                     </ResourceDictionary.ThemeDictionaries>
@@ -64,6 +66,8 @@
             </ResourceDictionary.MergedDictionaries>
 
             <Thickness x:Key="PageGutter">26</Thickness>
+            <Thickness x:Key="CardRowPadding">16,10</Thickness>
+            <x:Double x:Key="CardRowMinHeight">52</x:Double>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -12,11 +12,12 @@ public sealed partial class SyncPage : Page
         InitializeComponent();
     }
 
-    public MainViewModel? ViewModel { get; private set; }
+    public SyncViewModel? ViewModel { get; private set; }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        ViewModel = e.Parameter as MainViewModel;
+        ViewModel = (e.Parameter as MainViewModel)?.Sync;
+        Bindings.Update();
     }
 }

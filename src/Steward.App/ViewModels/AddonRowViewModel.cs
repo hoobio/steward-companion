@@ -46,6 +46,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         nameof(UpToDateVisibility),
         nameof(MemberPillVisibility),
         nameof(NoticeVisibility),
+        nameof(OverflowVisibility),
         nameof(CanAutoApply),
     ];
 
@@ -176,6 +177,8 @@ public sealed partial class AddonRowViewModel : ObservableObject
     public Visibility UpToDateVisibility => When(State == AddonRowState.Current);
 
     public Visibility MemberPillVisibility => When(!IsAdmin && State == AddonRowState.UpdateAvailable);
+
+    public Visibility OverflowVisibility => When(State != AddonRowState.NoReleases);
 
     public Visibility NoticeVisibility =>
         When(State != AddonRowState.Failed && !string.IsNullOrEmpty(StatusMessage));
