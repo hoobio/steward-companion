@@ -72,7 +72,8 @@ public sealed partial class AddonRowViewModel : ObservableObject
         try
         {
             _latestRelease = await _updater.GetLatestAsync(_addon, channel, cancellationToken).ConfigureAwait(false);
-            AvailableVersion = _latestRelease.Version;
+            AvailableVersion = _latestRelease?.Version;
+            StatusMessage = _latestRelease is null ? $"Nothing released on {channel} yet." : null;
         }
         catch (Exception ex)
         {

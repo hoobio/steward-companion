@@ -11,7 +11,7 @@ public sealed class AddonUpdater
 
     public AddonUpdater(HttpClient httpClient) => _httpClient = httpClient;
 
-    public async Task<AddonRelease> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken)
+    public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken)
     {
         var manifestUri = ManifestUri(addon, channel);
 
@@ -23,11 +23,10 @@ public sealed class AddonUpdater
         using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        var release = await response.Content
+        // A channel with no releases publishes the literal JSON `null`, so null here means an empty channel rather than a fault.
+        return await response.Content
             .ReadFromJsonAsync(CompanionJsonContext.Default.AddonRelease, cancellationToken)
             .ConfigureAwait(false);
-
-        return release ?? throw new HttpRequestException($"GET {manifestUri} returned an empty body");
     }
 
     public async Task InstallAsync(
