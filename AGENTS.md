@@ -48,11 +48,30 @@ Discovery is filtered to `SupportedProducts` in `appsettings.json`, a product co
 
 CommunityToolkit.Mvvm's field-backed `[ObservableProperty]` triggers diagnostic `MVVMTK0045` under WinUI; the ViewModels here declare partial properties instead (`[ObservableProperty] public partial string? Foo { get; set; }`).
 
-## Saved variables (planned)
+## Saved variables
 
-Roster, loot and attendance will read WoW SavedVariables files. Those files are one per addon per scope: everything under an addon's `## SavedVariables:` TOC directive lands in one shared account-level file, `## SavedVariablesPerCharacter:` in a separate file per character. The client only serialises them at logout, exit or `/reload`, rewriting the whole file from memory, so any external write to that file while the client is running is lost on the next serialise. The intended data flow is one direction per file: the app only reads the saved-variables file, and only writes a generated Lua file elsewhere in the addon folder, one the client never writes to, calling a function the addon exposes rather than assigning a raw global. Since the sandbox gives the addon no socket or file-IO channel to signal the app, the app will judge whether a client is running by enumerating OS processes whose main module path sits under that WoW flavour's folder, which is what `WowClient` in Core does, built now for the updater, and judge data freshness from the saved-variables file's mtime against that process's start time plus an `exportedAt` timestamp the addon writes. The addon updater replaces the whole addon folder on update, so the app will need to rewrite its generated sync file immediately after an update rather than rely on the extractor preserving it.
+Roster, loot and attendance read WoW SavedVariables files. Those files are one per addon per scope: everything under an addon's `## SavedVariables:` TOC directive lands in one shared account-level file at `WTF\Account\<ACCOUNT>\SavedVariables\<Addon>.lua` under the flavour folder, and `## SavedVariablesPerCharacter:` in a per-character file at `WTF\Account\<ACCOUNT>\<Realm>\<Character>\SavedVariables\<Addon>.lua`. Account folder names look like `54939295#1`, and the `.lua.bak` beside each file is ignored.
 
-None of this is built yet. The full write-up lives in `hoobio/Steward`'s `AGENTS.md`.
+The reader is built, in `Steward.Core` with no UI on it yet. `LuaSavedVariables.Parse` is a recursive-descent parser for the client's own dump format: one global per `## SavedVariables:` entry, `["string"]`, `[123]` and bare identifier keys, strings with the client's escapes, numbers, booleans, `nil`, nested tables, array items, trailing commas and the `-- [n]` comments the client writes after array entries. Malformed input throws a `FormatException` naming the line and column. `StewardSavedVariables.FindFiles` locates the Steward files under a flavour path and `StewardSavedVariables.Read` maps them into a `SavedVariablesSnapshot` of roster, loot and attendance.
+
+The Steward addon has no Lua yet, so the schema below is the contract the addon must write rather than a record of what it writes. The account file holds `StewardDB`:
+
+```lua
+StewardDB = {
+["exportedAt"] = 1758260000,
+["roster"] = { { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["class"] = "WARRIOR", ["level"] = 60, ["rank"] = "Officer", ["rankIndex"] = 1, ["note"] = "", ["officerNote"] = "", ["lastOnline"] = 1758250000 }, },
+["loot"] = { { ["id"] = "3f2a...", ["at"] = 1758240000, ["player"] = "Hoobi", ["itemId"] = 19019, ["item"] = "Thunderfury", ["quality"] = 5, ["source"] = "Ragnaros", ["instance"] = "Molten Core" }, },
+["attendance"] = { { ["id"] = "9c1b...", ["at"] = 1758230000, ["instance"] = "Molten Core", ["present"] = { "Hoobi", "Grug" } }, },
+}
+```
+
+The per-character file holds `StewardCharDB` with `["exportedAt"]`, `["character"] = { ["name"], ["realm"], ["class"] }`, and `["loot"]` and `["attendance"]` arrays of the same record shapes, carrying what that character observed. Roster is account-level only and the reader takes it from `StewardDB` alone.
+
+`exportedAt` is unix seconds, at the file level and on `at` and `lastOnline`. Loot and attendance records carry an `id` string, and where the same `id` appears in more than one file the copy from the newest `exportedAt` wins. Reading is tolerant: a missing table gives an empty list, a record missing a required field is skipped and counted in the snapshot's `Skipped`, and an absent `exportedAt` gives null.
+
+The client only serialises saved variables at logout, exit or `/reload`, rewriting the whole file from memory, so any external write to that file while the client is running is lost on the next serialise. Data flow is therefore one direction per file: the app only reads the saved-variables file, and only writes a generated Lua file elsewhere in the addon folder, one the client never writes to, calling a function the addon exposes rather than assigning a raw global.
+
+Still to come, in the commits after this one: the generated-file writer, the freshness judgement (the saved-variables mtime against the running client's process start time from `WowClient`, plus `exportedAt`), the rewrite of the generated file after an addon update since the updater replaces the whole addon folder, and the sync page itself. The addon side of the contract lives in `hoobio/Steward`'s `AGENTS.md`.
 
 ## UI design
 
@@ -68,10 +87,10 @@ Checking runs at startup and on the 15-minute `DispatcherQueueTimer` in `MainVie
 
 ## Related repos
 
-- `hoobio/HoobiScripts` (private, local clone `C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\HoobiScripts`): the quality-of-life addon, and the only entry in `appsettings.json` today. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
-- `hoobio/Steward` (private, local clone `C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\Steward`): the roster, loot and attendance addon this app exists for. The repo holds an `AGENTS.md`, a TOC and its icon, and nothing else: no Lua, no manifests, and **no `Addons` entry here**. Do not assume it is wired up.
+- `hoobio/HoobiScripts` (private, local clone `D:\HoobiScripts`): the quality-of-life addon, and the only entry in `appsettings.json` today. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
+- `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. The repo holds an `AGENTS.md`, a TOC and its icon, and nothing else: no Lua, no manifests, and **no `Addons` entry here**. Do not assume it is wired up.
 - `hoobio/addons` (private, local clone `D:\addons`): builds the channel manifests and zips this app reads, and publishes them to the Static Web App.
 
-Both addons are cloned in place under the live WoW client rather than somewhere on `D:\`, so each working tree is what the game loads.
+Both addon clones live on `D:\` like every other repo, and the game loads whatever this app installs from the release channels, so a working tree is never what the client runs.
 
 The `/<addon-id>/` path layout is a contract. Installed clients bake the manifest URL in, so it cannot be changed once anyone is running the app.
