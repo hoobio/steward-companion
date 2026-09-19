@@ -52,6 +52,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly AddonUpdater _addonUpdater;
     private readonly AppStateStore _stateStore;
     private readonly IReadOnlyList<ManagedAddon> _addons;
+    private readonly IReadOnlyDictionary<string, string> _supportedProducts;
     private readonly Dictionary<string, AddonChannelStatus> _status = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyDictionary<string, AddonRelease?>> _releases =
         new(StringComparer.OrdinalIgnoreCase);
@@ -67,15 +68,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         GigagrugClient gigagrugClient,
         AddonUpdater addonUpdater,
         AppStateStore stateStore,
-        IReadOnlyList<ManagedAddon> addons)
+        IReadOnlyList<ManagedAddon> addons,
+        IReadOnlyDictionary<string, string> supportedProducts)
     {
         ArgumentNullException.ThrowIfNull(addons);
+        ArgumentNullException.ThrowIfNull(supportedProducts);
 
         _sessionService = sessionService;
         _gigagrugClient = gigagrugClient;
         _addonUpdater = addonUpdater;
         _stateStore = stateStore;
         _addons = addons;
+        _supportedProducts = supportedProducts;
 
         foreach (var addon in addons)
         {
@@ -343,7 +347,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             var added = _stateStore.Load().AddedInstalls;
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var install in WowInstalls.Discover().Concat(added.Select(WowInstalls.FromFlavourPath).OfType<WowInstall>()))
+            foreach (var install in WowInstalls.Discover(_supportedProducts)
+                .Concat(added.Select(path => WowInstalls.FromFlavourPath(path, _supportedProducts)).OfType<WowInstall>()))
             {
                 if (seen.Add(install.FlavourPath))
                 {
@@ -379,10 +384,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var install = WowInstalls.FromFlavourPath(folder.Path);
+        var install = WowInstalls.FromFlavourPath(folder.Path, _supportedProducts);
         if (install is null)
         {
             StatusMessage = $"{folder.Path} is not a valid WoW flavour directory.";
+            return;
+        }
+
+        if (install.ProductCode is null || !_supportedProducts.ContainsKey(install.ProductCode))
+        {
+            StatusMessage = "Steward supports World of Warcraft: Forever only.";
             return;
         }
 
@@ -406,7 +417,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Rescan()
     {
-        foreach (var install in WowInstalls.Discover())
+        foreach (var install in WowInstalls.Discover(_supportedProducts))
         {
             if (Installs.Any(existing => string.Equals(existing.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase)))
             {

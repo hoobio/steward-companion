@@ -2,7 +2,7 @@
 
 The desktop half of Steward, a guild toolkit for World of Warcraft. It signs in with Discord, finds your WoW installs, and keeps the Steward addon current. In time it carries guild roster, loot history and attendance between the game and the guild admin panel, and combines what several officers record into one view.
 
-It manages a set of addons rather than one, so the other addons published alongside it ride along. It is not a general-purpose addon manager.
+It manages a set of addons rather than one, so the other addons published alongside it ride along. It is not a general-purpose addon manager, and it manages World of Warcraft: Forever installs only.
 
 Steward checks each managed addon's release channel when it starts and every 15 minutes while the window is open. For an install whose game client is closed, Steward applies the updates it finds. While the client is running Steward leaves that install alone: apply from the row's Update button and type `/reload` in game afterwards.
 

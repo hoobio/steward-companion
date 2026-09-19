@@ -116,7 +116,7 @@ An `InfoBar` directly above the sign-in button, inside the centred stack. The bu
 
 ### No installs
 
-Centred empty state: folder glyph at 44px, "No World of Warcraft installs found", then "Steward looks for a flavour folder holding `.flavor.info`, such as `_retail_` or `_classic_era_`. Point it at one and it reads the patch version from there." Add install (accent) and Rescan.
+Centred empty state: folder glyph at 44px, "No World of Warcraft installs found", then "Steward looks for a World of Warcraft: Forever folder holding `.flavor.info`, such as `_classic_beta_`. Point it at one and it reads the patch version from there." Add install (accent) and Rescan.
 
 The page header stays visible above it.
 
@@ -184,7 +184,7 @@ There is no card explaining when Steward checks. The relative "checked {time} ag
 
 **World of Warcraft installs**
 
-A `SettingsExpander` headed `Installs`, described "{n} found, read from .flavor.info and .build.info", with `Rescan` and `Add install` in the header. One child card per install: flavour name, client version chip, path in mono, and `Remove`. An install added through the picker carries an `Added by you` pill.
+A `SettingsExpander` headed `Installs`, described "{n} found, read from .flavor.info and .build.info", with `Rescan` and `Add install` in the header. One child card per install: flavour name, client version chip, path in mono, and `Remove`. An install added through the picker carries an `Added by you` pill. Discovery and the picker are both filtered to World of Warcraft: Forever installs, per `SupportedProducts` in `appsettings.json`.
 
 Removing an install is new. It drops the install from the list and its records from `state.json`; it does not touch the addon folder on disk.
 

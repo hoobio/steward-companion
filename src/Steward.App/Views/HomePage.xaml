@@ -401,7 +401,7 @@
                 HorizontalAlignment="Center"
                 TextAlignment="Center"
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Text="Steward looks for a flavour folder holding .flavor.info, such as _retail_ or _classic_era_. Point it at one and it reads the patch version from there." />
+                Text="Steward looks for a World of Warcraft: Forever folder holding .flavor.info, such as _classic_beta_. Point it at one and it reads the patch version from there." />
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                 <Button
                     Height="32"

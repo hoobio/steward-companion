@@ -34,7 +34,8 @@ public sealed record WowInstall(
     string FlavourPath,
     string AddOnsPath,
     string? ProductCode,
-    string? ClientVersion);
+    string? ClientVersion,
+    string DisplayName);
 
 public sealed record InstalledAddonRecord(
     [property: JsonPropertyName("version")] string Version,

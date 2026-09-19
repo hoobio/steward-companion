@@ -32,6 +32,8 @@ Each WoW install + addon pair records what was actually installed (version, chan
 
 `WowInstalls` walks `.flavor.info` (product code) joined against the root `.build.info` (product to version) to find each flavour without a hardcoded product-to-folder map. The Blizzard registry key (`HKLM\...\World of Warcraft`) is not used as a discovery root by itself: on the dev machine it is hijacked by an unrelated Ascension install, so it is one candidate root among several, never the only one trusted.
 
+Discovery is filtered to `SupportedProducts` in `appsettings.json`, a product code to display name map, since the managed addons target World of Warcraft: Forever only. Today that map holds one entry, the beta's `wow_classic_beta`; the release build joins as a second entry once its product code is known.
+
 ## Branding
 
 `src/Steward.App/Assets/Steward.ico` (16 through 256px, PNG-compressed frames) is the one source of the app's icon: `ApplicationIcon` stamps it on the exe, `AppWindow.SetIcon` puts it on both windows, and the wxs picks it out of the publish payload for `ARPPRODUCTICON` and the Start menu shortcut. WinUI 3 does not take the window icon from the exe on its own, so the `SetIcon` calls are load-bearing.

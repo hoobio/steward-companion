@@ -2,6 +2,11 @@ namespace Steward.Core.Tests;
 
 public sealed class WowInstallsTests : IDisposable
 {
+    private static readonly Dictionary<string, string> SupportedProducts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["wow_classic_beta"] = "World of Warcraft: Forever - Beta",
+    };
+
     private readonly string _root = Directory.CreateTempSubdirectory("steward-wow-").FullName;
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
@@ -29,7 +34,7 @@ public sealed class WowInstallsTests : IDisposable
         CreateValidFlavourDir("_classic_beta_", "wow_classic_beta");
         Directory.CreateDirectory(Path.Combine(_root, "_retail_"));
 
-        var installs = WowInstalls.DiscoverAt(_root).ToList();
+        var installs = WowInstalls.DiscoverAt(_root, SupportedProducts).ToList();
 
         var install = Assert.Single(installs);
         Assert.Equal("_classic_beta_", install.Flavour);
@@ -42,10 +47,22 @@ public sealed class WowInstallsTests : IDisposable
         CreateValidFlavourDir("_classic_beta_", "wow_classic_beta");
         WriteBuildInfo("wow_classic_beta", "1.15.7.60000");
 
-        var install = Assert.Single(WowInstalls.DiscoverAt(_root));
+        var install = Assert.Single(WowInstalls.DiscoverAt(_root, SupportedProducts));
 
         Assert.Equal("wow_classic_beta", install.ProductCode);
         Assert.Equal("1.15.7.60000", install.ClientVersion);
+    }
+
+    [Fact]
+    public void DiscoverAt_SkipsUnsupportedProducts()
+    {
+        CreateValidFlavourDir("_classic_beta_", "wow_classic_beta");
+        CreateValidFlavourDir("_retail_", "wow");
+
+        var installs = WowInstalls.DiscoverAt(_root, SupportedProducts).ToList();
+
+        var install = Assert.Single(installs);
+        Assert.Equal("_classic_beta_", install.Flavour);
     }
 
     [Fact]
@@ -54,7 +71,7 @@ public sealed class WowInstallsTests : IDisposable
         var invalid = Path.Combine(_root, "_retail_");
         Directory.CreateDirectory(invalid);
 
-        Assert.Null(WowInstalls.FromFlavourPath(invalid));
+        Assert.Null(WowInstalls.FromFlavourPath(invalid, SupportedProducts));
     }
 
     [Fact]
@@ -62,16 +79,31 @@ public sealed class WowInstallsTests : IDisposable
     {
         var flavourPath = CreateValidFlavourDir("_classic_beta_", "wow_classic_beta");
 
-        var install = WowInstalls.FromFlavourPath(flavourPath);
+        var install = WowInstalls.FromFlavourPath(flavourPath, SupportedProducts);
 
         Assert.NotNull(install);
         Assert.Equal(flavourPath, install.FlavourPath);
     }
 
-    [Theory]
-    [InlineData("_classic_beta_", "World of Warcraft: Forever - Beta")]
-    [InlineData("_retail_", "World of Warcraft")]
-    [InlineData("_classic_era_", "_classic_era_")]
-    public void DisplayName_MapsKnownFlavours_AndFallsBackToTheFolderName(string flavour, string expected) =>
-        Assert.Equal(expected, WowInstalls.DisplayName(flavour));
+    [Fact]
+    public void FromFlavourPath_ReturnsInstall_ForUnsupportedProduct()
+    {
+        var flavourPath = CreateValidFlavourDir("_retail_", "wow");
+
+        var install = WowInstalls.FromFlavourPath(flavourPath, SupportedProducts);
+
+        Assert.NotNull(install);
+        Assert.Equal("wow", install.ProductCode);
+        Assert.False(SupportedProducts.ContainsKey(install.ProductCode!));
+    }
+
+    [Fact]
+    public void DisplayName_UsesTheProductMap_AndFallsBackToTheFolder()
+    {
+        var supported = CreateValidFlavourDir("_classic_beta_", "wow_classic_beta");
+        var unsupported = CreateValidFlavourDir("_retail_", "wow");
+
+        Assert.Equal("World of Warcraft: Forever - Beta", WowInstalls.FromFlavourPath(supported, SupportedProducts)!.DisplayName);
+        Assert.Equal("_retail_", WowInstalls.FromFlavourPath(unsupported, SupportedProducts)!.DisplayName);
+    }
 }

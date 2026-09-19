@@ -29,6 +29,12 @@ internal static class HostBuilderExtensions
             throw new InvalidOperationException("Addons must list at least one managed addon");
         }
 
+        var supportedProducts = builder.Configuration.GetSection("SupportedProducts").Get<Dictionary<string, string>>();
+        if (supportedProducts is null || supportedProducts.Count == 0)
+        {
+            throw new InvalidOperationException("SupportedProducts is not configured");
+        }
+
         builder.Services.AddSingleton<CookieContainer>();
         builder.Services.AddHttpClient("Gigagrug")
             .ConfigurePrimaryHttpMessageHandler(sp => new SocketsHttpHandler
@@ -38,6 +44,8 @@ internal static class HostBuilderExtensions
         builder.Services.AddHttpClient("Addon");
 
         builder.Services.AddSingleton<IReadOnlyList<ManagedAddon>>(addons);
+        builder.Services.AddSingleton<IReadOnlyDictionary<string, string>>(
+            new Dictionary<string, string>(supportedProducts, StringComparer.OrdinalIgnoreCase));
         builder.Services.AddSingleton(sp => new AppStateStore([.. sp.GetRequiredService<IReadOnlyList<ManagedAddon>>().Select(a => a.Id)]));
         builder.Services.AddSingleton(sp => new GigagrugClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gigagrug"),
