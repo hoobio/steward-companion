@@ -29,7 +29,17 @@
                     VerticalAlignment="Center"
                     CornerRadius="6"
                     Background="{ThemeResource ChipBrush}">
-                    <FontIcon Glyph="&#xE7FC;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Grid>
+                        <FontIcon
+                            Glyph="&#xE7FC;"
+                            FontSize="14"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Visibility="{x:Bind GlyphVisibility, Mode=OneWay}" />
+                        <Image
+                            Source="{x:Bind Icon, Mode=OneWay}"
+                            Stretch="UniformToFill"
+                            Visibility="{x:Bind IconVisibility, Mode=OneWay}" />
+                    </Grid>
                 </Border>
 
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
