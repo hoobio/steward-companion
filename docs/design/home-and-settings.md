@@ -46,7 +46,7 @@ The channel is per addon, not per app. `hoobiscripts` and `steward` are separate
 
 **Availability.** A channel is offered for an addon only when `{ManifestBaseUrl}latest-{channel}.json` resolves to a release. Refresh probes every channel the role can see rather than only the selected one, so one fetch per channel the role can see at startup instead of one per addon. A channel with no release renders disabled in the picker with the tooltip "No releases on {channel} yet".
 
-**Default.** With no stored choice for an addon, pick the highest channel that has a release, ordered `stable` then `beta` then `unstable`. Today that gives `hoobiscripts` beta, matching the current hardcoded default, and it gives `steward` nothing until it publishes. Once the user picks a channel it is stored and the default stops applying.
+**Default.** With no stored choice for an addon, pick the first channel that has a release in the order `beta` then `stable` then `unstable`. Beta leads while the addons are pre-release. Today that gives `hoobiscripts` beta, and it gives `steward` nothing until it publishes. Once the user picks a channel it is stored and the default stops applying.
 
 **Role.** `unstable` is absent from the picker unless `/api/admin/me` returns role exactly `global`. Absent for role and disabled for no releases are different states and read differently: the first is not shown at all, the second is shown greyed with the reason.
 
@@ -217,7 +217,7 @@ New and not only a view change, so worth doing first:
 
 - **Per-addon channels.** `AppState.Channel` becomes `Channels`, a map of addon id to channel, with a one-time migration seeding every configured addon from the old value. `MainViewModel.SelectedChannel` and `OnSelectedChannelChanged` go away and `AddonRowViewModel` reads its own channel from the store.
 - **Channel probing.** `AddonUpdater.GetLatestAsync` is called for all three channels per addon on refresh, not just the selected one, so the picker knows which channels have releases. A missing manifest is a normal outcome here, not an error to surface.
-- **Default channel.** With nothing stored for an addon, take the highest channel that has a release, ordered `stable`, `beta`, `unstable`. Ordering is by stability, not by recency: the safest channel that actually has something wins.
+- **Default channel.** With nothing stored for an addon, take the first channel that has a release in the order `beta`, `stable`, `unstable`, so a pre-release addon lands on beta and one with no beta falls back to stable.
 - **Background checking.** The 15-minute timer refreshes manifests as well as the role, and a check runs at startup. Applying an update follows the game client. See [Checking](#checking).
 - **Dark only.** `RequestedTheme` is forced to `Dark` in `App.xaml`, matching the guild panel. There is no theme setting and no light palette.
 

@@ -16,10 +16,10 @@ public sealed class AddonChannelStatusTests
     }
 
     [Theory]
-    [InlineData(new[] { "stable", "beta", "unstable" }, "stable")]
-    [InlineData(new[] { "beta", "unstable" }, "beta")]
+    [InlineData(new[] { "stable", "beta", "unstable" }, "beta")]
+    [InlineData(new[] { "stable", "unstable" }, "stable")]
     [InlineData(new[] { "unstable" }, "unstable")]
-    public void Resolve_NothingStored_PrefersStable_ThenBeta_ThenUnstable(string[] available, string expected)
+    public void Resolve_NothingStored_PrefersBeta_ThenStable_ThenUnstable(string[] available, string expected)
     {
         var status = AddonChannelStatus.Resolve(null, ReleasesOn(available));
 
@@ -64,7 +64,7 @@ public sealed class AddonChannelStatusTests
 
         var status = AddonChannelStatus.Resolve("unstable", releases);
 
-        Assert.Equal("stable", status.Channel);
+        Assert.Equal("beta", status.Channel);
         Assert.Null(status.Notice);
     }
 
