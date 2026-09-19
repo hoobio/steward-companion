@@ -28,8 +28,8 @@ public sealed partial class MainWindow : Window
         ViewModel = viewModel;
         SystemBackdrop = new MicaBackdrop();
         ViewModel.OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        ViewModel.NavigateToSettings = GoToSettings;
-        RootFrame.Navigate(typeof(HomePage), ViewModel);
+        ViewModel.NavigateToSettings = () => Nav.SelectedItem = Nav.SettingsItem;
+        Nav.SelectedItem = AddonsItem;
 
         var scale = Content.XamlRoot?.RasterizationScale ?? 1.0;
         if (AppWindow.Presenter is OverlappedPresenter presenter)
@@ -51,17 +51,23 @@ public sealed partial class MainWindow : Window
 
     public ICommand ShowWindowCommand { get; }
 
-    private void OnBackRequested(TitleBar sender, object args)
+    private void OnNavSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        if (RootFrame.CanGoBack)
+        var page = args.IsSettingsSelected
+            ? typeof(SettingsPage)
+            : ((args.SelectedItem as NavigationViewItem)?.Tag as string) switch
+            {
+                "sync" => typeof(SyncPage),
+                _ => typeof(HomePage),
+            };
+
+        if (RootFrame.CurrentSourcePageType == page)
         {
-            RootFrame.GoBack();
+            return;
         }
 
-        ViewModel.IsOnSettings = false;
+        RootFrame.Navigate(page, ViewModel);
     }
-
-    private void OnSettingsClick(object sender, RoutedEventArgs e) => GoToSettings();
 
     private void OnGuildPanelClick(object sender, RoutedEventArgs e)
     {
@@ -72,11 +78,7 @@ public sealed partial class MainWindow : Window
     private void OnSignOutClick(object sender, RoutedEventArgs e)
     {
         AccountFlyout.Hide();
-        if (RootFrame.CanGoBack)
-        {
-            RootFrame.GoBack();
-        }
-
+        Nav.SelectedItem = AddonsItem;
         ViewModel.SignOutCommand.Execute(null);
     }
 
@@ -130,16 +132,5 @@ public sealed partial class MainWindow : Window
     {
         TrayIcon.Dispose();
         Application.Current.Exit();
-    }
-
-    private void GoToSettings()
-    {
-        if (ViewModel.IsOnSettings)
-        {
-            return;
-        }
-
-        RootFrame.Navigate(typeof(SettingsPage), ViewModel);
-        ViewModel.IsOnSettings = true;
     }
 }

@@ -138,9 +138,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial GateFailure Failure { get; set; }
 
     [ObservableProperty]
-    public partial bool IsOnSettings { get; set; }
-
-    [ObservableProperty]
     public partial bool KeepInTray { get; set; }
 
     [ObservableProperty]
@@ -220,6 +217,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Visibility GateVisibility => When(!IsSignedIn);
 
     public Visibility ShellChromeVisibility => When(IsSignedIn);
+
+    public Visibility SyncBadgeVisibility { get; } = Visibility.Collapsed;
 
     public Visibility TimeoutVisibility => When(Failure == GateFailure.Timeout);
 
@@ -328,7 +327,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AvatarUri = null;
         IsAuthorized = false;
         IsGlobalAdmin = false;
-        IsOnSettings = false;
         StatusMessage = null;
         Failure = GateFailure.None;
         IsSignedIn = false;

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Steward.App.Views.SyncPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel Padding="{StaticResource PageGutter}" Spacing="4">
+        <TextBlock Text="Sync" FontSize="26" FontWeight="SemiBold" />
+        <TextBlock Text="Not built yet" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+    </StackPanel>
+</Page>
