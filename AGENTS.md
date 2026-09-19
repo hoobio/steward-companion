@@ -6,7 +6,7 @@ Updating is the whole of it today. It manages a set of addons rather than one, a
 
 ## Managed addons
 
-`appsettings.json` holds an `Addons` array of `{ Id, FolderName, ManifestBaseUrl }` (`ManagedAddon` in `Steward.Core`). The Steward addon does not exist yet, so the only entry shipped today is `hoobiscripts`, and Steward joins as a second entry once it publishes manifests of its own. Adding one is a config entry, nothing more: `AddonUpdater` takes the `ManagedAddon` and channel as parameters rather than hardcoding a folder name or manifest URL, and the UI iterates the configured list per WoW install.
+`appsettings.json` holds an `Addons` array of `{ Id, FolderName, ManifestBaseUrl }` (`ManagedAddon` in `Steward.Core`). Two entries ship today, `hoobiscripts` and `steward`; a configured addon with no manifest on any channel renders as "No releases yet" rather than as an error. Adding one is a config entry, nothing more: `AddonUpdater` takes the `ManagedAddon` and channel as parameters rather than hardcoding a folder name or manifest URL, and the UI iterates the configured list per WoW install.
 
 The manifest for an addon+channel is `{ManifestBaseUrl}latest-{channel}.json`; the release zip resolves relative to that manifest URI. The manifest fetch sends `Cache-Control: no-cache` per request rather than trusting the Static Web App's own cache headers, since the SWA route's header behaviour for a nested path is unconfirmed. SHA-256 verification, the zip-slip guard, and the rule that an existing addon folder is only deleted when it holds that addon's own `.toc` are unchanged from the single-addon version.
 
@@ -90,7 +90,7 @@ Checking runs at startup and on a 1-minute `DispatcherQueueTimer` in `MainViewMo
 ## Related repos
 
 - `hoobio/HoobiScripts` (private, local clone `D:\HoobiScripts`): the quality-of-life addon, and the only entry in `appsettings.json` today. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
-- `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. The repo holds an `AGENTS.md`, a TOC and its icon, and nothing else: no Lua, no manifests, and **no `Addons` entry here**. Do not assume it is wired up.
+- `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. It has an `Addons` entry here (`steward`, `https://addon.hoobi.io/steward/`) and shows "No releases yet" until its first manifest is published through `hoobio/addons`.
 - `hoobio/addons` (private, local clone `D:\addons`): builds the channel manifests and zips this app reads, and publishes them to the Static Web App.
 
 Both addon clones live on `D:\` like every other repo, and the game loads whatever this app installs from the release channels, so a working tree is never what the client runs.
