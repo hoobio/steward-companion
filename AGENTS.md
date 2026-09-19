@@ -24,7 +24,7 @@ Every privileged action re-checks `GET /api/admin/me`: at startup, immediately b
 
 ## Channels
 
-Three release channels: `stable`, `beta`, `unstable`. The selected channel is a persisted app setting, default `beta`, stored alongside the install-state records in the same `state.json`. `unstable` is offered only when `/api/admin/me` returns `role: "global"` exactly; `admin` sees stable and beta. That gate is client-side only, same caveat as the admin re-check above: nothing stops a direct fetch of the unstable manifest.
+Three release channels: `stable`, `beta`, `unstable`. The channel is per addon, stored in `Channels` alongside the install-state records in the same `state.json`, defaulting to the highest channel that has a release, ordered `stable`, `beta`, `unstable`. `unstable` is offered only when `/api/admin/me` returns `role: "global"` exactly; `admin` sees stable and beta. That gate is client-side only, same caveat as the admin re-check above: nothing stops a direct fetch of the unstable manifest.
 
 Each WoW install + addon pair records what was actually installed (version, channel, sha256), keyed by flavour path plus addon id. With no record, the addon's own `.toc` version is the fallback, which is the manual-install case. Update availability is plain string inequality between that recorded/TOC version and the channel manifest's version, not a semver comparison: versions like `0.5.0-beta.1` and `0.5.0-unstable.219da29` don't parse as `System.Version`, and switching channels has to be able to move the installed version in either direction.
 
@@ -36,7 +36,7 @@ Discovery is filtered to `SupportedProducts` in `appsettings.json`, a product co
 
 ## Branding
 
-`src/Steward.App/Assets/Steward.ico` (16 through 256px, PNG-compressed frames) is the one source of the app's icon: `ApplicationIcon` stamps it on the exe, `AppWindow.SetIcon` puts it on both windows, and the wxs picks it out of the publish payload for `ARPPRODUCTICON` and the Start menu shortcut. WinUI 3 does not take the window icon from the exe on its own, so the `SetIcon` calls are load-bearing.
+`src/Steward.App/Assets/Steward.ico` (16 through 256px, PNG-compressed frames) is the one source of the app's icon: `ApplicationIcon` stamps it on the exe, `AppWindow.SetIcon` puts it on the one window, and the wxs picks it out of the publish payload for `ARPPRODUCTICON` and the Start menu shortcut. WinUI 3 does not take the window icon from the exe on its own, so the `SetIcon` calls are load-bearing.
 
 ## Build and test gotchas
 
@@ -77,7 +77,7 @@ Still to come, in the commits after this one: the freshness judgement (the saved
 
 ## UI design
 
-`docs/design/home-and-settings.md` is the agreed design for the Addons page, the settings page and the shell, and it is implemented. Four things in it were behaviour rather than view, and the doc remains the source of truth for each: the release channel is per addon (`AppState.Channels`, with `LegacyChannel` carrying the one-time migration), refresh probes all three channels per addon so a channel with no release can be disabled, the default channel is the highest one that has a release ordered `stable`/`beta`/`unstable`, and the 15-minute timer refreshes manifests as well as the role. Applying an update follows the game client.
+`docs/design/home-and-settings.md` is the agreed design for the Addons page, the settings page and the shell, and it is implemented. Four things in it were behaviour rather than view, and the doc remains the source of truth for each: the release channel is per addon (`AppState.Channels`, with `LegacyChannel` carrying the one-time migration), refresh probes all three channels per addon so a channel with no release can be disabled, the default channel is the highest one that has a release ordered `stable`/`beta`/`unstable`, and the timer refreshes manifests as well as the role. Applying an update follows the game client.
 
 `docs/design/sync.md` is the agreed design for a third page, moving roster, loot and attendance between SavedVariables and the guild API. It is not implemented and it is blocked on two things outside this repo: the Steward addon publishes no manifests, and the sync endpoints do not exist. The endpoint table in that doc is provisional and marked as such. Its shell change replaces the `Frame` in `MainWindow.xaml` with a `NavigationView` in `LeftCompact` mode and moves Settings to the footer item.
 
@@ -85,7 +85,7 @@ Still to come, in the commits after this one: the freshness judgement (the saved
 
 The tray icon, close-to-tray and minimise-to-tray are built, on `H.NotifyIcon.WinUI`. The `TaskbarIcon` lives in `MainWindow.xaml`, takes its `IconSource` from the filesystem path `App.IconPath` because an unpackaged app cannot resolve `ms-appx:///`, and runs in `ContextMenuMode="SecondWindow"`. The `KeepInTray` setting on the Behaviour card in Settings, persisted as `keep_in_tray` in `state.json` and defaulting to true, decides whether the X button and minimise hide the window or quit. Start-with-Windows was planned, cancelled, and stays cancelled. A settings window was cancelled alongside it and has since been revived as a settings page: see `docs/design/home-and-settings.md`.
 
-Checking runs at startup and on the 15-minute `DispatcherQueueTimer` in `MainViewModel`, which also re-checks `/api/admin/me`. A background pass skips busy rows and never re-orders `Installs` or `AddonRows`. Applying follows the game client. `WowClient.IsRunning` in Core judges whether an install's client is up, by matching any `Wow*` process whose main module sits under that install's flavour folder, and `MainViewModel.AutoApplyAsync` runs after every pass and on every tick: for an install with no client running, each eligible row's `UpdateCommand` is executed in turn, skipping busy rows and rows whose last attempt failed until a new resolution arrives. While an install's client is running its rows stay on the Update button and show a `/reload` hint after a manual update.
+Checking runs at startup and on a 1-minute `DispatcherQueueTimer` in `MainViewModel` that does its network work every 15 minutes, re-checking `/api/admin/me` alongside the manifests. A background pass skips busy rows and never re-orders `Installs` or `AddonRows`. Applying follows the game client. `WowClient.IsRunning` in Core judges whether an install's client is up, by matching any `Wow*` process whose main module sits under that install's flavour folder, and `MainViewModel.AutoApplyAsync` runs after every pass and on every tick: for an install with no client running, each eligible row's `UpdateCommand` is executed in turn, skipping busy rows and rows whose last attempt failed until a new resolution arrives. While an install's client is running its rows stay on the Update button and show a `/reload` hint after a manual update.
 
 ## Related repos
 

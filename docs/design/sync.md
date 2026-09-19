@@ -4,7 +4,7 @@ The WinUI 3 design for a third page: moving roster, loot history and attendance 
 
 Rendered mockups of every state: https://claude.ai/artifact/1Vyp5Qcg9KzbbtweuNNYRf
 
-None of this is built, and neither is the half it depends on. The Steward addon publishes no manifests and has no `Addons` entry, so it cannot be installed by the app today, and the sync endpoints on the guild API do not exist yet. The page's honest default state is the one where the addon is missing.
+Built so far: the SavedVariables reader, the generated sync-file writer, the freshness judgement in `SavedVariablesFreshness`, and the `NavigationView` shell this page sits in. Not built: the page itself and the sync endpoints on the guild API. The Steward addon also publishes no manifests and has no `Addons` entry, so it cannot be installed by the app today, and the page's honest default state is the one where the addon is missing.
 
 Foundations, palette, type and surfaces are unchanged from [home-and-settings.md](home-and-settings.md).
 

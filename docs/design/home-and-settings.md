@@ -4,7 +4,7 @@ The WinUI 3 design for the two pages the app has: a home page listing every WoW 
 
 Rendered mockups of every state: https://claude.ai/artifact/1Vyp5Qcg9KzbbtweuNNYRf
 
-None of this is built. `MainWindow.xaml` today is a single grid with an install `ComboBox`, a channel `ComboBox` and a `ListView` of addon rows, and there is no settings page.
+This is built, and this doc is the reference for how it behaves.
 
 ## Foundations
 
@@ -26,7 +26,7 @@ Fluent supplies the materials, controls and motion. The guild panel (`@hoobi/des
 | Caution | `#ffd580` | `SystemFillColorCaution` |
 | Critical | `#f28779` | `SystemFillColorCritical` |
 
-Override the accent and the three semantic fills in `App.xaml`, and set `RequestedTheme="Dark"` on the `Application`. Steward is dark only, matching the guild panel, which ships no light variant. Leave every other brush on stock Fluent so Mica, acrylic flyouts and high contrast keep working. The existing `Spacing*` doubles in `App.xaml` already carry the 4px scale; page gutters are 26px and cards are 10px apart.
+Override the accent and the three semantic fills in `App.xaml`, and set `RequestedTheme="Dark"` on the `Application`. Steward is dark only, matching the guild panel, which ships no light variant. Leave every other brush on stock Fluent so Mica, acrylic flyouts and high contrast keep working. Spacing follows a 4px scale; page gutters are 26px and cards are 10px apart.
 
 Segoe UI Variable for the interface, Cascadia Mono for versions, hashes and paths. Hanken Grotesk and DankMono stay on the web side, where a font file can be served.
 
@@ -44,7 +44,7 @@ The channel is per addon, not per app. `hoobiscripts` and `steward` are separate
 
 `state.json` carries `Channels`, a map of addon id to channel, replacing the single `Channel` string. On first load, an existing `Channel` value seeds every configured addon so nobody loses their setting.
 
-**Availability.** A channel is offered for an addon only when `{ManifestBaseUrl}latest-{channel}.json` resolves to a release. Refresh probes all three per addon rather than only the selected one, so 3 fetches per addon at startup instead of 1. A channel with no release renders disabled in the picker with the tooltip "No releases on {channel} yet".
+**Availability.** A channel is offered for an addon only when `{ManifestBaseUrl}latest-{channel}.json` resolves to a release. Refresh probes every channel the role can see rather than only the selected one, so one fetch per channel the role can see at startup instead of one per addon. A channel with no release renders disabled in the picker with the tooltip "No releases on {channel} yet".
 
 **Default.** With no stored choice for an addon, pick the highest channel that has a release, ordered `stable` then `beta` then `unstable`. Today that gives `hoobiscripts` beta, matching the current hardcoded default, and it gives `steward` nothing until it publishes. Once the user picks a channel it is stored and the default stops applying.
 
@@ -56,7 +56,7 @@ The channel is per addon, not per app. `hoobiscripts` and `steward` are separate
 
 ## Checking
 
-Steward checks at startup and every 15 minutes in the background, on the `DispatcherQueueTimer` in `MainViewModel` that already re-checks the role. One timer covering both jobs, split only if the two cadences ever need to differ. A manual check stays available on the refresh button in the page header.
+Steward checks at startup and every 15 minutes in the background, on the 1-minute `DispatcherQueueTimer` in `MainViewModel` that also re-checks the role. The timer ticks each minute to refresh the relative time and follow the game client, and does its network work every 15 minutes. One timer covering both jobs, split only if the two cadences ever need to differ. A manual check stays available on the refresh button in the page header.
 
 Applying follows the game client. An install whose client is closed has its available updates applied by Steward on the pass that finds them, one row at a time, for a user with an admin role. While that install's client runs nothing is applied for it: the row keeps its Update button, and after a manual update the row carries "Type /reload in game to load the updated files" until the client stops or a later update runs. The green dot beside an install name is the running indicator.
 
@@ -66,8 +66,6 @@ A background pass must not disturb the page:
 - Cards and rows never re-sort. A newly available update changes the row in place and raises the banner count.
 - Nothing steals focus, and no dialog or toast appears.
 - The header and banner carry a relative "checked {time} ago", which is what tells the user the timer is alive.
-
-`README.md` says "It does not poll in the background or apply anything while you are not looking", and the `Outstanding work` section of `AGENTS.md` says there is no timer for addon updates. Both stop being true here, and both need correcting in the same PR.
 
 ## Window shell
 
@@ -100,8 +98,6 @@ The signed-out window is the sign-in and nothing else. No install list, no setti
 
 Centred stack: app mark at 56px, `Sign in to Steward` at 28/600, one line of body copy at 46ch, then the Discord button (`#5865f2`, white label, 38px tall). Below it, muted at 12px: "Opens your browser. Steward stores the session locally and never sees your password." Version and a Help link sit in the lower-left corner of the window, outside the centred stack.
 
-This replaces the current behaviour, where `InitializeAsync` calls `SignInAsync` immediately and the user never sees a signed-out window.
-
 ### Signing in
 
 The main window stays on the gate while the default browser handles Discord and lands on the loopback page. The heading changes to "Waiting for Discord", the button goes to its busy state with a spinner and keeps its label, and a Cancel button appears beside it.
@@ -111,8 +107,8 @@ The main window stays on the gate while the default browser handles Discord and 
 An `InfoBar` directly above the sign-in button, inside the centred stack. The button stays available.
 
 - Browser timeout, caution: "Steward did not hear back from your browser. Sign in again." Raised when the loopback listener sees no code within 5 minutes or the tab was closed.
-- Expired session, caution: "Your session expired. Sessions last 90 days from last use. Sign in again to carry on."
-- Unreachable host, critical: "Could not reach guild.hoobi.io. Check your connection. Steward will not have current addon versions until it can." Action button retries.
+- Expired session, caution: "Your session expired. Sessions last 30 days from last use. Sign in again to carry on."
+- Unreachable host, critical: "Could not reach api.hoobi.io. Check your connection. Steward will not have current addon versions until it can." Action button retries.
 
 ### No installs
 
@@ -145,7 +141,7 @@ An addon row is: 30px addon glyph, name at 13.5px with the addon id in mono bene
 
 The channel pill is read only here. The same addon appears once per install and they all share one channel, so a picker on the row would change three rows at once. The row's overflow menu carries `Change channel`, which opens Settings, alongside Open folder, Reinstall and Copy SHA-256.
 
-Availability is string inequality against the recorded version, so a channel switch can move a version down. The button reads `Switch to {version}` rather than `Update` when the available version sorts below the installed one.
+Availability is string inequality against the recorded version, so a channel switch can move a version down. The button reads `Switch to {version}` rather than `Update` when the addon's recorded channel differs from the effective one.
 
 ### Updating
 
@@ -174,7 +170,7 @@ Toolkit `SettingsCard` and `SettingsExpander` in a 1064px column with 4px betwee
 
 **Release channels**
 
-A `SettingsExpander` headed `Release channels`, described "Each addon follows its own channel", holding one child card per configured addon. Each card shows the addon glyph, its name, the addon id in mono, and a `Segmented` picker of the channels that addon has releases on.
+A `SettingsExpander` headed `Release channels`, described "Each addon follows its own channel", holding one child card per configured addon. Each card shows the addon glyph, its name, the addon id, and a `Segmented` picker of the channels that addon has releases on.
 
 - A channel with no release for that addon is disabled with the tooltip "No releases on {channel} yet". `steward` has all three disabled today, and its card reads "No releases yet" in place of the picker.
 - `unstable` is absent for any role but `global`, rather than disabled.
@@ -184,7 +180,7 @@ There is no card explaining when Steward checks. The relative "checked {time} ag
 
 **World of Warcraft installs**
 
-A `SettingsExpander` headed `Installs`, described "{n} found, read from .flavor.info and .build.info", with `Rescan` and `Add install` in the header. One child card per install: flavour name, client version chip, path in mono, and `Remove`. An install added through the picker carries an `Added by you` pill. Discovery and the picker are both filtered to World of Warcraft: Forever installs, per `SupportedProducts` in `appsettings.json`.
+A `SettingsExpander` headed `Installs`, described "{n} found, read from .flavor.info and .build.info", with `Rescan` and `Add install` in the header. One child card per install: flavour name, client version chip, path, and `Remove`. An install added through the picker carries an `Added by you` pill. Discovery and the picker are both filtered to World of Warcraft: Forever installs, per `SupportedProducts` in `appsettings.json`.
 
 Removing an install is new. It drops the install from the list and its records from `state.json`; it does not touch the addon folder on disk.
 
@@ -208,7 +204,7 @@ Removing an install is new. It drops the install from the list and its records f
 | Addon rows | `ItemsControl` | Not a `ListView`: rows are not selectable and selection chrome fights the row buttons. |
 | Row progress | `ProgressBar` | Determinate, bound to `UpdateProgress`. |
 | Session and network messages | `InfoBar` | Window level, bound to `StatusMessage`. |
-| Settings rows | `toolkit:SettingsCard`, `toolkit:SettingsExpander` | Needs `CommunityToolkit.WinUI.Controls.SettingsControls`, which is not referenced today. |
+| Settings rows | `toolkit:SettingsCard`, `toolkit:SettingsExpander` | Needs `CommunityToolkit.WinUI.Controls.SettingsControls`, referenced from `Steward.App.csproj`. |
 | Empty state | `StackPanel` + `FontIcon` | Centred, 46ch copy width. |
 
 ## Scope
