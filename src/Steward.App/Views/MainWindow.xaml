@@ -13,6 +13,7 @@
         <TitleBar
             x:Name="AppTitleBar"
             Grid.Row="0"
+            Canvas.ZIndex="1"
             Height="48"
             Title="Steward"
             IsBackButtonVisible="{x:Bind ViewModel.IsOnSettings, Mode=OneWay}"
@@ -110,7 +111,7 @@
             </TitleBar.RightHeader>
         </TitleBar>
 
-        <Grid Grid.Row="1" x:Name="GatePanel" Visibility="{x:Bind ViewModel.GateVisibility, Mode=OneWay}">
+        <Grid Grid.Row="0" Grid.RowSpan="2" x:Name="GatePanel" Visibility="{x:Bind ViewModel.GateVisibility, Mode=OneWay}">
             <StackPanel
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"

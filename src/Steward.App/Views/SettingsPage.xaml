@@ -119,9 +119,8 @@
                 </controls:SettingsCard.ActionIcon>
             </controls:SettingsCard>
 
-            <TextBlock Text="Release channels" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,20,0,4" />
-
             <controls:SettingsExpander
+                Margin="0,20,0,0"
                 Header="Release channels"
                 Description="Each addon follows its own channel"
                 IsExpanded="True"
@@ -132,9 +131,8 @@
                 </controls:SettingsExpander.HeaderIcon>
             </controls:SettingsExpander>
 
-            <TextBlock Text="Installs" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,20,0,4" />
-
             <controls:SettingsExpander
+                Margin="0,20,0,0"
                 Header="Installs"
                 Description="{x:Bind ViewModel.InstallsDescription, Mode=OneWay}"
                 IsExpanded="True"
