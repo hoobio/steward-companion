@@ -16,6 +16,7 @@ namespace Steward.App.ViewModels;
 public sealed partial class MainViewModel : ObservableObject
 {
     private static readonly TimeSpan RecheckInterval = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
 
     private readonly ISessionService _sessionService;
     private readonly GigagrugClient _gigagrugClient;
@@ -25,6 +26,8 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly Dictionary<string, AddonChannelStatus> _status = new(StringComparer.OrdinalIgnoreCase);
 
     private DispatcherQueueTimer? _recheckTimer;
+    private DateTimeOffset _lastPass;
+    private bool _isChecking;
 
     public MainViewModel(
         ISessionService sessionService,
@@ -62,6 +65,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
+
+    [ObservableProperty]
+    public partial string LastCheckedText { get; set; } = "Not checked yet";
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["stable", "beta"];
 
@@ -156,6 +162,9 @@ public sealed partial class MainViewModel : ObservableObject
         {
             install.ApplyStatus(_status, background);
         }
+
+        _lastPass = DateTimeOffset.Now;
+        UpdateLastCheckedText();
     }
 
     private WowInstallViewModel CreateInstallViewModel(WowInstall install)
@@ -167,11 +176,54 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void StartRecheckTimer()
     {
-        _recheckTimer ??= DispatcherQueue.GetForCurrentThread().CreateTimer();
-        _recheckTimer.Interval = RecheckInterval;
-        _recheckTimer.IsRepeating = true;
-        _recheckTimer.Tick += (_, _) => _ = RecheckAuthorizationAsync(CancellationToken.None);
+        if (_recheckTimer is null)
+        {
+            _recheckTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+            _recheckTimer.Interval = TickInterval;
+            _recheckTimer.IsRepeating = true;
+            _recheckTimer.Tick += (_, _) => OnTick();
+        }
+
         _recheckTimer.Start();
+    }
+
+    private void OnTick()
+    {
+        UpdateLastCheckedText();
+        if (!_isChecking && DateTimeOffset.Now - _lastPass >= RecheckInterval)
+        {
+            _ = RunBackgroundPassAsync();
+        }
+    }
+
+    private async Task RunBackgroundPassAsync()
+    {
+        _isChecking = true;
+        try
+        {
+            var result = await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
+            if (result != AuthCheckResult.SessionExpired)
+            {
+                await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
+            }
+        }
+        finally
+        {
+            _isChecking = false;
+        }
+    }
+
+    private void UpdateLastCheckedText()
+    {
+        var elapsed = DateTimeOffset.Now - _lastPass;
+        LastCheckedText = true switch
+        {
+            _ when _lastPass == default => "Not checked yet",
+            _ when elapsed < TimeSpan.FromMinutes(1) => "Checked just now",
+            _ when elapsed < TimeSpan.FromMinutes(60) =>
+                $"Checked {(int)elapsed.TotalMinutes} minute{((int)elapsed.TotalMinutes == 1 ? "" : "s")} ago",
+            _ => $"Checked {(int)elapsed.TotalHours} hour{((int)elapsed.TotalHours == 1 ? "" : "s")} ago",
+        };
     }
 
     private async Task<bool> EnsureAuthorizedForActionAsync(CancellationToken cancellationToken) =>

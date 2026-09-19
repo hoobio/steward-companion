@@ -64,7 +64,7 @@ Four things in it change behaviour rather than only the view, and the doc is the
 
 A tray icon, close-to-tray, minimise-to-tray and start-with-Windows were planned and then cancelled before any of it landed; there is no trace of that work in this repo and they stay cancelled. A settings window was cancelled alongside them and has since been revived as a settings page: see `docs/design/home-and-settings.md`.
 
-Updates are user-initiated only: `AddonRowViewModel.UpdateAsync` is a `RelayCommand` gated on `CanUpdate`, run from the row's own Update button. There is no timer and no unattended apply, so a running instance does not notice a new release until the user switches channel, adds an install, or restarts the app and re-runs the initial `RefreshAvailableAsync` pass. The 15-minute timer in `MainViewModel` only re-checks `/api/admin/me`; it does not poll for addon updates.
+Checking runs at startup and on the 15-minute `DispatcherQueueTimer` in `MainViewModel`, which also re-checks `/api/admin/me`. A background pass skips busy rows and never re-orders `Installs` or `AddonRows`. Applying remains user-initiated through `AddonRowViewModel.UpdateAsync`, a `RelayCommand` gated on `CanUpdate` and run from the row's own Update button; there is no unattended apply.
 
 ## Related repos
 

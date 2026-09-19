@@ -16,6 +16,7 @@
         <StackPanel Grid.Row="0" Spacing="4">
             <TextBlock Text="Steward" Style="{StaticResource TitleTextBlockStyle}" />
             <TextBlock Text="{x:Bind ViewModel.UserName, Mode=OneWay}" Style="{StaticResource BodyTextBlockStyle}" />
+            <TextBlock Text="{x:Bind ViewModel.LastCheckedText, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" />
         </StackPanel>
 
         <TextBlock

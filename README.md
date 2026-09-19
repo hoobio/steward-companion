@@ -4,7 +4,7 @@ The desktop half of Steward, a guild toolkit for World of Warcraft. It signs in 
 
 It manages a set of addons rather than one, so the other addons published alongside it ride along. It is not a general-purpose addon manager.
 
-Updates are user-initiated: the app checks each managed addon's release channel when it starts, when you switch channel, or when you add a WoW install, and you apply an update yourself from its row. It does not poll in the background or apply anything while you are not looking.
+Steward checks each managed addon's release channel when it starts and every 15 minutes while the window is open. Applying an update stays yours, from the row's Update button, and nothing is written to disk until you click it.
 
 ## Install
 
