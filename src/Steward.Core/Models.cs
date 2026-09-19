@@ -34,9 +34,14 @@ public sealed record InstalledAddonRecord(
     [property: JsonPropertyName("sha256")] string Sha256);
 
 public sealed record AppState(
-    [property: JsonPropertyName("channel")] string Channel,
+    [property: JsonPropertyName("channels")] Dictionary<string, string> Channels,
     [property: JsonPropertyName("installs")] Dictionary<string, InstalledAddonRecord> Installs,
-    [property: JsonPropertyName("session_token")] string? EncryptedSessionToken = null);
+    [property: JsonPropertyName("session_token")] string? EncryptedSessionToken = null)
+{
+    [JsonPropertyName("channel")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LegacyChannel { get; init; }
+}
 
 [JsonSerializable(typeof(AddonRelease))]
 [JsonSerializable(typeof(AdminMe))]

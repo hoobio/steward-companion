@@ -14,7 +14,6 @@ public sealed partial class AddonRowViewModel : ObservableObject
     private readonly Func<CancellationToken, Task<bool>> _ensureAuthorized;
 
     private AddonRelease? _latestRelease;
-    private string _channel = "beta";
 
     public AddonRowViewModel(
         WowInstall install,
@@ -28,12 +27,16 @@ public sealed partial class AddonRowViewModel : ObservableObject
         _updater = updater;
         _stateStore = stateStore;
         _ensureAuthorized = ensureAuthorized;
+        Channel = stateStore.Load().Channels.GetValueOrDefault(addon.Id) ?? AppStateStore.DefaultChannel;
         RefreshInstalledVersion();
     }
 
     public string AddonId => _addon.Id;
 
     public string FolderName => _addon.FolderName;
+
+    [ObservableProperty]
+    public partial string Channel { get; set; }
 
     [ObservableProperty]
     public partial string? InstalledVersion { get; set; }
@@ -66,14 +69,13 @@ public sealed partial class AddonRowViewModel : ObservableObject
             ?? TocFile.ReadVersion(Path.Combine(_install.AddOnsPath, _addon.FolderName, $"{_addon.FolderName}.toc"));
     }
 
-    public async Task RefreshAvailableAsync(string channel, CancellationToken cancellationToken)
+    public async Task RefreshAvailableAsync(CancellationToken cancellationToken)
     {
-        _channel = channel;
         try
         {
-            _latestRelease = await _updater.GetLatestAsync(_addon, channel, cancellationToken).ConfigureAwait(false);
+            _latestRelease = await _updater.GetLatestAsync(_addon, Channel, cancellationToken).ConfigureAwait(false);
             AvailableVersion = _latestRelease?.Version;
-            StatusMessage = _latestRelease is null ? $"Nothing released on {channel} yet." : null;
+            StatusMessage = _latestRelease is null ? $"Nothing released on {Channel} yet." : null;
         }
         catch (Exception ex)
         {
@@ -107,12 +109,12 @@ public sealed partial class AddonRowViewModel : ObservableObject
         try
         {
             var progress = new Progress<double>(value => UpdateProgress = value);
-            await _updater.InstallAsync(_addon, _channel, _latestRelease, _install.AddOnsPath, progress, CancellationToken.None)
+            await _updater.InstallAsync(_addon, Channel, _latestRelease, _install.AddOnsPath, progress, CancellationToken.None)
                 .ConfigureAwait(true);
 
             var state = _stateStore.Load();
             state.Installs[AppStateStore.Key(_install.FlavourPath, _addon.Id)] =
-                new InstalledAddonRecord(_latestRelease.Version, _channel, _latestRelease.Sha256);
+                new InstalledAddonRecord(_latestRelease.Version, Channel, _latestRelease.Sha256);
             _stateStore.Save(state);
 
             InstalledVersion = _latestRelease.Version;

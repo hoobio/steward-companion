@@ -32,10 +32,6 @@
                 SelectedItem="{x:Bind ViewModel.SelectedInstall, Mode=TwoWay}"
                 DisplayMemberPath="Flavour" />
             <Button Content="Browse..." Command="{x:Bind ViewModel.BrowseCommand}" />
-            <ComboBox
-                Width="120"
-                ItemsSource="{x:Bind ViewModel.AvailableChannels, Mode=OneWay}"
-                SelectedItem="{x:Bind ViewModel.SelectedChannel, Mode=TwoWay}" />
         </StackPanel>
 
         <StackPanel Grid.Row="3" Spacing="8">

@@ -30,11 +30,11 @@ public sealed partial class WowInstallViewModel : ObservableObject
 
     public ObservableCollection<AddonRowViewModel> AddonRows { get; } = [];
 
-    public async Task RefreshAvailableAsync(string channel, CancellationToken cancellationToken)
+    public async Task RefreshAvailableAsync(CancellationToken cancellationToken)
     {
         foreach (var row in AddonRows)
         {
-            await row.RefreshAvailableAsync(channel, cancellationToken).ConfigureAwait(true);
+            await row.RefreshAvailableAsync(cancellationToken).ConfigureAwait(true);
         }
     }
 

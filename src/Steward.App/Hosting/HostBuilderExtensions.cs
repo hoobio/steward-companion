@@ -38,7 +38,7 @@ internal static class HostBuilderExtensions
         builder.Services.AddHttpClient("Addon");
 
         builder.Services.AddSingleton<IReadOnlyList<ManagedAddon>>(addons);
-        builder.Services.AddSingleton<AppStateStore>();
+        builder.Services.AddSingleton(sp => new AppStateStore([.. sp.GetRequiredService<IReadOnlyList<ManagedAddon>>().Select(a => a.Id)]));
         builder.Services.AddSingleton<ISessionService>(sp => new SessionService(
             sp.GetRequiredService<CookieContainer>(),
             sp.GetRequiredService<AppStateStore>(),

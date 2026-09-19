@@ -37,7 +37,6 @@ public sealed partial class MainViewModel : ObservableObject
         _addonUpdater = addonUpdater;
         _stateStore = stateStore;
         _addons = addons;
-        SelectedChannel = _stateStore.Load().Channel;
     }
 
     public ObservableCollection<WowInstallViewModel> Installs { get; } = [];
@@ -61,9 +60,6 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
-
-    [ObservableProperty]
-    public partial string SelectedChannel { get; set; }
 
     public Visibility StatusMessageVisibility =>
         string.IsNullOrEmpty(StatusMessage) ? Visibility.Collapsed : Visibility.Visible;
@@ -91,7 +87,7 @@ public sealed partial class MainViewModel : ObservableObject
             foreach (var install in WowInstalls.Discover())
             {
                 var viewModel = CreateInstallViewModel(install);
-                await viewModel.RefreshAvailableAsync(SelectedChannel, CancellationToken.None);
+                await viewModel.RefreshAvailableAsync(CancellationToken.None);
                 Installs.Add(viewModel);
             }
 
@@ -129,20 +125,9 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         var viewModel = CreateInstallViewModel(install);
-        await viewModel.RefreshAvailableAsync(SelectedChannel, CancellationToken.None);
+        await viewModel.RefreshAvailableAsync(CancellationToken.None);
         Installs.Add(viewModel);
         SelectedInstall = viewModel;
-    }
-
-    partial void OnSelectedChannelChanged(string value)
-    {
-        var state = _stateStore.Load();
-        _stateStore.Save(state with { Channel = value });
-
-        foreach (var install in Installs)
-        {
-            _ = install.RefreshAvailableAsync(value, CancellationToken.None);
-        }
     }
 
     private WowInstallViewModel CreateInstallViewModel(WowInstall install)
