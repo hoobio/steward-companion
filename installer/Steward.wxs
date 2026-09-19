@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Steward MSI installer (WiX 5). Per-user, unpackaged, x64 only.
+
+  Preprocessor variables supplied by the build pipeline:
+    Version    - four-part version (X.Y.Z.W), sourced from version.txt.
+    Platform   - "x64". Kept as a variable so the wxs matches the house pattern even
+                 though only one architecture ships today.
+    PayloadDir - root of the published self-contained build to wrap.
+
+  No WiX UI extension: this is a plain per-user MSI with no dialogs, which avoids
+  forcing a licence choice and the wixext version-pinning problem WixUI carries.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <?define UpgradeCodeGuid = "CCD0BF88-7A8E-4F74-9DB7-9B9272B3D503" ?>
+  <?define ShortcutGuid = "DA062698-AF5C-4CA3-B0BB-FF90D287B0C1" ?>
+  <?define AppExeComponentGuid = "8DE16ADB-505E-45E7-BCE1-E2A8654B0CBB" ?>
+
+  <Package
+      Name="Steward"
+      Manufacturer="hoobio"
+      Version="$(var.Version)"
+      UpgradeCode="$(var.UpgradeCodeGuid)"
+      Scope="perUser"
+      Compressed="yes"
+      InstallerVersion="500">
+
+    <SummaryInformation Description="Steward installer" />
+
+    <MajorUpgrade
+        DowngradeErrorMessage="A newer version of Steward is already installed."
+        Schedule="afterInstallInitialize" />
+
+    <Media Id="1" Cabinet="Steward.cab" EmbedCab="yes" CompressionLevel="high" />
+
+    <Property Id="ARPHELPLINK" Value="https://github.com/hoobio/steward-companion" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/hoobio/steward-companion" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="INSTALLFOLDER" Name="Steward" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="$(var.ShortcutGuid)">
+        <Shortcut Id="StewardShortcut"
+                  Name="Steward"
+                  Description="Keeps Hoobi's WoW addons current"
+                  Target="[INSTALLFOLDER]Steward.App.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\hoobio\Steward"
+                       Name="StartMenuShortcut"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="Steward" Level="1" AllowAdvertise="no">
+      <ComponentGroupRef Id="StewardPayload" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="StewardPayload" Directory="INSTALLFOLDER">
+      <Component Id="StewardAppExeComponent" Guid="$(var.AppExeComponentGuid)">
+        <File Id="StewardAppExe"
+              Source="$(var.PayloadDir)\Steward.App.exe"
+              KeyPath="yes" />
+      </Component>
+      <Files Include="$(var.PayloadDir)\**">
+        <Exclude Files="$(var.PayloadDir)\Steward.App.exe" />
+      </Files>
+    </ComponentGroup>
+  </Fragment>
+
+</Wix>
