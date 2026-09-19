@@ -80,6 +80,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             AddonChannels.Add(new AddonChannelViewModel(addon, stateStore, OnChannelChanged));
         }
+
+        KeepInTray = stateStore.Load().KeepInTray;
     }
 
     public ObservableCollection<WowInstallViewModel> Installs { get; } = [];
@@ -132,6 +134,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial bool IsOnSettings { get; set; }
+
+    [ObservableProperty]
+    public partial bool KeepInTray { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RoleLabel))]
@@ -498,6 +503,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
         }
     }
+
+    partial void OnKeepInTrayChanged(bool value) =>
+        _stateStore.Save(_stateStore.Load() with { KeepInTray = value });
 
     private void OnChannelChanged(string addonId, string channel)
     {

@@ -147,6 +147,17 @@
                 </StackPanel>
             </controls:SettingsExpander>
 
+            <TextBlock Text="Behaviour" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,20,0,4" />
+
+            <controls:SettingsCard
+                Header="Keep running in the tray"
+                Description="Closing or minimising the window hides Steward to the tray instead of quitting">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE7C4;" />
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch IsOn="{x:Bind ViewModel.KeepInTray, Mode=TwoWay}" />
+            </controls:SettingsCard>
+
             <TextBlock Text="About" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,20,0,4" />
 
             <controls:SettingsCard Header="Steward" Description="{x:Bind ViewModel.AboutDescription, Mode=OneWay}">

@@ -226,7 +226,7 @@ New and not only a view change, so worth doing first:
 
 Deliberately absent:
 
-- Tray icon, close to tray, minimise to tray and start with Windows. Planned once and cancelled, and they stay cancelled.
+- Start with Windows. Planned once and cancelled, and it stays cancelled. The tray icon, close to tray and minimise to tray are built on `H.NotifyIcon.WinUI`, under the `KeepInTray` setting on the Behaviour card in Settings.
 - Unattended apply. Checking moves to a timer; applying does not.
 - A check-interval setting. One interval, shared with the role timer, until there is a reason to split them.
 - A navigation pane, until roster, loot or attendance give it a second destination.

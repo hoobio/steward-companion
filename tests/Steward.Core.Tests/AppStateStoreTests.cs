@@ -142,6 +142,19 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_KeepInTray_DefaultsTrue_AndRoundTrips()
+    {
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+
+        Assert.True(store.Load().KeepInTray);
+
+        store.Save(store.Load() with { KeepInTray = false });
+
+        Assert.False(store.Load().KeepInTray);
+    }
+
+    [Fact]
     public void Load_ChannelLookup_IsCaseInsensitive()
     {
         File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"beta"},"installs":{}}""");
