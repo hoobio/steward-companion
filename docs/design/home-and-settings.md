@@ -58,7 +58,7 @@ The channel is per addon, not per app. `hoobiscripts` and `steward` are separate
 
 Steward checks at startup and every 15 minutes in the background, on the 1-minute `DispatcherQueueTimer` in `MainViewModel` that also re-checks the role. The timer ticks each minute to refresh the relative time and follow the game client, and does its network work every 15 minutes. One timer covering both jobs, split only if the two cadences ever need to differ. A manual check stays available on the refresh button in the page header.
 
-Applying follows the game client. An install whose client is closed has its available updates applied by Steward on the pass that finds them, one row at a time, for a user with an admin role. While that install's client runs nothing is applied for it: the row keeps its Update button, and after a manual update the row carries "Type /reload in game to load the updated files" until the client stops or a later update runs. The green dot beside an install name is the running indicator.
+Available updates are applied by Steward on the pass that finds them, one row at a time, for a user with an admin role, whether or not the install's client is running. An update applied while the client runs leaves the row carrying "Type /reload in game to load the updated files" until the client stops or a later update runs. The green dot beside an install name is the running indicator.
 
 A background pass must not disturb the page:
 
