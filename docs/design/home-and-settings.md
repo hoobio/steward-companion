@@ -58,7 +58,7 @@ The channel is per addon, not per app. `hoobiscripts` and `steward` are separate
 
 Steward checks at startup and every 15 minutes in the background, on the `DispatcherQueueTimer` in `MainViewModel` that already re-checks the role. One timer covering both jobs, split only if the two cadences ever need to differ. A manual check stays available on the refresh button in the page header.
 
-Applying does not move. `UpdateAsync` still runs only from a click, so nothing is written while nobody is looking.
+Applying follows the game client. An install whose client is closed has its available updates applied by Steward on the pass that finds them, one row at a time, for a user with an admin role. While that install's client runs nothing is applied for it: the row keeps its Update button, and after a manual update the row carries "Type /reload in game to load the updated files" until the client stops or a later update runs. The green dot beside an install name is the running indicator.
 
 A background pass must not disturb the page:
 
@@ -92,6 +92,7 @@ Two pages, so no navigation pane.
 | No releases | An addon has no manifest on any channel the user can see |
 | Updating | `AddonRowViewModel.UpdateAsync` running |
 | All current | Every managed addon matches its channel manifest |
+| Running client | A process whose main module sits under the install's flavour folder |
 
 ### Gate
 
@@ -221,13 +222,12 @@ New and not only a view change, so worth doing first:
 - **Per-addon channels.** `AppState.Channel` becomes `Channels`, a map of addon id to channel, with a one-time migration seeding every configured addon from the old value. `MainViewModel.SelectedChannel` and `OnSelectedChannelChanged` go away and `AddonRowViewModel` reads its own channel from the store.
 - **Channel probing.** `AddonUpdater.GetLatestAsync` is called for all three channels per addon on refresh, not just the selected one, so the picker knows which channels have releases. A missing manifest is a normal outcome here, not an error to surface.
 - **Default channel.** With nothing stored for an addon, take the highest channel that has a release, ordered `stable`, `beta`, `unstable`. Ordering is by stability, not by recency: the safest channel that actually has something wins.
-- **Background checking.** The 15-minute timer refreshes manifests as well as the role, and a check runs at startup. See [Checking](#checking).
+- **Background checking.** The 15-minute timer refreshes manifests as well as the role, and a check runs at startup. Applying an update follows the game client. See [Checking](#checking).
 - **Dark only.** `RequestedTheme` is forced to `Dark` in `App.xaml`, matching the guild panel. There is no theme setting and no light palette.
 
 Deliberately absent:
 
 - Start with Windows. Planned once and cancelled, and it stays cancelled. The tray icon, close to tray and minimise to tray are built on `H.NotifyIcon.WinUI`, under the `KeepInTray` setting on the Behaviour card in Settings.
-- Unattended apply. Checking moves to a timer; applying does not.
 - A check-interval setting. One interval, shared with the role timer, until there is a reason to split them.
 - A navigation pane, until roster, loot or attendance give it a second destination.
 - Light mode.

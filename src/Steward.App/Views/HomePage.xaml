@@ -45,6 +45,11 @@
                         FontFamily="Cascadia Mono"
                         FontSize="11.5"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    <TextBlock
+                        Text="Type /reload in game to load the updated files"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                        Visibility="{x:Bind ReloadHintVisibility, Mode=OneWay}" />
                     <ProgressBar
                         Height="3"
                         Maximum="1"
@@ -211,7 +216,17 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="{x:Bind DisplayName}" FontSize="14" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse
+                                    Width="8"
+                                    Height="8"
+                                    Fill="{ThemeResource SystemFillColorSuccessBrush}"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0"
+                                    ToolTipService.ToolTip="World of Warcraft is running"
+                                    Visibility="{x:Bind RunningDotVisibility, Mode=OneWay}" />
+                                <TextBlock Text="{x:Bind DisplayName}" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
                             <TextBlock
                                 Text="{x:Bind FlavourPath}"
                                 FontFamily="Cascadia Mono"

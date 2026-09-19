@@ -46,6 +46,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         nameof(UpToDateVisibility),
         nameof(MemberPillVisibility),
         nameof(NoticeVisibility),
+        nameof(CanAutoApply),
     ];
 
     private readonly WowInstall _install;
@@ -111,6 +112,16 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string? StatusMessage { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReloadHintVisibility))]
+    public partial bool NeedsReload { get; set; }
+
+    public bool IsClientRunning { get; set; }
+
+    public Visibility ReloadHintVisibility => When(NeedsReload);
+
+    public bool CanAutoApply => HasUpdateAvailable && !IsBusy && !HasFailed && IsAdmin && !IsClientRunning;
 
     public bool HasUpdateAvailable =>
         _status?.Release is { } release && Channel is not null && TocFile.HasUpdate(release.Version, InstalledVersion);
@@ -190,10 +201,15 @@ public sealed partial class AddonRowViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(status);
 
+        var previousAvailable = AvailableVersion;
         _status = status;
-        HasFailed = false;
         Channel = status.Channel;
         AvailableVersion = status.Release?.Version;
+        if (!string.Equals(previousAvailable, AvailableVersion, StringComparison.Ordinal))
+        {
+            HasFailed = false;
+        }
+
         StatusMessage = status.Channel is null ? null : status.Notice;
         NotifyDerived();
     }
@@ -263,6 +279,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
             _stateStore.Save(state);
 
             InstalledVersion = release.Version;
+            NeedsReload = IsClientRunning;
         }
         catch (Exception ex)
         {

@@ -69,6 +69,12 @@ public sealed partial class WowInstallViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(AddedByYouVisibility))]
     public partial bool IsAddedByUser { get; set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RunningDotVisibility))]
+    public partial bool IsClientRunning { get; set; }
+
+    public Visibility RunningDotVisibility => IsClientRunning ? Visibility.Visible : Visibility.Collapsed;
+
     public int UpdateCount => AddonRows.Count(row => row.HasUpdateAvailable);
 
     public string CountPillText => UpdateCount switch
@@ -94,6 +100,19 @@ public sealed partial class WowInstallViewModel : ObservableObject
         }
 
         Recompute();
+    }
+
+    public void RefreshClientRunning()
+    {
+        IsClientRunning = WowClient.IsRunning(Install);
+        foreach (var row in AddonRows)
+        {
+            row.IsClientRunning = IsClientRunning;
+            if (!IsClientRunning)
+            {
+                row.NeedsReload = false;
+            }
+        }
     }
 
     public void SetIsAdmin(bool isAdmin)

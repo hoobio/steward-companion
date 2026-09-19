@@ -60,6 +60,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _signInCts;
     private DateTimeOffset _lastPass;
     private bool _isChecking;
+    private bool _isAutoApplying;
 
     public MainViewModel(
         ISessionService sessionService,
@@ -486,6 +487,45 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         RecomputeSummary();
+
+        RefreshClients();
+        await AutoApplyAsync().ConfigureAwait(true);
+    }
+
+    private void RefreshClients()
+    {
+        foreach (var install in Installs)
+        {
+            install.RefreshClientRunning();
+        }
+    }
+
+    private async Task AutoApplyAsync()
+    {
+        if (_isAutoApplying || IsSigningIn || !IsSignedIn)
+        {
+            return;
+        }
+
+        _isAutoApplying = true;
+        try
+        {
+            foreach (var install in Installs.ToList())
+            {
+                foreach (var row in install.AddonRows.ToList())
+                {
+                    if (row.CanAutoApply)
+                    {
+                        await row.UpdateCommand.ExecuteAsync(null).ConfigureAwait(true);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _isAutoApplying = false;
+            RecomputeSummary();
+        }
     }
 
     private void ApplyStatus(bool background)
@@ -569,7 +609,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!_isChecking && DateTimeOffset.Now - _lastPass >= RecheckInterval)
         {
             _ = RunBackgroundPassAsync();
+            return;
         }
+
+        RefreshClients();
+        _ = AutoApplyAsync();
     }
 
     private async Task RunBackgroundPassAsync()
