@@ -16,6 +16,8 @@ gigagrug accepts exactly one credential, the `gg_session` cookie (`auth_middlewa
 
 The cookie's own `Max-Age` is a fixed 30 days, but gigagrug slides the session to 90 days from last use server-side and never re-issues the cookie. So the app persists the raw token itself (DPAPI-protected, `%LocalAppData%\Steward\state.json`) rather than relying on the cookie jar as the store; WebView2 is only how the token is acquired, once, at sign-in.
 
+The API origin is `https://api.hoobi.io/guild` (`Gigagrug:BaseUrl`). `guild.hoobi.io` is the Static Web App hosting the SPA, and its navigation fallback answers every `/api/*` path with `index.html` and a 200, so a client pointed there sees HTML where it expects JSON rather than a 401.
+
 Every privileged action re-checks `GET /api/admin/me`: at startup, immediately before an update, and on a 15-minute timer while the window is open. A 401 means the session is gone; the persisted token is cleared and the app drops to signed-out. An authenticated response with a role outside `global`/`admin` keeps the session but shows no update controls. This re-check keeps the UI truthful; it is not enforcement, since the zips themselves are served from a public Static Web App with no auth of their own.
 
 ## Channels
