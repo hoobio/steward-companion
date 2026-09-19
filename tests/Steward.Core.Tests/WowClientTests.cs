@@ -14,4 +14,26 @@ public sealed class WowClientTests
     {
         Assert.Equal(expected, WowClient.IsUnder(filePath, folderPath));
     }
+
+    [Fact]
+    public async Task WaitForExitAsync_ReturnsForUnknownProcessId()
+    {
+        await WowClient.WaitForExitAsync(int.MaxValue, CancellationToken.None);
+    }
+
+    [Fact]
+    public void Find_ReturnsNull_WhenNoClientUnderTheFolder()
+    {
+        var folder = Directory.CreateTempSubdirectory();
+        try
+        {
+            var install = new WowInstall(folder.FullName, "_retail_", folder.FullName, folder.FullName, null, null, "Retail");
+
+            Assert.Null(WowClient.Find(install));
+        }
+        finally
+        {
+            folder.Delete(recursive: true);
+        }
+    }
 }

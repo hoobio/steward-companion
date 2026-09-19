@@ -5,7 +5,9 @@ namespace Steward.Core;
 
 public static class WowClient
 {
-    public static bool IsRunning(WowInstall install)
+    public static bool IsRunning(WowInstall install) => Find(install) is not null;
+
+    public static WowClientProcess? Find(WowInstall install)
     {
         ArgumentNullException.ThrowIfNull(install);
 
@@ -23,7 +25,7 @@ public static class WowClient
                 {
                     if (process.MainModule?.FileName is { } fileName && IsUnder(fileName, install.FlavourPath))
                     {
-                        return true;
+                        return new WowClientProcess(process.Id, process.StartTime);
                     }
                 }
                 catch (Win32Exception)
@@ -38,7 +40,25 @@ public static class WowClient
             }
         }
 
-        return false;
+        return null;
+    }
+
+    public static async Task WaitForExitAsync(int processId, CancellationToken cancellationToken)
+    {
+        Process? process;
+        try
+        {
+            process = Process.GetProcessById(processId);
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+
+        using (process)
+        {
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     internal static bool IsUnder(string filePath, string folderPath)

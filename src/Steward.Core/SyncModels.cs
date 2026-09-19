@@ -41,6 +41,8 @@ public sealed record SavedVariablesSnapshot(
     IReadOnlyList<AttendanceRecord> Attendance,
     int Skipped);
 
+public sealed record WowClientProcess(int ProcessId, DateTimeOffset StartTime);
+
 public sealed record SyncPayload(
     DateTimeOffset WrittenAt,
     DateTimeOffset? ExportedAt,
