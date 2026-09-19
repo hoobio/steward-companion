@@ -14,11 +14,19 @@ public sealed record AddonRelease(
 public sealed record AdminUser(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("username")] string? Username,
     [property: JsonPropertyName("avatar_url")] string? AvatarUrl,
     [property: JsonPropertyName("role")] string? Role);
 
 public sealed record AdminMe(
     [property: JsonPropertyName("user")] AdminUser User);
+
+public sealed record DesktopExchangeRequest(
+    [property: JsonPropertyName("code")] string Code,
+    [property: JsonPropertyName("verifier")] string Verifier);
+
+public sealed record DesktopToken(
+    [property: JsonPropertyName("token")] string Token);
 
 public sealed record WowInstall(
     string Root,
@@ -47,4 +55,6 @@ public sealed record AppState(
 [JsonSerializable(typeof(AdminMe))]
 [JsonSerializable(typeof(AdminUser))]
 [JsonSerializable(typeof(AppState))]
+[JsonSerializable(typeof(DesktopExchangeRequest))]
+[JsonSerializable(typeof(DesktopToken))]
 public sealed partial class CompanionJsonContext : JsonSerializerContext;

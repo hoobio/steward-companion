@@ -1,28 +1,37 @@
+using System.Buffers.Text;
+using System.Diagnostics;
 using System.Net;
-using System.Runtime.InteropServices;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 
-using Steward.App.Views;
 using Steward.Core;
-
-using Microsoft.Web.WebView2.Core;
 
 namespace Steward.App.Services;
 
 public sealed class SessionService : ISessionService
 {
     private const string SessionCookieName = "gg_session";
-    private const uint ErrorFileNotFoundHResult = 0x80070002;
+    private const string CallbackBody =
+        "<!doctype html><title>Steward</title>" +
+        "<p style=\"font-family:Segoe UI Variable,Segoe UI;margin:3rem\">Signed in. You can close this tab.</p>";
+
+    private static readonly TimeSpan SignInTimeout = TimeSpan.FromMinutes(5);
 
     private readonly CookieContainer _cookieContainer;
     private readonly AppStateStore _stateStore;
+    private readonly GigagrugClient _gigagrugClient;
     private readonly string _baseUrl;
 
-    public SessionService(CookieContainer cookieContainer, AppStateStore stateStore, string baseUrl)
+    public SessionService(
+        CookieContainer cookieContainer,
+        AppStateStore stateStore,
+        GigagrugClient gigagrugClient,
+        string baseUrl)
     {
         _cookieContainer = cookieContainer;
         _stateStore = stateStore;
+        _gigagrugClient = gigagrugClient;
         _baseUrl = baseUrl;
     }
 
@@ -55,55 +64,84 @@ public sealed class SessionService : ISessionService
 
     public async Task SignInAsync(CancellationToken cancellationToken)
     {
+        var verifier = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
+        var challenge = Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
+
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(SignInTimeout);
+
+        Process.Start(new ProcessStartInfo(
+            $"{_baseUrl}/api/auth/desktop?challenge={challenge}&port={port}") { UseShellExecute = true })?.Dispose();
+
+        string token;
         try
         {
-            CoreWebView2Environment.GetAvailableBrowserVersionString(null);
+            token = await WaitForTokenAsync(listener, verifier, timeout.Token).ConfigureAwait(false);
         }
-        // The WinUI 3 WebView2 projection surfaces a missing Evergreen Runtime as a bare
-        // COMException (ERROR_FILE_NOT_FOUND), not the classic WebView2RuntimeNotFoundException.
-        catch (COMException ex) when ((uint)ex.HResult == ErrorFileNotFoundHResult)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new InvalidOperationException(
-                "The WebView2 Evergreen Runtime is not installed. Install it from " +
-                "https://developer.microsoft.com/microsoft-edge/webview2/ and restart Steward.",
-                ex);
-        }
-
-        var userDataFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Steward",
-            "WebView2");
-
-        var environment = await CoreWebView2Environment.CreateWithOptionsAsync(null, userDataFolder, null);
-
-        var window = new SignInWindow(environment, _baseUrl, SessionCookieName);
-        try
-        {
-            var cookie = await window.WaitForSessionCookieAsync(TimeSpan.FromSeconds(5), cancellationToken);
-            if (cookie is null)
-            {
-                window.Activate();
-                cookie = await window.WaitForSessionCookieAsync(Timeout.InfiniteTimeSpan, cancellationToken);
-            }
-
-            if (cookie is null)
-            {
-                throw new InvalidOperationException("Sign-in was cancelled before a session cookie was issued.");
-            }
-
-            _cookieContainer.Add(new Uri(_baseUrl), new Cookie(cookie.Name, cookie.Value));
-
-            // gigagrug's Set-Cookie Max-Age is a fixed 30 days, but the server actually slides the
-            // session to 90 days from last use and only the raw token (not the cookie) can outlive
-            // that 30-day mark once the app supplies it itself instead of depending on WebView2.
-            var protectedToken = ProtectedData.Protect(
-                Encoding.UTF8.GetBytes(cookie.Value), null, DataProtectionScope.CurrentUser);
-            var state = _stateStore.Load();
-            _stateStore.Save(state with { EncryptedSessionToken = Convert.ToBase64String(protectedToken) });
+            throw new TimeoutException("Steward did not hear back from the browser.");
         }
         finally
         {
-            window.Close();
+            listener.Stop();
         }
+
+        _cookieContainer.Add(new Uri(_baseUrl), new Cookie(SessionCookieName, token));
+
+        var protectedToken = ProtectedData.Protect(
+            Encoding.UTF8.GetBytes(token), null, DataProtectionScope.CurrentUser);
+        var state = _stateStore.Load();
+        _stateStore.Save(state with { EncryptedSessionToken = Convert.ToBase64String(protectedToken) });
+    }
+
+    private async Task<string> WaitForTokenAsync(
+        TcpListener listener,
+        string verifier,
+        CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            using var client = await listener.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
+            var requestLine = await RespondAsync(client, cancellationToken).ConfigureAwait(false);
+
+            if (!LoopbackCallback.TryReadCode(requestLine, out var code))
+            {
+                continue;
+            }
+
+            try
+            {
+                return await _gigagrugClient
+                    .ExchangeDesktopCodeAsync(code, verifier, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+    }
+
+    private static async Task<string?> RespondAsync(TcpClient client, CancellationToken cancellationToken)
+    {
+        var stream = client.GetStream();
+        using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
+        var requestLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+
+        var response =
+            "HTTP/1.1 200 OK\r\n" +
+            "Content-Type: text/html; charset=utf-8\r\n" +
+            $"Content-Length: {Encoding.UTF8.GetByteCount(CallbackBody)}\r\n" +
+            "Connection: close\r\n" +
+            "\r\n" +
+            CallbackBody;
+        await stream.WriteAsync(Encoding.UTF8.GetBytes(response), cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+        return requestLine;
     }
 }

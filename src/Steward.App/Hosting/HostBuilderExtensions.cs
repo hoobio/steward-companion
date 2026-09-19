@@ -39,12 +39,13 @@ internal static class HostBuilderExtensions
 
         builder.Services.AddSingleton<IReadOnlyList<ManagedAddon>>(addons);
         builder.Services.AddSingleton(sp => new AppStateStore([.. sp.GetRequiredService<IReadOnlyList<ManagedAddon>>().Select(a => a.Id)]));
+        builder.Services.AddSingleton(sp => new GigagrugClient(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gigagrug"),
+            baseUrl));
         builder.Services.AddSingleton<ISessionService>(sp => new SessionService(
             sp.GetRequiredService<CookieContainer>(),
             sp.GetRequiredService<AppStateStore>(),
-            baseUrl));
-        builder.Services.AddSingleton(sp => new GigagrugClient(
-            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gigagrug"),
+            sp.GetRequiredService<GigagrugClient>(),
             baseUrl));
         builder.Services.AddSingleton(sp => new AddonUpdater(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon")));

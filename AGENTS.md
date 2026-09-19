@@ -10,11 +10,13 @@ Updating is the whole of it today. It manages a set of addons rather than one, a
 
 The manifest for an addon+channel is `{ManifestBaseUrl}latest-{channel}.json`; the release zip resolves relative to that manifest URI. The manifest fetch sends `Cache-Control: no-cache` per request rather than trusting the Static Web App's own cache headers, since the SWA route's header behaviour for a nested path is unconfirmed. SHA-256 verification, the zip-slip guard, and the rule that an existing addon folder is only deleted when it holds that addon's own `.toc` are unchanged from the single-addon version.
 
-## Auth: WebView2 cookie lift, not native OAuth
+## Auth: default-browser sign-in over a loopback callback
 
-gigagrug accepts exactly one credential, the `gg_session` cookie (`auth_middleware`), with no bearer or API-key path. Its `/api/auth/login` derives `redirect_uri` from the request's own `Host` header, so the registered local redirect URI cannot be borrowed by a desktop client talking to prod, and the callback that mints the session holds the client secret anyway. A native loopback OAuth flow is therefore not possible without a server change. Instead the app hosts a WebView2 against gigagrug's own login page, lets the ordinary browser flow run, and reads `gg_session` out of the WebView2 cookie jar.
+gigagrug accepts exactly one credential, the `gg_session` cookie (`auth_middleware`), with no bearer or API-key path, and exposes a desktop flow that hands that cookie's raw value to a local client. `SessionService` generates a verifier (base64url of 32 random bytes) and a challenge (lowercase hex SHA-256 of the ASCII verifier, matching Python's `hexdigest`), binds a listener, and opens `GET {BaseUrl}/api/auth/desktop?challenge=<challenge>&port=<port>` in the default browser. gigagrug runs the Discord OAuth exchange and redirects the browser to `http://127.0.0.1:<port>/?code=<one-time code>`. The app then POSTs `{"code","verifier"}` to `{BaseUrl}/api/auth/desktop/exchange` and receives `{"token": "<gg_session value>"}`; the code is single-use with a 120-second TTL.
 
-The cookie's own `Max-Age` is a fixed 30 days, but gigagrug slides the session to 90 days from last use server-side and never re-issues the cookie. So the app persists the raw token itself (DPAPI-protected, `%LocalAppData%\Steward\state.json`) rather than relying on the cookie jar as the store; WebView2 is only how the token is acquired, once, at sign-in.
+The listener is a `TcpListener` on `IPAddress.Loopback` with port 0. `HttpListener` cannot bind port 0 and its HTTP.sys prefix semantics need a fixed registered prefix, and Kestrel pulls an ASP.NET framework reference into a self-contained WinUI publish, so neither is used. The whole flow times out after 5 minutes. Every accepted connection gets the same fixed 200 HTML page telling the user the tab can be closed, including the favicon request the browser makes alongside the callback; `LoopbackCallback.TryReadCode` in `Steward.Core` decides which request line carries a code.
+
+The cookie's own `Max-Age` is a fixed 30 days, but gigagrug slides the session to 90 days from last use server-side and never re-issues the cookie. So the app persists the raw token itself (DPAPI-protected, `%LocalAppData%\Steward\state.json`) rather than relying on the cookie jar as the store; the browser flow is only how the token is acquired, once, at sign-in.
 
 The API origin is `https://api.hoobi.io/guild` (`Gigagrug:BaseUrl`). `guild.hoobi.io` is the Static Web App hosting the SPA, and its navigation fallback answers every `/api/*` path with `index.html` and a 200, so a client pointed there sees HTML where it expects JSON rather than a 401.
 
@@ -29,10 +31,6 @@ Each WoW install + addon pair records what was actually installed (version, chan
 ## WoW install discovery
 
 `WowInstalls` walks `.flavor.info` (product code) joined against the root `.build.info` (product to version) to find each flavour without a hardcoded product-to-folder map. The Blizzard registry key (`HKLM\...\World of Warcraft`) is not used as a discovery root by itself: on the dev machine it is hijacked by an unrelated Ascension install, so it is one candidate root among several, never the only one trusted.
-
-## WebView2 API deviations (verified live)
-
-The WinUI 3 projection of `Microsoft.Web.WebView2` (pinned at `1.0.4191.47` in `Directory.Packages.props`) exposes neither a `WebView2RuntimeNotFoundException` type nor the documented `CoreWebView2Environment.CreateAsync(browserExecutableFolder, userDataFolder, options)` overload; `SessionService` calls `CreateWithOptionsAsync` instead. `CoreWebView2Environment.GetAvailableBrowserVersionString` surfaces a missing Evergreen Runtime as a bare `COMException` with `HRESULT 0x80070002` (`ERROR_FILE_NOT_FOUND`) on this projection, not the classic `WebView2RuntimeNotFoundException` the WPF/WinForms wrapper throws. `SessionService` catches that HRESULT specifically and rewords it.
 
 ## Branding
 
