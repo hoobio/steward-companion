@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -280,6 +281,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task CheckAsync(bool background, CancellationToken cancellationToken)
     {
+        var succeeded = true;
         try
         {
             var state = _stateStore.Load();
@@ -290,10 +292,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken).ConfigureAwait(true));
             }
         }
-        catch (HttpRequestException ex)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
         {
             StatusMessage = ex.Message;
-            return;
+            succeeded = false;
         }
 
         foreach (var install in Installs)
@@ -301,8 +303,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             install.ApplyStatus(_status, background);
         }
 
-        _lastPass = DateTimeOffset.Now;
-        UpdateLastCheckedText();
+        if (succeeded)
+        {
+            _lastPass = DateTimeOffset.Now;
+            UpdateLastCheckedText();
+        }
     }
 
     private WowInstallViewModel CreateInstallViewModel(WowInstall install)
@@ -373,6 +378,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             var me = await _gigagrugClient.GetMeAsync(cancellationToken).ConfigureAwait(true);
             UserName = me.User.Name;
+            UserHandle = me.User.Username is { Length: > 0 } u ? $"@{u}" : null;
             Role = me.User.Role;
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = GigagrugClient.IsAdmin(me);
@@ -391,6 +397,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsAuthorized = false;
             IsGlobalAdmin = false;
             UserName = null;
+            UserHandle = null;
             Role = null;
             AvatarUri = null;
             StatusMessage = null;
