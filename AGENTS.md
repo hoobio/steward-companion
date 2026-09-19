@@ -32,6 +32,10 @@ Each WoW install + addon pair records what was actually installed (version, chan
 
 The WinUI 3 projection of `Microsoft.Web.WebView2` (pinned at `1.0.4191.47` in `Directory.Packages.props`) exposes neither a `WebView2RuntimeNotFoundException` type nor the documented `CoreWebView2Environment.CreateAsync(browserExecutableFolder, userDataFolder, options)` overload; `SessionService` calls `CreateWithOptionsAsync` instead. `CoreWebView2Environment.GetAvailableBrowserVersionString` surfaces a missing Evergreen Runtime as a bare `COMException` with `HRESULT 0x80070002` (`ERROR_FILE_NOT_FOUND`) on this projection, not the classic `WebView2RuntimeNotFoundException` the WPF/WinForms wrapper throws. `SessionService` catches that HRESULT specifically and rewords it.
 
+## Branding
+
+`src/Steward.App/Assets/Steward.ico` (16 through 256px, PNG-compressed frames) is the one source of the app's icon: `ApplicationIcon` stamps it on the exe, `AppWindow.SetIcon` puts it on both windows, and the wxs picks it out of the publish payload for `ARPPRODUCTICON` and the Start menu shortcut. WinUI 3 does not take the window icon from the exe on its own, so the `SetIcon` calls are load-bearing.
+
 ## Build and test gotchas
 
 `Steward.slnx` defines no `Release|x64` solution configuration, so a solution-level `dotnet build` must not pass `-p:Platform=x64`; the CI workflow builds the solution without it and passes `-p:Platform=x64` only on the project-level `dotnet publish` of `Steward.App.csproj`.
@@ -48,16 +52,22 @@ Roster, loot and attendance will read WoW SavedVariables files. Those files are 
 
 None of this is built yet. The full write-up lives in `hoobio/Steward`'s `AGENTS.md`.
 
+## UI design
+
+`docs/design/home-and-settings.md` is the agreed design for the two pages the app will have, and the spec to build against. It is not implemented: `MainWindow.xaml` is still the single grid with two `ComboBox`es and a `ListView`, and there is no settings page.
+
+Four things in it change behaviour rather than only the view, and the doc is the source of truth for each: the release channel becomes per addon (`AppState.Channel` to a `Channels` map), refresh probes all three channels per addon so a channel with no release can be disabled, the default channel is the highest one that has a release ordered `stable`/`beta`/`unstable`, and the 15-minute timer starts refreshing manifests as well as the role. Applying an update stays on the click.
+
 ## Outstanding work
 
-A tray icon, close-to-tray, minimise-to-tray, start-with-Windows and a settings window were planned and then cancelled before any of it landed; there is no trace of that work in this repo.
+A tray icon, close-to-tray, minimise-to-tray and start-with-Windows were planned and then cancelled before any of it landed; there is no trace of that work in this repo and they stay cancelled. A settings window was cancelled alongside them and has since been revived as a settings page: see `docs/design/home-and-settings.md`.
 
 Updates are user-initiated only: `AddonRowViewModel.UpdateAsync` is a `RelayCommand` gated on `CanUpdate`, run from the row's own Update button. There is no timer and no unattended apply, so a running instance does not notice a new release until the user switches channel, adds an install, or restarts the app and re-runs the initial `RefreshAvailableAsync` pass. The 15-minute timer in `MainViewModel` only re-checks `/api/admin/me`; it does not poll for addon updates.
 
 ## Related repos
 
 - `hoobio/HoobiScripts` (private, local clone `C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\HoobiScripts`): the quality-of-life addon, and the only entry in `appsettings.json` today. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
-- `hoobio/Steward` (private, local clone `C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\Steward`): the roster, loot and attendance addon this app exists for. The repo holds an `AGENTS.md` and nothing else: no Lua, no TOC, no manifests, and **no `Addons` entry here**. Do not assume it is wired up.
+- `hoobio/Steward` (private, local clone `C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\Steward`): the roster, loot and attendance addon this app exists for. The repo holds an `AGENTS.md`, a TOC and its icon, and nothing else: no Lua, no manifests, and **no `Addons` entry here**. Do not assume it is wired up.
 - `hoobio/addons` (private, local clone `D:\addons`): builds the channel manifests and zips this app reads, and publishes them to the Static Web App.
 
 Both addons are cloned in place under the live WoW client rather than somewhere on `D:\`, so each working tree is what the game loads.
