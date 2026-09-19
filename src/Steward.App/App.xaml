@@ -3,6 +3,7 @@
     x:Class="Steward.App.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:media="using:Microsoft.UI.Xaml.Media"
     RequestedTheme="Dark">
     <Application.Resources>
         <ResourceDictionary>
@@ -26,6 +27,24 @@
                             <SolidColorBrush x:Key="RowHairlineBrush" Color="#FF1F2430" />
                             <SolidColorBrush x:Key="ChipBrush" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="WindowGroundBrush" Color="#1F2430" Opacity="0.72" />
+                            <media:RadialGradientBrush
+                                x:Key="GroundGlowTopLeft"
+                                Center="0,0"
+                                GradientOrigin="0,0"
+                                RadiusX="1.2"
+                                RadiusY="0.9">
+                                <GradientStop Color="#1A409FFF" Offset="0.0" />
+                                <GradientStop Color="#00409FFF" Offset="0.58" />
+                            </media:RadialGradientBrush>
+                            <media:RadialGradientBrush
+                                x:Key="GroundGlowTopRight"
+                                Center="1,0"
+                                GradientOrigin="1,0"
+                                RadiusX="1.0"
+                                RadiusY="0.8">
+                                <GradientStop Color="#12D4BFFF" Offset="0.0" />
+                                <GradientStop Color="#00D4BFFF" Offset="0.62" />
+                            </media:RadialGradientBrush>
                             <SolidColorBrush x:Key="SuccessTintBrush" Color="#21BAE67E" />
                             <SolidColorBrush x:Key="CautionTintBrush" Color="#21FFD580" />
                             <SolidColorBrush x:Key="CriticalTintBrush" Color="#21F28779" />
@@ -38,6 +57,8 @@
                             <SolidColorBrush x:Key="RowHairlineBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
                             <SolidColorBrush x:Key="ChipBrush" Color="{ThemeResource SystemColorButtonFaceColor}" />
                             <SolidColorBrush x:Key="WindowGroundBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="GroundGlowTopLeft" Color="Transparent" />
+                            <SolidColorBrush x:Key="GroundGlowTopRight" Color="Transparent" />
                             <SolidColorBrush x:Key="SuccessTintBrush" Color="Transparent" />
                             <SolidColorBrush x:Key="CautionTintBrush" Color="Transparent" />
                             <SolidColorBrush x:Key="CriticalTintBrush" Color="Transparent" />
