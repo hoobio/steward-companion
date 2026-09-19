@@ -54,10 +54,12 @@ A tray icon, close-to-tray, minimise-to-tray, start-with-Windows and a settings 
 
 Updates are user-initiated only: `AddonRowViewModel.UpdateAsync` is a `RelayCommand` gated on `CanUpdate`, run from the row's own Update button. There is no timer and no unattended apply, so a running instance does not notice a new release until the user switches channel, adds an install, or restarts the app and re-runs the initial `RefreshAvailableAsync` pass. The 15-minute timer in `MainViewModel` only re-checks `/api/admin/me`; it does not poll for addon updates.
 
-## Addon repos
+## Related repos
 
-The Steward addon is the app's reason to exist and has not been built yet. It gets its own private repo, and becomes a second `Addons` entry once it publishes manifests.
+- `hoobio/HoobiScripts` (private, local clone `C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\HoobiScripts`): the quality-of-life addon, and the only entry in `appsettings.json` today. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
+- `hoobio/Steward` (private, local clone `C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\Steward`): the roster, loot and attendance addon this app exists for. The repo holds an `AGENTS.md` and nothing else: no Lua, no TOC, no manifests, and **no `Addons` entry here**. Do not assume it is wired up.
+- `hoobio/addons` (private, local clone `D:\addons`): builds the channel manifests and zips this app reads, and publishes them to the Static Web App.
 
-`HoobiScripts` (private, `hoobio/HoobiScripts`, cloned in place under the live client at `C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\HoobiScripts`) is the addon currently configured. Its `AGENTS.md` documents the addon side of the integration and the release-please channel mechanics.
+Both addons are cloned in place under the live WoW client rather than somewhere on `D:\`, so each working tree is what the game loads.
 
-`hoobio/addons` (private) builds the channel manifests and zips this app reads and publishes them to the Static Web App. The `/<addon-id>/` path layout there is a contract: installed clients bake the manifest URL in, so it cannot be changed once anyone is running the app.
+The `/<addon-id>/` path layout is a contract. Installed clients bake the manifest URL in, so it cannot be changed once anyone is running the app.
