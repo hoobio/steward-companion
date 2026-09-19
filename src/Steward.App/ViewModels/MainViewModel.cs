@@ -29,12 +29,32 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan RecheckInterval = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
 
+    private static readonly string[] SummaryNames =
+    [
+        nameof(InstallCount),
+        nameof(AddonCount),
+        nameof(UpdateCount),
+        nameof(HeaderSubtitle),
+        nameof(BannerBrush),
+        nameof(BannerGlyph),
+        nameof(BannerTitle),
+        nameof(BannerDetail),
+        nameof(BannerVisibility),
+        nameof(UpdateAllVisibility),
+        nameof(CheckAgainVisibility),
+        nameof(NoInstallsVisibility),
+        nameof(IsAnyRowBusy),
+        nameof(InstallsDescription),
+    ];
+
     private readonly ISessionService _sessionService;
     private readonly GigagrugClient _gigagrugClient;
     private readonly AddonUpdater _addonUpdater;
     private readonly AppStateStore _stateStore;
     private readonly IReadOnlyList<ManagedAddon> _addons;
     private readonly Dictionary<string, AddonChannelStatus> _status = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IReadOnlyDictionary<string, AddonRelease?>> _releases =
+        new(StringComparer.OrdinalIgnoreCase);
 
     private DispatcherQueueTimer? _recheckTimer;
     private CancellationTokenSource? _signInCts;
@@ -48,41 +68,57 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AppStateStore stateStore,
         IReadOnlyList<ManagedAddon> addons)
     {
+        ArgumentNullException.ThrowIfNull(addons);
+
         _sessionService = sessionService;
         _gigagrugClient = gigagrugClient;
         _addonUpdater = addonUpdater;
         _stateStore = stateStore;
         _addons = addons;
+
+        foreach (var addon in addons)
+        {
+            AddonChannels.Add(new AddonChannelViewModel(addon, stateStore, OnChannelChanged));
+        }
     }
 
     public ObservableCollection<WowInstallViewModel> Installs { get; } = [];
 
+    public ObservableCollection<AddonChannelViewModel> AddonChannels { get; } = [];
+
     public nint OwnerWindowHandle { get; set; }
 
+    public Action? NavigateToSettings { get; set; }
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MemberInfoBarText))]
     public partial string? UserName { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusMessageVisibility))]
+    [NotifyPropertyChangedFor(nameof(StatusMessageVisibility), nameof(StatusMessageIsOpen))]
     public partial string? StatusMessage { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MemberInfoBarVisibility), nameof(MemberInfoBarIsOpen))]
     public partial bool IsAuthorized { get; set; }
 
     [ObservableProperty]
     public partial bool IsGlobalAdmin { get; set; }
 
     [ObservableProperty]
-    public partial WowInstallViewModel? SelectedInstall { get; set; }
-
-    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NoInstallsVisibility))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
     public partial string LastCheckedText { get; set; } = "Not checked yet";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HeaderSubtitle), nameof(BannerDetail))]
+    public partial string LastCheckedRelative { get; set; } = "not checked yet";
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(GateVisibility), nameof(ShellChromeVisibility))]
+    [NotifyPropertyChangedFor(nameof(MemberInfoBarVisibility), nameof(MemberInfoBarIsOpen))]
     public partial bool IsSignedIn { get; set; }
 
     [ObservableProperty]
@@ -111,30 +147,83 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["stable", "beta"];
 
-    public Visibility StatusMessageVisibility =>
-        string.IsNullOrEmpty(StatusMessage) ? Visibility.Collapsed : Visibility.Visible;
+    public int InstallCount => Installs.Count;
 
-    public Visibility GateVisibility => IsSignedIn ? Visibility.Collapsed : Visibility.Visible;
+    public int AddonCount => Installs.Sum(install => install.AddonRows.Count);
 
-    public Visibility ShellChromeVisibility => IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
+    public int UpdateCount => Installs.Sum(install => install.UpdateCount);
 
-    public Visibility TimeoutVisibility =>
-        Failure == GateFailure.Timeout ? Visibility.Visible : Visibility.Collapsed;
+    public bool IsAnyRowBusy => Installs.Any(install => install.AddonRows.Any(row => row.IsBusy));
 
-    public Visibility SessionExpiredVisibility =>
-        Failure == GateFailure.SessionExpired ? Visibility.Visible : Visibility.Collapsed;
+    public string HeaderSubtitle =>
+        $"{InstallCount} World of Warcraft installs, last checked {LastCheckedRelative}";
 
-    public Visibility UnreachableVisibility =>
-        Failure == GateFailure.Unreachable ? Visibility.Visible : Visibility.Collapsed;
+    public Brush BannerBrush => (Brush)Application.Current.Resources[
+        UpdateCount > 0 ? "CautionTintBrush" : "SuccessTintBrush"];
 
-    public Visibility CancelSignInVisibility => IsSigningIn ? Visibility.Visible : Visibility.Collapsed;
+    public string BannerGlyph => UpdateCount > 0 ? "" : "";
+
+    public string BannerTitle =>
+        UpdateCount > 0 ? $"{UpdateCount} update{(UpdateCount == 1 ? "" : "s")} available" : "Everything is up to date";
+
+    public string BannerDetail
+    {
+        get
+        {
+            if (UpdateCount == 0)
+            {
+                return $"{AddonCount} addons across {InstallCount} installs, last checked {LastCheckedRelative}";
+            }
+
+            var first = Installs
+                .SelectMany(install => install.AddonRows)
+                .FirstOrDefault(row => row.HasUpdateAvailable);
+            if (first is null)
+            {
+                return string.Empty;
+            }
+
+            var line = $"{first.AddonId} {first.InstalledVersion} -> {first.AvailableVersion}";
+            return UpdateCount > 1 ? $"{line}, and {UpdateCount - 1} more" : line;
+        }
+    }
+
+    public Visibility BannerVisibility => When(Installs.Count > 0);
+
+    public Visibility UpdateAllVisibility => When(IsAuthorized && UpdateCount > 0);
+
+    public Visibility CheckAgainVisibility => When(UpdateCount == 0);
+
+    public Visibility NoInstallsVisibility => When(Installs.Count == 0 && !IsBusy);
+
+    public Visibility StatusMessageVisibility => When(!string.IsNullOrEmpty(StatusMessage));
+
+    public bool StatusMessageIsOpen => !string.IsNullOrEmpty(StatusMessage);
+
+    public bool MemberInfoBarIsOpen => IsSignedIn && !IsAuthorized;
+
+    public Visibility MemberInfoBarVisibility => When(MemberInfoBarIsOpen);
+
+    public string MemberInfoBarText =>
+        $"Signed in as {UserName}. Applying addon updates needs an officer role on the guild panel. Ask an officer to raise yours.";
+
+    public Visibility GateVisibility => When(!IsSignedIn);
+
+    public Visibility ShellChromeVisibility => When(IsSignedIn);
+
+    public Visibility TimeoutVisibility => When(Failure == GateFailure.Timeout);
+
+    public Visibility SessionExpiredVisibility => When(Failure == GateFailure.SessionExpired);
+
+    public Visibility UnreachableVisibility => When(Failure == GateFailure.Unreachable);
+
+    public Visibility CancelSignInVisibility => When(IsSigningIn);
 
     public ImageSource? AvatarImage => AvatarUri is null ? null : new BitmapImage(AvatarUri);
 
     public string GateHeading => IsSigningIn ? "Waiting for Discord" : "Sign in to Steward";
 
-    public Visibility UserHandleVisibility =>
-        string.IsNullOrEmpty(UserHandle) ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility UserHandleVisibility => When(!string.IsNullOrEmpty(UserHandle));
 
     public string RoleLabel => Role switch
     {
@@ -144,6 +233,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     };
 
     public string VersionLabel { get; } = $"Steward {typeof(App).Assembly.GetName().Version?.ToString(3)}";
+
+    public string InstallsDescription => $"{InstallCount} found, read from .flavor.info and .build.info";
+
+    public string DataFolder { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Steward");
+
+    public string StatePath => Path.Combine(DataFolder, "state.json");
+
+    public string AboutDescription => $"{VersionLabel}, installed to {DataFolder}";
+
+    private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
     public void Dispose()
     {
@@ -209,8 +310,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _sessionService.ClearSession();
         _recheckTimer?.Stop();
         Installs.Clear();
-        SelectedInstall = null;
         _status.Clear();
+        _releases.Clear();
         UserName = null;
         UserHandle = null;
         Role = null;
@@ -221,6 +322,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         StatusMessage = null;
         Failure = GateFailure.None;
         IsSignedIn = false;
+        RecomputeSummary();
     }
 
     private async Task LoadAsync(CancellationToken cancellationToken)
@@ -233,14 +335,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            foreach (var install in WowInstalls.Discover())
+            var added = _stateStore.Load().AddedInstalls;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var install in WowInstalls.Discover().Concat(added.Select(WowInstalls.FromFlavourPath).OfType<WowInstall>()))
             {
-                Installs.Add(CreateInstallViewModel(install));
+                if (seen.Add(install.FlavourPath))
+                {
+                    AddInstall(install, added.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase));
+                }
             }
 
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
 
-            SelectedInstall ??= Installs.FirstOrDefault();
             StartRecheckTimer();
         }
         catch (Exception ex)
@@ -250,6 +356,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         finally
         {
             IsBusy = false;
+            RecomputeSummary();
         }
     }
 
@@ -273,10 +380,76 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var viewModel = CreateInstallViewModel(install);
-        Installs.Add(viewModel);
+        if (Installs.Any(existing => string.Equals(existing.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var state = _stateStore.Load();
+        if (!state.AddedInstalls.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase))
+        {
+            state.AddedInstalls.Add(install.FlavourPath);
+            _stateStore.Save(state);
+        }
+
+        var viewModel = AddInstall(install, isAddedByUser: true);
         viewModel.ApplyStatus(_status, background: false);
-        SelectedInstall = viewModel;
+        RecomputeSummary();
+    }
+
+    [RelayCommand]
+    private void Rescan()
+    {
+        foreach (var install in WowInstalls.Discover())
+        {
+            if (Installs.Any(existing => string.Equals(existing.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            AddInstall(install, isAddedByUser: false).ApplyStatus(_status, background: false);
+        }
+
+        RecomputeSummary();
+    }
+
+    private void RemoveInstall(WowInstallViewModel install)
+    {
+        Installs.Remove(install);
+        install.RowsChanged -= OnInstallRowsChanged;
+        _stateStore.Save(AppStateStore.RemoveInstall(_stateStore.Load(), install.FlavourPath));
+        RecomputeSummary();
+    }
+
+    private bool CanUpdateAll => IsAuthorized && UpdateCount > 0 && !IsAnyRowBusy;
+
+    [RelayCommand(CanExecute = nameof(CanUpdateAll))]
+    private async Task UpdateAllAsync()
+    {
+        foreach (var row in Installs.SelectMany(install => install.AddonRows).ToList())
+        {
+            if (row.UpdateCommand.CanExecute(null))
+            {
+                await row.UpdateCommand.ExecuteAsync(null).ConfigureAwait(true);
+            }
+        }
+
+        RecomputeSummary();
+    }
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        IsBusy = true;
+        try
+        {
+            await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
+        }
+        finally
+        {
+            IsBusy = false;
+            RecomputeSummary();
+        }
     }
 
     private async Task CheckAsync(bool background, CancellationToken cancellationToken)
@@ -287,9 +460,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var state = _stateStore.Load();
             foreach (var addon in _addons)
             {
-                _status[addon.Id] = AddonChannelStatus.Resolve(
-                    state.Channels.GetValueOrDefault(addon.Id),
-                    await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken).ConfigureAwait(true));
+                var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken)
+                    .ConfigureAwait(true);
+                _releases[addon.Id] = releases;
+                _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases);
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
@@ -298,23 +472,74 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             succeeded = false;
         }
 
-        foreach (var install in Installs)
-        {
-            install.ApplyStatus(_status, background);
-        }
+        ApplyStatus(background);
 
         if (succeeded)
         {
             _lastPass = DateTimeOffset.Now;
             UpdateLastCheckedText();
         }
+
+        RecomputeSummary();
     }
 
-    private WowInstallViewModel CreateInstallViewModel(WowInstall install)
+    private void ApplyStatus(bool background)
     {
-        var viewModel = new WowInstallViewModel(install, _addons, _addonUpdater, _stateStore, EnsureAuthorizedForActionAsync);
+        foreach (var install in Installs)
+        {
+            install.ApplyStatus(_status, background);
+        }
+
+        foreach (var channel in AddonChannels)
+        {
+            if (_status.TryGetValue(channel.AddonId, out var status))
+            {
+                channel.Apply(status, IsGlobalAdmin, IsAuthorized);
+            }
+        }
+    }
+
+    private void OnChannelChanged(string addonId, string channel)
+    {
+        if (!_releases.TryGetValue(addonId, out var releases))
+        {
+            return;
+        }
+
+        _status[addonId] = AddonChannelStatus.Resolve(channel, releases);
+        ApplyStatus(background: false);
+        RecomputeSummary();
+    }
+
+    private WowInstallViewModel AddInstall(WowInstall install, bool isAddedByUser)
+    {
+        var viewModel = new WowInstallViewModel(
+            install,
+            _addons,
+            _addonUpdater,
+            _stateStore,
+            EnsureAuthorizedForActionAsync,
+            () => NavigateToSettings?.Invoke(),
+            RemoveInstall)
+        {
+            IsAddedByUser = isAddedByUser,
+        };
         viewModel.SetIsAdmin(IsAuthorized);
+        viewModel.RowsChanged += OnInstallRowsChanged;
+        Installs.Add(viewModel);
         return viewModel;
+    }
+
+    private void OnInstallRowsChanged(object? sender, EventArgs e) => RecomputeSummary();
+
+    private void RecomputeSummary()
+    {
+        foreach (var name in SummaryNames)
+        {
+            OnPropertyChanged(name);
+        }
+
+        UpdateAllCommand.NotifyCanExecuteChanged();
     }
 
     private void StartRecheckTimer()
@@ -359,14 +584,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void UpdateLastCheckedText()
     {
         var elapsed = DateTimeOffset.Now - _lastPass;
-        LastCheckedText = true switch
+        LastCheckedRelative = true switch
         {
-            _ when _lastPass == default => "Not checked yet",
-            _ when elapsed < TimeSpan.FromMinutes(1) => "Checked just now",
+            _ when _lastPass == default => "not checked yet",
+            _ when elapsed < TimeSpan.FromMinutes(1) => "just now",
             _ when elapsed < TimeSpan.FromMinutes(60) =>
-                $"Checked {(int)elapsed.TotalMinutes} minute{((int)elapsed.TotalMinutes == 1 ? "" : "s")} ago",
-            _ => $"Checked {(int)elapsed.TotalHours} hour{((int)elapsed.TotalHours == 1 ? "" : "s")} ago",
+                $"{(int)elapsed.TotalMinutes} minute{((int)elapsed.TotalMinutes == 1 ? "" : "s")} ago",
+            _ => $"{(int)elapsed.TotalHours} hour{((int)elapsed.TotalHours == 1 ? "" : "s")} ago",
         };
+        LastCheckedText = _lastPass == default ? "Not checked yet" : $"Checked {LastCheckedRelative}";
     }
 
     private async Task<bool> EnsureAuthorizedForActionAsync(CancellationToken cancellationToken) =>
@@ -382,7 +608,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Role = me.User.Role;
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = GigagrugClient.IsAdmin(me);
-            StatusMessage = IsAuthorized ? null : $"Signed in as {UserName}. Admin role required for updates.";
+            StatusMessage = null;
 
             // Client-side gate only: gigagrug does not restrict who can fetch the unstable
             // manifest, and this re-check is likewise a UI truth-teller, not enforcement.

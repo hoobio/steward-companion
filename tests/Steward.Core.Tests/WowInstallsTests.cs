@@ -67,4 +67,11 @@ public sealed class WowInstallsTests : IDisposable
         Assert.NotNull(install);
         Assert.Equal(flavourPath, install.FlavourPath);
     }
+
+    [Theory]
+    [InlineData("_classic_beta_", "World of Warcraft: Forever - Beta")]
+    [InlineData("_retail_", "World of Warcraft")]
+    [InlineData("_classic_era_", "_classic_era_")]
+    public void DisplayName_MapsKnownFlavours_AndFallsBackToTheFolderName(string flavour, string expected) =>
+        Assert.Equal(expected, WowInstalls.DisplayName(flavour));
 }

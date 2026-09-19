@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 using Steward.App.ViewModels;
 
 using Microsoft.UI.Windowing;
@@ -14,10 +16,12 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppWindow.SetIcon(App.IconPath);
         ViewModel = viewModel;
         SystemBackdrop = new MicaBackdrop();
         ViewModel.OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        ViewModel.NavigateToSettings = GoToSettings;
         RootFrame.Navigate(typeof(HomePage), ViewModel);
 
         var scale = Content.XamlRoot?.RasterizationScale ?? 1.0;
@@ -32,7 +36,43 @@ public sealed partial class MainWindow : Window
 
     public MainViewModel ViewModel { get; }
 
-    private void OnBackRequested(TitleBar sender, object args) => ViewModel.IsOnSettings = false;
+    private void OnBackRequested(TitleBar sender, object args)
+    {
+        if (RootFrame.CanGoBack)
+        {
+            RootFrame.GoBack();
+        }
 
-    private void OnSettingsClick(object sender, RoutedEventArgs e) => ViewModel.IsOnSettings = true;
+        ViewModel.IsOnSettings = false;
+    }
+
+    private void OnSettingsClick(object sender, RoutedEventArgs e) => GoToSettings();
+
+    private void OnGuildPanelClick(object sender, RoutedEventArgs e)
+    {
+        AccountFlyout.Hide();
+        Process.Start(new ProcessStartInfo("https://guild.hoobi.io") { UseShellExecute = true })?.Dispose();
+    }
+
+    private void OnSignOutClick(object sender, RoutedEventArgs e)
+    {
+        AccountFlyout.Hide();
+        if (RootFrame.CanGoBack)
+        {
+            RootFrame.GoBack();
+        }
+
+        ViewModel.SignOutCommand.Execute(null);
+    }
+
+    private void GoToSettings()
+    {
+        if (ViewModel.IsOnSettings)
+        {
+            return;
+        }
+
+        RootFrame.Navigate(typeof(SettingsPage), ViewModel);
+        ViewModel.IsOnSettings = true;
+    }
 }

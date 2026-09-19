@@ -4,6 +4,15 @@ namespace Steward.Core;
 
 public static class WowInstalls
 {
+    private static readonly Dictionary<string, string> FlavourDisplayNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["_classic_beta_"] = "World of Warcraft: Forever - Beta",
+        ["_retail_"] = "World of Warcraft",
+    };
+
+    public static string DisplayName(string flavour) =>
+        FlavourDisplayNames.GetValueOrDefault(flavour, flavour);
+
     public static IReadOnlyList<WowInstall> Discover()
     {
         var installs = new List<WowInstall>();

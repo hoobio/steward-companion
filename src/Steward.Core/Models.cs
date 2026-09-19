@@ -44,7 +44,8 @@ public sealed record InstalledAddonRecord(
 public sealed record AppState(
     [property: JsonPropertyName("channels")] Dictionary<string, string> Channels,
     [property: JsonPropertyName("installs")] Dictionary<string, InstalledAddonRecord> Installs,
-    [property: JsonPropertyName("session_token")] string? EncryptedSessionToken = null)
+    [property: JsonPropertyName("session_token")] string? EncryptedSessionToken = null,
+    [property: JsonPropertyName("added_installs")] List<string> AddedInstalls = null!)
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

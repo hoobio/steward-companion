@@ -22,19 +22,35 @@ public sealed class AppStateStore
     {
         if (!File.Exists(_path))
         {
-            return new AppState([], []);
+            return Normalise(new AppState([], []));
         }
 
         var json = File.ReadAllText(_path);
         var state = JsonSerializer.Deserialize(json, CompanionJsonContext.Default.AppState)
             ?? new AppState([], []);
-        var normalised = state with
-        {
-            Channels = new Dictionary<string, string>(state.Channels ?? [], StringComparer.OrdinalIgnoreCase),
-            Installs = state.Installs ?? [],
-        };
-        return SeedLegacyChannel(normalised, _addonIds);
+        return SeedLegacyChannel(Normalise(state), _addonIds);
     }
+
+    public static AppState RemoveInstall(AppState state, string flavourPath)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        var prefix = Key(flavourPath, string.Empty);
+        return state with
+        {
+            AddedInstalls = [.. state.AddedInstalls.Where(p => !string.Equals(p, flavourPath, StringComparison.OrdinalIgnoreCase))],
+            Installs = state.Installs
+                .Where(entry => !entry.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value),
+        };
+    }
+
+    private static AppState Normalise(AppState state) => state with
+    {
+        Channels = new Dictionary<string, string>(state.Channels ?? [], StringComparer.OrdinalIgnoreCase),
+        Installs = state.Installs ?? [],
+        AddedInstalls = state.AddedInstalls ?? [],
+    };
 
     internal static AppState SeedLegacyChannel(AppState state, IReadOnlyList<string> addonIds)
     {

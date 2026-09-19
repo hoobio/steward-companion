@@ -101,6 +101,47 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_AddedInstalls_RoundTrips()
+    {
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+        store.Save(new AppState([], [], null, [@"C:\wow\_retail_"]));
+
+        var state = store.Load();
+
+        Assert.Equal([@"C:\wow\_retail_"], state.AddedInstalls);
+    }
+
+    [Fact]
+    public void Load_FileWithoutAddedInstallsKey_ReturnsEmptyAddedInstalls()
+    {
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Empty(state.AddedInstalls);
+    }
+
+    [Fact]
+    public void RemoveInstall_DropsThePathAndEveryRecordUnderIt()
+    {
+        var state = new AppState(
+            [],
+            new Dictionary<string, InstalledAddonRecord>
+            {
+                [AppStateStore.Key(@"C:\wow\_retail_", "hoobiscripts")] = new("1.0.0", "beta", "aa"),
+                [AppStateStore.Key(@"C:\wow\_retail_", "steward")] = new("2.0.0", "beta", "bb"),
+                [AppStateStore.Key(@"C:\wow\_classic_era_", "hoobiscripts")] = new("1.0.0", "beta", "cc"),
+            },
+            null,
+            [@"C:\wow\_retail_", @"C:\wow\_classic_era_"]);
+
+        var result = AppStateStore.RemoveInstall(state, @"C:\wow\_retail_");
+
+        Assert.Equal([@"C:\wow\_classic_era_"], result.AddedInstalls);
+        Assert.Equal([AppStateStore.Key(@"C:\wow\_classic_era_", "hoobiscripts")], result.Installs.Keys);
+    }
+
+    [Fact]
     public void Load_ChannelLookup_IsCaseInsensitive()
     {
         File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"beta"},"installs":{}}""");
