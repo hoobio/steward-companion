@@ -53,8 +53,6 @@ public sealed partial class WowInstallViewModel : ObservableObject
 
     public WowInstall Install { get; }
 
-    public string Flavour => Install.Flavour;
-
     public string DisplayName => Install.DisplayName;
 
     public string FlavourPath => Install.FlavourPath;

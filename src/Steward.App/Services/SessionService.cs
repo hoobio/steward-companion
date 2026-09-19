@@ -60,6 +60,11 @@ public sealed class SessionService : ISessionService
     {
         var state = _stateStore.Load();
         _stateStore.Save(state with { EncryptedSessionToken = null });
+
+        foreach (Cookie cookie in _cookieContainer.GetCookies(new Uri(_baseUrl)))
+        {
+            cookie.Expired = true;
+        }
     }
 
     public async Task SignInAsync(CancellationToken cancellationToken)

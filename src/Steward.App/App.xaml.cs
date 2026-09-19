@@ -28,6 +28,7 @@ public partial class App : Application
         _host = builder.Build();
 
         _window = _host.Services.GetRequiredService<MainWindow>();
+        _window.Closed += (_, _) => _host.Dispose();
         _window.Activate();
         _ = _window.ViewModel.InitializeCommand.ExecuteAsync(null);
     }

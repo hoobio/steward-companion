@@ -17,8 +17,7 @@ public sealed class AddonUpdater
         var manifestUri = ManifestUri(addon, channel);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, manifestUri);
-        // The Static Web App route for this manifest has unconfirmed cache headers, so force
-        // a revalidation here rather than trust an intermediate cache to serve a fresh copy.
+        // The Static Web App route for this manifest has unconfirmed cache headers.
         request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
 
         using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);

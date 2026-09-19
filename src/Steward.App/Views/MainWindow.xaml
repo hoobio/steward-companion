@@ -177,7 +177,7 @@
                     Severity="Warning"
                     HorizontalAlignment="Center"
                     Visibility="{x:Bind ViewModel.SessionExpiredVisibility, Mode=OneWay}"
-                    Message="Your session expired. Sessions last 90 days from last use. Sign in again to carry on." />
+                    Message="Your session expired. Sessions last 30 days from last use. Sign in again to carry on." />
                 <InfoBar
                     IsOpen="True"
                     IsClosable="False"

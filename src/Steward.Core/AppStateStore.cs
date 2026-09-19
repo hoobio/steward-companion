@@ -25,10 +25,16 @@ public sealed class AppStateStore
             return Normalise(new AppState([], []));
         }
 
-        var json = File.ReadAllText(_path);
-        var state = JsonSerializer.Deserialize(json, CompanionJsonContext.Default.AppState)
-            ?? new AppState([], []);
-        return SeedLegacyChannel(Normalise(state), _addonIds);
+        try
+        {
+            var state = JsonSerializer.Deserialize(File.ReadAllText(_path), CompanionJsonContext.Default.AppState)
+                ?? new AppState([], []);
+            return SeedLegacyChannel(Normalise(state), _addonIds);
+        }
+        catch (JsonException)
+        {
+            return Normalise(new AppState([], []));
+        }
     }
 
     public static AppState RemoveInstall(AppState state, string flavourPath)
@@ -48,7 +54,7 @@ public sealed class AppStateStore
     private static AppState Normalise(AppState state) => state with
     {
         Channels = new Dictionary<string, string>(state.Channels ?? [], StringComparer.OrdinalIgnoreCase),
-        Installs = state.Installs ?? [],
+        Installs = new Dictionary<string, InstalledAddonRecord>(state.Installs ?? [], StringComparer.OrdinalIgnoreCase),
         AddedInstalls = state.AddedInstalls ?? [],
     };
 
@@ -71,6 +77,8 @@ public sealed class AppStateStore
     public void Save(AppState state)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        File.WriteAllText(_path, JsonSerializer.Serialize(state, CompanionJsonContext.Default.AppState));
+        var temporaryPath = $"{_path}.tmp";
+        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(state, CompanionJsonContext.Default.AppState));
+        File.Move(temporaryPath, _path, overwrite: true);
     }
 }

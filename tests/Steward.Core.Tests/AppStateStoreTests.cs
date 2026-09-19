@@ -163,4 +163,39 @@ public sealed class AppStateStoreTests : IDisposable
 
         Assert.Equal("beta", state.Channels["HoobiScripts"]);
     }
+
+    [Fact]
+    public void Load_InstallLookup_IsCaseInsensitive()
+    {
+        File.WriteAllText(
+            StatePath,
+            """{"channels":{},"installs":{"C:\\wow\\_retail_|hoobiscripts":{"version":"1.0.0","channel":"beta","sha256":"aa"}}}""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Equal("1.0.0", state.Installs[AppStateStore.Key(@"c:\WOW\_RETAIL_", "HoobiScripts")].Version);
+    }
+
+    [Fact]
+    public void Save_WritesAtomically_LeavesNoTempFile()
+    {
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+
+        store.Save(new AppState([], []));
+
+        Assert.True(File.Exists(StatePath));
+        Assert.False(File.Exists($"{StatePath}.tmp"));
+    }
+
+    [Fact]
+    public void Load_CorruptFile_ReturnsEmptyState()
+    {
+        File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"be""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Empty(state.Channels);
+        Assert.Empty(state.Installs);
+        Assert.Empty(state.AddedInstalls);
+    }
 }

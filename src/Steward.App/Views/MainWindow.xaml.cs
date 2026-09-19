@@ -17,6 +17,8 @@ namespace Steward.App.Views;
 
 public sealed partial class MainWindow : Window
 {
+    private bool _quitting;
+
     public MainWindow(MainViewModel viewModel)
     {
         ShowWindowCommand = new RelayCommand(ShowFromTray);
@@ -90,6 +92,11 @@ public sealed partial class MainWindow : Window
 
     private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
+        if (_quitting)
+        {
+            return;
+        }
+
         if (ViewModel.KeepInTray)
         {
             args.Cancel = true;
@@ -130,6 +137,7 @@ public sealed partial class MainWindow : Window
 
     private void QuitCompletely()
     {
+        _quitting = true;
         TrayIcon.Dispose();
         Application.Current.Exit();
     }

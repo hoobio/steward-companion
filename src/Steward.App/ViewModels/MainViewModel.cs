@@ -62,6 +62,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastPass;
     private bool _isChecking;
     private bool _isAutoApplying;
+    private bool _isLoadingState;
+    private ImageSource? _avatarImage;
 
     public MainViewModel(
         ISessionService sessionService,
@@ -86,7 +88,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             AddonChannels.Add(new AddonChannelViewModel(addon, stateStore, OnChannelChanged));
         }
 
+        _isLoadingState = true;
         KeepInTray = stateStore.Load().KeepInTray;
+        _isLoadingState = false;
     }
 
     public ObservableCollection<WowInstallViewModel> Installs { get; } = [];
@@ -102,7 +106,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string? UserName { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusMessageVisibility), nameof(StatusMessageIsOpen))]
+    [NotifyPropertyChangedFor(nameof(StatusMessageIsOpen))]
     public partial string? StatusMessage { get; set; }
 
     [ObservableProperty]
@@ -115,9 +119,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(NoInstallsVisibility))]
     public partial bool IsBusy { get; set; }
-
-    [ObservableProperty]
-    public partial string LastCheckedText { get; set; } = "Not checked yet";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HeaderSubtitle), nameof(BannerDetail))]
@@ -190,7 +191,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return string.Empty;
             }
 
-            var line = $"{first.AddonId} {first.InstalledVersion} → {first.AvailableVersion}";
+            var line = $"{first.AddonId} {first.InstalledVersion ?? "not installed"} → {first.AvailableVersion}";
             return UpdateCount > 1 ? $"{line}, and {UpdateCount - 1} more" : line;
         }
     }
@@ -202,8 +203,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Visibility CheckAgainVisibility => When(UpdateCount == 0);
 
     public Visibility NoInstallsVisibility => When(Installs.Count == 0 && !IsBusy);
-
-    public Visibility StatusMessageVisibility => When(!string.IsNullOrEmpty(StatusMessage));
 
     public bool StatusMessageIsOpen => !string.IsNullOrEmpty(StatusMessage);
 
@@ -228,7 +227,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility CancelSignInVisibility => When(IsSigningIn);
 
-    public ImageSource? AvatarImage => AvatarUri is null ? null : new BitmapImage(AvatarUri);
+    public ImageSource? AvatarImage => _avatarImage;
 
     public string GateHeading => IsSigningIn ? "Waiting for Discord" : "Sign in to Steward";
 
@@ -257,6 +256,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _recheckTimer?.Stop();
         _signInCts?.Dispose();
         _signInCts = null;
     }
@@ -498,7 +498,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RecomputeSummary();
 
         RefreshClients();
-        await AutoApplyAsync().ConfigureAwait(true);
+        try
+        {
+            await AutoApplyAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
+        {
+            StatusMessage = ex.Message;
+        }
     }
 
     private void RefreshClients()
@@ -544,6 +551,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             install.ApplyStatus(_status, background);
         }
 
+        ApplyChannelStatus();
+    }
+
+    private void ApplyChannelStatus()
+    {
         foreach (var channel in AddonChannels)
         {
             if (_status.TryGetValue(channel.AddonId, out var status))
@@ -553,8 +565,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    partial void OnKeepInTrayChanged(bool value) =>
+    partial void OnKeepInTrayChanged(bool value)
+    {
+        if (_isLoadingState)
+        {
+            return;
+        }
+
         _stateStore.Save(_stateStore.Load() with { KeepInTray = value });
+    }
+
+    partial void OnAvatarUriChanged(Uri? value) => _avatarImage = value is null ? null : new BitmapImage(value);
 
     private void OnChannelChanged(string addonId, string channel)
     {
@@ -636,6 +657,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
             }
         }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            StatusMessage = ex.Message;
+        }
         finally
         {
             _isChecking = false;
@@ -653,7 +678,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 $"{(int)elapsed.TotalMinutes} minute{((int)elapsed.TotalMinutes == 1 ? "" : "s")} ago",
             _ => $"{(int)elapsed.TotalHours} hour{((int)elapsed.TotalHours == 1 ? "" : "s")} ago",
         };
-        LastCheckedText = _lastPass == default ? "Not checked yet" : $"Checked {LastCheckedRelative}";
     }
 
     private async Task<bool> EnsureAuthorizedForActionAsync(CancellationToken cancellationToken) =>
@@ -671,8 +695,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsAuthorized = GigagrugClient.IsAdmin(me);
             StatusMessage = null;
 
-            // Client-side gate only: gigagrug does not restrict who can fetch the unstable
-            // manifest, and this re-check is likewise a UI truth-teller, not enforcement.
+            // Client-side gate only: gigagrug does not restrict who can fetch the unstable manifest.
             IsGlobalAdmin = GigagrugClient.IsGlobalAdmin(me);
 
             PropagateAuthorized();
@@ -694,6 +717,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             PropagateAuthorized();
             return AuthCheckResult.SessionExpired;
         }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            Failure = GateFailure.Unreachable;
+            StatusMessage = ex.Message;
+            return AuthCheckResult.NotAuthorized;
+        }
     }
 
     private void PropagateAuthorized()
@@ -702,6 +731,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             install.SetIsAdmin(IsAuthorized);
         }
+
+        ApplyChannelStatus();
     }
 
     private enum AuthCheckResult

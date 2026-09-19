@@ -80,8 +80,6 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     public string AddonId => _addon.Id;
 
-    public string FolderName => _addon.FolderName;
-
     public string DisplayName => _addon.FolderName;
 
     public bool IsFirst { get; init; }
@@ -121,7 +119,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     public Visibility ReloadHintVisibility => When(NeedsReload);
 
-    public bool CanAutoApply => HasUpdateAvailable && !IsBusy && !HasFailed && IsAdmin && !IsClientRunning;
+    public bool CanAutoApply => State == AddonRowState.UpdateAvailable && IsAdmin && !IsClientRunning;
 
     public bool HasUpdateAvailable =>
         _status?.Release is { } release && Channel is not null && TocFile.HasUpdate(release.Version, InstalledVersion);
@@ -256,19 +254,19 @@ public sealed partial class AddonRowViewModel : ObservableObject
             return;
         }
 
-        if (!await _ensureAuthorized(CancellationToken.None).ConfigureAwait(true))
-        {
-            HasFailed = true;
-            StatusMessage = "Not authorised to update.";
-            return;
-        }
-
         HasFailed = false;
         StatusMessage = null;
         IsBusy = true;
         UpdateProgress = 0;
         try
         {
+            if (!await _ensureAuthorized(CancellationToken.None).ConfigureAwait(true))
+            {
+                HasFailed = true;
+                StatusMessage = "Not authorised to update.";
+                return;
+            }
+
             var progress = new Progress<double>(value => UpdateProgress = value);
             await _updater.InstallAsync(_addon, channel, release, _install.AddOnsPath, progress, CancellationToken.None)
                 .ConfigureAwait(true);
