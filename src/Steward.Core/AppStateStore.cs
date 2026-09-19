@@ -28,7 +28,12 @@ public sealed class AppStateStore
         var json = File.ReadAllText(_path);
         var state = JsonSerializer.Deserialize(json, CompanionJsonContext.Default.AppState)
             ?? new AppState([], []);
-        return SeedLegacyChannel(state with { Channels = state.Channels ?? [] }, _addonIds);
+        var normalised = state with
+        {
+            Channels = new Dictionary<string, string>(state.Channels ?? [], StringComparer.OrdinalIgnoreCase),
+            Installs = state.Installs ?? [],
+        };
+        return SeedLegacyChannel(normalised, _addonIds);
     }
 
     internal static AppState SeedLegacyChannel(AppState state, IReadOnlyList<string> addonIds)

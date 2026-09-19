@@ -79,4 +79,34 @@ public sealed class AppStateStoreTests : IDisposable
 
         Assert.Empty(state.Channels);
     }
+
+    [Fact]
+    public void Load_FileWithoutInstallsKey_ReturnsEmptyInstalls()
+    {
+        File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"beta"}}""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Empty(state.Installs);
+    }
+
+    [Fact]
+    public void Load_ChannelsNullInJson_ReturnsEmptyChannels()
+    {
+        File.WriteAllText(StatePath, """{"channels":null,"installs":{}}""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Empty(state.Channels);
+    }
+
+    [Fact]
+    public void Load_ChannelLookup_IsCaseInsensitive()
+    {
+        File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"beta"},"installs":{}}""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Equal("beta", state.Channels["HoobiScripts"]);
+    }
 }

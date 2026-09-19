@@ -54,7 +54,7 @@ public sealed class AddonChannelStatusTests
     }
 
     [Fact]
-    public void Resolve_StoredChannelIsNotVisible_TreatsItAsStale()
+    public void Resolve_StoredChannelNotVisible_FallsBackWithoutNotice()
     {
         var releases = new Dictionary<string, AddonRelease?>
         {
@@ -65,7 +65,7 @@ public sealed class AddonChannelStatusTests
         var status = AddonChannelStatus.Resolve("unstable", releases);
 
         Assert.Equal("stable", status.Channel);
-        Assert.Equal("No releases on unstable any more. Showing stable.", status.Notice);
+        Assert.Null(status.Notice);
     }
 
     [Fact]

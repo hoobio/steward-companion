@@ -18,7 +18,7 @@ public sealed record AddonChannelStatus(
         {
             return new AddonChannelStatus(releases, stored, null);
         }
-        if (stored is not null && best is not null)
+        if (stored is not null && releases.ContainsKey(stored) && best is not null)
         {
             return new AddonChannelStatus(releases, best, $"No releases on {stored} any more. Showing {best}.");
         }

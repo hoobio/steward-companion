@@ -39,6 +39,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
     public partial string? Channel { get; set; }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(UpdateCommand))]
     public partial string? InstalledVersion { get; set; }
 
     [ObservableProperty]
@@ -74,7 +75,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         _status = status;
         Channel = status.Channel;
         AvailableVersion = status.Release?.Version;
-        StatusMessage = status.Notice;
+        StatusMessage = status.Channel is null ? "No releases yet" : status.Notice;
     }
 
     private bool CanUpdate =>
