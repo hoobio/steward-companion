@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/hoobio/steward-companion/compare/v0.7.1...v0.7.2) (2026-09-20)
+
+
+### Bug Fixes
+
+* 🐛 fetch one cached GitHub listing per repo and stop re-polling GitHub while the guild API is unreachable ([d128c56](https://github.com/hoobio/steward-companion/commit/d128c56f6f28697518c922750d345ac5a7c72d4a))
+
 ## [0.7.1](https://github.com/hoobio/steward-companion/compare/v0.7.0...v0.7.1) (2026-09-20)
 
 
