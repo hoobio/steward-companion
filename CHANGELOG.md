@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/hoobio/steward-companion/compare/v0.6.0...v0.7.0) (2026-09-20)
+
+
+### Features
+
+* ✨ brand the MSI with Steward dialogs and skip the licence page ([7c5de0f](https://github.com/hoobio/steward-companion/commit/7c5de0fe403a1a508d32e518619bf6dfd6c33835))
+
 ## [0.6.0](https://github.com/hoobio/steward-companion/compare/v0.5.0...v0.6.0) (2026-09-20)
 
 
