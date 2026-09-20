@@ -43,7 +43,7 @@
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind DisplayName}" FontSize="13.5" FontWeight="SemiBold" />
                     <TextBlock
-                        Text="{x:Bind AddonId}"
+                        Text="{x:Bind SubtitleText, Mode=OneWay}"
                         FontFamily="Cascadia Mono"
                         FontSize="11.5"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
@@ -106,18 +106,6 @@
                         FontSize="12.5"
                         Foreground="{StaticResource AvailableVersionBrush}"
                         Visibility="{x:Bind VersionPairVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="{x:Bind InstalledVersion, Mode=OneWay}"
-                        FontFamily="Cascadia Mono"
-                        FontSize="12.5"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind SingleVersionVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="Not installed"
-                        FontFamily="Cascadia Mono"
-                        FontSize="12.5"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind NotInstalledVisibility, Mode=OneWay}" />
                     <TextBlock
                         Text="No releases yet"
                         FontFamily="Cascadia Mono"

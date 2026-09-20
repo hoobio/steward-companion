@@ -2,9 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace Steward.Core;
 
-public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? GitHubRepo = null)
+public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? GitHubRepo = null, string? Name = null)
 {
     public bool IsGitHub => GitHubRepo is not null;
+
+    public string DisplayName => Name ?? FolderName;
 
     public IReadOnlyList<string> Channels => IsGitHub ? AddonChannelStatus.GitHubChannels : AddonChannelStatus.Ordered;
 

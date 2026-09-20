@@ -35,9 +35,8 @@ public sealed partial class AddonRowViewModel : ObservableObject
         nameof(ActionLabel),
         nameof(ActionStyle),
         nameof(UpdatingLine),
+        nameof(SubtitleText),
         nameof(VersionPairVisibility),
-        nameof(SingleVersionVisibility),
-        nameof(NotInstalledVisibility),
         nameof(NoReleasesVisibility),
         nameof(UpdatingVisibility),
         nameof(FailedVisibility),
@@ -88,7 +87,9 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     public string AddonId => _addon.Id;
 
-    public string DisplayName => _addon.FolderName;
+    public string DisplayName => _addon.DisplayName;
+
+    public string SubtitleText => InstalledVersion ?? "Not installed";
 
     public bool IsFirst { get; init; }
 
@@ -168,10 +169,6 @@ public sealed partial class AddonRowViewModel : ObservableObject
     public string UpdatingLine => $"Installing {_status?.Release?.Version}, verifying download";
 
     public Visibility VersionPairVisibility => When(State == AddonRowState.UpdateAvailable);
-
-    public Visibility SingleVersionVisibility => When(State == AddonRowState.Current);
-
-    public Visibility NotInstalledVisibility => When(State == AddonRowState.Missing);
 
     public Visibility NoReleasesVisibility => When(State == AddonRowState.NoReleases);
 

@@ -30,7 +30,7 @@ public sealed partial class AddonChannelViewModel : ObservableObject
 
     public string AddonId => _addon.Id;
 
-    public string Name => _addon.FolderName;
+    public string Name => _addon.DisplayName;
 
     public ImageSource Icon { get; }
 
