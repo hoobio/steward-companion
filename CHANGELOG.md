@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/hoobio/steward-companion/compare/v0.5.0...v0.6.0) (2026-09-20)
+
+
+### Features
+
+* ✨ show a friendly addon name with the installed version beneath it ([ae870ea](https://github.com/hoobio/steward-companion/commit/ae870ea21076e5f546050393226a903d55133fd6))
+
+
+### Bug Fixes
+
+* 🐛 download GitHub addon zips from their absolute release URL ([27c8dce](https://github.com/hoobio/steward-companion/commit/27c8dce029868ffe90690ee021b5a3ea06fe6ca5))
+* 🐛 keep Retry in the actions column and show the update state as a glyph beside the version ([f234580](https://github.com/hoobio/steward-companion/commit/f23458017223d1a8269314c3f6540029e628d4b7))
+
 ## [0.5.0](https://github.com/hoobio/steward-companion/compare/v0.4.0...v0.5.0) (2026-09-20)
 
 
