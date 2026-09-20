@@ -411,6 +411,12 @@ public sealed class RestedXpService : IDisposable
             await EnsureFreshSessionAsync(forCall: true, cancellationToken).ConfigureAwait(true);
             session = Session ?? session;
             var downloaded = await _client.DownloadGuideAsync(session, productName, cancellationToken).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(downloaded.BnetTag))
+            {
+                _lastFailure[productName] = DateTimeOffset.UtcNow;
+                return (null, null, "RestedXP has no BattleTag on your account, so the guide cannot be bound to you. Add one at account.restedxp.com, then Refresh.");
+            }
+
             Cache(productName, timestamp, downloaded);
             return (downloaded.Guide, downloaded.BnetTag, null);
         }
@@ -455,7 +461,13 @@ public sealed class RestedXpService : IDisposable
             }
 
             var meta = JsonSerializer.Deserialize(File.ReadAllText(metaPath), CompanionJsonContext.Default.RestedXpCachedGuide);
-            return meta?.Timestamp == timestamp ? (File.ReadAllText(guidePath), meta.BnetTag) : (null, null);
+            if (meta?.Timestamp != timestamp)
+            {
+                return (null, null);
+            }
+
+            BattleTag ??= meta.BnetTag;
+            return (File.ReadAllText(guidePath), meta.BnetTag);
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
