@@ -158,10 +158,9 @@ public sealed class AddonUpdater
                 $"{existingPath} exists but has no {tocFileName}; refusing to delete it");
         }
 
-        if (Directory.Exists(Path.Combine(existingPath, ".git")))
+        foreach (var file in Directory.EnumerateFiles(existingPath, "*", SearchOption.AllDirectories))
         {
-            throw new InvalidOperationException(
-                $"{existingPath} is a git working tree, not an installed addon; refusing to delete it");
+            File.SetAttributes(file, FileAttributes.Normal);
         }
 
         Directory.Delete(existingPath, recursive: true);

@@ -89,15 +89,20 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
-    public void RemoveExistingInstall_Throws_WhenFolderIsAGitWorkingTree()
+    public void RemoveExistingInstall_Deletes_AGitWorkingTreeWithReadOnlyFiles()
     {
         var addOnsPath = Path.Combine(_tempDir, "AddOns");
         var existing = Path.Combine(addOnsPath, FolderName);
-        Directory.CreateDirectory(Path.Combine(existing, ".git"));
+        var objectsDir = Path.Combine(existing, ".git", "objects", "ab");
+        Directory.CreateDirectory(objectsDir);
         File.WriteAllText(Path.Combine(existing, $"{FolderName}.toc"), "## Version: 0.9.0");
+        var objectFile = Path.Combine(objectsDir, "cd1234");
+        File.WriteAllText(objectFile, "object");
+        File.SetAttributes(objectFile, FileAttributes.ReadOnly);
 
-        Assert.Throws<InvalidOperationException>(() => AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName));
-        Assert.True(Directory.Exists(existing));
+        AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName);
+
+        Assert.False(Directory.Exists(existing));
     }
 
     [Fact]
