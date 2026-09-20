@@ -21,7 +21,8 @@ public sealed record GuideSyncResult(GuideSyncOutcome Outcome, DateTimeOffset Up
 
 public sealed partial class RestedXpService
 {
-    private static readonly TimeSpan RefreshMargin = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan RefreshMargin = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan KeepAliveMargin = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan RetryAfterFailure = TimeSpan.FromSeconds(10);
 
     private readonly RestedXpClient _client;
@@ -113,20 +114,24 @@ public sealed partial class RestedXpService
         _stateStore.Save(_stateStore.Load() with { EncryptedRestedXpSession = null });
     }
 
-    public async Task EnsureFreshSessionAsync(CancellationToken cancellationToken)
+    public async Task EnsureFreshSessionAsync(bool forCall, CancellationToken cancellationToken)
     {
         if (Session is not { } session)
         {
             return;
         }
 
-        if (session.RefreshExpiresAt <= DateTimeOffset.UtcNow)
+        var now = DateTimeOffset.UtcNow;
+        if (session.RefreshExpiresAt <= now)
         {
             SignOut();
             throw new RestedXpSessionExpiredException();
         }
 
-        if (session.AccessExpiresAt - DateTimeOffset.UtcNow > RefreshMargin)
+        // ponytail: the 30-minute refresh token is renewed only near its end so an idle app costs one call per ~25 minutes, not one per access token
+        var keepAlive = session.RefreshExpiresAt - now <= KeepAliveMargin;
+        var accessStale = forCall && session.AccessExpiresAt - now <= RefreshMargin;
+        if (!keepAlive && !accessStale)
         {
             return;
         }
@@ -208,6 +213,8 @@ public sealed partial class RestedXpService
 
             try
             {
+                await EnsureFreshSessionAsync(forCall: true, cancellationToken).ConfigureAwait(true);
+                session = Session ?? session;
                 var downloaded = await _client.DownloadGuideAsync(session, productName, cancellationToken).ConfigureAwait(true);
                 guide = downloaded.Guide;
                 Cache(productName, serverTimestamp, downloaded);

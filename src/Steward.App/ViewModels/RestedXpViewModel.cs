@@ -139,7 +139,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
     {
         try
         {
-            await _service.EnsureFreshSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            await _service.EnsureFreshSessionAsync(forCall: false, CancellationToken.None).ConfigureAwait(true);
         }
         catch (RestedXpSessionExpiredException ex)
         {
@@ -160,7 +160,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
 
         try
         {
-            await _service.EnsureFreshSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            await _service.EnsureFreshSessionAsync(forCall: true, CancellationToken.None).ConfigureAwait(true);
             await _service.LoadCatalogueAsync(CancellationToken.None).ConfigureAwait(true);
         }
         catch (RestedXpSessionExpiredException ex)
