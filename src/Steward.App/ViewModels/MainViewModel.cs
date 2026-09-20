@@ -375,6 +375,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _signInCts?.Dispose();
         _signInCts = null;
         DisposeInstalls();
+        RestedXp.Dispose();
     }
 
     private void DisposeInstalls()

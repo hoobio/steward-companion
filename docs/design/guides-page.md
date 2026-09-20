@@ -38,7 +38,7 @@ Because the addon file is only read at login or `/reload`, there is no client-cl
 | --- | --- | --- |
 | All current | The addon's saved variable marks the string | Success pill `Up to date` per kept row |
 | Downloading | A newer timestamp, fetch running | Accent-tinted row, pill `Downloading`, indeterminate `ProgressBar` under the row |
-| Written | `Guides.lua` regenerated this session | Success pill `Written · imports on next login or /reload` |
+| Written | `Guides.lua` regenerated this session | Success pill `Written · imports on next login or /reload`, clears on the next `/reload` or logout after the import |
 | Failure | Download or write failed | Critical-tinted row, pill `Failed`, "Download failed. Retrying in 10 s." and a `Retry` button |
 | Rejected | The saved variable carries the current generation and a status text for the string | Critical-tinted row, pill `Failed`, the addon's own status text as the message, `Retry` re-writes the folder |
 | Not finished | The saved variable carries the current generation, with neither a mark nor a status for the string | Caution-tinted row, pill `Not finished`, dim "Import did not finish; it runs again on the next login", no `Retry` |

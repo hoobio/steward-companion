@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Steward.App.Services;
 using Steward.Core;
 
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
@@ -239,13 +240,68 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 }
 
-public sealed partial class RestedXpViewModel : ObservableObject
+internal sealed class GuidesFileWatcher : IDisposable
+{
+    private static readonly TimeSpan Debounce = TimeSpan.FromMilliseconds(1500);
+
+    private readonly FileSystemWatcher _watcher;
+    private readonly Timer _timer;
+
+    private GuidesFileWatcher(FileSystemWatcher watcher, Action changed)
+    {
+        _watcher = watcher;
+        _timer = new Timer(_ => changed(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _watcher.Changed += OnEvent;
+        _watcher.Created += OnEvent;
+        _watcher.Renamed += OnEvent;
+        _watcher.EnableRaisingEvents = true;
+    }
+
+    public static GuidesFileWatcher? TryCreate(string flavourPath, Action changed)
+    {
+        var accountRoot = Path.Combine(flavourPath, "WTF", "Account");
+        if (!Directory.Exists(accountRoot))
+        {
+            return null;
+        }
+
+        FileSystemWatcher? watcher = null;
+        try
+        {
+            watcher = new FileSystemWatcher(accountRoot, StewardGuidesSavedVariables.FileName)
+            {
+                IncludeSubdirectories = true,
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
+            };
+            return new GuidesFileWatcher(watcher, changed);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            watcher?.Dispose();
+            return null;
+        }
+    }
+
+    public void Dispose()
+    {
+        _watcher.EnableRaisingEvents = false;
+        _watcher.Dispose();
+        _timer.Dispose();
+    }
+
+    private void OnEvent(object sender, FileSystemEventArgs e) =>
+        _timer.Change(Debounce, Timeout.InfiniteTimeSpan);
+}
+
+public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
 {
     public const string AddonId = "restedxp";
 
     private static readonly TimeSpan PreviewDelay = TimeSpan.FromSeconds(2);
 
     private readonly RestedXpService _service;
+    private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
+    private readonly Dictionary<string, GuidesFileWatcher> _watchers = new(StringComparer.OrdinalIgnoreCase);
 
     public RestedXpViewModel(RestedXpService service)
     {
@@ -350,6 +406,39 @@ public sealed partial class RestedXpViewModel : ObservableObject
             card.IsSessionActive = IsSignedIn;
             card.AddonVersion = install.AddonRows
                 .FirstOrDefault(row => string.Equals(row.AddonId, AddonId, StringComparison.OrdinalIgnoreCase))?.InstalledVersion;
+        }
+
+        SyncWatchers();
+    }
+
+    public void Dispose()
+    {
+        foreach (var watcher in _watchers.Values)
+        {
+            watcher.Dispose();
+        }
+
+        _watchers.Clear();
+    }
+
+    private void SyncWatchers()
+    {
+        foreach (var gone in _watchers.Keys.Where(path => !Guides.Any(g => string.Equals(g.FlavourPath, path, StringComparison.OrdinalIgnoreCase))).ToList())
+        {
+            _watchers[gone].Dispose();
+            _watchers.Remove(gone);
+        }
+
+        foreach (var card in Guides.Where(g => !_watchers.ContainsKey(g.FlavourPath)))
+        {
+            var flavourPath = card.FlavourPath;
+            var watcher = GuidesFileWatcher.TryCreate(
+                flavourPath,
+                () => _dispatcher?.TryEnqueue(() => Confirm(flavourPath)));
+            if (watcher is not null)
+            {
+                _watchers[flavourPath] = watcher;
+            }
         }
     }
 
