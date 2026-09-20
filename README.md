@@ -4,7 +4,7 @@ The desktop half of Steward, a guild toolkit for World of Warcraft. It signs in 
 
 It manages a set of addons rather than one, so the other addons published alongside it ride along. It is not a general-purpose addon manager, and it manages World of Warcraft: Forever installs only.
 
-Steward checks each managed addon's release channel when it starts and every 15 minutes while the window is open. Steward applies the updates it finds, whether or not the game client is running. An update applied while the client is running takes effect after `/reload` in game, and the row says so until the client stops.
+Steward checks each managed addon's release channel when it starts and every 5 minutes while the window is open. Steward applies the updates it finds, whether or not the game client is running. An update applied while the client is running takes effect after `/reload` in game, and the row says so until the client stops.
 
 ## Install
 

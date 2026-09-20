@@ -7,7 +7,7 @@ namespace Steward.Core;
 public static class GitHubReleases
 {
     private static readonly ConcurrentDictionary<string, (DateTimeOffset FetchedAt, GitHubRelease[] Releases)> Cache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(15);
 
     public static async Task<AddonRelease?> GetLatestAsync(
         HttpClient httpClient, string repo, string assetExtension, string channel, CancellationToken cancellationToken)

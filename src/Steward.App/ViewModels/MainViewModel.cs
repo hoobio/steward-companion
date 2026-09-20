@@ -26,7 +26,7 @@ public enum GateFailure
 
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
-    private static readonly TimeSpan RecheckInterval = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan RecheckInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
 
     private static readonly string[] SummaryNames =
