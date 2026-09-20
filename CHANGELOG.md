@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/hoobio/steward-companion/compare/v0.3.0...v0.4.0) (2026-09-20)
+
+
+### Features
+
+* ✨ add a start with Windows toggle that launches to the tray ([ae4531c](https://github.com/hoobio/steward-companion/commit/ae4531ce791de1677323cf6844fd2148db18104c))
+* ✨ check for Steward updates and install them silently from GitHub releases ([d86c853](https://github.com/hoobio/steward-companion/commit/d86c8536a807696dc49176a8df8acb2722c67095))
+* ✨ hide addons managed elsewhere and drop the banner's check again button ([bea96c2](https://github.com/hoobio/steward-companion/commit/bea96c20bc7f1380f5b67743ae1a8ef89be262d5))
+* ✨ install the Steward addon automatically and list it first ([400fac0](https://github.com/hoobio/steward-companion/commit/400fac062d449abac7271121481571f6ed5fe8c6))
+* ✨ label development builds and keep start with Windows to GitHub releases ([e9213a4](https://github.com/hoobio/steward-companion/commit/e9213a4dba62e805185f7a83a689f0b05531c9cd))
+* ✨ manage RestedXP from its tagged GitHub releases ([beae008](https://github.com/hoobio/steward-companion/commit/beae0087d94b19b9eab294ac36c439b2f6e46080))
+
 ## [0.3.0](https://github.com/hoobio/steward-companion/compare/v0.2.0...v0.3.0) (2026-09-19)
 
 
