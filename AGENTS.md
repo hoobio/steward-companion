@@ -50,7 +50,7 @@ The MSI uses `WixUI_InstallDir` with the licence dialog skipped through two `Pub
 
 ## Git workflow
 
-Commits go straight to `main` and are pushed there; this repo uses no feature branches and no pull requests for its own work. Conventional-commit subjects feed release-please, which opens the release PR itself. A worktree used for a change is fast-forwarded into `main` and removed once pushed.
+Commits go straight to `main` in the one working tree at `D:\steward-companion` and are pushed there; this repo uses no feature branches, no worktrees and no pull requests for its own work, and a subagent edits `main` in place. Conventional-commit subjects feed release-please, which opens the release PR itself.
 
 ## Releases
 
