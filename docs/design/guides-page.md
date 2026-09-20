@@ -28,7 +28,7 @@ Top to bottom:
 
 The frames' checkbox per row stands. The `RXPString` route would have held one product per account, but it is dead on this client (see [restedxp-guides.md](restedxp-guides.md), "Getting the string into the addon"), and the generated-addon route that replaced it hands each string to the importer's paste path, which is additive. Verified in game on 20 Sep 2026 with Forever and Mists together.
 
-So the row control is a `CheckBox`, any number of owned products can be kept per install, and every kept row carries its own pill. Products whose client flavour is not the install's (the "Client gating" section of the same doc) are listed with the checkbox disabled and a dim "Not for this client" line in place of the updated time.
+So the row control is a `CheckBox`, any number of owned products can be kept per install, and every kept row carries its own pill. Products whose client flavour is not the install's (the "Client gating" section of the same doc) stay listed, in Text mute, with the checkbox disabled and a dim "Not for this client" line in place of the updated time, and a tooltip on the row reading "{product} is for another client. This install is {install}."
 
 Because the addon file is only read at login or `/reload`, there is no client-closed rule any more: the "Waiting for game to close" state is gone, and the written state reads "Written · imports on next login or /reload".
 
