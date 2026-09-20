@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3](https://github.com/hoobio/steward-companion/compare/v0.7.2...v0.7.3) (2026-09-20)
+
+
+### Bug Fixes
+
+* 🐛 show when an addon was last updated in the up-to-date tooltip ([73a1bbd](https://github.com/hoobio/steward-companion/commit/73a1bbd6eda437b244906d1df27b942f29131511))
+
 ## [0.7.2](https://github.com/hoobio/steward-companion/compare/v0.7.1...v0.7.2) (2026-09-20)
 
 
