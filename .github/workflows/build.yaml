@@ -105,7 +105,7 @@ jobs:
           platform: x64
           payload-dir: ${{ github.workspace }}\publish\x64
           output-dir: ${{ github.workspace }}\staging\msi-x64
-          extensions: WixToolset.Util.wixext/5.0.2
+          extensions: WixToolset.UI.wixext/5.0.2,WixToolset.Util.wixext/5.0.2
 
       - name: Sign MSI
         if: env.HAS_SIGNING_CERT == 'true'

@@ -8,10 +8,12 @@
                  though only one architecture ships today.
     PayloadDir - root of the published self-contained build to wrap.
 
-  No WiX UI extension: this is a plain per-user MSI with no dialogs, which avoids
-  forcing a licence choice and the wixext version-pinning problem WixUI carries.
+  WixUI_InstallDir with the licence dialog skipped: the repo has no licence file, so the
+  flow is Welcome, InstallDir, Ready, Progress, Exit, with the Steward bitmaps beside
+  this file on the chrome. Extensions are pinned to the WiX tool version in build.yaml.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
 
   <?define UpgradeCodeGuid = "CCD0BF88-7A8E-4F74-9DB7-9B9272B3D503" ?>
@@ -84,6 +86,15 @@
     <InstallExecuteSequence>
       <Custom Action="LaunchSteward" After="InstallFinalize" Condition="NOT REMOVE" />
     </InstallExecuteSequence>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(sys.SOURCEFILEDIR)WixUIBannerBmp.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(sys.SOURCEFILEDIR)WixUIDialogBmp.bmp" />
+
+    <UI>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="99" />
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="99" />
+    </UI>
 
   </Package>
 
