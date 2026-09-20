@@ -48,6 +48,12 @@ public sealed class AppStateStore
             Installs = state.Installs
                 .Where(entry => !entry.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value),
+            RestedXpGuides = (state.RestedXpGuides ?? [])
+                .Where(entry => !entry.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
+            RestedXpGuideChoice = (state.RestedXpGuideChoice ?? [])
+                .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
         };
     }
 

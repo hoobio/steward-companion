@@ -46,7 +46,8 @@ internal static class HostBuilderExtensions
             {
                 CookieContainer = sp.GetRequiredService<CookieContainer>(),
             });
-        builder.Services.AddHttpClient("Addon");
+        builder.Services.AddHttpClient("Addon")
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false });
 
         builder.Services.AddSingleton<IReadOnlyList<ManagedAddon>>(addons);
         builder.Services.AddSingleton<IReadOnlyDictionary<string, string>>(

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -145,7 +146,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
         {
             DropSession(ex.Message);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (IsRecoverable(ex))
         {
             ErrorMessage = ex.Message;
         }
@@ -168,7 +169,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
             DropSession(ex.Message);
             return;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (IsRecoverable(ex))
         {
             ErrorMessage = ex.Message;
             return;
@@ -188,7 +189,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
         var row = Guides.FirstOrDefault(g => string.Equals(g.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase));
         if (row is not null)
         {
-            await SyncAsync(row).ConfigureAwait(true);
+            await SyncAsync(row, cacheOnly: true).ConfigureAwait(true);
         }
     }
 
@@ -212,7 +213,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
                 await AfterSignInAsync().ConfigureAwait(true);
             }
         }
-        catch (Exception ex) when (ex is RestedXpSignInException or HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (IsRecoverable(ex))
         {
             ErrorMessage = ex.Message;
         }
@@ -234,7 +235,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
             IsMfaRequired = false;
             await AfterSignInAsync().ConfigureAwait(true);
         }
-        catch (Exception ex) when (ex is RestedXpSignInException or HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (IsRecoverable(ex))
         {
             ErrorMessage = ex.Message;
         }
@@ -284,28 +285,37 @@ public sealed partial class RestedXpViewModel : ObservableObject
         await SyncAsync(row).ConfigureAwait(true);
     }
 
-    private async Task SyncAsync(RestedXpInstallViewModel row)
+    private async Task SyncAsync(RestedXpInstallViewModel row, bool cacheOnly = false)
     {
         if (row.SelectedProduct is not { } product)
         {
-            row.StatusLine = "No RestedXP guide owned";
+            if (!cacheOnly)
+            {
+                row.StatusLine = "No RestedXP guide owned";
+            }
+
             return;
         }
 
         try
         {
-            var result = await _service.SyncAsync(row.Install, product, CancellationToken.None).ConfigureAwait(true);
-            row.StatusLine = Describe(result);
+            if (await _service.SyncAsync(row.Install, product, cacheOnly, CancellationToken.None).ConfigureAwait(true) is { } result)
+            {
+                row.StatusLine = Describe(result);
+            }
         }
         catch (RestedXpSessionExpiredException ex)
         {
             DropSession(ex.Message);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (IsRecoverable(ex))
         {
             row.StatusLine = ex.Message;
         }
     }
+
+    private static bool IsRecoverable(Exception exception) =>
+        exception is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException or RestedXpSignInException;
 
     private static string Describe(GuideSyncResult result) => result switch
     {

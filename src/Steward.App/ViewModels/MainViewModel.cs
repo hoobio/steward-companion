@@ -30,7 +30,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan RecheckInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
 
-    private const int GuideCheckEveryPasses = 36;
+    private static readonly TimeSpan GuideCheckInterval = TimeSpan.FromHours(3);
 
     private static readonly string[] SummaryNames =
     [
@@ -64,7 +64,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DispatcherQueueTimer? _recheckTimer;
     private CancellationTokenSource? _signInCts;
     private DateTimeOffset _lastPass;
-    private int _passCount;
+    private DateTimeOffset _lastGuideCheck;
     private bool _isChecking;
     private bool _isAutoApplying;
     private bool _isLoadingState;
@@ -369,6 +369,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void SyncGuideInstalls() => RestedXp.SetInstalls(Installs.Select(install => install.Install));
 
+    private async Task CheckGuidesAsync()
+    {
+        _lastGuideCheck = DateTimeOffset.Now;
+        await RestedXp.CheckAsync().ConfigureAwait(true);
+    }
+
     [RelayCommand]
     private async Task InitializeAsync()
     {
@@ -464,7 +470,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
             await CheckAppUpdateAsync(cancellationToken).ConfigureAwait(true);
-            await RestedXp.CheckAsync().ConfigureAwait(true);
+            await CheckGuidesAsync().ConfigureAwait(true);
 
             StartRecheckTimer();
         }
@@ -572,7 +578,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
             await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
-            await RestedXp.CheckAsync().ConfigureAwait(true);
+            await CheckGuidesAsync().ConfigureAwait(true);
         }
         finally
         {
@@ -897,9 +903,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             await RestedXp.RefreshSessionAsync().ConfigureAwait(true);
-            if (++_passCount % GuideCheckEveryPasses == 0)
+            if (DateTimeOffset.Now - _lastGuideCheck >= GuideCheckInterval)
             {
-                await RestedXp.CheckAsync().ConfigureAwait(true);
+                await CheckGuidesAsync().ConfigureAwait(true);
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)

@@ -156,6 +156,29 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void RemoveInstall_DropsTheRestedXpGuideRecordsAndChoiceForThatPath()
+    {
+        var state = new AppState([], [], null, [@"C:\wow\_retail_", @"C:\wow\_classic_era_"])
+        {
+            RestedXpGuides = new Dictionary<string, RestedXpGuideRecord>(StringComparer.OrdinalIgnoreCase)
+            {
+                [AppStateStore.Key(@"C:\wow\_retail_", "Forever Leveling Guide")] = new(1, DateTimeOffset.UnixEpoch),
+                [AppStateStore.Key(@"C:\wow\_classic_era_", "Forever Leveling Guide")] = new(2, DateTimeOffset.UnixEpoch),
+            },
+            RestedXpGuideChoice = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [@"C:\wow\_retail_"] = "Forever Leveling Guide",
+                [@"C:\wow\_classic_era_"] = "Forever Leveling Guide",
+            },
+        };
+
+        var result = AppStateStore.RemoveInstall(state, @"C:\wow\_retail_");
+
+        Assert.Equal([AppStateStore.Key(@"C:\wow\_classic_era_", "Forever Leveling Guide")], result.RestedXpGuides.Keys);
+        Assert.Equal([@"C:\wow\_classic_era_"], result.RestedXpGuideChoice.Keys);
+    }
+
+    [Fact]
     public void Load_KeepInTray_DefaultsTrue_AndRoundTrips()
     {
         File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");

@@ -19,7 +19,7 @@ public enum GuideSyncOutcome
 
 public sealed record GuideSyncResult(GuideSyncOutcome Outcome, DateTimeOffset UpdatedAt, string? Error = null);
 
-public sealed partial class RestedXpService
+public sealed partial class RestedXpService : IDisposable
 {
     private static readonly TimeSpan RefreshMargin = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan KeepAliveMargin = TimeSpan.FromMinutes(10);
@@ -30,6 +30,7 @@ public sealed partial class RestedXpService
     private readonly ILogger<RestedXpService> _logger;
     private readonly string _cacheFolder;
     private readonly Dictionary<string, DateTimeOffset> _lastFailure = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _syncGate = new(1, 1);
 
     private string? _mfaSessionId;
 
@@ -41,6 +42,8 @@ public sealed partial class RestedXpService
         _cacheFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward", "guides");
     }
+
+    public void Dispose() => _syncGate.Dispose();
 
     public RestedXpSession? Session { get; private set; }
 
@@ -182,13 +185,28 @@ public sealed partial class RestedXpService
         _stateStore.Save(state);
     }
 
-    public async Task<GuideSyncResult> SyncAsync(WowInstall install, string productName, CancellationToken cancellationToken)
+    public async Task<GuideSyncResult?> SyncAsync(WowInstall install, string productName, bool cacheOnly, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(install);
 
+        await _syncGate.WaitAsync(cancellationToken).ConfigureAwait(true);
+        try
+        {
+            return await SyncCoreAsync(install, productName, cacheOnly, cancellationToken).ConfigureAwait(true);
+        }
+        finally
+        {
+            _syncGate.Release();
+        }
+    }
+
+    private async Task<GuideSyncResult?> SyncCoreAsync(WowInstall install, string productName, bool cacheOnly, CancellationToken cancellationToken)
+    {
         if (!Timestamps.TryGetValue(productName, out var serverTimestamp))
         {
-            return new GuideSyncResult(GuideSyncOutcome.Stale, DateTimeOffset.UnixEpoch, $"RestedXP publish no timestamp for {productName}.");
+            return cacheOnly
+                ? null
+                : new GuideSyncResult(GuideSyncOutcome.Stale, DateTimeOffset.UnixEpoch, $"RestedXP publish no timestamp for {productName}.");
         }
 
         var updatedAt = DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamp);
@@ -201,6 +219,11 @@ public sealed partial class RestedXpService
         var guide = ReadCached(productName, serverTimestamp);
         if (guide is null)
         {
+            if (cacheOnly)
+            {
+                return null;
+            }
+
             if (Session is not { } session)
             {
                 return new GuideSyncResult(GuideSyncOutcome.Stale, updatedAt);
