@@ -16,7 +16,9 @@ public sealed class AddonUpdater
     {
         if (addon.GitHubRepo is { } repo)
         {
-            return channel == "stable" ? await GetLatestFromGitHubAsync(repo, cancellationToken).ConfigureAwait(false) : null;
+            return channel == "stable"
+                ? await GitHubReleases.GetLatestAsync(_httpClient, repo, ".zip", cancellationToken).ConfigureAwait(false)
+                : null;
         }
 
         var manifestUri = ManifestUri(addon, channel);
@@ -61,34 +63,6 @@ public sealed class AddonUpdater
         }
     }
 
-    private async Task<AddonRelease?> GetLatestFromGitHubAsync(string repo, CancellationToken cancellationToken)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{repo}/releases/latest");
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        // GitHub rejects requests without a User-Agent with 403.
-        request.Headers.UserAgent.Add(new ProductInfoHeaderValue("Steward", "1"));
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        var release = await response.Content
-            .ReadFromJsonAsync(CompanionJsonContext.Default.GitHubRelease, cancellationToken)
-            .ConfigureAwait(false);
-        var asset = release?.Assets.FirstOrDefault(a => a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
-        if (release is null || asset is null)
-        {
-            return null;
-        }
-
-        const string digestPrefix = "sha256:";
-        if (asset.Digest is null || !asset.Digest.StartsWith(digestPrefix, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException($"GitHub release {release.TagName} of {repo} has no sha256 digest for {asset.Name}.");
-        }
-
-        return new AddonRelease(release.TagName, asset.BrowserDownloadUrl, asset.Digest[digestPrefix.Length..], asset.Size, release.PublishedAt);
-    }
-
     public async Task InstallAsync(
         ManagedAddon addon,
         string channel,
@@ -103,7 +77,7 @@ public sealed class AddonUpdater
 
         try
         {
-            await DownloadAsync(zipUri, tempZipPath, release.Size, progress, cancellationToken).ConfigureAwait(false);
+            await DownloadAsync(_httpClient, zipUri, tempZipPath, release.Size, progress, cancellationToken).ConfigureAwait(false);
             await VerifyChecksumAsync(tempZipPath, release.Sha256, cancellationToken).ConfigureAwait(false);
             RemoveExistingInstall(addOnsPath, addon.FolderName);
             ExtractZip(tempZipPath, addOnsPath);
@@ -120,14 +94,15 @@ public sealed class AddonUpdater
     private static Uri ManifestUri(ManagedAddon addon, string channel) =>
         new(new Uri(addon.ManifestBaseUrl), $"latest-{channel}.json");
 
-    private async Task DownloadAsync(
+    internal static async Task DownloadAsync(
+        HttpClient httpClient,
         Uri zipUri,
         string destinationPath,
         long expectedSize,
         IProgress<double>? progress,
         CancellationToken cancellationToken)
     {
-        using var response = await _httpClient
+        using var response = await httpClient
             .GetAsync(zipUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();

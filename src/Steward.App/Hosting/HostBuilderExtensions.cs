@@ -57,6 +57,7 @@ internal static class HostBuilderExtensions
             baseUrl));
         builder.Services.AddSingleton(sp => new AddonUpdater(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon")));
+        builder.Services.AddSingleton(sp => new AppUpdater(sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"), "hoobio/steward-companion"));
 
         builder.Services.AddSingleton<InMemoryGuildSyncApi>();
         builder.Services.AddSingleton<IGuildSyncApi>(sp => sp.GetRequiredService<InMemoryGuildSyncApi>());

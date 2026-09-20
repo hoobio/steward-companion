@@ -176,7 +176,7 @@
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE946;" />
                 </controls:SettingsCard.HeaderIcon>
-                <Button Content="Check for a new version" Click="OnReleasesClick" />
+                <Button Content="{x:Bind ViewModel.AboutActionLabel, Mode=OneWay}" Click="OnReleasesClick" />
             </controls:SettingsCard>
 
             <controls:SettingsCard Header="App data" Description="{x:Bind ViewModel.StatePath, Mode=OneWay}">

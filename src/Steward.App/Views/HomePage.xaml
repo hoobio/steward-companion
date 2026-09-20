@@ -343,6 +343,17 @@
                 </InfoBar>
 
                 <InfoBar
+                    Severity="Informational"
+                    IsClosable="False"
+                    IsOpen="{x:Bind ViewModel.AppUpdateIsOpen, Mode=OneWay}"
+                    Title="{x:Bind ViewModel.AppUpdateTitle, Mode=OneWay}"
+                    Message="{x:Bind ViewModel.AppUpdateMessage, Mode=OneWay}">
+                    <InfoBar.ActionButton>
+                        <Button Content="Install and restart" Style="{StaticResource AccentButtonStyle}" Command="{x:Bind ViewModel.InstallAppUpdateCommand}" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+
+                <InfoBar
                     Severity="Error"
                     IsClosable="False"
                     IsOpen="{x:Bind ViewModel.StatusMessageIsOpen, Mode=OneWay}"

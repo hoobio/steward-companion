@@ -50,6 +50,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly ISessionService _sessionService;
     private readonly GigagrugClient _gigagrugClient;
     private readonly AddonUpdater _addonUpdater;
+    private readonly AppUpdater _appUpdater;
     private readonly AppStateStore _stateStore;
     private readonly IReadOnlyList<ManagedAddon> _addons;
     private readonly IReadOnlyDictionary<string, string> _supportedProducts;
@@ -69,6 +70,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ISessionService sessionService,
         GigagrugClient gigagrugClient,
         AddonUpdater addonUpdater,
+        AppUpdater appUpdater,
         AppStateStore stateStore,
         IReadOnlyList<ManagedAddon> addons,
         IReadOnlyDictionary<string, string> supportedProducts,
@@ -80,6 +82,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _sessionService = sessionService;
         _gigagrugClient = gigagrugClient;
         _addonUpdater = addonUpdater;
+        _appUpdater = appUpdater;
         _stateStore = stateStore;
         _addons = addons;
         _supportedProducts = supportedProducts;
@@ -111,6 +114,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public nint OwnerWindowHandle { get; set; }
 
     public Action? NavigateToSettings { get; set; }
+
+    public Action? QuitRequested { get; set; }
 
     public Func<Task>? SavedVariablesChanged { get; set; }
 
@@ -173,6 +178,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AvatarImage))]
     public partial Uri? AvatarUri { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AppUpdateIsOpen), nameof(AppUpdateTitle), nameof(AboutDescription), nameof(AboutActionLabel))]
+    [NotifyCanExecuteChangedFor(nameof(InstallAppUpdateCommand))]
+    public partial AddonRelease? AppUpdate { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AppUpdateMessage))]
+    [NotifyCanExecuteChangedFor(nameof(InstallAppUpdateCommand))]
+    public partial bool IsInstallingAppUpdate { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AppUpdateMessage))]
+    public partial double AppUpdateProgress { get; set; }
+
+    public bool AppUpdateIsOpen => AppUpdate is not null;
+
+    public string AppUpdateTitle => $"Steward {AppUpdate?.Version.TrimStart('v')} is available";
+
+    public string AppUpdateMessage => IsInstallingAppUpdate
+        ? $"Downloading, {AppUpdateProgress:P0}"
+        : "Installs silently and restarts Steward";
+
+    public string AboutActionLabel => AppUpdate is null ? "Check for a new version" : "Install update";
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["stable", "beta"];
 
@@ -280,7 +309,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string StatePath => Path.Combine(DataFolder, "state.json");
 
-    public string AboutDescription => $"{VersionLabel}, installed to {DataFolder}";
+    public string AboutDescription =>
+        $"{VersionLabel}, installed to {DataFolder}{(AppUpdate is null ? "" : $", {AppUpdate.Version.TrimStart('v')} available")}";
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
@@ -397,6 +427,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
+            await CheckAppUpdateAsync(cancellationToken).ConfigureAwait(true);
 
             StartRecheckTimer();
         }
@@ -502,11 +533,51 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
+            await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
         }
         finally
         {
             IsBusy = false;
             RecomputeSummary();
+        }
+    }
+
+    private async Task CheckAppUpdateAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            AppUpdate = await _appUpdater.CheckAsync(typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0), cancellationToken)
+                .ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException)
+        {
+            StatusMessage = $"Could not check for a Steward update: {ex.Message}";
+        }
+    }
+
+    private bool CanInstallAppUpdate => AppUpdate is not null && !IsInstallingAppUpdate;
+
+    [RelayCommand(CanExecute = nameof(CanInstallAppUpdate))]
+    private async Task InstallAppUpdateAsync()
+    {
+        if (AppUpdate is not { } release)
+        {
+            return;
+        }
+
+        IsInstallingAppUpdate = true;
+        AppUpdateProgress = 0;
+        try
+        {
+            var msiPath = await _appUpdater.DownloadAsync(release, new Progress<double>(value => AppUpdateProgress = value), CancellationToken.None)
+                .ConfigureAwait(true);
+            AppUpdater.InstallAfterExit(msiPath, Environment.ProcessPath!, Path.Combine(DataFolder, "update.log"));
+            QuitRequested?.Invoke();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException)
+        {
+            StatusMessage = $"Update failed: {ex.Message}";
+            IsInstallingAppUpdate = false;
         }
     }
 
@@ -735,6 +806,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (result != AuthCheckResult.SessionExpired)
             {
                 await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
+                await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)

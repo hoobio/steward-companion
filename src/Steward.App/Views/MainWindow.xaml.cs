@@ -34,6 +34,7 @@ public sealed partial class MainWindow : Window
         SystemBackdrop = new MicaBackdrop();
         ViewModel.OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         ViewModel.NavigateToSettings = () => Nav.SelectedItem = Nav.SettingsItem;
+        ViewModel.QuitRequested = QuitCompletely;
         Nav.SelectedItem = AddonsItem;
 
         var scale = Content.XamlRoot?.RasterizationScale ?? 1.0;
