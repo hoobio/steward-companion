@@ -31,8 +31,10 @@
 
     <SummaryInformation Description="Steward installer" />
 
+    <!-- A pre-release MSI carries the same numeric version as the release that follows it. -->
     <MajorUpgrade
         DowngradeErrorMessage="A newer version of Steward is already installed."
+        AllowSameVersionUpgrades="yes"
         Schedule="afterInstallInitialize" />
 
     <Media Id="1" Cabinet="Steward.cab" EmbedCab="yes" CompressionLevel="high" />
@@ -87,6 +89,22 @@
       <Custom Action="LaunchSteward" After="InstallFinalize" Condition="NOT REMOVE" />
     </InstallExecuteSequence>
 
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <SetProperty Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
+                 Value="Start Steward with Windows"
+                 After="FindRelatedProducts"
+                 Sequence="ui"
+                 Condition="NOT WIX_UPGRADE_DETECTED" />
+    <SetProperty Id="RegisterStartup"
+                 Value='"[SystemFolder]reg.exe" add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Steward /t REG_SZ /d "\"[INSTALLFOLDER]Steward.App.exe\" --tray" /f'
+                 Before="ExecuteAction"
+                 Sequence="ui" />
+    <CustomAction Id="RegisterStartup"
+                  DllEntry="WixQuietExec"
+                  BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)"
+                  Execute="immediate"
+                  Return="ignore" />
+
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
     <WixVariable Id="WixUIBannerBmp" Value="$(sys.SOURCEFILEDIR)WixUIBannerBmp.bmp" />
     <WixVariable Id="WixUIDialogBmp" Value="$(sys.SOURCEFILEDIR)WixUIDialogBmp.bmp" />
@@ -94,6 +112,7 @@
     <UI>
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="99" />
       <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="99" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="RegisterStartup" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed AND NOT WIX_UPGRADE_DETECTED" Order="98" />
     </UI>
 
   </Package>
