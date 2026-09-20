@@ -294,9 +294,12 @@ public sealed class RestedXpService : IDisposable
 
         var writtenAt = DateTimeOffset.Now;
         var generation = writtenAt.ToUnixTimeMilliseconds();
+        bool rewritten;
         try
         {
-            StewardGuidesAddon.Write(install.AddOnsPath, strings, generation);
+            var effective = StewardGuidesAddon.Write(install.AddOnsPath, strings, generation);
+            rewritten = effective == generation;
+            generation = effective;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
@@ -321,8 +324,11 @@ public sealed class RestedXpService : IDisposable
             var serverTimestamp = serverTimestamps[productName];
             state.RestedXpGuides[AppStateStore.Key(install.FlavourPath, productName)] =
                 new RestedXpGuideRecord(serverTimestamp, writtenAt);
-            results[productName] = new GuideSyncResult(
-                GuideSyncOutcome.Written, DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamp));
+            if (rewritten)
+            {
+                results[productName] = new GuideSyncResult(
+                    GuideSyncOutcome.Written, DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamp));
+            }
         }
 
         _stateStore.Save(state);

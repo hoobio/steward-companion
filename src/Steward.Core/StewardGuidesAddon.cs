@@ -43,10 +43,6 @@ public static partial class StewardGuidesAddon
                 return
             end
             local hash = Hash(guide.text)
-            if hash and StewardGuidesDB.imported[hash] then
-                ImportNext(rxp)
-                return
-            end
             if guide.tag and guide.tag:lower() ~= playerTag:lower() then
                 Reject(guide, hash, "bought on " .. guide.tag .. ", you are " .. playerTag .. "; not imported")
                 ImportNext(rxp)
@@ -173,9 +169,14 @@ public static partial class StewardGuidesAddon
         return builder.Append("}\n").Append(Bootstrap).ToString();
     }
 
-    public static void Write(string addOnsPath, IReadOnlyList<(string Name, string Text, string? Tag)> guides, long generation)
+    public static long Write(string addOnsPath, IReadOnlyList<(string Name, string Text, string? Tag)> guides, long generation)
     {
         var lua = Render(guides, generation);
+        if (ExistingGeneration(Path.Combine(addOnsPath, FolderName, "Guides.lua"), lua) is { } unchanged)
+        {
+            return unchanged;
+        }
+
         var rxpTocPath = Path.Combine(addOnsPath, "RXPGuides", "RXPGuides.toc");
         var toc = Toc(TocFile.ReadDirective(rxpTocPath, "Interface")
             ?? throw new InvalidOperationException($"{rxpTocPath} has no ## Interface line; RXPGuides must be installed first"));
@@ -202,7 +203,25 @@ public static partial class StewardGuidesAddon
         WriteFile(Path.Combine(folder, $"{FolderName}.toc"), Encoding.UTF8.GetBytes(toc));
         WriteFile(Path.Combine(folder, "Icon.tga"), Icon());
         WriteFile(Path.Combine(folder, "Guides.lua"), Encoding.UTF8.GetBytes(lua));
+        return generation;
     }
+
+    private static long? ExistingGeneration(string guidesPath, string rendered)
+    {
+        if (!File.Exists(guidesPath))
+        {
+            return null;
+        }
+
+        var existing = File.ReadAllText(guidesPath);
+        var match = GenerationLine().Match(existing);
+        return match.Success && string.Equals(existing[match.Length..], rendered[GenerationLine().Match(rendered).Length..], StringComparison.Ordinal)
+            ? long.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture)
+            : null;
+    }
+
+    [GeneratedRegex(@"^local generation = (\d+)\n")]
+    private static partial Regex GenerationLine();
 
     private static string Quote(string value) =>
         value.Replace(@"\", @"\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);

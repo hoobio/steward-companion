@@ -117,6 +117,19 @@ public sealed class StewardGuidesAddonTests : IDisposable
     }
 
     [Fact]
+    public void Write_KeepsTheGenerationWhenTheBodyIsUnchanged()
+    {
+        var addOnsPath = InstallRxpGuides();
+        Assert.Equal(1, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1));
+
+        Assert.Equal(1, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2));
+        Assert.Equal(3, StewardGuidesAddon.Write(addOnsPath, [("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000", null)], 3));
+
+        var lua = File.ReadAllText(Path.Combine(addOnsPath, "StewardGuides", "Guides.lua"));
+        Assert.StartsWith("local generation = 3\n", lua, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Write_Throws_WhenTheFolderIsNotOurs()
     {
         var addOnsPath = InstallRxpGuides();
