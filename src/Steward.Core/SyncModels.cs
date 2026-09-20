@@ -1,4 +1,38 @@
+using System.Text.Json.Serialization;
+
 namespace Steward.Core;
+
+public sealed record GuildBuild(
+    [property: JsonPropertyName("class")] string Class,
+    [property: JsonPropertyName("spec")] string Spec,
+    [property: JsonPropertyName("role")] string Role);
+
+public sealed record GuildRosterMember(
+    [property: JsonPropertyName("user_id")] string UserId,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("display_name")] string? DisplayName,
+    [property: JsonPropertyName("discord_tag")] string? DiscordTag,
+    [property: JsonPropertyName("status")] string? Status,
+    [property: JsonPropertyName("origin")] IReadOnlyList<string> Origin,
+    [property: JsonPropertyName("flags")] IReadOnlyList<string> Flags,
+    [property: JsonPropertyName("rating")] int? Rating,
+    [property: JsonPropertyName("notes")] string? Notes,
+    [property: JsonPropertyName("notes_warning")] bool NotesWarning,
+    [property: JsonPropertyName("signups")] int Signups,
+    [property: JsonPropertyName("last_signup_at")] long LastSignupAt,
+    [property: JsonPropertyName("primary")] GuildBuild? Primary,
+    [property: JsonPropertyName("secondary")] GuildBuild? Secondary);
+
+public sealed record DiscordMember(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("nick")] string? Nick);
+
+public sealed record GuildRosterResponse(
+    [property: JsonPropertyName("members")] IReadOnlyList<GuildRosterMember> Members);
+
+public sealed record DiscordMembersResponse(
+    [property: JsonPropertyName("members")] IReadOnlyList<DiscordMember> Members);
 
 public sealed record RosterMember(
     string Name,
@@ -48,7 +82,9 @@ public sealed record SyncPayload(
     DateTimeOffset? ExportedAt,
     IReadOnlyList<RosterMember> Roster,
     IReadOnlyList<LootEvent> Loot,
-    IReadOnlyList<AttendanceRecord> Attendance);
+    IReadOnlyList<AttendanceRecord> Attendance,
+    IReadOnlyList<GuildRosterMember> Members,
+    IReadOnlyList<DiscordMember> Discord);
 
 public sealed record SyncServerState(
     IReadOnlyDictionary<string, int> RecordCounts,

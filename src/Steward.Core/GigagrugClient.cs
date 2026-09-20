@@ -40,6 +40,57 @@ public sealed class GigagrugClient
         return me ?? throw new HttpRequestException("GET /api/admin/me returned an empty body");
     }
 
+    public async Task<IReadOnlyList<GuildRosterMember>> GetGuildRosterAsync(string guildId, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .GetAsync($"{_baseUrl}/api/admin/{guildId}/roster", cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"GET /api/admin/{guildId}/roster returned {(int)response.StatusCode} {response.StatusCode}");
+        }
+
+        var roster = await response.Content
+            .ReadFromJsonAsync(CompanionJsonContext.Default.GuildRosterResponse, cancellationToken)
+            .ConfigureAwait(false);
+
+        return roster is null
+            ? throw new HttpRequestException($"GET /api/admin/{guildId}/roster returned an empty body")
+            : [.. roster.Members.Select(member => member with { Notes = RosterNotes.Trim(member.Notes) })];
+    }
+
+    public async Task<IReadOnlyList<DiscordMember>> GetDiscordMembersAsync(string guildId, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .GetAsync($"{_baseUrl}/api/admin/{guildId}/members", cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"GET /api/admin/{guildId}/members returned {(int)response.StatusCode} {response.StatusCode}");
+        }
+
+        var members = await response.Content
+            .ReadFromJsonAsync(CompanionJsonContext.Default.DiscordMembersResponse, cancellationToken)
+            .ConfigureAwait(false);
+
+        return members?.Members
+            ?? throw new HttpRequestException($"GET /api/admin/{guildId}/members returned an empty body");
+    }
+
     public async Task<string> ExchangeDesktopCodeAsync(string code, string verifier, CancellationToken cancellationToken)
     {
         using var response = await _httpClient

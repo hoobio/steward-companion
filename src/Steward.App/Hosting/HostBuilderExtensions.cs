@@ -88,6 +88,7 @@ internal static class HostBuilderExtensions
 
         builder.Services.AddSingleton<InMemoryGuildSyncApi>();
         builder.Services.AddSingleton<IGuildSyncApi>(sp => sp.GetRequiredService<InMemoryGuildSyncApi>());
+        builder.Services.AddSingleton<GigagrugGuildSyncApi>();
 
         builder.Services.AddSingleton<MainWindow>();
         builder.Services.AddSingleton<MainViewModel>();

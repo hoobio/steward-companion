@@ -95,7 +95,9 @@ public sealed class InMemoryGuildSyncApi : IGuildSyncApi
             LocalSample.ExportedAt,
             LocalSample.Roster,
             LocalSample.Loot,
-            LocalSample.Attendance));
+            LocalSample.Attendance,
+            [],
+            []));
     }
 
     private static int CountFor(SyncPayload payload, string dataset) => dataset switch

@@ -16,7 +16,24 @@ public sealed class StewardSyncFileTests : IDisposable
         ],
         [
             new AttendanceRecord("raid-1", DateTimeOffset.FromUnixTimeSeconds(1758230000), "Molten Core", ["Hoobi", "Grug"]),
-        ]);
+        ],
+        [],
+        []);
+
+    private static SyncPayload SamplePayloadWithGuildData() => SamplePayload() with
+    {
+        Members =
+        [
+            new GuildRosterMember(
+                "111", "Hoobi", null, "hoobi#0001", "Raider", ["EU"], ["core"], null,
+                "Reliable", false, 12, 1758200000,
+                new GuildBuild("WARRIOR", "Fury", "Melee"), null),
+        ],
+        Discord =
+        [
+            new DiscordMember("222", "Grug", null),
+        ],
+    };
 
     private string InstallAddon(bool withToc = true)
     {
@@ -61,6 +78,33 @@ public sealed class StewardSyncFileTests : IDisposable
         var attendance = Assert.Single(table.GetTable("attendance")!.Items);
         Assert.Equal("Molten Core", attendance.GetString("instance"));
         Assert.Equal(["Hoobi", "Grug"], attendance.GetTable("present")!.Items.Select(i => i.Text));
+
+        Assert.Empty(table.GetTable("members")!.Items);
+        Assert.Empty(table.GetTable("discord")!.Items);
+    }
+
+    [Fact]
+    public void Render_ProducesMembersAndDiscordTables()
+    {
+        var rendered = StewardSyncFile.Render(SamplePayloadWithGuildData());
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"];
+
+        var member = Assert.Single(table.GetTable("members")!.Items);
+        Assert.Equal("111", member.GetString("userId"));
+        Assert.Equal("Hoobi", member.GetString("name"));
+        Assert.Null(member.GetString("displayName"));
+        Assert.Equal("hoobi#0001", member.GetString("discordTag"));
+        Assert.Equal(["EU"], member.GetTable("origin")!.Items.Select(i => i.Text));
+        Assert.Equal("WARRIOR", member.GetTable("primary")!.GetString("class"));
+        Assert.Null(member.GetTable("secondary"));
+
+        var discord = Assert.Single(table.GetTable("discord")!.Items);
+        Assert.Equal("222", discord.GetString("id"));
+        Assert.Equal("Grug", discord.GetString("name"));
+        Assert.Null(discord.GetString("nick"));
     }
 
     [Fact]

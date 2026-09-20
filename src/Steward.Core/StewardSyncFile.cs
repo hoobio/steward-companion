@@ -54,6 +54,8 @@ public static class StewardSyncFile
         entries.Add(new(LuaValue.FromString("roster"), LuaValue.Array(payload.Roster.Select(RosterToLua))));
         entries.Add(new(LuaValue.FromString("loot"), LuaValue.Array(payload.Loot.Select(LootToLua))));
         entries.Add(new(LuaValue.FromString("attendance"), LuaValue.Array(payload.Attendance.Select(AttendanceToLua))));
+        entries.Add(new(LuaValue.FromString("members"), LuaValue.Array(payload.Members.Select(MemberToLua))));
+        entries.Add(new(LuaValue.FromString("discord"), LuaValue.Array(payload.Discord.Select(DiscordToLua))));
 
         return LuaValue.FromTable(entries);
     }
@@ -84,6 +86,34 @@ public static class StewardSyncFile
         new LuaEntry(LuaValue.FromString("at"), LuaValue.FromNumber(attendance.At.ToUnixTimeSeconds())),
         new LuaEntry(LuaValue.FromString("instance"), LuaValue.FromString(attendance.Instance)),
         new LuaEntry(LuaValue.FromString("present"), LuaValue.Array(attendance.Present.Select(LuaValue.FromString))));
+
+    private static LuaValue MemberToLua(GuildRosterMember member) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("userId"), LuaValue.FromString(member.UserId)),
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(member.Name)),
+        new LuaEntry(LuaValue.FromString("displayName"), OrNil(member.DisplayName)),
+        new LuaEntry(LuaValue.FromString("discordTag"), OrNil(member.DiscordTag)),
+        new LuaEntry(LuaValue.FromString("status"), OrNil(member.Status)),
+        new LuaEntry(LuaValue.FromString("origin"), LuaValue.Array(member.Origin.Select(LuaValue.FromString))),
+        new LuaEntry(LuaValue.FromString("flags"), LuaValue.Array(member.Flags.Select(LuaValue.FromString))),
+        new LuaEntry(LuaValue.FromString("rating"), member.Rating is { } rating ? LuaValue.FromNumber(rating) : LuaValue.Nil),
+        new LuaEntry(LuaValue.FromString("notes"), OrNil(member.Notes)),
+        new LuaEntry(LuaValue.FromString("notesWarning"), LuaValue.FromBoolean(member.NotesWarning)),
+        new LuaEntry(LuaValue.FromString("signups"), LuaValue.FromNumber(member.Signups)),
+        new LuaEntry(LuaValue.FromString("lastSignupAt"), LuaValue.FromNumber(member.LastSignupAt)),
+        new LuaEntry(LuaValue.FromString("primary"), BuildToLua(member.Primary)),
+        new LuaEntry(LuaValue.FromString("secondary"), BuildToLua(member.Secondary)));
+
+    private static LuaValue BuildToLua(GuildBuild? build) => build is null
+        ? LuaValue.Nil
+        : LuaValue.FromTable(
+            new LuaEntry(LuaValue.FromString("class"), LuaValue.FromString(build.Class)),
+            new LuaEntry(LuaValue.FromString("spec"), LuaValue.FromString(build.Spec)),
+            new LuaEntry(LuaValue.FromString("role"), LuaValue.FromString(build.Role)));
+
+    private static LuaValue DiscordToLua(DiscordMember member) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("id"), LuaValue.FromString(member.Id)),
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(member.Name)),
+        new LuaEntry(LuaValue.FromString("nick"), OrNil(member.Nick)));
 
     private static LuaValue OrNil(string? value) => value is null ? LuaValue.Nil : LuaValue.FromString(value);
 

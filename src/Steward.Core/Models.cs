@@ -45,8 +45,16 @@ public sealed record AdminUser(
     [property: JsonPropertyName("avatar_url")] string? AvatarUrl,
     [property: JsonPropertyName("role")] string? Role);
 
+public sealed record AdminGuild(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("name")] string? Name,
+    [property: JsonPropertyName("icon_url")] string? IconUrl,
+    [property: JsonPropertyName("member_count")] int MemberCount,
+    [property: JsonPropertyName("nick")] string? Nick);
+
 public sealed record AdminMe(
-    [property: JsonPropertyName("user")] AdminUser User);
+    [property: JsonPropertyName("user")] AdminUser User,
+    [property: JsonPropertyName("guilds")] IReadOnlyList<AdminGuild> Guilds);
 
 public sealed record DesktopExchangeRequest(
     [property: JsonPropertyName("code")] string Code,
@@ -150,8 +158,10 @@ public sealed record AppState(
 [JsonSerializable(typeof(AppState))]
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]
+[JsonSerializable(typeof(DiscordMembersResponse))]
 [JsonSerializable(typeof(GitHubRelease))]
 [JsonSerializable(typeof(GitHubRelease[]))]
+[JsonSerializable(typeof(GuildRosterResponse))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(RestedXpCachedGuide))]
 [JsonSerializable(typeof(RestedXpCookie))]
