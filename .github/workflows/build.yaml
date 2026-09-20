@@ -66,6 +66,7 @@ jobs:
       msi_version: ${{ steps.version.outputs.msi_version }}
     permissions:
       contents: read
+      pull-requests: read
     env:
       HAS_SIGNING_CERT: ${{ secrets.SIGNING_CERTIFICATE != '' && vars.SIGNING_CERT_THUMBPRINT != '' }}
     steps:
@@ -79,9 +80,14 @@ jobs:
         id: version
         shell: pwsh
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_CREATED: ${{ needs.release-please.outputs.release_created }}
         run: |
           $msi = (Get-Content version.txt -Raw).Trim()
+          if ($env:RELEASE_CREATED -ne 'true') {
+            $title = gh pr list --head release-please--branches--main --state open --json title --jq '.[0].title // empty'
+            if ($title -match 'release (\d+\.\d+\.\d+)') { $msi = $Matches[1] }
+          }
           $ver = if ($env:RELEASE_CREATED -eq 'true') { $msi } else { "$msi-pre-release.$($env:GITHUB_SHA.Substring(0, 7))" }
           "msi_version=$msi" | Out-File -Append $env:GITHUB_OUTPUT
           "version=$ver" | Out-File -Append $env:GITHUB_OUTPUT
@@ -222,7 +228,7 @@ jobs:
           name: msi-x64
           path: release
 
-      - name: Create the pre-release and drop the previous one
+      - name: Create the pre-release and keep the latest five
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -233,5 +239,5 @@ jobs:
           tag="v$VERSION"
           previous="$(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')"
           gh release create "$tag" --prerelease --target "$GITHUB_SHA" --title "Steward $VERSION" --generate-notes ${previous:+--notes-start-tag "$previous"} "release/Steward-$VERSION-x64.msi"
-          gh release list --json tagName,isPrerelease --jq ".[] | select(.isPrerelease and .tagName != \"$tag\") | .tagName" \
+          gh release list --limit 100 --json tagName,isPrerelease,createdAt --jq '[.[] | select(.isPrerelease)] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' \
             | xargs -r -n1 gh release delete --cleanup-tag --yes
