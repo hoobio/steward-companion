@@ -28,6 +28,16 @@ Two files, one direction each. The rule exists because the client rewrites its w
 
 `StewardSync.lua` is a plain Lua file listed in the TOC. It calls `Steward.LoadSync({...})` rather than assigning a global, so the addon owns the shape of what arrives. The addon updater replaces the whole addon folder, so the desktop app rewrites this file immediately after every addon update.
 
+## Images
+
+The sandbox has no network, so an image reaches the game the same way data does: the desktop app fetches it, converts it, and writes it into the addon folder. The signed-in user's Discord avatar is the first of these, drawn in the window portrait circles.
+
+`cdn.discordapp.com` serves `?size=64` PNG directly, so no resampling is needed, only a format conversion. A texture in an addon folder must be TGA or BLP, with power-of-two edges, 32-bit for alpha, and the one combination confirmed working on this client is 64x64 32-bit uncompressed true-colour, bottom-up, which is what `Icon.tga` already is.
+
+The payload carries `["avatar"] = "Interface\\AddOns\\Steward\\Avatar.tga"` **only when the app actually wrote that file**, and omits the key otherwise. That rule is load-bearing rather than tidy: since patch 5.0.4 `GetTexture()` echoes back whatever string it was given whether or not the file loaded, and a bad path draws solid green instead of erroring, so **the addon has no way to detect a missing texture**. Presence of the key is the only signal it gets, which is why the app must never write the key optimistically.
+
+A texture file written while the client is running is picked up on `/reload`, not immediately, the same boundary the rest of this system already lives with. The addon folder is replaced wholesale on update, so every written image is rewritten after an update alongside `StewardSync.lua`.
+
 ## Saved variables do not load after a client restart
 
 Verified on 1.60.1.69913 and tracked as ClassicWoWCommunity/forever-bugs#34. The client still writes saved-variables files, but on the next launch it does not load them back, and the first `/reload` of that session writes defaults over whatever was there. `## SavedVariablesPerCharacter` loads across a `/reload` but not across a restart either.
@@ -76,6 +86,8 @@ No gigagrug change was needed for the first sprint. Both endpoints already exist
 | Endpoint | Gives |
 | --- | --- |
 | `GET /api/admin/me` | `{user: {id, name, username, avatar_url, role}, guilds: [...]}`. `role` is `global`, `admin` or null. The guild list supplies the `guild_id` the other two calls need. |
+
+**`guilds` does not mean "the user's guilds".** For a `global` role it is every guild the bot is in, in Discord's own `client.guilds` order; only for an `admin` is it filtered to their seats (`routes.py:84-91`). Taking the first entry therefore picks an arbitrary server for exactly the people most likely to be running this, and the failure is quiet: `/members` answers with that server's real Discord members while `/roster` answers empty, so the sync looks like it worked. The guild is a persisted user setting (`guild_id` in `state.json`, chosen from a picker in the Sync page header showing each guild's Discord name and icon), never an index into that list. `name` and `icon_url` are null whenever the Discord client is not ready (`routes.py:92-95`), so the picker falls back to the raw id and no icon rather than rendering a blank row.
 | `GET /api/admin/{guild_id}/roster` | `{members: [...], origins, specs, statuses, flags, roles, palette}`. A member carries `user_id`, `display_name`, `name`, `discord_tag`, `status`, `origin`, `flags`, `rating`, `notes` and derived primary and secondary builds. |
 | `GET /api/admin/{guild_id}/members` | The full live non-bot Discord member list, `{id, name, nick, avatar_url}`. This is what `ginv` matches against, so a person who has never signed up is still invitable by Discord name. |
 
