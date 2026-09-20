@@ -252,11 +252,6 @@ public sealed class RestedXpService : IDisposable
 
         var state = _stateStore.Load();
         var prefix = AppStateStore.Key(install.FlavourPath, string.Empty);
-        var recorded = state.RestedXpGuides
-            .Where(entry => entry.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(entry => entry.Key[prefix.Length..], entry => entry.Value.Timestamp, StringComparer.Ordinal);
-        var changed = !recorded.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(products);
-
         foreach (var productName in products)
         {
             if (!Timestamps.TryGetValue(productName, out var serverTimestamp))
@@ -281,13 +276,12 @@ public sealed class RestedXpService : IDisposable
                 tag = downloadedTag;
             }
 
-            changed |= recorded.GetValueOrDefault(productName) != serverTimestamp;
             serverTimestamps[productName] = serverTimestamp;
             strings.Add((productName, guide, tag));
             results[productName] = new GuideSyncResult(GuideSyncOutcome.UpToDate, updatedAt);
         }
 
-        if (!changed || strings.Count != products.Count)
+        if (strings.Count != products.Count)
         {
             return results;
         }
