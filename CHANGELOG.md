@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.0](https://github.com/hoobio/steward-companion/compare/v0.4.0...v0.5.0) (2026-09-20)
+
+
+### Features
+
+* ✨ name channels release, pre-release and development, add GitHub prerelease channel and repo icons, and stack release notes back to the last minor ([79ea6d1](https://github.com/hoobio/steward-companion/commit/79ea6d1081acda4464be44fc2308a01ebaba14c4))
+
+
+### Bug Fixes
+
+* 🐛 close a running Steward before the MSI upgrades it and launch it afterwards ([b566a8e](https://github.com/hoobio/steward-companion/commit/b566a8ec1506baac60922ab546ba33f9d0a692ce))
+* 🐛 make the About card's check button run the update check instead of opening GitHub ([1538465](https://github.com/hoobio/steward-companion/commit/1538465392caaf781316792551ad7480915fcbc3))
+* 🐛 replace an addon folder that is a git checkout instead of refusing ([37085d2](https://github.com/hoobio/steward-companion/commit/37085d239d95ecdffb4bc4e46a552984c3ba337c))
+* 🐛 retry an unreachable guild API every minute, offer Retry, and disable Sync meanwhile ([5105d29](https://github.com/hoobio/steward-companion/commit/5105d29d37c89880cf3a12472d41d8ec548016b4))
+
 ## [0.4.0](https://github.com/hoobio/steward-companion/compare/v0.3.0...v0.4.0) (2026-09-20)
 
 
