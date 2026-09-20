@@ -42,7 +42,10 @@ public sealed partial class AddonRowViewModel : ObservableObject
         nameof(FailedVisibility),
         nameof(ChannelPillVisibility),
         nameof(ActionVisibility),
-        nameof(UpToDateVisibility),
+        nameof(StatusGlyphVisibility),
+        nameof(StatusGlyph),
+        nameof(StatusGlyphBrush),
+        nameof(StatusGlyphTooltip),
         nameof(MemberPillVisibility),
         nameof(NoticeVisibility),
         nameof(OverflowVisibility),
@@ -181,7 +184,14 @@ public sealed partial class AddonRowViewModel : ObservableObject
     public Visibility ActionVisibility =>
         When(!IsHidden && IsAdmin && State is AddonRowState.UpdateAvailable or AddonRowState.Missing);
 
-    public Visibility UpToDateVisibility => When(!IsHidden && State == AddonRowState.Current);
+    public Visibility StatusGlyphVisibility => When(State is AddonRowState.Current or AddonRowState.UpdateAvailable);
+
+    public string StatusGlyph => State == AddonRowState.UpdateAvailable ? "" : "";
+
+    public Brush StatusGlyphBrush => (Brush)Application.Current.Resources[
+        State == AddonRowState.UpdateAvailable ? "SystemFillColorCautionBrush" : "SystemFillColorSuccessBrush"];
+
+    public string StatusGlyphTooltip => State == AddonRowState.UpdateAvailable ? $"{AvailableVersion} available" : "Up to date";
 
     public Visibility MemberPillVisibility => When(!IsHidden && !IsAdmin && State == AddonRowState.UpdateAvailable);
 

@@ -42,11 +42,20 @@
 
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind DisplayName}" FontSize="13.5" FontWeight="SemiBold" />
-                    <TextBlock
-                        Text="{x:Bind SubtitleText, Mode=OneWay}"
-                        FontFamily="Cascadia Mono"
-                        FontSize="11.5"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon
+                            Glyph="{x:Bind StatusGlyph, Mode=OneWay}"
+                            FontSize="12"
+                            VerticalAlignment="Center"
+                            Foreground="{x:Bind StatusGlyphBrush, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind StatusGlyphTooltip, Mode=OneWay}"
+                            Visibility="{x:Bind StatusGlyphVisibility, Mode=OneWay}" />
+                        <TextBlock
+                            Text="{x:Bind SubtitleText, Mode=OneWay}"
+                            FontFamily="Cascadia Mono"
+                            FontSize="11.5"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    </StackPanel>
                     <TextBlock
                         Text="Type /reload in game to load the updated files"
                         Style="{StaticResource CaptionTextBlockStyle}"
@@ -63,18 +72,12 @@
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
-                    <StackPanel
-                        Orientation="Horizontal"
-                        Spacing="8"
-                        Visibility="{x:Bind FailedVisibility, Mode=OneWay}">
-                        <TextBlock
-                            Text="{x:Bind StatusMessage, Mode=OneWay}"
-                            VerticalAlignment="Center"
-                            TextWrapping="Wrap"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-                        <Button Height="32" Content="Retry" Command="{x:Bind UpdateCommand}" />
-                    </StackPanel>
+                    <TextBlock
+                        Text="{x:Bind StatusMessage, Mode=OneWay}"
+                        TextWrapping="Wrap"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Visibility="{x:Bind FailedVisibility, Mode=OneWay}" />
                     <TextBlock
                         Text="{x:Bind StatusMessage, Mode=OneWay}"
                         TextWrapping="Wrap"
@@ -149,17 +152,6 @@
                         Content="Updating"
                         IsEnabled="False"
                         Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
-                    <StackPanel
-                        Orientation="Horizontal"
-                        Spacing="4"
-                        VerticalAlignment="Center"
-                        Visibility="{x:Bind UpToDateVisibility, Mode=OneWay}">
-                        <FontIcon
-                            Glyph="&#xE73E;"
-                            FontSize="14"
-                            Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-                        <TextBlock Text="Up to date" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
                     <Border
                         VerticalAlignment="Center"
                         CornerRadius="10"
@@ -168,6 +160,7 @@
                         Visibility="{x:Bind MemberPillVisibility, Mode=OneWay}">
                         <TextBlock Text="Update available" FontSize="12" />
                     </Border>
+                    <Button Height="32" Content="Retry" Command="{x:Bind UpdateCommand}" Visibility="{x:Bind FailedVisibility, Mode=OneWay}" />
                     <Border
                         VerticalAlignment="Center"
                         CornerRadius="10"
