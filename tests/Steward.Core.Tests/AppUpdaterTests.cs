@@ -5,6 +5,8 @@ namespace Steward.Core.Tests;
 
 public sealed class AppUpdaterTests
 {
+    public AppUpdaterTests() => GitHubReleases.ResetCache();
+
     private sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(
@@ -24,7 +26,7 @@ public sealed class AppUpdaterTests
     {
         var assets = string.Join(',', assetNames.Select(name =>
             $$"""{"name":"{{name}}","size":100,"digest":"sha256:abc123","browser_download_url":"https://github.com/hoobio/steward-companion/releases/download/{{tag}}/{{name}}"}"""));
-        return $$"""{"tag_name":"{{tag}}","published_at":"2026-09-19T16:18:31Z","assets":[{{assets}}]}""";
+        return $$"""[{"tag_name":"{{tag}}","published_at":"2026-09-19T16:18:31Z","assets":[{{assets}}]}]""";
     }
 
     [Fact]

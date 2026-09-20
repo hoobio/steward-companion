@@ -841,7 +841,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var result = await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
-            if (result != AuthCheckResult.SessionExpired)
+            if (result != AuthCheckResult.SessionExpired && IsApiReachable)
             {
                 await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
                 await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);

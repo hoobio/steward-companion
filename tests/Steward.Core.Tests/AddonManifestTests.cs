@@ -5,6 +5,8 @@ namespace Steward.Core.Tests;
 
 public sealed class AddonManifestTests
 {
+    public AddonManifestTests() => GitHubReleases.ResetCache();
+
     private static readonly ManagedAddon Addon =
         new("hoobiscripts", "HoobiScripts", "https://addon.hoobi.io/hoobiscripts/");
 
@@ -12,12 +14,14 @@ public sealed class AddonManifestTests
     {
         public Uri? LastUri { get; private set; }
         public HttpRequestMessage? LastRequest { get; private set; }
+        public int CallCount { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastUri = request.RequestUri;
             LastRequest = request;
+            CallCount++;
             return Task.FromResult(new HttpResponseMessage(status)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
@@ -144,13 +148,13 @@ public sealed class AddonManifestTests
     public async Task GetLatestAsync_GitHubAddon_MapsTheLatestReleaseZipAsset()
     {
         const string body = """
-        {"tag_name":"v4.11.4","prerelease":false,"draft":false,"published_at":"2026-09-19T16:18:31Z","assets":[{"name":"release.json","size":397,"digest":"sha256:a10b","browser_download_url":"https://github.com/RestedXP/RXPGuides/releases/download/v4.11.4/release.json"},{"name":"RXPGuides-v4.11.4.zip","size":8165822,"digest":"sha256:a9a05db2","browser_download_url":"https://github.com/RestedXP/RXPGuides/releases/download/v4.11.4/RXPGuides-v4.11.4.zip"}]}
+        [{"tag_name":"v4.11.4","prerelease":false,"draft":false,"published_at":"2026-09-19T16:18:31Z","assets":[{"name":"release.json","size":397,"digest":"sha256:a10b","browser_download_url":"https://github.com/RestedXP/RXPGuides/releases/download/v4.11.4/release.json"},{"name":"RXPGuides-v4.11.4.zip","size":8165822,"digest":"sha256:a9a05db2","browser_download_url":"https://github.com/RestedXP/RXPGuides/releases/download/v4.11.4/RXPGuides-v4.11.4.zip"}]}]
         """;
         var (updater, handler) = UpdaterFor(HttpStatusCode.OK, body);
 
         var release = await updater.GetLatestAsync(GitHubAddon, "release", CancellationToken.None);
 
-        Assert.Equal("https://api.github.com/repos/RestedXP/RXPGuides/releases/latest", handler.LastUri?.ToString());
+        Assert.Equal("https://api.github.com/repos/RestedXP/RXPGuides/releases?per_page=20", handler.LastUri?.ToString());
         Assert.NotEmpty(handler.LastRequest!.Headers.UserAgent);
         Assert.NotNull(release);
         Assert.Equal("v4.11.4", release.Version);
@@ -180,6 +184,25 @@ public sealed class AddonManifestTests
     }
 
     [Fact]
+    public async Task GetLatestAsync_GitHubAddon_BothChannelsUseOneRequest()
+    {
+        const string body = """
+        [
+          {"tag_name":"v4.12.0-rc1","prerelease":true,"draft":false,"published_at":"2026-09-19T17:00:00Z","assets":[{"name":"RXPGuides-v4.12.0-rc1.zip","size":100,"digest":"sha256:abc","browser_download_url":"https://github.com/RestedXP/RXPGuides/releases/download/v4.12.0-rc1/RXPGuides-v4.12.0-rc1.zip"}]},
+          {"tag_name":"v4.11.4","prerelease":false,"draft":false,"published_at":"2026-09-19T16:18:31Z","assets":[{"name":"RXPGuides-v4.11.4.zip","size":100,"digest":"sha256:def","browser_download_url":"https://github.com/RestedXP/RXPGuides/releases/download/v4.11.4/RXPGuides-v4.11.4.zip"}]}
+        ]
+        """;
+        var (updater, handler) = UpdaterFor(HttpStatusCode.OK, body);
+
+        var release = await updater.GetLatestAsync(GitHubAddon, "release", CancellationToken.None);
+        var preRelease = await updater.GetLatestAsync(GitHubAddon, "pre-release", CancellationToken.None);
+
+        Assert.Equal("v4.11.4", release?.Version);
+        Assert.Equal("v4.12.0-rc1", preRelease?.Version);
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
     public async Task GetLatestAsync_GitHubAddon_UnknownChannel_IsNullWithoutARequest()
     {
         var (updater, handler) = UpdaterFor(HttpStatusCode.OK, "null");
@@ -194,7 +217,7 @@ public sealed class AddonManifestTests
     public async Task GetLatestAsync_GitHubAddon_MissingDigest_Throws()
     {
         const string body = """
-        {"tag_name":"v4.11.4","prerelease":false,"draft":false,"published_at":"2026-09-19T16:18:31Z","assets":[{"name":"RXPGuides-v4.11.4.zip","size":8165822,"browser_download_url":"https://github.com/RestedXP/RXPGuides/releases/download/v4.11.4/RXPGuides-v4.11.4.zip"}]}
+        [{"tag_name":"v4.11.4","prerelease":false,"draft":false,"published_at":"2026-09-19T16:18:31Z","assets":[{"name":"RXPGuides-v4.11.4.zip","size":8165822,"browser_download_url":"https://github.com/RestedXP/RXPGuides/releases/download/v4.11.4/RXPGuides-v4.11.4.zip"}]}]
         """;
         var (updater, _) = UpdaterFor(HttpStatusCode.OK, body);
 
