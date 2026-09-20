@@ -135,6 +135,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<AddonChannelViewModel> AddonChannels { get; } = [];
 
+    public ObservableCollection<GuildOptionViewModel> Guilds { get; } = [];
+
     public nint OwnerWindowHandle { get; set; }
 
     public Action? NavigateToSettings { get; set; }
@@ -203,6 +205,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RoleLabel))]
     public partial string? Role { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GuildSubtitle))]
+    public partial GuildOptionViewModel? SelectedGuild { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(UserHandleVisibility))]
@@ -336,6 +342,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string GateHeading => IsSigningIn ? "Waiting for Discord" : "Sign in to Steward";
 
     public Visibility UserHandleVisibility => When(!string.IsNullOrEmpty(UserHandle));
+
+    public Visibility GuildPickerVisibility => When(Guilds.Count > 0);
+
+    public string GuildSubtitle => SelectedGuild is { } guild
+        ? $"{guild.MemberCount} members · {Guilds.Count} server{(Guilds.Count == 1 ? "" : "s")}"
+        : $"{Guilds.Count} server{(Guilds.Count == 1 ? "" : "s")}";
 
     public string RoleLabel => Role switch
     {
@@ -477,6 +489,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _status.Clear();
         _releases.Clear();
         _guildId = null;
+        SetGuilds([], null);
         UserName = null;
         UserHandle = null;
         Role = null;
@@ -749,6 +762,46 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
     }
 
+    private void SetGuilds(IReadOnlyList<AdminGuild> guilds, AdminGuild? current)
+    {
+        _isLoadingState = true;
+        if (!Guilds.Select(option => option.Id).SequenceEqual(guilds.Select(guild => guild.Id), StringComparer.Ordinal))
+        {
+            Guilds.Clear();
+            foreach (var guild in guilds)
+            {
+                Guilds.Add(new GuildOptionViewModel(guild, RoleLabel));
+            }
+        }
+
+        SelectedGuild = Guilds.FirstOrDefault(option => option.Id == current?.Id);
+        foreach (var option in Guilds)
+        {
+            option.IsCurrent = option == SelectedGuild;
+        }
+
+        _isLoadingState = false;
+        OnPropertyChanged(nameof(GuildSubtitle));
+        OnPropertyChanged(nameof(GuildPickerVisibility));
+    }
+
+    partial void OnSelectedGuildChanged(GuildOptionViewModel? value)
+    {
+        if (_isLoadingState || value is null)
+        {
+            return;
+        }
+
+        _guildId = value.Id;
+        _stateStore.Save(_stateStore.Load() with { GuildId = value.Id });
+        foreach (var option in Guilds)
+        {
+            option.IsCurrent = option == value;
+        }
+
+        _ = SyncRosterAsync();
+    }
+
     private async Task SyncRosterAsync()
     {
         if (!IsSignedIn || !IsApiReachable || _guildId is not { } guildId)
@@ -1019,7 +1072,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Role = me.User.Role;
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = GigagrugClient.IsAdmin(me);
-            _guildId = me.Guilds.Count > 0 ? me.Guilds[0].Id : null;
+            var guild = me.ResolveGuild(_stateStore.Load().GuildId);
+            _guildId = guild?.Id;
+            SetGuilds(me.Guilds, guild);
             StatusMessage = null;
             Failure = GateFailure.None;
 
@@ -1039,6 +1094,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Role = null;
             AvatarUri = null;
             _guildId = null;
+            SetGuilds([], null);
             StatusMessage = null;
             IsSignedIn = false;
             Failure = GateFailure.SessionExpired;

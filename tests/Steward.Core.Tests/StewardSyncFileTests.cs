@@ -35,6 +35,9 @@ public sealed class StewardSyncFileTests : IDisposable
         ],
     };
 
+    private static AvatarImage SampleAvatar() =>
+        new("https://cdn.discordapp.com/avatars/1/hash.png?size=64", 64, 64, new byte[64 * 64 * 4]);
+
     private string InstallAddon(bool withToc = true)
     {
         var addOnsPath = Path.Combine(_root, "AddOns");
@@ -140,6 +143,55 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => StewardSyncFile.Write(addOnsPath, SamplePayload()));
 
         Assert.False(File.Exists(Path.Combine(addonPath, "StewardSync.lua")));
+    }
+
+    [Fact]
+    public void Write_WritesTheAvatarAndNamesIt_WhenThePayloadCarriesOne()
+    {
+        var addOnsPath = InstallAddon();
+        var payload = SamplePayload() with { Avatar = SampleAvatar() };
+
+        StewardSyncFile.Write(addOnsPath, payload);
+
+        var avatar = Path.Combine(addOnsPath, "Steward", "Avatar.tga");
+        Assert.True(File.Exists(avatar));
+        Assert.Equal(18 + (64 * 64 * 4), new FileInfo(avatar).Length);
+        Assert.Contains(
+            @"[""avatar""] = ""Interface\\AddOns\\Steward\\Avatar.tga""",
+            File.ReadAllText(Path.Combine(addOnsPath, "Steward", "StewardSync.lua")),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Write_OmitsTheAvatarKey_WhenThePayloadCarriesNoAvatar()
+    {
+        var addOnsPath = InstallAddon();
+
+        StewardSyncFile.Write(addOnsPath, SamplePayload());
+
+        Assert.False(File.Exists(Path.Combine(addOnsPath, "Steward", "Avatar.tga")));
+        Assert.DoesNotContain(
+            "avatar",
+            File.ReadAllText(Path.Combine(addOnsPath, "Steward", "StewardSync.lua")),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Write_OmitsTheAvatarKey_WhenTheImageCannotBeEncoded()
+    {
+        var addOnsPath = InstallAddon();
+        var payload = SamplePayload() with
+        {
+            Avatar = new AvatarImage("https://cdn.discordapp.com/avatars/1/hash.png?size=64", 48, 48, new byte[48 * 48 * 4]),
+        };
+
+        StewardSyncFile.Write(addOnsPath, payload);
+
+        Assert.False(File.Exists(Path.Combine(addOnsPath, "Steward", "Avatar.tga")));
+        Assert.DoesNotContain(
+            "avatar",
+            File.ReadAllText(Path.Combine(addOnsPath, "Steward", "StewardSync.lua")),
+            StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using Steward.App.ViewModels;
 
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 
@@ -19,5 +20,14 @@ public sealed partial class SyncPage : Page
         base.OnNavigatedTo(e);
         ViewModel = (e.Parameter as MainViewModel)?.Sync;
         Bindings.Update();
+    }
+
+    private void GuildOptionClick(object sender, RoutedEventArgs e)
+    {
+        GuildFlyout.Hide();
+        if (((FrameworkElement)sender).DataContext is GuildOptionViewModel option && ViewModel is not null)
+        {
+            ViewModel.Main.SelectedGuild = option;
+        }
     }
 }

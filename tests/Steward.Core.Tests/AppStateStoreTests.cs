@@ -224,6 +224,19 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_GuildId_DefaultsToNull_AndRoundTrips()
+    {
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+
+        Assert.Null(store.Load().GuildId);
+
+        store.Save(store.Load() with { GuildId = "123456789" });
+
+        Assert.Equal("123456789", store.Load().GuildId);
+    }
+
+    [Fact]
     public void Load_ChannelLookup_IsCaseInsensitive()
     {
         File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"beta"},"installs":{}}""");

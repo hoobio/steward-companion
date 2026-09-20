@@ -54,7 +54,12 @@ public sealed record AdminGuild(
 
 public sealed record AdminMe(
     [property: JsonPropertyName("user")] AdminUser User,
-    [property: JsonPropertyName("guilds")] IReadOnlyList<AdminGuild> Guilds);
+    [property: JsonPropertyName("guilds")] IReadOnlyList<AdminGuild> Guilds)
+{
+    public AdminGuild? ResolveGuild(string? guildId) =>
+        Guilds.FirstOrDefault(guild => string.Equals(guild.Id, guildId, StringComparison.Ordinal))
+        ?? (Guilds.Count > 0 ? Guilds[0] : null);
+}
 
 public sealed record DesktopExchangeRequest(
     [property: JsonPropertyName("code")] string Code,
@@ -142,7 +147,8 @@ public sealed record AppState(
     [property: JsonPropertyName("restedxp_guides")] Dictionary<string, RestedXpGuideRecord> RestedXpGuides = null!,
     [property: JsonPropertyName("restedxp_guide_choices")] Dictionary<string, List<string>> RestedXpGuideChoices = null!,
     [property: JsonPropertyName("restedxp_guides_generation")] Dictionary<string, long> RestedXpGuidesGeneration = null!,
-    [property: JsonPropertyName("guild_roster_sync")] Dictionary<string, string> GuildRosterSync = null!)
+    [property: JsonPropertyName("guild_roster_sync")] Dictionary<string, string> GuildRosterSync = null!,
+    [property: JsonPropertyName("guild_id")] string? GuildId = null)
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

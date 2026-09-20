@@ -20,6 +20,9 @@ public sealed class GuildRosterSyncTests : IDisposable
         ],
         [new DiscordMember("222", "Grug", null)]);
 
+    private static AvatarImage SampleAvatar(string hash) =>
+        new($"https://cdn.discordapp.com/avatars/1/{hash}.png?size=64", 64, 64, new byte[64 * 64 * 4]);
+
     private WowInstall InstallAddon(bool withToc = true)
     {
         var addOnsPath = Path.Combine(_root, "AddOns");
@@ -60,6 +63,44 @@ public sealed class GuildRosterSyncTests : IDisposable
 
         Assert.False(written);
         Assert.False(File.Exists(target));
+    }
+
+    [Fact]
+    public void WriteIfChanged_DoesNotRewriteTheAvatar_WhenTheUrlIsUnchanged()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        var payload = SamplePayload() with { Avatar = SampleAvatar("hash-a") };
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, payload, stateStore));
+        var written = File.GetLastWriteTimeUtc(StewardSyncFile.AvatarPathFor(install.AddOnsPath));
+
+        Assert.False(GuildRosterSync.WriteIfChanged(install, payload, stateStore));
+        Assert.Equal(written, File.GetLastWriteTimeUtc(StewardSyncFile.AvatarPathFor(install.AddOnsPath)));
+    }
+
+    [Fact]
+    public void WriteIfChanged_RewritesTheAvatar_WhenTheUrlChanges()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload() with { Avatar = SampleAvatar("hash-a") }, stateStore));
+        Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload() with { Avatar = SampleAvatar("hash-b") }, stateStore));
+    }
+
+    [Fact]
+    public void WriteIfChanged_RewritesTheAvatar_WhenTheAddonFolderWasReplaced()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        var payload = SamplePayload() with { Avatar = SampleAvatar("hash-a") };
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, payload, stateStore));
+        File.Delete(StewardSyncFile.AvatarPathFor(install.AddOnsPath));
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, payload, stateStore));
+        Assert.True(File.Exists(StewardSyncFile.AvatarPathFor(install.AddOnsPath)));
     }
 
     [Fact]

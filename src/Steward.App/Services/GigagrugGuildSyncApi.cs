@@ -2,7 +2,7 @@ using Steward.Core;
 
 namespace Steward.App.Services;
 
-public sealed class GigagrugGuildSyncApi(GigagrugClient client) : IGuildSyncApi
+public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore stateStore, DiscordAvatar avatars) : IGuildSyncApi
 {
     public Task<SyncServerState> GetStateAsync(CancellationToken ct) =>
         throw new NotSupportedException(
@@ -16,22 +16,14 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client) : IGuildSyncApi
 
     public async Task<SyncPayload> PullAsync(string? guildId, CancellationToken ct)
     {
-        guildId ??= await ResolveGuildIdAsync(ct).ConfigureAwait(false);
+        var me = await client.GetMeAsync(ct).ConfigureAwait(false);
+        guildId ??= me.ResolveGuild(stateStore.Load().GuildId)?.Id
+            ?? throw new InvalidOperationException("The signed-in user has no guild to sync from.");
 
         var members = await client.GetGuildRosterAsync(guildId, ct).ConfigureAwait(false);
         var discord = await client.GetDiscordMembersAsync(guildId, ct).ConfigureAwait(false);
+        var avatar = await avatars.LoadAsync(me.User.AvatarUrl, ct).ConfigureAwait(false);
 
-        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord);
-    }
-
-    private async Task<string> ResolveGuildIdAsync(CancellationToken ct)
-    {
-        var me = await client.GetMeAsync(ct).ConfigureAwait(false);
-        if (me.Guilds.Count == 0)
-        {
-            throw new InvalidOperationException("The signed-in user has no guild to sync from.");
-        }
-
-        return me.Guilds[0].Id;
+        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord) { Avatar = avatar };
     }
 }

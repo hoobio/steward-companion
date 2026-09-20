@@ -86,6 +86,9 @@ internal static class HostBuilderExtensions
             sp.GetRequiredService<AppStateStore>(),
             new Dictionary<string, string[]>(productPrefixes, StringComparer.OrdinalIgnoreCase)));
 
+        builder.Services.AddSingleton(sp => new DiscordAvatar(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon")));
+
         builder.Services.AddSingleton<InMemoryGuildSyncApi>();
         builder.Services.AddSingleton<IGuildSyncApi>(sp => sp.GetRequiredService<InMemoryGuildSyncApi>());
         builder.Services.AddSingleton<GigagrugGuildSyncApi>();

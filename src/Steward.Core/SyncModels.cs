@@ -77,6 +77,8 @@ public sealed record SavedVariablesSnapshot(
 
 public sealed record WowClientProcess(int ProcessId, DateTimeOffset StartTime);
 
+public sealed record AvatarImage(string SourceUrl, int Width, int Height, byte[] Bgra);
+
 public sealed record SyncPayload(
     DateTimeOffset WrittenAt,
     DateTimeOffset? ExportedAt,
@@ -84,7 +86,10 @@ public sealed record SyncPayload(
     IReadOnlyList<LootEvent> Loot,
     IReadOnlyList<AttendanceRecord> Attendance,
     IReadOnlyList<GuildRosterMember> Members,
-    IReadOnlyList<DiscordMember> Discord);
+    IReadOnlyList<DiscordMember> Discord)
+{
+    public AvatarImage? Avatar { get; init; }
+}
 
 public sealed record SyncServerState(
     IReadOnlyDictionary<string, int> RecordCounts,

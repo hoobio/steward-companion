@@ -49,6 +49,8 @@ public sealed partial class SyncViewModel : ObservableObject
         _fake = api as InMemoryGuildSyncApi;
     }
 
+    public MainViewModel Main => _main;
+
     public Action? StateChanged { get; set; }
 
     public ObservableCollection<SyncInstallViewModel> Installs { get; } = [];

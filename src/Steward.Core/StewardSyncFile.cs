@@ -7,17 +7,28 @@ public static class StewardSyncFile
 {
     public const string FileName = "StewardSync.lua";
 
+    public const string AvatarFileName = "Avatar.tga";
+
+    private static readonly string AvatarTexturePath =
+        $@"Interface\AddOns\{StewardSavedVariables.AddonName}\{AvatarFileName}";
+
     public static string PathFor(string addOnsPath) =>
         Path.Combine(addOnsPath, StewardSavedVariables.AddonName, FileName);
 
-    public static string Render(SyncPayload payload) =>
-        "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload)) + ")" + Environment.NewLine;
+    public static string AvatarPathFor(string addOnsPath) =>
+        Path.Combine(addOnsPath, StewardSavedVariables.AddonName, AvatarFileName);
+
+    public static string Render(SyncPayload payload, bool withAvatar = false) =>
+        "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload, withAvatar)) + ")" + Environment.NewLine;
 
     public static string Fingerprint(SyncPayload payload) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }))));
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }) + payload.Avatar?.SourceUrl)));
 
     public static void Write(string addOnsPath, SyncPayload payload)
     {
+        ArgumentNullException.ThrowIfNull(payload);
+
         var tocPath = Path.Combine(addOnsPath, StewardSavedVariables.AddonName, $"{StewardSavedVariables.AddonName}.toc");
         if (!File.Exists(tocPath))
         {
@@ -25,11 +36,35 @@ public static class StewardSyncFile
                 $"{tocPath} does not exist; the Steward addon must be installed before writing {FileName}");
         }
 
+        var wroteAvatar = TryWriteAvatar(addOnsPath, payload.Avatar);
+        WriteGuarded(addOnsPath, FileName, Encoding.UTF8.GetBytes(Render(payload, wroteAvatar)));
+    }
+
+    private static bool TryWriteAvatar(string addOnsPath, AvatarImage? avatar)
+    {
+        if (avatar is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            WriteGuarded(addOnsPath, AvatarFileName, AvatarTga.Encode(avatar));
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static void WriteGuarded(string addOnsPath, string fileName, byte[] contents)
+    {
         var addonRoot = Path.GetFullPath(
             Path.Combine(addOnsPath, StewardSavedVariables.AddonName) + Path.DirectorySeparatorChar);
-        var target = Path.GetFullPath(PathFor(addOnsPath));
+        var target = Path.GetFullPath(Path.Combine(addOnsPath, StewardSavedVariables.AddonName, fileName));
         if (!target.StartsWith(addonRoot, StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(Path.GetFileName(target), FileName, StringComparison.OrdinalIgnoreCase))
+            || !string.Equals(Path.GetFileName(target), fileName, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException($"refusing to write outside the Steward addon folder: {target}");
         }
@@ -41,11 +76,11 @@ public static class StewardSyncFile
         }
 
         var tempPath = target + ".tmp";
-        File.WriteAllText(tempPath, Render(payload));
+        File.WriteAllBytes(tempPath, contents);
         File.Move(tempPath, target, overwrite: true);
     }
 
-    private static LuaValue ToLua(SyncPayload payload)
+    private static LuaValue ToLua(SyncPayload payload, bool withAvatar)
     {
         var entries = new List<LuaEntry>
         {
@@ -55,6 +90,12 @@ public static class StewardSyncFile
         if (payload.ExportedAt is { } exportedAt)
         {
             entries.Add(new(LuaValue.FromString("exportedAt"), LuaValue.FromNumber(exportedAt.ToUnixTimeSeconds())));
+        }
+
+        if (withAvatar)
+        {
+            // GetTexture() echoes back any path it was given and a texture that failed to load draws solid green, so the key's presence is the addon's only signal the file is really there.
+            entries.Add(new(LuaValue.FromString("avatar"), LuaValue.FromString(AvatarTexturePath)));
         }
 
         entries.Add(new(LuaValue.FromString("roster"), LuaValue.Array(payload.Roster.Select(RosterToLua))));
