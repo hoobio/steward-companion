@@ -659,6 +659,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsCheckingAppUpdate = true;
         try
         {
+            GitHubReleases.ResetCache();
             await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
             IsLatestConfirmed = AppUpdate is null;
         }
