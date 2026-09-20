@@ -56,6 +56,9 @@ public static partial class StewardGuidesAddon
         end
 
         function Import(rxp, guide, hash, retried)
+            if rxp.guideImporter.gui then
+                rxp.guideImporter.gui.importStatusHistory = {}
+            end
             local ok, err = rxp.guideImporter:ImportString(guide.text)
             Say(guide.name .. ": " .. (ok and "importing" or ("rejected: " .. tostring(err))))
             local function WaitForIdle()
