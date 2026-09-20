@@ -42,6 +42,10 @@ Discovery is filtered to `SupportedProducts` in `appsettings.json`, a product co
 
 `src/Steward.App/Assets/Steward.ico` (16 through 256px, PNG-compressed frames) is the one source of the app's icon: `ApplicationIcon` stamps it on the exe, `AppWindow.SetIcon` puts it on the one window, and the wxs picks it out of the publish payload for `ARPPRODUCTICON` and the Start menu shortcut. WinUI 3 does not take the window icon from the exe on its own, so the `SetIcon` calls are load-bearing.
 
+## Self-update
+
+`AppUpdater` in Core checks `hoobio/steward-companion` on GitHub through the same `GitHubReleases` lookup the RestedXP addon uses, asking for the `.msi` asset, on the startup pass, on Refresh and on every 15-minute background pass. The tag is compared as a `System.Version` against the assembly version normalised to three parts, because `Version` treats a missing fourth component as below zero. An available update shows as an InfoBar on the Addons page and changes the About card's button to "Install update". Installing downloads the MSI to `%TEMP%`, verifies the GitHub digest, then starts a hidden `powershell.exe -EncodedCommand` that waits for this process to exit, runs `msiexec /i /qn` with a verbose log at `%LocalAppData%\Steward\update.log`, deletes the MSI and relaunches the exe path the app was running from; the app quits immediately after starting it. Exiting first matters: the MSI's major upgrade replaces files in place and Windows Installer sees a running exe as a file in use. The MSI is per-user, so no elevation is involved. Development builds check and install too; the relaunch then starts the build that was running, not the installed one.
+
 ## Git workflow
 
 Commits go straight to `main` and are pushed there; this repo uses no feature branches and no pull requests for its own work. Conventional-commit subjects feed release-please, which opens the release PR itself. A worktree used for a change is fast-forwarded into `main` and removed once pushed.
