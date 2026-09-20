@@ -193,6 +193,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(AppUpdateMessage))]
     public partial double AppUpdateProgress { get; set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AboutDescription), nameof(AboutActionLabel))]
+    public partial bool IsCheckingAppUpdate { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AboutDescription))]
+    public partial bool IsLatestConfirmed { get; set; }
+
     public bool AppUpdateIsOpen => AppUpdate is not null;
 
     public string AppUpdateTitle => $"Steward {AppUpdate?.Version.TrimStart('v')} is available";
@@ -201,7 +209,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ? $"Downloading, {AppUpdateProgress:P0}"
         : "Installs silently and restarts Steward";
 
-    public string AboutActionLabel => AppUpdate is null ? "Check for a new version" : "Install update";
+    public string AboutActionLabel => IsCheckingAppUpdate ? "Checking" : AppUpdate is null ? "Check for a new version" : "Install update";
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["release", "pre-release"];
 
@@ -314,7 +322,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string StatePath => Path.Combine(DataFolder, "state.json");
 
     public string AboutDescription =>
-        $"{VersionLabel}, installed to {DataFolder}{(AppUpdate is null ? "" : $", {AppUpdate.Version.TrimStart('v')} available")}";
+        $"{VersionLabel}, installed to {DataFolder}{(AppUpdate is null ? "" : $", {AppUpdate.Version.TrimStart('v')} available")}{(IsLatestConfirmed && AppUpdate is null ? ", up to date" : "")}";
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
@@ -552,10 +560,35 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             AppUpdate = await _appUpdater.CheckAsync(typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0), cancellationToken)
                 .ConfigureAwait(true);
+            if (AppUpdate is not null)
+            {
+                IsLatestConfirmed = false;
+            }
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException)
         {
             StatusMessage = $"Could not check for a Steward update: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task CheckOrInstallAppUpdateAsync()
+    {
+        if (AppUpdate is not null)
+        {
+            await InstallAppUpdateAsync().ConfigureAwait(true);
+            return;
+        }
+
+        IsCheckingAppUpdate = true;
+        try
+        {
+            await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
+            IsLatestConfirmed = AppUpdate is null;
+        }
+        finally
+        {
+            IsCheckingAppUpdate = false;
         }
     }
 

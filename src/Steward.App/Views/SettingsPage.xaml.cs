@@ -32,16 +32,8 @@ public sealed partial class SettingsPage : Page
 
     private void OnGuildPanelClick(object sender, RoutedEventArgs e) => Open("https://guild.hoobi.io");
 
-    private void OnReleasesClick(object sender, RoutedEventArgs e)
-    {
-        if (ViewModel?.AppUpdate is not null)
-        {
-            ViewModel.InstallAppUpdateCommand.Execute(null);
-            return;
-        }
-
+    private void OnReleasesClick(object sender, RoutedEventArgs e) =>
         Open("https://github.com/hoobio/steward-companion/releases");
-    }
 
     private void OnRepositoryClick(object sender, RoutedEventArgs e) =>
         Open("https://github.com/hoobio/steward-companion");
