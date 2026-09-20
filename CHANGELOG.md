@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.8.1](https://github.com/hoobio/steward-companion/compare/v0.8.0...v0.8.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* 🐛 import every guide string on every login and leave an unchanged addon file alone ([53cd7e2](https://github.com/hoobio/steward-companion/commit/53cd7e2c901d97e40d8353e0f745269ce90d099b))
+* 🐛 let a manual Refresh see a release published inside the 15-minute GitHub cache ([a39c62a](https://github.com/hoobio/steward-companion/commit/a39c62af3f2229ed0a49b0ebcf7f08d664cd7a4b))
+* 🐛 let Check for a new version see a release published inside the GitHub cache window ([77ab17e](https://github.com/hoobio/steward-companion/commit/77ab17eede273224bdfc206b768d088f14ff6c23))
+* 🐛 offer the latest release to any pre-release build on the release channel ([94da252](https://github.com/hoobio/steward-companion/commit/94da252d79db69166d6163ac2be452490a0a8411))
+* 🐛 pick the newest GitHub release by published date, not list position ([2ae8c65](https://github.com/hoobio/steward-companion/commit/2ae8c65fb54794554e1befce181be2a611c849bd))
+* 🐛 read only the current import's status by clearing the importer history first ([466c7c3](https://github.com/hoobio/steward-companion/commit/466c7c390ced27dc6916c34a73fdc6b09e7ebc60))
+* 🐛 report why a guide did not import, in chat and on the Guides row, and check the BattleTag first ([1962a64](https://github.com/hoobio/steward-companion/commit/1962a64f084ace879c336e405141b3f6ba1dff0b))
+* 🐛 rewrite the StewardGuides addon whenever its rendered body differs from the file, not only when a guide changed ([94344f1](https://github.com/hoobio/steward-companion/commit/94344f11dcb75aa3e344618a475d1bc30a81c6be))
+* 🐛 show the BattleTag after a mid-session sign-in and refuse a guide bound to no tag ([6e2686b](https://github.com/hoobio/steward-companion/commit/6e2686bc4699e6c593a8d477ecda62f2516d5886))
+* 💬 say what to check when Battle.net is not connected, in chat and on the Guides row ([d9615f7](https://github.com/hoobio/steward-companion/commit/d9615f7102a6e1368af057109c23a133b558a2fe))
+* 🔐 keep the RestedXP session across restarts with an offline Keycloak token ([81a13bc](https://github.com/hoobio/steward-companion/commit/81a13bc39e900af2394d1158e87655e20f03dca9))
+* 🛡️ answer off from RXPGuides' bag predicates while its settings profile is missing ([c3514e4](https://github.com/hoobio/steward-companion/commit/c3514e4b8e96ae4798bfb9fd2d4d5faaad1b60da))
+
 ## [0.8.0](https://github.com/hoobio/steward-companion/compare/v0.7.3...v0.8.0) (2026-09-20)
 
 
