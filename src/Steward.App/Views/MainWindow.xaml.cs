@@ -117,7 +117,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void HideToTray()
+    public void HideToTray()
     {
         AppWindow.Hide();
         EfficiencyModeUtilities.SetEfficiencyMode(true);

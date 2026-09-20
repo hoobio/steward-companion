@@ -29,7 +29,14 @@ public partial class App : Application
 
         _window = _host.Services.GetRequiredService<MainWindow>();
         _window.Closed += (_, _) => _host.Dispose();
-        _window.Activate();
+        if (Environment.GetCommandLineArgs().Contains(StartupRegistration.TrayArgument) && _window.ViewModel.KeepInTray)
+        {
+            _window.HideToTray();
+        }
+        else
+        {
+            _window.Activate();
+        }
         _ = _window.ViewModel.InitializeCommand.ExecuteAsync(null);
     }
 }

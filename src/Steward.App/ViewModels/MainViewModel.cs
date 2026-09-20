@@ -91,6 +91,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _isLoadingState = true;
         KeepInTray = stateStore.Load().KeepInTray;
+        StartWithWindows = StartupRegistration.IsEnabled();
         _isLoadingState = false;
 
         Sync = new SyncViewModel(this, guildSyncApi)
@@ -154,6 +155,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial bool KeepInTray { get; set; }
+
+    [ObservableProperty]
+    public partial bool StartWithWindows { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RoleLabel))]
@@ -602,6 +606,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         _stateStore.Save(_stateStore.Load() with { KeepInTray = value });
+    }
+
+    partial void OnStartWithWindowsChanged(bool value)
+    {
+        if (_isLoadingState)
+        {
+            return;
+        }
+
+        StartupRegistration.Set(value);
     }
 
     partial void OnAvatarUriChanged(Uri? value) => _avatarImage = value is null ? null : new BitmapImage(value);

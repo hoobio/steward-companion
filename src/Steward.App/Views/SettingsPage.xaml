@@ -160,6 +160,15 @@
                 <ToggleSwitch IsOn="{x:Bind ViewModel.KeepInTray, Mode=TwoWay}" />
             </controls:SettingsCard>
 
+            <controls:SettingsCard
+                Header="Start with Windows"
+                Description="Launches Steward to the tray when you sign in">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE7E8;" />
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch IsOn="{x:Bind ViewModel.StartWithWindows, Mode=TwoWay}" />
+            </controls:SettingsCard>
+
             <TextBlock Text="About" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,20,0,4" />
 
             <controls:SettingsCard Header="Steward" Description="{x:Bind ViewModel.AboutDescription, Mode=OneWay}">
