@@ -115,7 +115,14 @@ public static partial class StewardGuidesAddon
             elseif attempts < 6 then
                 C_Timer.After(5, function() Start(rxp, attempts + 1) end)
             else
-                Say("Battle.net is not connected; guides skipped")
+                local message = "Battle.net is not connected, so no guides were imported. Open your friends list to check, make sure the Battle.net desktop app is up to date and connected, then /reload."
+                Say(message)
+                for _, guide in ipairs(guides) do
+                    local hash = Hash(guide.text)
+                    if hash then
+                        StewardGuidesDB.status[hash] = message
+                    end
+                end
             end
         end
 
