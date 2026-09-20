@@ -18,17 +18,15 @@ Top to bottom:
 2. Account strip. A Surface card holding "Signed in as {email} · {BattleTag}" with the BattleTag in mono, and `Sign out` as a hyperlink button. Signed out, it reads "Not signed in" with an accent `Sign in` button. No avatar.
 3. One card per WoW install. Header carries the install title, the path in mono at 11.5px, and a caution `Running` dot and label when a client is running from that folder.
 4. A `Keep in game` column header above the rows, once per card.
-5. One row per owned product: checkbox, product name at 13.5px, "Updated {relative time}" in dim beneath, and a status pill at the right.
+5. One row per owned product: radio button, product name at 13.5px, "Updated {relative time}" in dim beneath, and a status pill at the right on the selected row.
 
 `productName` from `/user-products` is the row's name, and the relative time comes from that product's entry in `/addon/get-all-timestamps`.
 
-## Multi-select, unverified
+## One product per install
 
-The frames assume several products can be kept in game at once, so the row control is a checkbox and each product carries its own state. **Verify this before building against it.**
+The frames were drawn with a checkbox per row on the assumption that several products could be kept in game at once. That assumption was settled against the addon source on 20 Sep 2026: `RXPString` is a single account-level SavedVariable, read once in `LoadCachedGuides`, and when its header differs from the last import the addon snapshots its state, clears `addon.guides`, `guideList`, `guideIds`, `guideCache` and `db.profile.guides`, imports the new string, and on success discards the snapshot (`cachedState = nil` at the end of `ProcessInputBuffer`). Writing product B's string therefore discards product A's guides. The `n` in the `n|hash:payload` header and the `bundleIndex` on the download describe guides inside one string, and a product is one string.
 
-`RXPString` is a single account-level SavedVariable, read once in `LoadCachedGuides`, and a valid import wipes `addon.guides`, `guideList`, `guideIds`, `guideCache` and `db.profile.guides`. On that reading, writing product B's string discards product A's guides. Against it: a string's header is `n|hash:payload` where `n` is a guide count, and the download endpoint takes a `bundleIndex`, so one string already carries several guides.
-
-The check: keep one product, log in, keep a second, log in again, and see whether both are still in the addon's guide menu. If only the last survives, the checkbox becomes a radio group, the page keeps one product per install, and the copy changes with it. Report rather than guessing.
+So the row control is a radio group, one product is kept per install, and the column header reads `Keep in game` over a single selected row. Frame 02's two selected rows in one card and the copy "each kept in game independently" are superseded by this section; everything else in the frames stands. Rows for unselected products carry no pill.
 
 ## States
 
@@ -45,7 +43,7 @@ The check: keep one product, log in, keep a second, log in again, and see whethe
 
 The retry wording matches the account page's own guard, which reads "Try again in 10 seconds".
 
-One state is missing from the frames and needs adding. The import string ends in a minimum addon version and the addon refuses a string below its own, so a Steward-driven RXPGuides update can invalidate a string written earlier. That reads as a caution row, "Needs a newer guide, fetching", not as a failure.
+One state is missing from the frames. The import string ends in a minimum addon version and the addon refuses a string below its own, so a Steward-driven RXPGuides update can invalidate a string written earlier. That reads as a caution row, "Needs a newer guide, fetching", not as a failure: Caution tint on the selected row, pill `Needs a newer guide`, dim line "Fetching a build for RXPGuides {installed version}", indeterminate bar under the row as in frame 03. Frame-equivalent: frame 04 with the running dot off and that copy.
 
 ## Sign-in dialog
 
@@ -64,7 +62,7 @@ Failures are inline and critical, under the fields: "Wrong username or password"
 | Page slot | `NavigationView` menu item, third |
 | Account strip | `Border` on Surface at 8px, `HyperlinkButton` for Sign out |
 | Install card | `Expander`, expanded by default, matching the Addons page |
-| Product rows | `ItemsControl` with a `CheckBox` per row |
+| Product rows | `ItemsControl` with a `RadioButton` per row, one group per install card |
 | Row progress | `ProgressBar`, indeterminate |
 | Running indicator | `Ellipse` at 8px in Caution, with the word `Running` beside it |
 | Status pills | `Border` + `TextBlock` on Chip, semantic foreground |
