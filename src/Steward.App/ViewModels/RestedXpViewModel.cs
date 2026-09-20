@@ -77,11 +77,15 @@ public sealed partial class GuideRowViewModel : ObservableObject
     [ObservableProperty]
     public partial GuideRowState State { get; set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MessageText))]
+    public partial string? FailureText { get; set; }
+
     public Visibility PillVisibility => When(IsSelected && State != GuideRowState.None);
 
     public string PillText => State switch
     {
-        GuideRowState.InGame => "In game",
+        GuideRowState.InGame => "Up to date",
         GuideRowState.Downloading => "Downloading",
         GuideRowState.Written => "Written · imports on next login or /reload",
         GuideRowState.Failed => "Failed",
@@ -114,7 +118,7 @@ public sealed partial class GuideRowViewModel : ObservableObject
 
     public string MessageText => State switch
     {
-        GuideRowState.Failed => "Download failed. Retrying in 10 s.",
+        GuideRowState.Failed => FailureText ?? "Download failed. Retrying in 10 s.",
         GuideRowState.NeedsNewerAddon => $"Fetching a build for RXPGuides {_card.AddonVersion}",
         _ => string.Empty,
     };
@@ -177,16 +181,10 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
     public IReadOnlyList<string> SelectedProducts => [.. SelectedRows.Select(row => row.ProductName)];
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RunningVisibility))]
-    public partial bool IsClientRunning { get; set; }
-
-    [ObservableProperty]
     public partial string? AddonVersion { get; set; }
 
     [ObservableProperty]
     public partial bool IsSessionActive { get; set; } = true;
-
-    public Visibility RunningVisibility => When(IsClientRunning);
 
     public Visibility RowsVisibility => When(Rows.Count > 0);
 
@@ -343,7 +341,6 @@ public sealed partial class RestedXpViewModel : ObservableObject
                 Guides.Add(card);
             }
 
-            card.IsClientRunning = install.IsClientRunning;
             card.IsSessionActive = IsSignedIn;
             card.AddonVersion = install.AddonRows
                 .FirstOrDefault(row => string.Equals(row.AddonId, AddonId, StringComparison.OrdinalIgnoreCase))?.InstalledVersion;
@@ -557,8 +554,11 @@ public sealed partial class RestedXpViewModel : ObservableObject
             var results = await _service.SyncAsync(card.Install, card.SelectedProducts, CancellationToken.None).ConfigureAwait(true);
             foreach (var row in rows)
             {
+                row.FailureText = null;
                 row.State = results.TryGetValue(row.ProductName, out var result) ? Map(result) : GuideRowState.None;
             }
+
+            Confirm(card);
         }
         catch (RestedXpSessionExpiredException)
         {
@@ -570,6 +570,33 @@ public sealed partial class RestedXpViewModel : ObservableObject
             foreach (var row in rows)
             {
                 row.State = GuideRowState.Failed;
+            }
+        }
+    }
+
+    public void Confirm(string flavourPath)
+    {
+        var card = Guides.FirstOrDefault(g => string.Equals(g.FlavourPath, flavourPath, StringComparison.OrdinalIgnoreCase));
+        if (card is not null)
+        {
+            Confirm(card);
+        }
+    }
+
+    private void Confirm(RestedXpInstallViewModel card)
+    {
+        if (IsPreview)
+        {
+            return;
+        }
+
+        var results = _service.Confirm(card.Install, card.SelectedProducts);
+        foreach (var row in card.SelectedRows.Where(row => row.State is GuideRowState.InGame or GuideRowState.Written))
+        {
+            if (results.TryGetValue(row.ProductName, out var result))
+            {
+                row.FailureText = result.Outcome is GuideSyncOutcome.Rejected ? result.Error : null;
+                row.State = Map(result);
             }
         }
     }

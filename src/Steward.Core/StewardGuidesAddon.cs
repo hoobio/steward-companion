@@ -1,9 +1,11 @@
+using System.Globalization;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Steward.Core;
 
-public static class StewardGuidesAddon
+public static partial class StewardGuidesAddon
 {
     public const string FolderName = "StewardGuides";
 
@@ -58,6 +60,7 @@ public static class StewardGuidesAddon
             self:UnregisterAllEvents()
             StewardGuidesDB = StewardGuidesDB or { imported = {} }
             StewardGuidesDB.imported = StewardGuidesDB.imported or {}
+            StewardGuidesDB.generation = generation
             C_Timer.After(3, function()
                 local rxp = LibStub("AceAddon-3.0"):GetAddon("RXPGuides", true)
                 if not rxp or not rxp.guideImporter or not rxp.guideImporter.ImportString then
@@ -84,11 +87,20 @@ public static class StewardGuidesAddon
         "Guides.lua",
         string.Empty);
 
-    public static string Render(IReadOnlyList<(string Name, string Text)> guides)
+    public static string? Hash(string guide)
+    {
+        ArgumentNullException.ThrowIfNull(guide);
+
+        return GuideHeader().Match(guide) is { Success: true } match ? match.Groups[1].Value : null;
+    }
+
+    public static string Render(IReadOnlyList<(string Name, string Text)> guides, long generation)
     {
         ArgumentNullException.ThrowIfNull(guides);
 
-        var builder = new StringBuilder("local guides = {\n");
+        var builder = new StringBuilder("local generation = ")
+            .Append(generation.ToString(CultureInfo.InvariantCulture))
+            .Append("\nlocal guides = {\n");
         foreach (var (name, text) in guides)
         {
             if (text.Contains(Terminator, StringComparison.Ordinal))
@@ -103,9 +115,9 @@ public static class StewardGuidesAddon
         return builder.Append("}\n").Append(Bootstrap).ToString();
     }
 
-    public static void Write(string addOnsPath, IReadOnlyList<(string Name, string Text)> guides)
+    public static void Write(string addOnsPath, IReadOnlyList<(string Name, string Text)> guides, long generation)
     {
-        var lua = Render(guides);
+        var lua = Render(guides, generation);
         var rxpTocPath = Path.Combine(addOnsPath, "RXPGuides", "RXPGuides.toc");
         var toc = Toc(TocFile.ReadDirective(rxpTocPath, "Interface")
             ?? throw new InvalidOperationException($"{rxpTocPath} has no ## Interface line; RXPGuides must be installed first"));
@@ -152,6 +164,9 @@ public static class StewardGuidesAddon
         stream.CopyTo(buffer);
         return buffer.ToArray();
     }
+
+    [GeneratedRegex(@"^\s*\d+\|([^:]+):")]
+    private static partial Regex GuideHeader();
 
     private static string Version() =>
         typeof(StewardGuidesAddon).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion

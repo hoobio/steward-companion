@@ -48,9 +48,9 @@ public sealed class StewardGuidesAddonTests : IDisposable
     [Fact]
     public void Render_WritesEachGuideAsALongBracketLiteralAndKeepsTheBootstrap()
     {
-        var lua = StewardGuidesAddon.Render(SampleGuides());
+        var lua = StewardGuidesAddon.Render(SampleGuides(), 1758380000000);
 
-        Assert.StartsWith("local guides = {\n", lua, StringComparison.Ordinal);
+        Assert.StartsWith("local generation = 1758380000000\nlocal guides = {\n", lua, StringComparison.Ordinal);
         Assert.Contains(
             "    { name = \"Forever Leveling Guide - Both Factions\", text = [==[83|1084041902:payload%|40000]==] },",
             lua,
@@ -61,20 +61,28 @@ public sealed class StewardGuidesAddonTests : IDisposable
             StringComparison.Ordinal);
         Assert.Contains("rxp.guideImporter:ImportString(guide.text)", lua, StringComparison.Ordinal);
         Assert.Contains("StewardGuidesDB = StewardGuidesDB or { imported = {} }", lua, StringComparison.Ordinal);
+        Assert.Contains("StewardGuidesDB.generation = generation", lua, StringComparison.Ordinal);
         Assert.Contains("Guides Loaded Successfully", lua, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("83|1084041902:payload%|40000", "1084041902")]
+    [InlineData("\n159|2792083552:other%|40000", "2792083552")]
+    [InlineData("no header here", null)]
+    public void Hash_TakesTheNumberBetweenTheBarAndTheColon(string guide, string? expected) =>
+        Assert.Equal(expected, StewardGuidesAddon.Hash(guide));
 
     [Fact]
     public void Render_Throws_WhenAGuideHoldsTheTerminator()
     {
         Assert.Throws<InvalidOperationException>(
-            () => StewardGuidesAddon.Render([("Broken", "83|1:pay]==]load%|40000")]));
+            () => StewardGuidesAddon.Render([("Broken", "83|1:pay]==]load%|40000")], 1));
     }
 
     [Fact]
     public void Render_EscapesQuotesAndBackslashesInNames()
     {
-        var lua = StewardGuidesAddon.Render([(@"A ""B"" \ C", "1|2:x")]);
+        var lua = StewardGuidesAddon.Render([(@"A ""B"" \ C", "1|2:x")], 1);
 
         Assert.Contains(@"name = ""A \""B\"" \\ C""", lua, StringComparison.Ordinal);
     }
@@ -84,7 +92,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
     {
         var addOnsPath = InstallRxpGuides();
 
-        StewardGuidesAddon.Write(addOnsPath, SampleGuides());
+        StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1758380000000);
 
         var folder = Path.Combine(addOnsPath, "StewardGuides");
         Assert.Contains($"## Interface: {Interface}", File.ReadAllText(Path.Combine(folder, "StewardGuides.toc")), StringComparison.Ordinal);
@@ -97,9 +105,9 @@ public sealed class StewardGuidesAddonTests : IDisposable
     public void Write_ReplacesTheFolderItWroteBefore()
     {
         var addOnsPath = InstallRxpGuides();
-        StewardGuidesAddon.Write(addOnsPath, SampleGuides());
+        StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1);
 
-        StewardGuidesAddon.Write(addOnsPath, [("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000")]);
+        StewardGuidesAddon.Write(addOnsPath, [("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000")], 2);
 
         var lua = File.ReadAllText(Path.Combine(addOnsPath, "StewardGuides", "Guides.lua"));
         Assert.DoesNotContain("Mists of Pandaria", lua, StringComparison.Ordinal);
@@ -113,7 +121,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
         Directory.CreateDirectory(folder);
         File.WriteAllText(Path.Combine(folder, "StewardGuides.toc"), "## Title: Someone else\n## Author: Someone else\n");
 
-        Assert.Throws<InvalidOperationException>(() => StewardGuidesAddon.Write(addOnsPath, SampleGuides()));
+        Assert.Throws<InvalidOperationException>(() => StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1));
 
         Assert.False(File.Exists(Path.Combine(folder, "Guides.lua")));
     }
@@ -124,7 +132,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
         var addOnsPath = Path.Combine(_root, "AddOns");
         Directory.CreateDirectory(addOnsPath);
 
-        Assert.Throws<InvalidOperationException>(() => StewardGuidesAddon.Write(addOnsPath, SampleGuides()));
+        Assert.Throws<InvalidOperationException>(() => StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1));
     }
 
     [Fact]
@@ -135,7 +143,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
         Directory.CreateDirectory(rxpPath);
         File.WriteAllText(Path.Combine(rxpPath, "RXPGuides.toc"), $"## Interface: {Interface}\n");
 
-        Assert.Throws<InvalidOperationException>(() => StewardGuidesAddon.Write(addOnsPath, SampleGuides()));
+        Assert.Throws<InvalidOperationException>(() => StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1));
 
         Assert.False(Directory.Exists(Path.Combine(addOnsPath, "StewardGuides")));
     }

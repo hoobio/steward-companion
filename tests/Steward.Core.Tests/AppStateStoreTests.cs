@@ -170,12 +170,18 @@ public sealed class AppStateStoreTests : IDisposable
                 [@"C:\wow\_retail_"] = ["Forever Leveling Guide"],
                 [@"C:\wow\_classic_era_"] = ["Forever Leveling Guide"],
             },
+            RestedXpGuidesGeneration = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase)
+            {
+                [@"C:\wow\_retail_"] = 1,
+                [@"C:\wow\_classic_era_"] = 2,
+            },
         };
 
         var result = AppStateStore.RemoveInstall(state, @"C:\wow\_retail_");
 
         Assert.Equal([AppStateStore.Key(@"C:\wow\_classic_era_", "Forever Leveling Guide")], result.RestedXpGuides.Keys);
         Assert.Equal([@"C:\wow\_classic_era_"], result.RestedXpGuideChoices.Keys);
+        Assert.Equal([@"C:\wow\_classic_era_"], result.RestedXpGuidesGeneration.Keys);
     }
 
     [Fact]

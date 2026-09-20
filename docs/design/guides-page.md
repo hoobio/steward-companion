@@ -18,7 +18,7 @@ Top to bottom:
 
 1. Page header. `Guides` at 26/600, with a `Refresh` button right-aligned on the same row.
 2. Account strip. A Surface card holding "Signed in as {email} · {BattleTag}" with the BattleTag in mono, and `Sign out` as a hyperlink button. Signed out, it reads "Not signed in" with an accent `Sign in` button. No avatar.
-3. One card per WoW install. Header carries the install title, the path in mono at 11.5px, and a caution `Running` dot and label when a client is running from that folder.
+3. One card per WoW install. Header carries the install title and the path in mono at 11.5px.
 4. A `Keep in game` column header above the rows, once per card.
 5. One row per owned product: checkbox, product name at 13.5px, "Updated {relative time}" in dim beneath, and a status pill at the right on each kept row.
 
@@ -36,10 +36,11 @@ Because the addon file is only read at login or `/reload`, there is no client-cl
 
 | State | Trigger | Page |
 | --- | --- | --- |
-| All current | Every kept product matches its published timestamp | Success pill `In game` per kept row |
+| All current | The addon's saved variable marks the string | Success pill `Up to date` per kept row |
 | Downloading | A newer timestamp, fetch running | Accent-tinted row, pill `Downloading`, indeterminate `ProgressBar` under the row |
 | Written | `Guides.lua` regenerated this session | Success pill `Written · imports on next login or /reload` |
 | Failure | Download or write failed | Critical-tinted row, pill `Failed`, "Download failed. Retrying in 10 s." and a `Retry` button |
+| Rejected | The saved variable carries the current generation but does not mark the string | Critical-tinted row, pill `Failed`, "The addon rejected the string", `Retry` re-writes the folder |
 | Session expired | Refresh token gone while the page is open | Caution `InfoBar` above the cards with a `Sign in` action, rows dimmed to mute; dismissing it or cancelling the dialog returns to Addons, since the nav item collapses without a session |
 | No purchases | `/user-products` empty | "No guides on this account" with a `Browse guides` link |
 
@@ -66,7 +67,6 @@ Failures are inline and critical, under the fields: "Wrong username or password"
 | Install card | `Expander`, expanded by default, matching the Addons page |
 | Product rows | `ItemsControl` with a `CheckBox` per row, disabled for a product of another client |
 | Row progress | `ProgressBar`, indeterminate |
-| Running indicator | `Ellipse` at 8px in Caution, with the word `Running` beside it |
 | Status pills | `Border` + `TextBlock` on Chip, semantic foreground |
 | Session message | `InfoBar`, page level |
 | Sign-in | `ContentDialog` |

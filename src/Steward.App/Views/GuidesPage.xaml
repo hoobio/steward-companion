@@ -96,39 +96,14 @@
                     <Thickness x:Key="ExpanderHeaderPadding">16,0,0,0</Thickness>
                 </Expander.Resources>
                 <Expander.Header>
-                    <Grid ColumnSpacing="12" VerticalAlignment="Center">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="{x:Bind DisplayName}" FontSize="14" FontWeight="SemiBold" />
-                            <TextBlock
-                                Text="{x:Bind FlavourPath}"
-                                FontFamily="Cascadia Mono"
-                                FontSize="11.5"
-                                Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                        </StackPanel>
-
-                        <StackPanel
-                            Grid.Column="1"
-                            Orientation="Horizontal"
-                            Spacing="7"
-                            VerticalAlignment="Center"
-                            Visibility="{x:Bind RunningVisibility, Mode=OneWay}">
-                            <Ellipse
-                                Width="8"
-                                Height="8"
-                                VerticalAlignment="Center"
-                                Fill="{ThemeResource SystemFillColorCautionBrush}" />
-                            <TextBlock
-                                Text="Running"
-                                FontSize="12"
-                                VerticalAlignment="Center"
-                                Foreground="{ThemeResource SystemFillColorCautionBrush}" />
-                        </StackPanel>
-                    </Grid>
+                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{x:Bind DisplayName}" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock
+                            Text="{x:Bind FlavourPath}"
+                            FontFamily="Cascadia Mono"
+                            FontSize="11.5"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    </StackPanel>
                 </Expander.Header>
 
                 <StackPanel>

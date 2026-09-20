@@ -15,6 +15,7 @@ public enum GuideSyncOutcome
     Downloaded,
     Written,
     NeedsNewerAddon,
+    Rejected,
 }
 
 public sealed record GuideSyncResult(GuideSyncOutcome Outcome, DateTimeOffset UpdatedAt, string? Error = null);
@@ -24,6 +25,8 @@ public sealed partial class RestedXpService : IDisposable
     private static readonly TimeSpan RefreshMargin = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan KeepAliveMargin = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan RetryAfterFailure = TimeSpan.FromSeconds(10);
+
+    private const string RejectedMessage = "The addon rejected the string";
 
     private readonly RestedXpClient _client;
     private readonly AppStateStore _stateStore;
@@ -294,9 +297,11 @@ public sealed partial class RestedXpService : IDisposable
             return results;
         }
 
+        var writtenAt = DateTimeOffset.Now;
+        var generation = writtenAt.ToUnixTimeMilliseconds();
         try
         {
-            StewardGuidesAddon.Write(install.AddOnsPath, strings);
+            StewardGuidesAddon.Write(install.AddOnsPath, strings, generation);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
@@ -315,7 +320,7 @@ public sealed partial class RestedXpService : IDisposable
             state.RestedXpGuides.Remove(staleKey);
         }
 
-        var writtenAt = DateTimeOffset.Now;
+        state.RestedXpGuidesGeneration[install.FlavourPath] = generation;
         foreach (var (productName, _) in strings)
         {
             var serverTimestamp = serverTimestamps[productName];
@@ -326,6 +331,61 @@ public sealed partial class RestedXpService : IDisposable
         }
 
         _stateStore.Save(state);
+        return results;
+    }
+
+    public IReadOnlyDictionary<string, GuideSyncResult> Confirm(WowInstall install, IReadOnlyList<string> products)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+        ArgumentNullException.ThrowIfNull(products);
+
+        var results = new Dictionary<string, GuideSyncResult>(StringComparer.Ordinal);
+        var state = _stateStore.Load();
+        if (!state.RestedXpGuidesGeneration.TryGetValue(install.FlavourPath, out var generation))
+        {
+            return results;
+        }
+
+        var current = StewardGuidesSavedVariables.Read(install.FlavourPath)
+            .Where(file => file.Generation == generation)
+            .ToList();
+        var rejected = new List<string>();
+        foreach (var productName in products)
+        {
+            var key = AppStateStore.Key(install.FlavourPath, productName);
+            if (!state.RestedXpGuides.TryGetValue(key, out var record)
+                || ReadCached(productName, record.Timestamp) is not { } guide
+                || StewardGuidesAddon.Hash(guide) is not { } hash)
+            {
+                continue;
+            }
+
+            var updatedAt = DateTimeOffset.FromUnixTimeMilliseconds(record.Timestamp);
+            if (current.Any(file => file.Imported.Contains(hash)))
+            {
+                results[productName] = new GuideSyncResult(GuideSyncOutcome.UpToDate, updatedAt);
+            }
+            else if (current.Count > 0)
+            {
+                results[productName] = new GuideSyncResult(GuideSyncOutcome.Rejected, updatedAt, RejectedMessage);
+                rejected.Add(key);
+            }
+            else
+            {
+                results[productName] = new GuideSyncResult(GuideSyncOutcome.Written, updatedAt);
+            }
+        }
+
+        if (rejected.Count > 0)
+        {
+            foreach (var key in rejected)
+            {
+                state.RestedXpGuides.Remove(key);
+            }
+
+            _stateStore.Save(state);
+        }
+
         return results;
     }
 
