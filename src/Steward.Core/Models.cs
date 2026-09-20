@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Steward.Core;
 
-public sealed record ManagedAddon(string Id, string FolderName, string ManifestBaseUrl, bool AutoInstall = false);
+public sealed record ManagedAddon(string Id, string FolderName, string ManifestBaseUrl, bool AutoInstall = false, string? GitHubRepo = null);
 
 public sealed record AddonRelease(
     [property: JsonPropertyName("version")] string Version,
@@ -10,6 +10,17 @@ public sealed record AddonRelease(
     [property: JsonPropertyName("sha256")] string Sha256,
     [property: JsonPropertyName("size")] long Size,
     [property: JsonPropertyName("released")] DateTimeOffset Released);
+
+public sealed record GitHubRelease(
+    [property: JsonPropertyName("tag_name")] string TagName,
+    [property: JsonPropertyName("published_at")] DateTimeOffset PublishedAt,
+    [property: JsonPropertyName("assets")] GitHubAsset[] Assets);
+
+public sealed record GitHubAsset(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("size")] long Size,
+    [property: JsonPropertyName("digest")] string? Digest,
+    [property: JsonPropertyName("browser_download_url")] string BrowserDownloadUrl);
 
 public sealed record AdminUser(
     [property: JsonPropertyName("id")] string Id,
@@ -60,4 +71,5 @@ public sealed record AppState(
 [JsonSerializable(typeof(AppState))]
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]
+[JsonSerializable(typeof(GitHubRelease))]
 public sealed partial class CompanionJsonContext : JsonSerializerContext;
