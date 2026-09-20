@@ -121,7 +121,7 @@ Checking runs at startup and on a 1-minute `DispatcherQueueTimer` in `MainViewMo
 - `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. It has an `Addons` entry here (`steward`, `https://addon.hoobi.io/steward/`).
 
 Both addon repos work on a `development` branch (the local clones sit on it), fast-forward `main` for a pre-release and merge the release-please PR for a release; their version history was reset to 0.0.0 on 2026-09-20, so neither has a `release` build until a `feat` lands on `main` and its release PR is merged.
-- `RestedXP/RXPGuides` (public GitHub): the levelling guide addon, managed from its GitHub releases as described under Managed addons. Their paid guide API is documented in `docs/design/restedxp-guides.md`.
+- `RestedXP/RXPGuides` (public GitHub): the levelling guide addon, managed from its GitHub releases as described under Managed addons. Their paid guide API is documented in `docs/design/restedxp-guides.md`, and the page that drives it in `docs/design/guides-page.md`.
 - `hoobio/addons` (private, local clone `D:\addons`): builds the channel manifests and zips this app reads, and publishes them to the Static Web App.
 
 Both addon clones live on `D:\` like every other repo, and the game loads whatever this app installs from the release channels, so a working tree is never what the client runs.
