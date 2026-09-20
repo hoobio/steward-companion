@@ -125,7 +125,7 @@
             <controls:SettingsExpander
                 Margin="0,20,0,0"
                 Header="Release channels"
-                Description="Each addon follows its own channel"
+                Description="Channel is set per addon"
                 IsExpanded="True"
                 ItemsSource="{x:Bind ViewModel.AddonChannels}"
                 ItemTemplate="{StaticResource ChannelCardTemplate}">

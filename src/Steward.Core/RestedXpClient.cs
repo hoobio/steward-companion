@@ -59,7 +59,7 @@ public sealed class RestedXpClient
         using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
         {
-            throw new RestedXpSignInException("That code was rejected.");
+            throw new RestedXpSignInException("That code was not accepted");
         }
 
         response.EnsureSuccessStatusCode();

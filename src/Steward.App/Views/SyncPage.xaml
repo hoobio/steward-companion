@@ -289,7 +289,7 @@
                 Severity="Error"
                 IsClosable="False"
                 IsOpen="{x:Bind ViewModel.UnreachableIsOpen, Mode=OneWay}"
-                Message="Could not reach api.hoobi.io. Check your connection. Steward cannot send or pull guild data until it can." />
+                Message="Could not reach api.hoobi.io. Check your connection. Guild data cannot be sent or pulled until it is reachable." />
 
             <StackPanel
                 HorizontalAlignment="Center"

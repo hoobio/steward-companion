@@ -124,7 +124,7 @@ public sealed partial class RestedXpService : IDisposable
     {
         if (_mfaSessionId is null)
         {
-            throw new RestedXpSignInException("Sign in again to get a new code prompt.");
+            throw new RestedXpSignInException("Sign in again for a new code.");
         }
 
         try

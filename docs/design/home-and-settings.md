@@ -127,7 +127,7 @@ The main window stays on the gate while the default browser handles Discord and 
 
 An `InfoBar` directly above the sign-in button, inside the centred stack. The button stays available.
 
-- Browser timeout, caution: "Steward did not hear back from your browser. Sign in again." Raised when the loopback listener sees no code within 5 minutes or the tab was closed.
+- Browser timeout, caution: "No sign-in reached Steward from the browser. Sign in again." Raised when the loopback listener sees no code within 5 minutes or the tab was closed.
 - Expired session, caution: "Your session expired. Sessions last 30 days from last use. Sign in again to carry on."
 - Unreachable host, critical: "Could not reach api.hoobi.io. Check your connection. Steward will not have current addon versions until it can." Action button retries.
 

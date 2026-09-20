@@ -89,7 +89,7 @@ public sealed class SessionService : ISessionService
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new TimeoutException("Steward did not hear back from the browser.");
+            throw new TimeoutException("No sign-in reached Steward from the browser.");
         }
         finally
         {

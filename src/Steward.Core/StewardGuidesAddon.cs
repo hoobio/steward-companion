@@ -74,7 +74,7 @@ public static class StewardGuidesAddon
         $"## Interface: {interfaceNumbers}",
         TitleLine,
         "## Category: Hoobi",
-        "## Notes: Purchased RestedXP guides, kept current by the Steward desktop app. Nothing to configure here.",
+        "## Notes: Purchased RestedXP guides, kept current by the Steward desktop app, with no settings of its own.",
         AuthorLine,
         @"## IconTexture: Interface\AddOns\StewardGuides\Icon",
         "## Dependencies: RXPGuides",

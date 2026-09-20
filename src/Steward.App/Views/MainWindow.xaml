@@ -170,21 +170,21 @@
                     Severity="Warning"
                     HorizontalAlignment="Center"
                     Visibility="{x:Bind ViewModel.TimeoutVisibility, Mode=OneWay}"
-                    Message="Steward did not hear back from your browser. Sign in again." />
+                    Message="No sign-in reached Steward from the browser. Sign in again." />
                 <InfoBar
                     IsOpen="True"
                     IsClosable="False"
                     Severity="Warning"
                     HorizontalAlignment="Center"
                     Visibility="{x:Bind ViewModel.SessionExpiredVisibility, Mode=OneWay}"
-                    Message="Your session expired. Sessions last 30 days from last use. Sign in again to carry on." />
+                    Message="Your session expired. Sessions last 30 days from last use. Sign in again." />
                 <InfoBar
                     IsOpen="True"
                     IsClosable="False"
                     Severity="Error"
                     HorizontalAlignment="Center"
                     Visibility="{x:Bind ViewModel.UnreachableVisibility, Mode=OneWay}"
-                    Message="Could not reach api.hoobi.io. Check your connection. Steward will not have current addon versions until it can.">
+                    Message="Could not reach api.hoobi.io. Check your connection. Addon versions cannot be checked until it is reachable.">
                     <InfoBar.ActionButton>
                         <Button Content="Retry" Command="{x:Bind ViewModel.SignInCommand}" />
                     </InfoBar.ActionButton>
@@ -215,7 +215,7 @@
                     HorizontalAlignment="Center"
                     TextAlignment="Center"
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Text="Opens your browser. Steward stores the session locally and never sees your password." />
+                    Text="Opens your browser. The session is stored on this machine; your password is not." />
             </StackPanel>
 
             <StackPanel

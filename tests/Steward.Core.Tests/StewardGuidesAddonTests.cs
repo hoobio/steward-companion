@@ -34,7 +34,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
         Assert.Equal("## Title: Steward Guides", lines[1]);
         Assert.Equal("## Category: Hoobi", lines[2]);
         Assert.Equal(
-            "## Notes: Purchased RestedXP guides, kept current by the Steward desktop app. Nothing to configure here.",
+            "## Notes: Purchased RestedXP guides, kept current by the Steward desktop app, with no settings of its own.",
             lines[3]);
         Assert.Equal("## Author: Hoobi", lines[4]);
         Assert.Equal(@"## IconTexture: Interface\AddOns\StewardGuides\Icon", lines[5]);

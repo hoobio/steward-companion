@@ -253,7 +253,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsAnyRowBusy => Installs.Any(install => install.AddonRows.Any(row => row.IsBusy));
 
     public string HeaderSubtitle =>
-        $"{InstallCount} World of Warcraft installs, last checked {LastCheckedRelative}";
+        InstallCount == 0
+            ? $"No World of Warcraft installs, {LastCheckedRelative}"
+            : $"{InstallCount} World of Warcraft install{(InstallCount == 1 ? "" : "s")}, last checked {LastCheckedRelative}";
 
     public Brush BannerBrush => (Brush)Application.Current.Resources[
         UpdateCount > 0 ? "CautionTintBrush" : "SuccessTintBrush"];
@@ -351,7 +353,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool CanStartWithWindows { get; } = App.IsGitHubRelease;
 
     public string StartWithWindowsDescription { get; } = App.IsGitHubRelease
-        ? "Launches Steward to the tray when you sign in"
+        ? "Starts Steward in the tray when you sign in to Windows"
         : "Only available in a released build";
 
     public string InstallsDescription => $"{InstallCount} found, read from .flavor.info and .build.info";
