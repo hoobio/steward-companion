@@ -34,7 +34,7 @@
                     IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
 
                 <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind ProductName}" FontSize="13.5" TextWrapping="NoWrap" />
+                    <TextBlock Text="{x:Bind ProductName}" FontSize="13.5" TextWrapping="NoWrap" Foreground="{x:Bind NameBrush}" />
                     <TextBlock
                         Text="{x:Bind UpdatedText}"
                         FontSize="12"

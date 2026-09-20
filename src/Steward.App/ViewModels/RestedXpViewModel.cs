@@ -72,6 +72,9 @@ public sealed partial class GuideRowViewModel : ObservableObject
     public Brush UpdatedBrush => (Brush)Application.Current.Resources[
         IsAllowed ? "TextFillColorSecondaryBrush" : "TextFillColorTertiaryBrush"];
 
+    public Brush NameBrush => (Brush)Application.Current.Resources[
+        IsAllowed ? "TextFillColorPrimaryBrush" : "TextFillColorTertiaryBrush"];
+
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
