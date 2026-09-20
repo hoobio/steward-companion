@@ -312,11 +312,20 @@
                     Width="216"
                     Margin="0,0,12,0"
                     Padding="8,0"
-                    Background="Transparent"
-                    BorderThickness="0"
                     VerticalAlignment="Center"
                     HorizontalContentAlignment="Stretch"
                     Visibility="{x:Bind ViewModel.Main.GuildPickerVisibility, Mode=OneWay}">
+                    <!-- Every state is declared rather than left to the default Button template, which restores its own rest brush over a locally set transparent Background and flashes on pointer exit. -->
+                    <Button.Resources>
+                        <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
+                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FF2B3140" />
+                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FF1A1F2B" />
+                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                        <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
+                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+                        <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                    </Button.Resources>
                     <Grid ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />

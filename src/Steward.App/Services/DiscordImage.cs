@@ -6,7 +6,7 @@ using Windows.Graphics.Imaging;
 
 namespace Steward.App.Services;
 
-public sealed class DiscordAvatar(HttpClient httpClient)
+public sealed class DiscordImage(HttpClient httpClient)
 {
     private AvatarImage? _cached;
 
