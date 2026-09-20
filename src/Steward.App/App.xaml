@@ -48,6 +48,7 @@
                             <SolidColorBrush x:Key="SuccessTintBrush" Color="#21BAE67E" />
                             <SolidColorBrush x:Key="CautionTintBrush" Color="#21FFD580" />
                             <SolidColorBrush x:Key="InfoTintBrush" Color="#21409FFF" />
+                            <SolidColorBrush x:Key="CriticalTintBrush" Color="#21F28779" />
                             <SolidColorBrush x:Key="DiscordBrush" Color="#FF5865F2" />
                         </ResourceDictionary>
                         <ResourceDictionary x:Key="HighContrast">
@@ -59,6 +60,7 @@
                             <SolidColorBrush x:Key="SuccessTintBrush" Color="Transparent" />
                             <SolidColorBrush x:Key="CautionTintBrush" Color="Transparent" />
                             <SolidColorBrush x:Key="InfoTintBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="CriticalTintBrush" Color="Transparent" />
                             <SolidColorBrush x:Key="DiscordBrush" Color="{ThemeResource SystemColorButtonFaceColor}" />
                         </ResourceDictionary>
                     </ResourceDictionary.ThemeDictionaries>

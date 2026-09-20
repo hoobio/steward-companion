@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Input;
 
@@ -5,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 
 using H.NotifyIcon.EfficiencyMode;
 
+using Steward.App.Services;
 using Steward.App.ViewModels;
 
 using Microsoft.UI.Windowing;
@@ -34,7 +36,10 @@ public sealed partial class MainWindow : Window
         SystemBackdrop = new MicaBackdrop();
         ViewModel.OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         ViewModel.NavigateToSettings = () => Nav.SelectedItem = Nav.SettingsItem;
+        ViewModel.NavigateToAddons = () => Nav.SelectedItem = AddonsItem;
+        ViewModel.ShowRestedXpSignIn = () => _ = ShowRestedXpSignInAsync();
         ViewModel.QuitRequested = QuitCompletely;
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         Nav.SelectedItem = AddonsItem;
 
         var scale = Content.XamlRoot?.RasterizationScale ?? 1.0;
@@ -64,6 +69,7 @@ public sealed partial class MainWindow : Window
             : ((args.SelectedItem as NavigationViewItem)?.Tag as string) switch
             {
                 "sync" => typeof(SyncPage),
+                "guides" => typeof(GuidesPage),
                 _ => typeof(HomePage),
             };
 
@@ -73,6 +79,50 @@ public sealed partial class MainWindow : Window
         }
 
         RootFrame.Navigate(page, ViewModel);
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not nameof(MainViewModel.GuidesVisibility)
+            || ViewModel.GuidesVisibility == Visibility.Visible
+            || RootFrame.CurrentSourcePageType != typeof(GuidesPage)
+            || ViewModel.RestedXp.IsSessionExpired)
+        {
+            return;
+        }
+
+        Nav.SelectedItem = AddonsItem;
+    }
+
+    public void ShowGuidesPreview(string scenario)
+    {
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(1100, 720));
+        if (GuidesPreview.OpensDialog(scenario))
+        {
+            DispatcherQueue.TryEnqueue(async () =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1));
+                await ShowRestedXpSignInAsync();
+            });
+            return;
+        }
+
+        Nav.SelectedItem = GuidesItem;
+    }
+
+    public async Task ShowRestedXpSignInAsync()
+    {
+        var dialog = new RestedXpSignInDialog(ViewModel.RestedXp) { XamlRoot = Content.XamlRoot };
+        await dialog.ShowAsync();
+
+        if (ViewModel.RestedXp.IsSignedIn)
+        {
+            Nav.SelectedItem = GuidesItem;
+        }
+        else if (RootFrame.CurrentSourcePageType == typeof(GuidesPage))
+        {
+            Nav.SelectedItem = AddonsItem;
+        }
     }
 
     private void OnGuildPanelClick(object sender, RoutedEventArgs e)

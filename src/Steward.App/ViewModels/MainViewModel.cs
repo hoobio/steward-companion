@@ -48,6 +48,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(IsAnyRowBusy),
         nameof(InstallsDescription),
         nameof(HiddenToggleVisibility),
+        nameof(GuidesVisibility),
     ];
 
     private readonly ISessionService _sessionService;
@@ -105,6 +106,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isLoadingState = false;
 
         RestedXp = new RestedXpViewModel(restedXpService);
+        RestedXp.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(RestedXpViewModel.IsSignedIn))
+            {
+                SyncRestedXpRows();
+                OnPropertyChanged(nameof(GuidesVisibility));
+            }
+        };
 
         Sync = new SyncViewModel(this, guildSyncApi)
         {
@@ -125,6 +134,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public nint OwnerWindowHandle { get; set; }
 
     public Action? NavigateToSettings { get; set; }
+
+    public Action? NavigateToAddons { get; set; }
+
+    public Action? ShowRestedXpSignIn { get; set; }
+
+    public bool IsGuidesPreview { get; set; }
 
     public Action? QuitRequested { get; set; }
 
@@ -254,7 +269,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (UpdateCount == 0)
             {
-                return $"{AddonCount} addons across {InstallCount} installs, last checked {LastCheckedRelative}";
+                return $"Last checked {LastCheckedRelative}";
             }
 
             var first = Installs
@@ -292,6 +307,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Visibility ShellChromeVisibility => When(IsSignedIn);
 
     public Visibility SyncBadgeVisibility => When(Sync.HasWaiting);
+
+    public Visibility GuidesVisibility => When(IsGuidesPreview
+        || (RestedXp.IsSignedIn && Installs.Any(install => install.AddonRows.Any(row =>
+            string.Equals(row.AddonId, RestedXpViewModel.AddonId, StringComparison.OrdinalIgnoreCase)
+            && row.State is not (AddonRowState.Missing or AddonRowState.NoReleases)))));
 
     public Visibility TimeoutVisibility => When(Failure == GateFailure.Timeout);
 
@@ -367,7 +387,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SyncGuideInstalls();
     }
 
-    private void SyncGuideInstalls() => RestedXp.SetInstalls(Installs.Select(install => install.Install));
+    private void SyncGuideInstalls()
+    {
+        RestedXp.SetInstalls(Installs);
+        SyncRestedXpRows();
+    }
+
+    private void SyncRestedXpRows()
+    {
+        foreach (var row in Installs.SelectMany(install => install.AddonRows)
+            .Where(row => string.Equals(row.AddonId, RestedXpViewModel.AddonId, StringComparison.OrdinalIgnoreCase)))
+        {
+            row.RestedXpSignInRequested = () => ShowRestedXpSignIn?.Invoke();
+            row.NeedsRestedXpSignIn = !RestedXp.IsSignedIn;
+        }
+    }
 
     private async Task CheckGuidesAsync()
     {
@@ -706,6 +740,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             install.RefreshClientRunning();
         }
+
+        RestedXp.SetInstalls(Installs);
     }
 
     private async Task AutoApplyAsync()

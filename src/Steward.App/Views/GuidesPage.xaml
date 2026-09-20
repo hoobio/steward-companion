@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Steward.App.Views.GuidesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Steward.App.ViewModels">
+
+    <Page.Resources>
+        <DataTemplate x:Key="GuideRowTemplate" x:DataType="vm:GuideRowViewModel">
+            <Grid
+                Background="{x:Bind RowBackground, Mode=OneWay}"
+                BorderThickness="{x:Bind HairlineThickness}"
+                BorderBrush="{ThemeResource RowHairlineBrush}"
+                Padding="16,12"
+                ColumnSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <RadioButton
+                    Grid.Column="0"
+                    Width="20"
+                    MinWidth="0"
+                    Padding="0"
+                    VerticalAlignment="Center"
+                    GroupName="{x:Bind GroupName}"
+                    IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
+
+                <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ProductName}" FontSize="13.5" TextWrapping="NoWrap" />
+                    <TextBlock
+                        Text="{x:Bind UpdatedText}"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Visibility="{x:Bind UpdatedVisibility, Mode=OneWay}" />
+                    <TextBlock
+                        Text="{x:Bind MessageText, Mode=OneWay}"
+                        FontSize="12"
+                        TextWrapping="Wrap"
+                        Foreground="{x:Bind MessageBrush, Mode=OneWay}"
+                        Visibility="{x:Bind MessageVisibility, Mode=OneWay}" />
+                    <ProgressBar
+                        Height="3"
+                        Margin="0,8,0,0"
+                        IsIndeterminate="True"
+                        Visibility="{x:Bind ProgressVisibility, Mode=OneWay}" />
+                </StackPanel>
+
+                <Border
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    CornerRadius="4"
+                    Padding="9,3"
+                    Background="{ThemeResource ChipBrush}"
+                    Visibility="{x:Bind PillVisibility, Mode=OneWay}">
+                    <TextBlock
+                        Text="{x:Bind PillText, Mode=OneWay}"
+                        FontSize="11.5"
+                        Foreground="{x:Bind PillBrush, Mode=OneWay}" />
+                </Border>
+
+                <Button
+                    Grid.Column="3"
+                    Height="32"
+                    Content="Retry"
+                    VerticalAlignment="Center"
+                    Command="{x:Bind RetryCommand}"
+                    Visibility="{x:Bind RetryVisibility, Mode=OneWay}" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="GuideCardTemplate" x:DataType="vm:RestedXpInstallViewModel">
+            <Expander
+                IsExpanded="True"
+                Padding="0"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Stretch"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                CornerRadius="8"
+                BorderThickness="0">
+                <Expander.Resources>
+                    <Thickness x:Key="ExpanderContentBorderThickness">0</Thickness>
+                    <Thickness x:Key="ExpanderContentDownBorderThickness">0</Thickness>
+                    <Thickness x:Key="ExpanderContentUpBorderThickness">0</Thickness>
+                    <Thickness x:Key="ExpanderHeaderPadding">16,0,0,0</Thickness>
+                </Expander.Resources>
+                <Expander.Header>
+                    <Grid ColumnSpacing="12" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind DisplayName}" FontSize="14" FontWeight="SemiBold" />
+                            <TextBlock
+                                Text="{x:Bind FlavourPath}"
+                                FontFamily="Cascadia Mono"
+                                FontSize="11.5"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        </StackPanel>
+
+                        <StackPanel
+                            Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="7"
+                            VerticalAlignment="Center"
+                            Visibility="{x:Bind RunningVisibility, Mode=OneWay}">
+                            <Ellipse
+                                Width="8"
+                                Height="8"
+                                VerticalAlignment="Center"
+                                Fill="{ThemeResource SystemFillColorCautionBrush}" />
+                            <TextBlock
+                                Text="Running"
+                                FontSize="12"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                        </StackPanel>
+                    </Grid>
+                </Expander.Header>
+
+                <StackPanel>
+                    <TextBlock
+                        Text="Keep in game"
+                        Margin="16,8,0,7"
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        CharacterSpacing="70"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Visibility="{x:Bind RowsVisibility, Mode=OneWay}" />
+                    <ItemsControl
+                        ItemsSource="{x:Bind Rows}"
+                        ItemTemplate="{StaticResource GuideRowTemplate}"
+                        IsEnabled="{x:Bind IsSessionActive, Mode=OneWay}" />
+                    <Border
+                        Padding="16,14"
+                        BorderThickness="0,1,0,0"
+                        BorderBrush="{ThemeResource RowHairlineBrush}"
+                        Visibility="{x:Bind NoGuidesVisibility, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock
+                                Text="No guides on this account"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            <HyperlinkButton
+                                Content="Browse guides"
+                                Padding="4,0"
+                                VerticalAlignment="Center"
+                                NavigateUri="https://shop.restedxp.com/guides/" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Expander>
+        </DataTemplate>
+    </Page.Resources>
+
+    <ScrollViewer>
+        <StackPanel Padding="{StaticResource PageGutter}" Spacing="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock
+                    Grid.Column="0"
+                    Text="Guides"
+                    FontSize="26"
+                    FontWeight="SemiBold"
+                    Margin="{StaticResource PageTitleMargin}" />
+
+                <Button
+                    Grid.Column="1"
+                    Height="32"
+                    VerticalAlignment="Center"
+                    Command="{x:Bind ViewModel.RefreshCommand, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                        <TextBlock Text="Refresh" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <InfoBar
+                x:Name="SessionExpiredBar"
+                Severity="Warning"
+                IsClosable="True"
+                CloseButtonClick="OnSessionBarClosed"
+                IsOpen="{x:Bind ViewModel.RestedXp.IsSessionExpired, Mode=OneWay}"
+                Message="Your RestedXP session expired. Sign in again.">
+                <InfoBar.ActionButton>
+                    <Button Content="Sign in" Click="OnSignInClick" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+
+            <Border CornerRadius="8" Padding="16,14" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock
+                        Grid.Column="0"
+                        Text="Signed in as"
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock
+                        Grid.Column="1"
+                        Text="{x:Bind ViewModel.RestedXp.SignedInAs, Mode=OneWay}"
+                        VerticalAlignment="Center"
+                        FontSize="13.5" />
+                    <StackPanel
+                        Grid.Column="2"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        VerticalAlignment="Center"
+                        Visibility="{x:Bind ViewModel.RestedXp.BattleTagVisibility, Mode=OneWay}">
+                        <TextBlock
+                            Text="&#xB7;"
+                            VerticalAlignment="Center"
+                            FontSize="13.5"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        <TextBlock
+                            Text="{x:Bind ViewModel.RestedXp.BattleTag, Mode=OneWay}"
+                            VerticalAlignment="Center"
+                            FontFamily="Cascadia Mono"
+                            FontSize="12.5"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <HyperlinkButton
+                        Grid.Column="4"
+                        Content="Sign out"
+                        Padding="4,0"
+                        VerticalAlignment="Center"
+                        Command="{x:Bind ViewModel.RestedXp.SignOutCommand, Mode=OneWay}" />
+                </Grid>
+            </Border>
+
+            <ItemsControl
+                ItemsSource="{x:Bind ViewModel.RestedXp.Guides, Mode=OneWay}"
+                ItemTemplate="{StaticResource GuideCardTemplate}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="10" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

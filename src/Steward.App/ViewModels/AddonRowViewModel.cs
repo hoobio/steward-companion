@@ -53,6 +53,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         nameof(HideLabel),
         nameof(RowVisibility),
         nameof(HiddenPillVisibility),
+        nameof(RestedXpSignInVisibility),
     ];
 
     private readonly WowInstall _install;
@@ -132,6 +133,14 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool ShowHidden { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RestedXpSignInVisibility))]
+    public partial bool NeedsRestedXpSignIn { get; set; }
+
+    public Action? RestedXpSignInRequested { get; set; }
+
+    public Visibility RestedXpSignInVisibility => When(NeedsRestedXpSignIn && IsInstalled && !IsHidden);
 
     public bool IsClientRunning { get; set; }
 
@@ -361,6 +370,9 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     [RelayCommand]
     private void ChangeChannel() => _changeChannelRequested();
+
+    [RelayCommand]
+    private void RestedXpSignIn() => RestedXpSignInRequested?.Invoke();
 
     [RelayCommand]
     private void ToggleHidden()

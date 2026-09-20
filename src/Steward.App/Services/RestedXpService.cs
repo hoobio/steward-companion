@@ -14,6 +14,7 @@ public enum GuideSyncOutcome
     Stale,
     Downloaded,
     Written,
+    NeedsNewerAddon,
     NoAccountFiles,
 }
 
@@ -55,6 +56,8 @@ public sealed partial class RestedXpService : IDisposable
 
     public string? Username => Session?.Username;
 
+    public string? BattleTag { get; private set; }
+
     public bool TryRestore()
     {
         var stored = _stateStore.Load().EncryptedRestedXpSession;
@@ -74,7 +77,29 @@ public sealed partial class RestedXpService : IDisposable
             Session = null;
         }
 
+        if (Session is not null)
+        {
+            RestoreBattleTag();
+        }
+
         return Session is not null;
+    }
+
+    private void RestoreBattleTag()
+    {
+        try
+        {
+            if (new DirectoryInfo(_cacheFolder).EnumerateFiles("*.json").MaxBy(file => file.LastWriteTimeUtc) is not { } newest)
+            {
+                return;
+            }
+
+            BattleTag = JsonSerializer
+                .Deserialize(File.ReadAllText(newest.FullName), CompanionJsonContext.Default.RestedXpCachedGuide)?.BnetTag;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+        }
     }
 
     public async Task<bool> SignInAsync(string username, string password, CancellationToken cancellationToken)
@@ -112,6 +137,7 @@ public sealed partial class RestedXpService : IDisposable
     {
         Session = null;
         _mfaSessionId = null;
+        BattleTag = null;
         Products = [];
         _lastFailure.Clear();
         _stateStore.Save(_stateStore.Load() with { EncryptedRestedXpSession = null });
@@ -331,6 +357,7 @@ public sealed partial class RestedXpService : IDisposable
     private void Cache(string productName, long timestamp, RestedXpGuide guide)
     {
         Directory.CreateDirectory(_cacheFolder);
+        BattleTag = guide.BnetTag ?? BattleTag;
         File.WriteAllText(CachePath(productName, ".txt"), guide.Guide);
         File.WriteAllText(
             CachePath(productName, ".json"),

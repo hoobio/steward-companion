@@ -1,6 +1,7 @@
 using System.Reflection;
 
 using Steward.App.Hosting;
+using Steward.App.Services;
 using Steward.App.Views;
 
 using Microsoft.Extensions.Configuration;
@@ -35,6 +36,15 @@ public partial class App : Application
 
         _window = _host.Services.GetRequiredService<MainWindow>();
         _window.Closed += (_, _) => _host.Dispose();
+
+        if (GuidesPreview.Scenario(Environment.GetCommandLineArgs()) is { Length: > 0 } scenario)
+        {
+            GuidesPreview.Apply(_window.ViewModel, scenario);
+            _window.Activate();
+            _window.ShowGuidesPreview(scenario);
+            return;
+        }
+
         if (Environment.GetCommandLineArgs().Contains(StartupRegistration.TrayArgument) && _window.ViewModel.KeepInTray)
         {
             _window.HideToTray();
