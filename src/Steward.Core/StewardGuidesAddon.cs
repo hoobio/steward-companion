@@ -28,6 +28,32 @@ public static partial class StewardGuidesAddon
             return text:match("^%d+|([^:]+):")
         end
 
+        local function Guard(rxp)
+            local inventory = rxp.inventoryManager
+            if not inventory then
+                return
+            end
+            -- ponytail: RXPGuides v4.11.x reads settings.profile from its bag hook even when its own initialisation never ran; answer "off" until the profile exists
+            for _, name in ipairs({ "IsRightClickEnabled", "IsBagAutomationEnabled", "IsMerchantAutomationEnabled", "IsJunkIconEnabled", "GetModKey" }) do
+                local original = inventory[name]
+                if type(original) == "function" then
+                    inventory[name] = function(...)
+                        if not (rxp.settings and rxp.settings.profile) then
+                            return false
+                        end
+                        return original(...)
+                    end
+                end
+            end
+        end
+
+        do
+            local rxp = LibStub("AceAddon-3.0"):GetAddon("RXPGuides", true)
+            if rxp then
+                Guard(rxp)
+            end
+        end
+
         local function Reject(guide, hash, message)
             Say(guide.name .. ": " .. message)
             if hash then

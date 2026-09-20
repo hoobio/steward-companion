@@ -62,6 +62,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
         Assert.Contains("rxp.guideImporter:ImportString(guide.text)", lua, StringComparison.Ordinal);
         Assert.Contains("StewardGuidesDB = StewardGuidesDB or { imported = {}, status = {} }", lua, StringComparison.Ordinal);
         Assert.Contains("StewardGuidesDB.generation = generation", lua, StringComparison.Ordinal);
+        Assert.Contains("\"IsJunkIconEnabled\", \"GetModKey\"", lua, StringComparison.Ordinal);
         Assert.Contains("Guides Loaded Successfully", lua, StringComparison.Ordinal);
         Assert.Contains("StewardGuidesDB.status[hash] = message", lua, StringComparison.Ordinal);
         Assert.Contains("local _, tag = BNGetInfo()", lua, StringComparison.Ordinal);
