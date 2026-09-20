@@ -12,7 +12,8 @@
                 BorderThickness="{x:Bind HairlineThickness}"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
                 Padding="16,12"
-                ColumnSpacing="14">
+                ColumnSpacing="14"
+                ToolTipService.ToolTip="{x:Bind RowTooltip}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />

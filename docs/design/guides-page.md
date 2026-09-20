@@ -76,4 +76,4 @@ Failures are inline and critical, under the fields: "Wrong username or password"
 - A guide picker or preview. The page keeps guides current; choosing which to follow is the addon's job in game.
 - A progress percentage on the download. The string is one file and the page shows an indeterminate bar rather than a fake figure.
 - Any storage of the RestedXP password. The dialog exchanges it once and discards it.
-- A manual import-string box. Route 2 in [restedxp-guides.md](restedxp-guides.md) is the only path this page uses.
+- A manual import-string box. The generated addon (route 3 in [restedxp-guides.md](restedxp-guides.md)) is the only path this page uses.

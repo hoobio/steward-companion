@@ -60,6 +60,8 @@ public sealed partial class GuideRowViewModel : ObservableObject
 
     public Thickness HairlineThickness => IsFirst ? default : new Thickness(0, 1, 0, 0);
 
+    public string? RowTooltip => IsAllowed ? null : $"{ProductName} is for another client. This install is {_card.DisplayName}.";
+
     public string UpdatedText => !IsAllowed
         ? "Not for this client"
         : _updatedAt is { } at
