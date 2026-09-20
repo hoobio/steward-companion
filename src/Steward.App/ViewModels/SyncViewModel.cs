@@ -162,14 +162,17 @@ public sealed partial class SyncViewModel : ObservableObject
         try
         {
             SyncServerState? server = null;
-            IsUnreachable = false;
-            try
+            IsUnreachable = !_main.IsApiReachable;
+            if (!IsUnreachable)
             {
-                server = await _api.GetStateAsync(CancellationToken.None).ConfigureAwait(true);
-            }
-            catch (HttpRequestException)
-            {
-                IsUnreachable = true;
+                try
+                {
+                    server = await _api.GetStateAsync(CancellationToken.None).ConfigureAwait(true);
+                }
+                catch (HttpRequestException)
+                {
+                    IsUnreachable = true;
+                }
             }
 
             _lastSyncedAt = server?.LastSyncedAt;

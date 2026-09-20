@@ -357,7 +357,11 @@
                     Severity="Error"
                     IsClosable="False"
                     IsOpen="{x:Bind ViewModel.StatusMessageIsOpen, Mode=OneWay}"
-                    Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" />
+                    Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}">
+                    <InfoBar.ActionButton>
+                        <Button Content="Retry" Command="{x:Bind ViewModel.RefreshCommand}" Visibility="{x:Bind ViewModel.RetryVisibility, Mode=OneWay}" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
 
                 <Border
                     CornerRadius="8"

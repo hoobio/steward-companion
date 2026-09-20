@@ -262,7 +262,7 @@
                         <FontIcon Glyph="&#xE7FC;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="SyncItem" Content="Sync" Tag="sync">
+                <NavigationViewItem x:Name="SyncItem" Content="Sync" Tag="sync" IsEnabled="{x:Bind ViewModel.IsApiReachable, Mode=OneWay}">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE895;" />
                     </NavigationViewItem.Icon>

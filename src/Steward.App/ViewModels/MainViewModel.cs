@@ -155,7 +155,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool IsSigningIn { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility))]
+    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(IsApiReachable), nameof(RetryVisibility))]
     public partial GateFailure Failure { get; set; }
 
     [ObservableProperty]
@@ -274,6 +274,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Visibility SessionExpiredVisibility => When(Failure == GateFailure.SessionExpired);
 
     public Visibility UnreachableVisibility => When(Failure == GateFailure.Unreachable);
+
+    public bool IsApiReachable => Failure != GateFailure.Unreachable;
+
+    public Visibility RetryVisibility => When(Failure == GateFailure.Unreachable);
 
     public Visibility CancelSignInVisibility => When(IsSigningIn);
 
@@ -787,7 +791,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         UpdateLastCheckedText();
         _ = NotifySavedVariablesChangedAsync();
-        if (!_isChecking && DateTimeOffset.Now - _lastPass >= RecheckInterval)
+        if (!_isChecking && (Failure == GateFailure.Unreachable || DateTimeOffset.Now - _lastPass >= RecheckInterval))
         {
             _ = RunBackgroundPassAsync();
             return;
@@ -846,6 +850,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = GigagrugClient.IsAdmin(me);
             StatusMessage = null;
+            Failure = GateFailure.None;
 
             // Client-side gate only: gigagrug does not restrict who can fetch the unstable manifest.
             IsGlobalAdmin = GigagrugClient.IsGlobalAdmin(me);
