@@ -3,6 +3,7 @@ using System.Text;
 
 namespace Steward.Core.Tests;
 
+[Collection(GitHubReleasesFixture.CollectionName)]
 public sealed class AppUpdaterTests
 {
     public AppUpdaterTests() => GitHubReleases.ResetCache();

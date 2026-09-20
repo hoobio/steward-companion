@@ -642,6 +642,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 IsLatestConfirmed = false;
             }
         }
+        catch (GitHubRateLimitedException ex)
+        {
+            StatusMessage = ex.Message;
+        }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException)
         {
             StatusMessage = $"Could not check for a Steward update: {ex.Message}";
@@ -715,7 +719,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases, addon.Channels, addon.DefaultPreference);
             }
         }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException or GitHubRateLimitedException)
         {
             StatusMessage = ex.Message;
             succeeded = false;
@@ -736,7 +740,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await AutoApplyAsync().ConfigureAwait(true);
         }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException or GitHubRateLimitedException)
         {
             StatusMessage = ex.Message;
         }
