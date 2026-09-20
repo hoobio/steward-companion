@@ -15,10 +15,11 @@ public static class GitHubReleases
         ArgumentNullException.ThrowIfNull(httpClient);
 
         var releases = await ListAsync(httpClient, repo, cancellationToken).ConfigureAwait(false);
+        // The API lists releases in an order that is not published date, so the newest is chosen by date rather than position.
         var release = channel switch
         {
-            "release" => releases.FirstOrDefault(r => !r.Draft && !r.Prerelease),
-            "pre-release" => releases.FirstOrDefault(r => !r.Draft && r.Prerelease),
+            "release" => releases.Where(r => !r.Draft && !r.Prerelease).MaxBy(r => r.PublishedAt),
+            "pre-release" => releases.Where(r => !r.Draft && r.Prerelease).MaxBy(r => r.PublishedAt),
             _ => throw new ArgumentOutOfRangeException(nameof(channel), channel, "GitHub addons only have release and pre-release channels."),
         };
 

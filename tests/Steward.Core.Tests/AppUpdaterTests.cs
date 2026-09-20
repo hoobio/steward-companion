@@ -70,6 +70,20 @@ public sealed class AppUpdaterTests
     }
 
     [Fact]
+    public async Task CheckAsync_PreReleaseChannel_PicksTheNewestByDateNotByListOrder()
+    {
+        var updater = UpdaterFor(Body(
+            Entry("v0.8.1-pre-release.95.6e2686b", "2026-09-20T10:41:45Z", prerelease: true, "Steward-0.8.1-pre-release.95.6e2686b-x64.msi"),
+            Entry("v0.8.1-pre-release.102.77ab17e", "2026-09-20T11:16:10Z", prerelease: true, "Steward-0.8.1-pre-release.102.77ab17e-x64.msi"),
+            Entry("v0.8.0", "2026-09-20T09:52:17Z", prerelease: false, "Steward-0.8.0-x64.msi")));
+
+        var release = await updater.CheckAsync(new Version(0, 8, 1, 0), "0.8.1-pre-release.95.6e2686b", "pre-release", CancellationToken.None);
+
+        Assert.NotNull(release);
+        Assert.Equal("v0.8.1-pre-release.102.77ab17e", release.Version);
+    }
+
+    [Fact]
     public async Task CheckAsync_NoMsiAsset_ReturnsNull()
     {
         var updater = UpdaterFor(ReleaseBody("v0.4.0", "Steward-0.4.0.zip"));
