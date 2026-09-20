@@ -97,6 +97,7 @@ public sealed class InMemoryGuildSyncApi : IGuildSyncApi
             LocalSample.Loot,
             LocalSample.Attendance,
             [],
+            [],
             []));
     }
 

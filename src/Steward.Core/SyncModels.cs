@@ -28,8 +28,12 @@ public sealed record DiscordMember(
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("nick")] string? Nick);
 
+public sealed record RosterStatusDef(
+    [property: JsonPropertyName("name")] string Name);
+
 public sealed record GuildRosterResponse(
-    [property: JsonPropertyName("members")] IReadOnlyList<GuildRosterMember> Members);
+    [property: JsonPropertyName("members")] IReadOnlyList<GuildRosterMember> Members,
+    [property: JsonPropertyName("statuses")] IReadOnlyList<RosterStatusDef>? Statuses);
 
 public sealed record DiscordMembersResponse(
     [property: JsonPropertyName("members")] IReadOnlyList<DiscordMember> Members);
@@ -86,7 +90,8 @@ public sealed record SyncPayload(
     IReadOnlyList<LootEvent> Loot,
     IReadOnlyList<AttendanceRecord> Attendance,
     IReadOnlyList<GuildRosterMember> Members,
-    IReadOnlyList<DiscordMember> Discord)
+    IReadOnlyList<DiscordMember> Discord,
+    IReadOnlyList<string> Statuses)
 {
     public AvatarImage? Avatar { get; init; }
 }

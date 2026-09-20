@@ -18,6 +18,7 @@ public sealed class StewardSyncFileTests : IDisposable
             new AttendanceRecord("raid-1", DateTimeOffset.FromUnixTimeSeconds(1758230000), "Molten Core", ["Hoobi", "Grug"]),
         ],
         [],
+        [],
         []);
 
     private static SyncPayload SamplePayloadWithGuildData() => SamplePayload() with
@@ -84,6 +85,31 @@ public sealed class StewardSyncFileTests : IDisposable
 
         Assert.Empty(table.GetTable("members")!.Items);
         Assert.Empty(table.GetTable("discord")!.Items);
+        Assert.Empty(table.GetTable("statuses")!.Items);
+    }
+
+    [Fact]
+    public void Render_ProducesTheStatusesInOrder()
+    {
+        var payload = SamplePayload() with { Statuses = ["Officer", "Raider", "Approved", "Trial", "Declined"] };
+        var rendered = StewardSyncFile.Render(payload);
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"];
+
+        Assert.Equal(
+            ["Officer", "Raider", "Approved", "Trial", "Declined"],
+            table.GetTable("statuses")!.Items.Select(i => i.Text));
+    }
+
+    [Fact]
+    public void Fingerprint_Changes_WhenTheStatusesAreReordered()
+    {
+        var payload = SamplePayload() with { Statuses = ["Officer", "Raider"] };
+        var reordered = payload with { Statuses = ["Raider", "Officer"] };
+
+        Assert.NotEqual(StewardSyncFile.Fingerprint(payload), StewardSyncFile.Fingerprint(reordered));
     }
 
     [Fact]

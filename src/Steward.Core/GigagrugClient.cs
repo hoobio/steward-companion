@@ -40,7 +40,7 @@ public sealed class GigagrugClient
         return me ?? throw new HttpRequestException("GET /api/admin/me returned an empty body");
     }
 
-    public async Task<IReadOnlyList<GuildRosterMember>> GetGuildRosterAsync(string guildId, CancellationToken cancellationToken)
+    public async Task<(IReadOnlyList<GuildRosterMember> Members, IReadOnlyList<string> Statuses)> GetGuildRosterAsync(string guildId, CancellationToken cancellationToken)
     {
         using var response = await _httpClient
             .GetAsync($"{_baseUrl}/api/admin/{guildId}/roster", cancellationToken)
@@ -61,9 +61,15 @@ public sealed class GigagrugClient
             .ReadFromJsonAsync(CompanionJsonContext.Default.GuildRosterResponse, cancellationToken)
             .ConfigureAwait(false);
 
-        return roster is null
-            ? throw new HttpRequestException($"GET /api/admin/{guildId}/roster returned an empty body")
-            : [.. roster.Members.Select(member => member with { Notes = RosterNotes.Trim(member.Notes) })];
+        if (roster is null)
+        {
+            throw new HttpRequestException($"GET /api/admin/{guildId}/roster returned an empty body");
+        }
+
+        IReadOnlyList<GuildRosterMember> members =
+            [.. roster.Members.Select(member => member with { Notes = RosterNotes.Trim(member.Notes) })];
+        IReadOnlyList<string> statuses = roster.Statuses is null ? [] : [.. roster.Statuses.Select(status => status.Name)];
+        return (members, statuses);
     }
 
     public async Task<IReadOnlyList<DiscordMember>> GetDiscordMembersAsync(string guildId, CancellationToken cancellationToken)

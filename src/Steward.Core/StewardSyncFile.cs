@@ -103,6 +103,7 @@ public static class StewardSyncFile
         entries.Add(new(LuaValue.FromString("attendance"), LuaValue.Array(payload.Attendance.Select(AttendanceToLua))));
         entries.Add(new(LuaValue.FromString("members"), LuaValue.Array(payload.Members.Select(MemberToLua))));
         entries.Add(new(LuaValue.FromString("discord"), LuaValue.Array(payload.Discord.Select(DiscordToLua))));
+        entries.Add(new(LuaValue.FromString("statuses"), LuaValue.Array(payload.Statuses.Select(LuaValue.FromString))));
 
         return LuaValue.FromTable(entries);
     }

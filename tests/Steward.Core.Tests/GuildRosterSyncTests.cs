@@ -18,7 +18,8 @@ public sealed class GuildRosterSyncTests : IDisposable
                 "111", "Hoobi", null, "hoobi#0001", "Raider", ["EU"], ["core"], null,
                 "Reliable", false, 12, 1758200000, null, null),
         ],
-        [new DiscordMember("222", "Grug", null)]);
+        [new DiscordMember("222", "Grug", null)],
+        ["Officer", "Raider"]);
 
     private static AvatarImage SampleAvatar(string hash) =>
         new($"https://cdn.discordapp.com/avatars/1/{hash}.png?size=64", 64, 64, new byte[64 * 64 * 4]);

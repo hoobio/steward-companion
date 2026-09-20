@@ -325,6 +325,7 @@ public sealed partial class SyncViewModel : ObservableObject
         key == InMemoryGuildSyncApi.LootDataset ? snapshot?.Loot ?? [] : [],
         key == InMemoryGuildSyncApi.AttendanceDataset ? snapshot?.Attendance ?? [] : [],
         [],
+        [],
         []);
 
     private static string SourceFile(SavedVariablesSnapshot? snapshot) => snapshot switch
