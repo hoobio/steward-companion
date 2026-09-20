@@ -24,7 +24,7 @@ public sealed partial class AddonChannelViewModel : ObservableObject
         _addon = addon;
         _stateStore = stateStore;
         _channelChanged = channelChanged;
-        Icon = new BitmapImage(new Uri(new Uri(addon.ManifestBaseUrl), "icon.png"));
+        Icon = new BitmapImage(addon.IconUri);
         SelectedIndex = -1;
     }
 
@@ -41,25 +41,37 @@ public sealed partial class AddonChannelViewModel : ObservableObject
     public partial int SelectedIndex { get; set; }
 
     [ObservableProperty]
-    public partial bool StableEnabled { get; set; }
+    public partial bool Option1Enabled { get; set; }
 
     [ObservableProperty]
-    public partial bool BetaEnabled { get; set; }
+    public partial bool Option2Enabled { get; set; }
 
     [ObservableProperty]
-    public partial bool UnstableEnabled { get; set; }
+    public partial bool Option3Enabled { get; set; }
 
     [ObservableProperty]
-    public partial string? StableTooltip { get; set; }
+    public partial string? Option1Tooltip { get; set; }
 
     [ObservableProperty]
-    public partial string? BetaTooltip { get; set; }
+    public partial string? Option2Tooltip { get; set; }
 
     [ObservableProperty]
-    public partial string? UnstableTooltip { get; set; }
+    public partial string? Option3Tooltip { get; set; }
 
     [ObservableProperty]
-    public partial Visibility UnstableVisibility { get; set; } = Visibility.Collapsed;
+    public partial string Option1Label { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string Option2Label { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string Option3Label { get; set; } = "";
+
+    [ObservableProperty]
+    public partial Visibility Option2Visibility { get; set; } = Visibility.Collapsed;
+
+    [ObservableProperty]
+    public partial Visibility Option3Visibility { get; set; } = Visibility.Collapsed;
 
     [ObservableProperty]
     public partial Visibility PickerVisibility { get; set; } = Visibility.Collapsed;
@@ -81,13 +93,18 @@ public sealed partial class AddonChannelViewModel : ObservableObject
         try
         {
             _status = status;
-            StableEnabled = status.Has("stable");
-            BetaEnabled = status.Has("beta");
-            UnstableEnabled = status.Has("unstable");
-            StableTooltip = StableEnabled ? null : "No releases on stable yet";
-            BetaTooltip = BetaEnabled ? null : "No releases on beta yet";
-            UnstableTooltip = UnstableEnabled ? null : "No releases on unstable yet";
-            UnstableVisibility = isGlobalAdmin ? Visibility.Visible : Visibility.Collapsed;
+            var channels = _addon.Channels;
+            Option1Label = channels.Count > 0 ? channels[0] : "";
+            Option2Label = channels.Count > 1 ? channels[1] : "";
+            Option3Label = channels.Count > 2 ? channels[2] : "";
+            Option1Enabled = channels.Count > 0 && status.Has(channels[0]);
+            Option2Enabled = channels.Count > 1 && status.Has(channels[1]);
+            Option3Enabled = channels.Count > 2 && status.Has(channels[2]);
+            Option1Tooltip = channels.Count > 0 && !Option1Enabled ? $"No releases on {channels[0]} yet" : null;
+            Option2Tooltip = channels.Count > 1 && !Option2Enabled ? $"No releases on {channels[1]} yet" : null;
+            Option3Tooltip = channels.Count > 2 && !Option3Enabled ? $"No releases on {channels[2]} yet" : null;
+            Option2Visibility = channels.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+            Option3Visibility = channels.Count > 2 && isGlobalAdmin ? Visibility.Visible : Visibility.Collapsed;
 
             SelectedIndex = status.Channel is null ? -1 : IndexOf(status.Channel);
             SelectedChannelText = status.Channel ?? "No releases yet";
@@ -106,11 +123,12 @@ public sealed partial class AddonChannelViewModel : ObservableObject
         }
     }
 
-    private static int IndexOf(string channel)
+    private int IndexOf(string channel)
     {
-        for (var i = 0; i < AddonChannelStatus.Ordered.Count; i++)
+        var channels = _addon.Channels;
+        for (var i = 0; i < channels.Count; i++)
         {
-            if (string.Equals(AddonChannelStatus.Ordered[i], channel, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(channels[i], channel, StringComparison.OrdinalIgnoreCase))
             {
                 return i;
             }
@@ -121,12 +139,12 @@ public sealed partial class AddonChannelViewModel : ObservableObject
 
     partial void OnSelectedIndexChanged(int value)
     {
-        if (_isApplying || value < 0 || value >= AddonChannelStatus.Ordered.Count)
+        if (_isApplying || value < 0 || value >= _addon.Channels.Count)
         {
             return;
         }
 
-        var channel = AddonChannelStatus.Ordered[value];
+        var channel = _addon.Channels[value];
         if (_status is null || string.Equals(_status.Channel, channel, StringComparison.OrdinalIgnoreCase))
         {
             return;

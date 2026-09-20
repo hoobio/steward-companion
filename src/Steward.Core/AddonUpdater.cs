@@ -16,8 +16,8 @@ public sealed class AddonUpdater
     {
         if (addon.GitHubRepo is { } repo)
         {
-            return channel == "stable"
-                ? await GitHubReleases.GetLatestAsync(_httpClient, repo, ".zip", cancellationToken).ConfigureAwait(false)
+            return addon.Channels.Contains(channel, StringComparer.OrdinalIgnoreCase)
+                ? await GitHubReleases.GetLatestAsync(_httpClient, repo, ".zip", channel, cancellationToken).ConfigureAwait(false)
                 : null;
         }
 
@@ -92,7 +92,7 @@ public sealed class AddonUpdater
     }
 
     private static Uri ManifestUri(ManagedAddon addon, string channel) =>
-        new(new Uri(addon.ManifestBaseUrl), $"latest-{channel}.json");
+        new(new Uri(addon.ManifestBaseUrl ?? throw new InvalidOperationException($"{addon.Id} has no ManifestBaseUrl")), $"latest-{channel}.json");
 
     internal static async Task DownloadAsync(
         HttpClient httpClient,

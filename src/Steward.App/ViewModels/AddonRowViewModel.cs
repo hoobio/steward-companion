@@ -81,7 +81,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         _ensureAuthorized = ensureAuthorized;
         _changeChannelRequested = changeChannelRequested;
         _afterStewardInstalled = afterStewardInstalled;
-        Icon = new BitmapImage(new Uri(new Uri(addon.ManifestBaseUrl), "icon.png"));
+        Icon = new BitmapImage(addon.IconUri);
         IsHidden = stateStore.Load().HiddenAddons.Contains(addon.Id, StringComparer.OrdinalIgnoreCase);
         RefreshInstalledVersion();
     }

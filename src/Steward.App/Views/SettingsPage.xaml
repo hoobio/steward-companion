@@ -29,18 +29,19 @@
                         SelectedIndex="{x:Bind SelectedIndex, Mode=TwoWay}"
                         Visibility="{x:Bind PickerVisibility, Mode=OneWay}">
                         <controls:SegmentedItem
-                            Content="stable"
-                            IsEnabled="{x:Bind StableEnabled, Mode=OneWay}"
-                            ToolTipService.ToolTip="{x:Bind StableTooltip, Mode=OneWay}" />
+                            Content="{x:Bind Option1Label}"
+                            IsEnabled="{x:Bind Option1Enabled, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind Option1Tooltip, Mode=OneWay}" />
                         <controls:SegmentedItem
-                            Content="beta"
-                            IsEnabled="{x:Bind BetaEnabled, Mode=OneWay}"
-                            ToolTipService.ToolTip="{x:Bind BetaTooltip, Mode=OneWay}" />
+                            Content="{x:Bind Option2Label}"
+                            IsEnabled="{x:Bind Option2Enabled, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind Option2Tooltip, Mode=OneWay}"
+                            Visibility="{x:Bind Option2Visibility, Mode=OneWay}" />
                         <controls:SegmentedItem
-                            Content="unstable"
-                            IsEnabled="{x:Bind UnstableEnabled, Mode=OneWay}"
-                            ToolTipService.ToolTip="{x:Bind UnstableTooltip, Mode=OneWay}"
-                            Visibility="{x:Bind UnstableVisibility, Mode=OneWay}" />
+                            Content="{x:Bind Option3Label}"
+                            IsEnabled="{x:Bind Option3Enabled, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind Option3Tooltip, Mode=OneWay}"
+                            Visibility="{x:Bind Option3Visibility, Mode=OneWay}" />
                     </controls:Segmented>
                 </StackPanel>
             </controls:SettingsCard>

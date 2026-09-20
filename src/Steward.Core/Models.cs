@@ -2,7 +2,18 @@ using System.Text.Json.Serialization;
 
 namespace Steward.Core;
 
-public sealed record ManagedAddon(string Id, string FolderName, string ManifestBaseUrl, bool AutoInstall = false, string? GitHubRepo = null);
+public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? GitHubRepo = null)
+{
+    public bool IsGitHub => GitHubRepo is not null;
+
+    public IReadOnlyList<string> Channels => IsGitHub ? AddonChannelStatus.GitHubChannels : AddonChannelStatus.Ordered;
+
+    public IReadOnlyList<string> DefaultPreference => IsGitHub ? AddonChannelStatus.GitHubChannels : AddonChannelStatus.DefaultPreference;
+
+    public Uri IconUri => GitHubRepo is { } repo
+        ? new Uri($"https://github.com/{repo[..repo.IndexOf('/', StringComparison.Ordinal)]}.png?size=64")
+        : new Uri(new Uri(ManifestBaseUrl ?? throw new InvalidOperationException($"{Id} has neither ManifestBaseUrl nor GitHubRepo")), "icon.png");
+}
 
 public sealed record AddonRelease(
     [property: JsonPropertyName("version")] string Version,
@@ -14,6 +25,8 @@ public sealed record AddonRelease(
 public sealed record GitHubRelease(
     [property: JsonPropertyName("tag_name")] string TagName,
     [property: JsonPropertyName("published_at")] DateTimeOffset PublishedAt,
+    [property: JsonPropertyName("prerelease")] bool Prerelease,
+    [property: JsonPropertyName("draft")] bool Draft,
     [property: JsonPropertyName("assets")] GitHubAsset[] Assets);
 
 public sealed record GitHubAsset(
@@ -73,4 +86,5 @@ public sealed record AppState(
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]
 [JsonSerializable(typeof(GitHubRelease))]
+[JsonSerializable(typeof(GitHubRelease[]))]
 public sealed partial class CompanionJsonContext : JsonSerializerContext;

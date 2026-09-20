@@ -140,6 +140,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+
       - name: Download MSI
         uses: actions/download-artifact@v8
         with:
@@ -152,3 +154,27 @@ jobs:
           tag: ${{ needs.release-please.outputs.tag_name }}
           file-path: release/Steward-${{ needs.build-msi.outputs.version }}-x64.msi
           github-token: ${{ github.token }}
+
+      - name: Stack release notes back to the last minor
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+          VERSION: ${{ needs.build-msi.outputs.version }}
+        run: |
+          $notes = [System.Collections.Generic.List[string]]::new()
+          $started = $false
+          $stop = $false
+          foreach ($line in Get-Content CHANGELOG.md) {
+            if ($line -match '^## \[?(\d+)\.(\d+)\.(\d+)') {
+              $version = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
+              if (-not $started) { $started = $version -eq $env:VERSION }
+              elseif ($stop) { break }
+              if ($started -and $Matches[3] -eq '0') { $stop = $true }
+            }
+            if ($started) { $notes.Add($line) }
+          }
+          if ($notes.Count -eq 0) { throw "No CHANGELOG.md section for $env:VERSION" }
+          Set-Content -Path notes.md -Value $notes
+          gh release edit $env:TAG --notes-file notes.md
+          if ($LASTEXITCODE -ne 0) { throw "gh release edit failed (exit $LASTEXITCODE)" }

@@ -16,12 +16,12 @@ public sealed class AddonChannelStatusTests
     }
 
     [Theory]
-    [InlineData(new[] { "stable", "beta", "unstable" }, "beta")]
-    [InlineData(new[] { "stable", "unstable" }, "stable")]
-    [InlineData(new[] { "unstable" }, "unstable")]
-    public void Resolve_NothingStored_PrefersBeta_ThenStable_ThenUnstable(string[] available, string expected)
+    [InlineData(new[] { "release", "pre-release", "development" }, "release")]
+    [InlineData(new[] { "pre-release", "development" }, "pre-release")]
+    [InlineData(new[] { "development" }, "development")]
+    public void Resolve_NothingStored_PrefersRelease_ThenPreRelease_ThenDevelopment(string[] available, string expected)
     {
-        var status = AddonChannelStatus.Resolve(null, ReleasesOn(available));
+        var status = AddonChannelStatus.Resolve(null, ReleasesOn(available), AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
 
         Assert.Equal(expected, status.Channel);
     }
@@ -29,25 +29,25 @@ public sealed class AddonChannelStatusTests
     [Fact]
     public void Resolve_StoredChannelWithARelease_KeepsIt_AndGivesNoNotice()
     {
-        var status = AddonChannelStatus.Resolve("beta", ReleasesOn("stable", "beta", "unstable"));
+        var status = AddonChannelStatus.Resolve("pre-release", ReleasesOn("release", "pre-release", "development"), AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
 
-        Assert.Equal("beta", status.Channel);
+        Assert.Equal("pre-release", status.Channel);
         Assert.Null(status.Notice);
     }
 
     [Fact]
     public void Resolve_StoredChannelWentStale_FallsBackAndSaysSo()
     {
-        var status = AddonChannelStatus.Resolve("beta", ReleasesOn("stable"));
+        var status = AddonChannelStatus.Resolve("pre-release", ReleasesOn("release"), AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
 
-        Assert.Equal("stable", status.Channel);
-        Assert.Equal("No releases on beta any more. Showing stable.", status.Notice);
+        Assert.Equal("release", status.Channel);
+        Assert.Equal("No releases on pre-release any more. Showing release.", status.Notice);
     }
 
     [Fact]
     public void Resolve_NoReleasesAnywhere_ReturnsNullChannelAndNoNotice()
     {
-        var status = AddonChannelStatus.Resolve(null, ReleasesOn());
+        var status = AddonChannelStatus.Resolve(null, ReleasesOn(), AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
 
         Assert.Null(status.Channel);
         Assert.Null(status.Notice);
@@ -58,23 +58,73 @@ public sealed class AddonChannelStatusTests
     {
         var releases = new Dictionary<string, AddonRelease?>
         {
-            ["stable"] = Release,
-            ["beta"] = Release,
+            ["release"] = Release,
+            ["pre-release"] = Release,
         };
 
-        var status = AddonChannelStatus.Resolve("unstable", releases);
+        var status = AddonChannelStatus.Resolve("development", releases, AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
 
-        Assert.Equal("beta", status.Channel);
+        Assert.Equal("release", status.Channel);
         Assert.Null(status.Notice);
     }
 
     [Fact]
     public void Has_ReportsPerChannelAvailability()
     {
-        var status = AddonChannelStatus.Resolve("stable", ReleasesOn("stable", "unstable"));
+        var status = AddonChannelStatus.Resolve("release", ReleasesOn("release", "development"), AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
 
-        Assert.True(status.Has("stable"));
-        Assert.False(status.Has("beta"));
-        Assert.True(status.Has("unstable"));
+        Assert.True(status.Has("release"));
+        Assert.False(status.Has("pre-release"));
+        Assert.True(status.Has("development"));
+    }
+
+    [Fact]
+    public void Resolve_GitHubAddon_PrefersRelease()
+    {
+        var releaseOnly = new AddonRelease("v1.0.0", "z", "s", 1, DateTimeOffset.UtcNow.AddDays(-1));
+        var prerelease = new AddonRelease("v1.1.0-rc1", "z", "s", 1, DateTimeOffset.UtcNow);
+        var releases = new Dictionary<string, AddonRelease?>
+        {
+            ["release"] = releaseOnly,
+            ["pre-release"] = prerelease,
+        };
+
+        var status = AddonChannelStatus.Resolve(null, releases, AddonChannelStatus.GitHubChannels, AddonChannelStatus.GitHubChannels);
+
+        Assert.Equal("release", status.Channel);
+    }
+
+    [Fact]
+    public void Resolve_NewerBuildOnMoreStableChannel_AddsNotice()
+    {
+        var older = new AddonRelease("v1.1.0-rc1", "z", "s", 1, DateTimeOffset.UtcNow.AddDays(-2));
+        var newer = new AddonRelease("v1.1.0", "z", "s", 1, DateTimeOffset.UtcNow);
+        var releases = new Dictionary<string, AddonRelease?>
+        {
+            ["release"] = newer,
+            ["pre-release"] = older,
+        };
+
+        var status = AddonChannelStatus.Resolve("pre-release", releases, AddonChannelStatus.GitHubChannels, AddonChannelStatus.GitHubChannels);
+
+        Assert.Equal("pre-release", status.Channel);
+        Assert.Contains("release has a newer build", status.Notice);
+    }
+
+    [Fact]
+    public void Resolve_ChosenChannelIsNewest_NoNotice()
+    {
+        var older = new AddonRelease("v1.0.0", "z", "s", 1, DateTimeOffset.UtcNow.AddDays(-2));
+        var newer = new AddonRelease("v1.1.0-rc1", "z", "s", 1, DateTimeOffset.UtcNow);
+        var releases = new Dictionary<string, AddonRelease?>
+        {
+            ["release"] = older,
+            ["pre-release"] = newer,
+        };
+
+        var status = AddonChannelStatus.Resolve("pre-release", releases, AddonChannelStatus.GitHubChannels, AddonChannelStatus.GitHubChannels);
+
+        Assert.Equal("pre-release", status.Channel);
+        Assert.Null(status.Notice);
     }
 }

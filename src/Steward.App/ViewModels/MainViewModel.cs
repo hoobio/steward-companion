@@ -203,7 +203,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string AboutActionLabel => AppUpdate is null ? "Check for a new version" : "Install update";
 
-    private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["stable", "beta"];
+    private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["release", "pre-release"];
 
     public int InstallCount => Installs.Count;
 
@@ -593,10 +593,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var state = _stateStore.Load();
             foreach (var addon in _addons)
             {
-                var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken)
+                var releases = await _addonUpdater.ProbeChannelsAsync(addon, addon.IsGitHub ? addon.Channels : VisibleChannels, cancellationToken)
                     .ConfigureAwait(true);
                 _releases[addon.Id] = releases;
-                _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases);
+                _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases, addon.Channels, addon.DefaultPreference);
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
@@ -722,7 +722,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _status[addonId] = AddonChannelStatus.Resolve(channel, releases);
+        var addon = _addons.First(a => string.Equals(a.Id, addonId, StringComparison.OrdinalIgnoreCase));
+        _status[addonId] = AddonChannelStatus.Resolve(channel, releases, addon.Channels, addon.DefaultPreference);
         ApplyStatus(background: false);
         RecomputeSummary();
     }

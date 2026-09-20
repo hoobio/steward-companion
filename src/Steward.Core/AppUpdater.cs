@@ -9,7 +9,7 @@ public sealed class AppUpdater(HttpClient httpClient, string repo)
     {
         ArgumentNullException.ThrowIfNull(current);
 
-        var release = await GitHubReleases.GetLatestAsync(httpClient, repo, ".msi", cancellationToken).ConfigureAwait(false);
+        var release = await GitHubReleases.GetLatestAsync(httpClient, repo, ".msi", "release", cancellationToken).ConfigureAwait(false);
         if (release is null || !Version.TryParse(release.Version.TrimStart('v', 'V'), out var available))
         {
             return null;
