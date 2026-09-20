@@ -33,6 +33,12 @@ internal static class HostBuilderExtensions
             ?? throw new InvalidOperationException("RestedXp:AccountBaseUrl is not configured");
         var restedXpGuidesUrl = builder.Configuration["RestedXp:GuidesBaseUrl"]
             ?? throw new InvalidOperationException("RestedXp:GuidesBaseUrl is not configured");
+        var keycloakTokenUrl = builder.Configuration["RestedXp:Keycloak:TokenUrl"]
+            ?? throw new InvalidOperationException("RestedXp:Keycloak:TokenUrl is not configured");
+        var keycloakClientId = builder.Configuration["RestedXp:Keycloak:ClientId"]
+            ?? throw new InvalidOperationException("RestedXp:Keycloak:ClientId is not configured");
+        var keycloakScope = builder.Configuration["RestedXp:Keycloak:Scope"]
+            ?? throw new InvalidOperationException("RestedXp:Keycloak:Scope is not configured");
 
         var productPrefixes = builder.Configuration.GetSection("RestedXp:ProductPrefixes").Get<Dictionary<string, string[]>>()
             ?? throw new InvalidOperationException("RestedXp:ProductPrefixes is not configured");
@@ -71,12 +77,14 @@ internal static class HostBuilderExtensions
         builder.Services.AddSingleton(sp => new RestedXpClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"),
             restedXpAccountUrl,
-            restedXpGuidesUrl));
+            restedXpGuidesUrl,
+            keycloakTokenUrl,
+            keycloakClientId,
+            keycloakScope));
         builder.Services.AddSingleton(sp => new RestedXpService(
             sp.GetRequiredService<RestedXpClient>(),
             sp.GetRequiredService<AppStateStore>(),
-            new Dictionary<string, string[]>(productPrefixes, StringComparer.OrdinalIgnoreCase),
-            sp.GetRequiredService<ILogger<RestedXpService>>()));
+            new Dictionary<string, string[]>(productPrefixes, StringComparer.OrdinalIgnoreCase)));
 
         builder.Services.AddSingleton<InMemoryGuildSyncApi>();
         builder.Services.AddSingleton<IGuildSyncApi>(sp => sp.GetRequiredService<InMemoryGuildSyncApi>());

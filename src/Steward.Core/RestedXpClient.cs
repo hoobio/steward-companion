@@ -5,83 +5,131 @@ using System.Text.Json;
 
 namespace Steward.Core;
 
-public sealed class RestedXpSignInException(string message, IReadOnlyList<string>? responseKeys = null) : Exception(message)
-{
-    public IReadOnlyList<string> ResponseKeys { get; } = responseKeys ?? [];
-}
+public sealed class RestedXpSignInException(string message) : Exception(message);
+
+public sealed class RestedXpMfaRequiredException() : Exception("RestedXP asked for an authenticator code.");
 
 public sealed class RestedXpSessionExpiredException() : Exception("Your RestedXP session expired. Sign in again.");
 
 public sealed class RestedXpClient
 {
+    private static readonly TimeSpan OfflineCookieLifetime = TimeSpan.FromDays(30);
+
     private readonly HttpClient _httpClient;
     private readonly string _accountBaseUrl;
     private readonly string _guidesBaseUrl;
+    private readonly string _tokenUrl;
+    private readonly string _clientId;
+    private readonly string _scope;
 
-    public RestedXpClient(HttpClient httpClient, string accountBaseUrl, string guidesBaseUrl)
+    public RestedXpClient(
+        HttpClient httpClient, string accountBaseUrl, string guidesBaseUrl, string tokenUrl, string clientId, string scope)
     {
         ArgumentNullException.ThrowIfNull(accountBaseUrl);
         ArgumentNullException.ThrowIfNull(guidesBaseUrl);
+        ArgumentNullException.ThrowIfNull(tokenUrl);
+        ArgumentNullException.ThrowIfNull(clientId);
+        ArgumentNullException.ThrowIfNull(scope);
 
         _httpClient = httpClient;
         _accountBaseUrl = accountBaseUrl.TrimEnd('/');
         _guidesBaseUrl = guidesBaseUrl.TrimEnd('/');
+        _tokenUrl = tokenUrl;
+        _clientId = clientId;
+        _scope = scope;
     }
 
-    public async Task<RestedXpLoginResponse> SignInAsync(string username, string password, CancellationToken cancellationToken)
+    public Task<RestedXpTokens> SignInAsync(string username, string password, string? code, CancellationToken cancellationToken)
     {
-        using var request = Build(HttpMethod.Post, $"{_accountBaseUrl}/login/keycloak", null);
-        request.Content = JsonContent.Create(
-            new RestedXpLoginRequest(username, password), CompanionJsonContext.Default.RestedXpLoginRequest);
+        var form = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["grant_type"] = "password",
+            ["client_id"] = _clientId,
+            ["scope"] = _scope,
+            ["username"] = username,
+            ["password"] = password,
+        };
+
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            form["totp"] = code;
+        }
+
+        return TokenAsync(form, refreshing: false, cancellationToken);
+    }
+
+    public Task<RestedXpTokens> RefreshAsync(string refreshToken, CancellationToken cancellationToken) => TokenAsync(
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["grant_type"] = "refresh_token",
+            ["client_id"] = _clientId,
+            ["refresh_token"] = refreshToken,
+        },
+        refreshing: true,
+        cancellationToken);
+
+    private async Task<RestedXpTokens> TokenAsync(
+        Dictionary<string, string> form, bool refreshing, CancellationToken cancellationToken)
+    {
+        using var request = Build(HttpMethod.Post, _tokenUrl, null);
+        request.Content = new FormUrlEncodedContent(form);
 
         using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
         {
-            throw new RestedXpSignInException("Wrong username or password");
+            throw refreshing
+                ? new RestedXpSessionExpiredException()
+                : await SignInFailureAsync(response, cancellationToken).ConfigureAwait(false);
         }
 
         response.EnsureSuccessStatusCode();
-        var element = await ReadElementAsync(response, cancellationToken).ConfigureAwait(false);
-        if (element.ValueKind is JsonValueKind.Object && element.TryGetProperty("mfaRequired", out var mfa) && mfa.ValueKind is JsonValueKind.True)
+        var tokens = await response.Content
+            .ReadFromJsonAsync(CompanionJsonContext.Default.RestedXpTokenResponse, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (tokens?.AccessToken is not { } accessToken || tokens.RefreshToken is not { } refreshToken)
         {
-            return JsonSerializer.Deserialize(element, CompanionJsonContext.Default.RestedXpLoginResponse)!;
+            throw new RestedXpSignInException("Sign-in returned an unexpected response");
         }
 
-        return ReadTokens(element) ?? throw Unexpected(element);
+        var now = DateTimeOffset.UtcNow;
+        return new RestedXpTokens(
+            accessToken,
+            refreshToken,
+            now.AddSeconds(tokens.ExpiresIn),
+            tokens.RefreshExpiresIn > 0 ? now.AddSeconds(tokens.RefreshExpiresIn) : null);
     }
 
-    public async Task<RestedXpLoginResponse> VerifyMfaAsync(string sessionId, string code, CancellationToken cancellationToken)
+    private static async Task<Exception> SignInFailureAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
-        using var request = Build(HttpMethod.Post, $"{_accountBaseUrl}/login/verify-mfa", null);
-        request.Content = JsonContent.Create(
-            new RestedXpMfaRequest(sessionId, code, false), CompanionJsonContext.Default.RestedXpMfaRequest);
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
+        RestedXpKeycloakError? error;
+        try
         {
-            throw new RestedXpSignInException("That code was not accepted");
+            error = await response.Content
+                .ReadFromJsonAsync(CompanionJsonContext.Default.RestedXpKeycloakError, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            error = null;
         }
 
-        response.EnsureSuccessStatusCode();
-        var element = await ReadElementAsync(response, cancellationToken).ConfigureAwait(false);
-        return ReadTokens(element) ?? throw Unexpected(element);
-    }
-
-    public async Task<RestedXpLoginResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken)
-    {
-        using var request = Build(HttpMethod.Post, $"{_accountBaseUrl}/login/keycloak/refresh", null);
-        request.Content = JsonContent.Create(
-            new RestedXpRefreshRequest(refreshToken), CompanionJsonContext.Default.RestedXpRefreshRequest);
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
+        var description = error?.ErrorDescription ?? string.Empty;
+        if (!string.Equals(error?.Error, "invalid_grant", StringComparison.Ordinal))
         {
-            throw new RestedXpSessionExpiredException();
+            return new RestedXpSignInException(description.Length > 0 ? description : "Sign-in failed");
         }
 
-        response.EnsureSuccessStatusCode();
-        var element = await ReadElementAsync(response, cancellationToken).ConfigureAwait(false);
-        return ReadTokens(element) ?? throw Unexpected(element);
+        if (description.Contains("otp", StringComparison.OrdinalIgnoreCase)
+            || description.Contains("not fully set up", StringComparison.OrdinalIgnoreCase))
+        {
+            return new RestedXpMfaRequiredException();
+        }
+
+        return new RestedXpSignInException(
+            description.Contains("Invalid user credentials", StringComparison.OrdinalIgnoreCase)
+                ? "Wrong username or password"
+                : description.Length > 0 ? description : "Sign-in failed");
     }
 
     public async Task<IReadOnlyList<RestedXpProduct>> GetProductsAsync(RestedXpSession session, CancellationToken cancellationToken)
@@ -134,8 +182,9 @@ public sealed class RestedXpClient
     {
         ArgumentNullException.ThrowIfNull(session);
 
+        var expiresAt = session.RefreshExpiresAt ?? DateTimeOffset.UtcNow.Add(OfflineCookieLifetime);
         var value = JsonSerializer.Serialize(
-            new RestedXpCookie(session.AccessToken, session.RefreshToken, [], session.RefreshExpiresAt.ToUnixTimeMilliseconds()),
+            new RestedXpCookie(session.AccessToken, session.RefreshToken, [], expiresAt.ToUnixTimeMilliseconds()),
             CompanionJsonContext.Default.RestedXpCookie);
         return $"rxp_cross_auth_token={Uri.EscapeDataString(value)}";
     }
@@ -152,34 +201,4 @@ public sealed class RestedXpClient
         return request;
     }
 
-    private static async Task<JsonElement> ReadElementAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
-        await response.Content.ReadFromJsonAsync(CompanionJsonContext.Default.JsonElement, cancellationToken).ConfigureAwait(false);
-
-    private static RestedXpLoginResponse? ReadTokens(JsonElement element)
-    {
-        if (element.ValueKind is not JsonValueKind.Object)
-        {
-            return null;
-        }
-
-        if (element.TryGetProperty("access_token", out _))
-        {
-            return JsonSerializer.Deserialize(element, CompanionJsonContext.Default.RestedXpLoginResponse);
-        }
-
-        if (element.TryGetProperty("token", out var token)
-            && token.ValueKind is JsonValueKind.Object
-            && token.TryGetProperty("access_token", out _))
-        {
-            return JsonSerializer.Deserialize(token, CompanionJsonContext.Default.RestedXpLoginResponse);
-        }
-
-        return null;
-    }
-
-    private static RestedXpSignInException Unexpected(JsonElement element) => new(
-        "Sign-in returned an unexpected response",
-        element.ValueKind is JsonValueKind.Object
-            ? [.. element.EnumerateObject().Select(property => property.Name)]
-            : [element.ValueKind.ToString()]);
 }

@@ -55,25 +55,21 @@ public sealed record DesktopExchangeRequest(
 public sealed record DesktopToken(
     [property: JsonPropertyName("token")] string Token);
 
-public sealed record RestedXpLoginRequest(
-    [property: JsonPropertyName("username")] string Username,
-    [property: JsonPropertyName("password")] string Password);
-
-public sealed record RestedXpMfaRequest(
-    [property: JsonPropertyName("sessionId")] string SessionId,
-    [property: JsonPropertyName("mfaToken")] string MfaToken,
-    [property: JsonPropertyName("recovery")] bool Recovery);
-
-public sealed record RestedXpRefreshRequest(
-    [property: JsonPropertyName("refresh_token")] string RefreshToken);
-
-public sealed record RestedXpLoginResponse(
+public sealed record RestedXpTokenResponse(
     [property: JsonPropertyName("access_token")] string? AccessToken = null,
     [property: JsonPropertyName("refresh_token")] string? RefreshToken = null,
     [property: JsonPropertyName("expires_in")] int ExpiresIn = 0,
-    [property: JsonPropertyName("refresh_expires_in")] int RefreshExpiresIn = 0,
-    [property: JsonPropertyName("mfaRequired")] bool MfaRequired = false,
-    [property: JsonPropertyName("sessionId")] string? SessionId = null);
+    [property: JsonPropertyName("refresh_expires_in")] int RefreshExpiresIn = 0);
+
+public sealed record RestedXpKeycloakError(
+    [property: JsonPropertyName("error")] string? Error = null,
+    [property: JsonPropertyName("error_description")] string? ErrorDescription = null);
+
+public sealed record RestedXpTokens(
+    string AccessToken,
+    string RefreshToken,
+    DateTimeOffset AccessExpiresAt,
+    DateTimeOffset? RefreshExpiresAt);
 
 public sealed record RestedXpCookie(
     [property: JsonPropertyName("token")] string Token,
@@ -101,7 +97,7 @@ public sealed record RestedXpSession(
     [property: JsonPropertyName("access_token")] string AccessToken,
     [property: JsonPropertyName("refresh_token")] string RefreshToken,
     [property: JsonPropertyName("access_expires_at")] DateTimeOffset AccessExpiresAt,
-    [property: JsonPropertyName("refresh_expires_at")] DateTimeOffset RefreshExpiresAt);
+    [property: JsonPropertyName("refresh_expires_at")] DateTimeOffset? RefreshExpiresAt);
 
 public sealed record RestedXpCachedGuide(
     [property: JsonPropertyName("timestamp")] long Timestamp,
@@ -160,11 +156,9 @@ public sealed record AppState(
 [JsonSerializable(typeof(RestedXpCachedGuide))]
 [JsonSerializable(typeof(RestedXpCookie))]
 [JsonSerializable(typeof(RestedXpGuideResponse))]
-[JsonSerializable(typeof(RestedXpLoginRequest))]
-[JsonSerializable(typeof(RestedXpLoginResponse))]
-[JsonSerializable(typeof(RestedXpMfaRequest))]
+[JsonSerializable(typeof(RestedXpKeycloakError))]
 [JsonSerializable(typeof(RestedXpProduct[]))]
-[JsonSerializable(typeof(RestedXpRefreshRequest))]
 [JsonSerializable(typeof(RestedXpSession))]
+[JsonSerializable(typeof(RestedXpTokenResponse))]
 [JsonSerializable(typeof(RestedXpTimestamps))]
 public sealed partial class CompanionJsonContext : JsonSerializerContext;

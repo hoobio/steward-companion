@@ -4,8 +4,6 @@ using System.Text.Json;
 
 using Steward.Core;
 
-using Microsoft.Extensions.Logging;
-
 namespace Steward.App.Services;
 
 public enum GuideSyncOutcome
@@ -20,7 +18,7 @@ public enum GuideSyncOutcome
 
 public sealed record GuideSyncResult(GuideSyncOutcome Outcome, DateTimeOffset UpdatedAt, string? Error = null);
 
-public sealed partial class RestedXpService : IDisposable
+public sealed class RestedXpService : IDisposable
 {
     private static readonly TimeSpan RefreshMargin = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan KeepAliveMargin = TimeSpan.FromMinutes(10);
@@ -31,23 +29,20 @@ public sealed partial class RestedXpService : IDisposable
     private readonly RestedXpClient _client;
     private readonly AppStateStore _stateStore;
     private readonly IReadOnlyDictionary<string, string[]> _productPrefixes;
-    private readonly ILogger<RestedXpService> _logger;
     private readonly string _cacheFolder;
     private readonly Dictionary<string, DateTimeOffset> _lastFailure = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _syncGate = new(1, 1);
 
-    private string? _mfaSessionId;
+    private string? _pendingPassword;
 
     public RestedXpService(
         RestedXpClient client,
         AppStateStore stateStore,
-        IReadOnlyDictionary<string, string[]> productPrefixes,
-        ILogger<RestedXpService> logger)
+        IReadOnlyDictionary<string, string[]> productPrefixes)
     {
         _client = client;
         _stateStore = stateStore;
         _productPrefixes = productPrefixes;
-        _logger = logger;
         _cacheFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward", "guides");
     }
@@ -112,39 +107,42 @@ public sealed partial class RestedXpService : IDisposable
 
     public async Task<bool> SignInAsync(string username, string password, CancellationToken cancellationToken)
     {
-        var response = await _client.SignInAsync(username, password, cancellationToken).ConfigureAwait(true);
-        if (response.MfaRequired)
+        try
         {
-            _mfaSessionId = response.SessionId;
+            Store(username, await _client.SignInAsync(username, password, null, cancellationToken).ConfigureAwait(true));
+        }
+        catch (RestedXpMfaRequiredException)
+        {
+            _pendingPassword = password;
             return true;
         }
 
-        Store(username, response);
         return false;
     }
 
     public async Task VerifyMfaAsync(string username, string code, CancellationToken cancellationToken)
     {
-        if (_mfaSessionId is null)
+        if (_pendingPassword is not { } password)
         {
             throw new RestedXpSignInException("Sign in again for a new code.");
         }
 
         try
         {
-            Store(username, await _client.VerifyMfaAsync(_mfaSessionId, code, cancellationToken).ConfigureAwait(true));
+            Store(username, await _client.SignInAsync(username, password, code, cancellationToken).ConfigureAwait(true));
         }
-        catch (RestedXpSignInException ex) when (ex.ResponseKeys.Count > 0)
+        catch (RestedXpMfaRequiredException)
         {
-            LogUnexpectedMfaShape(string.Join(", ", ex.ResponseKeys));
-            throw;
+            throw new RestedXpSignInException("That code was not accepted");
         }
     }
+
+    public void ForgetPendingPassword() => _pendingPassword = null;
 
     public void SignOut()
     {
         Session = null;
-        _mfaSessionId = null;
+        _pendingPassword = null;
         BattleTag = null;
         Products = [];
         _lastFailure.Clear();
@@ -159,14 +157,14 @@ public sealed partial class RestedXpService : IDisposable
         }
 
         var now = DateTimeOffset.UtcNow;
-        if (session.RefreshExpiresAt <= now)
+        if (session.RefreshExpiresAt is { } expiresAt && expiresAt <= now)
         {
             SignOut();
             throw new RestedXpSessionExpiredException();
         }
 
-        // ponytail: the 30-minute refresh token is renewed only near its end so an idle app costs one call per ~25 minutes, not one per access token
-        var keepAlive = session.RefreshExpiresAt - now <= KeepAliveMargin;
+        // ponytail: an offline refresh token has no expiry, so only a bounded one is renewed near its end
+        var keepAlive = session.RefreshExpiresAt is { } deadline && deadline - now <= KeepAliveMargin;
         var accessStale = forCall && session.AccessExpiresAt - now <= RefreshMargin;
         if (!keepAlive && !accessStale)
         {
@@ -203,9 +201,6 @@ public sealed partial class RestedXpService : IDisposable
 
         Timestamps = await _client.GetTimestampsAsync(cancellationToken).ConfigureAwait(true);
     }
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "RestedXP verify-mfa answered an unrecognised shape with keys {Keys}")]
-    private partial void LogUnexpectedMfaShape(string keys);
 
     public bool IsAllowed(WowInstall install, string productName)
     {
@@ -421,21 +416,11 @@ public sealed partial class RestedXpService : IDisposable
         }
     }
 
-    private void Store(string username, RestedXpLoginResponse response)
+    private void Store(string username, RestedXpTokens tokens)
     {
-        if (response.AccessToken is null || response.RefreshToken is null)
-        {
-            throw new RestedXpSignInException("Sign-in returned an unexpected response");
-        }
-
-        var now = DateTimeOffset.UtcNow;
         Session = new RestedXpSession(
-            username,
-            response.AccessToken,
-            response.RefreshToken,
-            now.AddSeconds(response.ExpiresIn),
-            now.AddSeconds(response.RefreshExpiresIn));
-        _mfaSessionId = null;
+            username, tokens.AccessToken, tokens.RefreshToken, tokens.AccessExpiresAt, tokens.RefreshExpiresAt);
+        _pendingPassword = null;
 
         var json = JsonSerializer.Serialize(Session, CompanionJsonContext.Default.RestedXpSession);
         var blob = ProtectedData.Protect(Encoding.UTF8.GetBytes(json), null, DataProtectionScope.CurrentUser);

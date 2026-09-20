@@ -1,6 +1,6 @@
 # Guides page design
 
-The front end for the RestedXP guides feature: the page, its states, and the sign-in dialog. The API, the token handling and the `RXPString` write are in [restedxp-guides.md](restedxp-guides.md), which is the source of truth for everything this page talks to.
+The front end for the RestedXP guides feature: the page, its states, and the sign-in dialog. The API, the token handling and the generated addon write are in [restedxp-guides.md](restedxp-guides.md), which is the source of truth for everything this page talks to.
 
 Rendered mockups of every state: https://claude.ai/artifact/2o3JamD7X4xRvjWRiDRnTL
 

@@ -423,20 +423,14 @@ public sealed partial class RestedXpViewModel : ObservableObject
             {
                 await Task.Delay(PreviewDelay).ConfigureAwait(true);
                 IsMfaRequired = true;
-                PasswordInput = string.Empty;
                 return;
             }
 
             IsMfaRequired = await _service.SignInAsync(UsernameInput, PasswordInput, CancellationToken.None).ConfigureAwait(true);
-            PasswordInput = string.Empty;
             if (!IsMfaRequired)
             {
                 await AfterSignInAsync().ConfigureAwait(true);
             }
-        }
-        catch (RestedXpSignInException)
-        {
-            ErrorMessage = "Wrong username or password";
         }
         catch (Exception ex) when (IsRecoverable(ex))
         {
@@ -444,6 +438,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
         }
         finally
         {
+            PasswordInput = string.Empty;
             IsBusy = false;
         }
     }
@@ -486,7 +481,12 @@ public sealed partial class RestedXpViewModel : ObservableObject
     {
         IsMfaRequired = false;
         MfaCode = string.Empty;
+        PasswordInput = string.Empty;
         ErrorMessage = null;
+        if (!IsPreview)
+        {
+            _service.ForgetPendingPassword();
+        }
     }
 
     [RelayCommand]

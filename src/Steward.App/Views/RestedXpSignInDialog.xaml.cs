@@ -75,7 +75,11 @@ public sealed partial class RestedXpSignInDialog : ContentDialog
         return null;
     }
 
-    private void OnCancelClick(object sender, RoutedEventArgs e) => Hide();
+    private void OnCancelClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.BackCommand.Execute(null);
+        Hide();
+    }
 
     private void OnBackClick(object sender, RoutedEventArgs e)
     {

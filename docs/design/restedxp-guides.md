@@ -16,7 +16,36 @@ The free addon (`RestedXP/RXPGuides` on GitHub) is already managed by Steward. `
 
 ## Auth
 
-The login SPA runs Keycloak in Direct Access Grant mode through the backend, so there is no browser redirect to complete and no OAuth callback to host. The whole flow is two JSON calls.
+Steward signs in against Keycloak directly with an offline token, so a session survives the app being closed. Both grants are `application/x-www-form-urlencoded` POSTs to the realm's token endpoint, with no cookie on the request.
+
+```
+POST https://sso.restedxp.com/realms/RestedXP-Prod/protocol/openid-connect/token
+grant_type=password&client_id=rxp-prod-login-client&scope=openid offline_access&username=...&password=...[&totp=<code>]
+
+POST https://sso.restedxp.com/realms/RestedXP-Prod/protocol/openid-connect/token
+grant_type=refresh_token&client_id=rxp-prod-login-client&refresh_token=<refresh_token>
+
+200 {"access_token","refresh_token","expires_in","refresh_expires_in","token_type","scope"}
+400 {"error":"invalid_grant","error_description":"Invalid user credentials"}
+```
+
+For an offline token `refresh_expires_in` is `0`, which means no expiry rather than an expiry now, so Steward stores a null refresh expiry and never computes `now + 0`. `invalid_grant` with description "Invalid user credentials" is a wrong username or password; an `invalid_grant` whose description mentions "otp" or "not fully set up" is the code step; any 400 on the refresh grant is a dead session. Every other failure keeps Keycloak's own `error_description`.
+
+The stored `refresh_token` has JWT `typ` `Offline` and no `exp` claim. Each pass exchanges it for a 15-minute access token, which Steward wraps into the `rxp_cross_auth_token` cookie JSON for the two backends. The cookie's `expiresAt` is the refresh expiry, or 30 days out where there is none.
+
+Probed on 20 Sep 2026: the realm's discovery document lists `password` among the grants and `offline_access` among the scopes; the password grant with `client_id=rxp-prod-login-client`, no client secret and `scope=openid offline_access` answers `invalid_grant` for wrong credentials rather than `unauthorized_client` or `invalid_scope`, so the client is public with direct grants on; and the authorization endpoint serves its login page for `scope=openid offline_access` while redirecting with an error for a made-up scope, so `offline_access` is assigned to that client. A user also needs the realm's `offline_access` role, which Keycloak grants to every user by default. An offline refresh token has no expiry of its own; Keycloak's offline session idle defaults to 30 days from last use, sliding on each refresh, with no absolute ceiling unless the realm sets one. That is the same shape as the 30-day sliding `gg_session`.
+
+Verified from PowerShell with real credentials on 20 Sep 2026: the password grant with `scope=openid offline_access` succeeds and returns a refresh token whose JWT `typ` is `Offline` with no `exp` claim, the refresh grant returns a new access token with `expires_in` 900, and a cookie whose `token` is that access token and whose `user` is an empty object gets 200 from `/user-products` (454 bytes) and 200 from `/addon?guideName=Forever%20Leveling%20Guide%20-%20Both%20Factions&bundleIndex=0` (692,624 bytes). The backends read only `token` from the cookie.
+
+With TOTP enabled on the account, the direct grant still answers 200 without a code and with a blank `totp` field: the realm's direct-grant flow has no OTP step, and Keycloak issues the token on the password alone today. That gap is RestedXP's to close and is reported to them. Steward's sign-in dialog keeps its code step, shown when Keycloak answers with an OTP description and sent as `totp` on a second password grant, so it works unchanged once they add OTP to that flow. No client secret is involved: the client is public, as a browser or desktop client has to be. Tell the developer before relying on it: a public client with direct grants and `offline_access` is a realm setting they can tighten at any time, and a dedicated public `steward` client id is the durable version of this.
+
+Cadence: on startup, on a manual Refresh, and every 3 hours, not the 15-minute addon pass, plus on demand before a call whose access token has under a minute left. Each pass refreshes the offline session, so a Steward that runs at all in any 30-day window never asks for the password again.
+
+The cookie itself is the SPA's. It writes `rxp_cross_auth_token` on `.restedxp.com` (`Secure`, `SameSite=Lax`, not `HttpOnly`, expiry = refresh token expiry), with the URL-encoded JSON `{"token":"<access_token>","refreshToken":"<refresh_token>","user":{<decoded JWT claims>},"expiresAt":<unix ms>}` as its value. Every account and guide call is made with `withCredentials` and no `Authorization` header, so that cookie is the credential the two backends read. Steward sends `Cookie: rxp_cross_auth_token=<encoded JSON>` on every call to `rxpbck` and `rxpgcr`.
+
+### Previous design: the account backend's proxy
+
+The first design ran Keycloak in Direct Access Grant mode through `rxpbck`, the way the login SPA does. It is recorded here for reference; Steward no longer calls these paths.
 
 ```
 POST https://rxpbck.restedxp.com/login/keycloak
@@ -27,33 +56,9 @@ Content-Type: application/json
 200 {"mfaRequired":true,"sessionId":"..."}        when the account has MFA
 ```
 
-MFA completes with `POST https://rxpbck.restedxp.com/login/verify-mfa` and body `{"sessionId","mfaToken","recovery":false}`, answering the same token shape.
+MFA completes with `POST https://rxpbck.restedxp.com/login/verify-mfa` and body `{"sessionId","mfaToken","recovery":false}`, answering the same token shape. Refresh is `POST https://rxpbck.restedxp.com/login/keycloak/refresh` with `{"refresh_token":"<refresh_token>"}`.
 
-Refresh:
-
-```
-POST https://rxpbck.restedxp.com/login/keycloak/refresh
-{"refresh_token":"<refresh_token>"}
-```
-
-The SPA stores the tokens in `localStorage` and also writes one cookie, `rxp_cross_auth_token`, on `.restedxp.com` (`Secure`, `SameSite=Lax`, not `HttpOnly`, expiry = refresh token expiry). Its value is the URL-encoded JSON `{"token":"<access_token>","refreshToken":"<refresh_token>","user":{<decoded JWT claims>},"expiresAt":<unix ms>}`. Every account and guide call is made with `withCredentials` and no `Authorization` header, so that cookie is the credential the two backends read. For Steward: send `Cookie: rxp_cross_auth_token=<encoded JSON>` on every call to `rxpbck` and `rxpgcr`, refresh before `expiresAt`, and store only the refresh token at rest.
-
-Lifetimes, read from a live session on 20 Sep 2026: the access token lasts 15 minutes and the refresh token 30 minutes from issue, and the cookie expires with the refresh token. `TOKEN_EXPIRY: 32400` in the bundle is not what Keycloak issues. Through the backend proxy, a Steward closed for more than 30 minutes has a dead session and must ask for the password again.
-
-The way round that is an offline token, requested from Keycloak directly rather than through the proxy. Probed on 20 Sep 2026: the realm's discovery document lists `password` among the grants and `offline_access` among the scopes; a password grant against `https://sso.restedxp.com/realms/RestedXP-Prod/protocol/openid-connect/token` with `client_id=rxp-prod-login-client`, no client secret and `scope=openid offline_access` answers `invalid_grant` for wrong credentials rather than `unauthorized_client` or `invalid_scope`, so the client is public with direct grants on; and the authorization endpoint serves its login page for `scope=openid offline_access` while redirecting with an error for a made-up scope, so `offline_access` is assigned to that client. A user also needs the realm's `offline_access` role, which Keycloak grants to every user by default. An offline refresh token has no expiry of its own; Keycloak's offline session idle defaults to 30 days from last use, sliding on each refresh, with no absolute ceiling unless the realm sets one. That is the same shape as the 30-day sliding `gg_session`.
-
-So Steward signs in once with
-
-```
-POST https://sso.restedxp.com/realms/RestedXP-Prod/protocol/openid-connect/token
-grant_type=password&client_id=rxp-prod-login-client&scope=openid offline_access&username=...&password=...
-```
-
-stores the `refresh_token` (its JWT `typ` is `Offline`), and on each pass exchanges it with `grant_type=refresh_token` for a 15-minute access token, which it wraps into the `rxp_cross_auth_token` cookie JSON for the two backends.
-
-Verified from PowerShell with real credentials on 20 Sep 2026: the password grant with `scope=openid offline_access` succeeds with no MFA step and returns a refresh token whose JWT `typ` is `Offline` with no `exp` claim, the refresh grant returns a new access token with `expires_in` 900, and a cookie whose `token` is that access token and whose `user` is an empty object gets 200 from `/user-products` (454 bytes) and 200 from `/addon?guideName=Forever%20Leveling%20Guide%20-%20Both%20Factions&bundleIndex=0` (692,624 bytes). The backends read only `token` from the cookie. With TOTP enabled on the account, the direct grant still answers 200 without a code and with a blank `totp` field, so the account backend's `mfaRequired` step is the only MFA there is; the realm's direct-grant flow has no OTP step and Keycloak issues tokens on the password alone. Steward's sign-in card keeps an optional code field sent as `totp`, shown when Keycloak asks for one, so it works unchanged if they add OTP to that flow. The gap itself is theirs to close and is reported to them. No client secret is involved: the client is public, as a browser or desktop client has to be. Tell the developer before relying on it: a public client with direct grants and `offline_access` is a realm setting they can tighten at any time, and a dedicated public `steward` client id is the durable version of this.
-
-Cadence: on startup, on a manual Refresh, and every 3 hours, not the 15-minute addon pass. Each pass refreshes the offline session, so a Steward that runs at all in any 30-day window never asks for the password again.
+Lifetimes, read from a live session on 20 Sep 2026: the access token lasts 15 minutes and the refresh token 30 minutes from issue, and the cookie expires with the refresh token. `TOKEN_EXPIRY: 32400` in the bundle is not what Keycloak issues. Through the backend proxy, a Steward closed for more than 30 minutes has a dead session and must ask for the password again, which is why the offline token replaced it. The proxy's `mfaRequired` step is the only MFA on this account today.
 
 Unauthenticated probes from PowerShell with a plain `User-Agent`: `GET /addon/get-all-timestamps` answers 200 with no cookie, so the version check needs no session; `GET /user-products` answers 401 `{"message":"Authentication required. Please login.","auth_source":"none"}`; `POST /login/keycloak` with wrong credentials answers 400 `{"success":false,"message":"Invalid user credentials","error":"invalid_grant"}`. Neither host rejects a non-browser client.
 
