@@ -114,7 +114,10 @@ public sealed partial class AddonChannelViewModel : ObservableObject
 
             var resolved = status.Channel is not null;
             NoReleasesVisibility = resolved ? Visibility.Collapsed : Visibility.Visible;
-            PickerVisibility = resolved && isAuthorized ? Visibility.Visible : Visibility.Collapsed;
+            var choices = (Option1Enabled ? 1 : 0)
+                + (Option2Visibility == Visibility.Visible && Option2Enabled ? 1 : 0)
+                + (Option3Visibility == Visibility.Visible && Option3Enabled ? 1 : 0);
+            PickerVisibility = resolved && isAuthorized && choices > 1 ? Visibility.Visible : Visibility.Collapsed;
             ReadOnlyVisibility = resolved && !isAuthorized ? Visibility.Visible : Visibility.Collapsed;
         }
         finally

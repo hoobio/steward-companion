@@ -173,6 +173,20 @@
 
             <TextBlock Text="About" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,20,0,4" />
 
+            <controls:SettingsCard
+                Header="Update channel"
+                Description="Pre-release builds come from every push to main, release builds from a merged release PR">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE895;" />
+                </controls:SettingsCard.HeaderIcon>
+                <controls:Segmented
+                    SelectionMode="Single"
+                    SelectedIndex="{x:Bind ViewModel.AppChannelIndex, Mode=TwoWay}">
+                    <controls:SegmentedItem Content="release" />
+                    <controls:SegmentedItem Content="pre-release" />
+                </controls:Segmented>
+            </controls:SettingsCard>
+
             <controls:SettingsCard Header="Steward" Description="{x:Bind ViewModel.AboutDescription, Mode=OneWay}">
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE946;" />

@@ -5,19 +5,52 @@ namespace Steward.Core;
 
 public sealed class AppUpdater(HttpClient httpClient, string repo)
 {
-    public async Task<AddonRelease?> CheckAsync(Version current, CancellationToken cancellationToken)
+    public async Task<AddonRelease?> CheckAsync(Version current, string installedVersion, string channel, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(current);
 
-        var release = await GitHubReleases.GetLatestAsync(httpClient, repo, ".msi", "release", cancellationToken).ConfigureAwait(false);
-        if (release is null || !Version.TryParse(release.Version.TrimStart('v', 'V'), out var available))
+        // System.Version treats an absent component as -1, so 0.4.0 would compare below 0.4.0.0 without this.
+        var installed = new Version(current.Major, current.Minor, Math.Max(current.Build, 0));
+
+        if (channel == "release")
+        {
+            var stable = await GitHubReleases.GetLatestAsync(httpClient, repo, ".msi", "release", cancellationToken).ConfigureAwait(false);
+            return stable is not null
+                && Version.TryParse(stable.Version.TrimStart('v', 'V'), out var available)
+                && available > installed
+                ? stable
+                : null;
+        }
+
+        if (channel != "pre-release")
+        {
+            throw new ArgumentOutOfRangeException(nameof(channel), channel, "Steward has release and pre-release channels only.");
+        }
+
+        var latestRelease = await GitHubReleases.GetLatestAsync(httpClient, repo, ".msi", "release", cancellationToken).ConfigureAwait(false);
+        var latestPreRelease = await GitHubReleases.GetLatestAsync(httpClient, repo, ".msi", "pre-release", cancellationToken).ConfigureAwait(false);
+        var newest = (latestRelease, latestPreRelease) switch
+        {
+            (null, null) => null,
+            ({ } r, null) => r,
+            (null, { } p) => p,
+            ({ } r, { } p) => p.Released > r.Released ? p : r,
+        };
+
+        if (newest is null)
         {
             return null;
         }
 
-        // System.Version treats an absent component as -1, so 0.4.0 would compare below 0.4.0.0 without this.
-        var installed = new Version(current.Major, current.Minor, Math.Max(current.Build, 0));
-        return available > installed ? release : null;
+        var tag = newest.Version.TrimStart('v', 'V');
+        if (string.Equals(tag, installedVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var numeric = tag.Split('-', 2)[0];
+        // The MSI refuses a downgrade, so a prerelease cut from an older numeric version is never offered.
+        return Version.TryParse(numeric, out var newestNumeric) && newestNumeric >= installed ? newest : null;
     }
 
     public async Task<string> DownloadAsync(AddonRelease release, IProgress<double>? progress, CancellationToken cancellationToken)

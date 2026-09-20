@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Reflection;
 using System.Text.Json;
 
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -92,8 +93,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             AddonChannels.Add(new AddonChannelViewModel(addon, stateStore, OnChannelChanged));
         }
 
+        var state = stateStore.Load();
         _isLoadingState = true;
-        KeepInTray = stateStore.Load().KeepInTray;
+        KeepInTray = state.KeepInTray;
+        AppChannelIndex = state.AppChannel == "pre-release" ? 1 : 0;
         StartWithWindows = StartupRegistration.IsEnabled();
         _isLoadingState = false;
 
@@ -165,6 +168,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool StartWithWindows { get; set; }
 
     [ObservableProperty]
+    public partial int AppChannelIndex { get; set; }
+
+    [ObservableProperty]
     public partial bool ShowHiddenAddons { get; set; }
 
     [ObservableProperty]
@@ -210,6 +216,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Uri? AppUpdateChangelogUri => AppUpdate is null ? null : new Uri($"https://github.com/hoobio/steward-companion/releases/tag/{AppUpdate.Version}");
 
     public string AboutActionLabel => IsCheckingAppUpdate ? "Checking" : AppUpdate is null ? "Check for a new version" : "Install update";
+
+    private string AppChannel => AppChannelIndex == 1 ? "pre-release" : "release";
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["release", "pre-release"];
 
@@ -302,8 +310,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ => "Member",
     };
 
+    public static string InstalledVersion { get; } =
+        typeof(App).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion is { Length: > 0 } informational
+            ? informational.Split('+', 2)[0]
+            : typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+
     public string VersionLabel { get; } =
-        $"Steward {typeof(App).Assembly.GetName().Version?.ToString(3)}{(App.IsGitHubRelease ? "" : " (Development)")}";
+        $"Steward {InstalledVersion}{(App.IsGitHubRelease ? "" : " (Development)")}";
 
     public static string WindowTitle => App.IsGitHubRelease ? "Steward" : "Steward (Development)";
 
@@ -558,7 +571,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            AppUpdate = await _appUpdater.CheckAsync(typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0), cancellationToken)
+            AppUpdate = await _appUpdater
+                .CheckAsync(typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0), InstalledVersion, AppChannel, cancellationToken)
                 .ConfigureAwait(true);
             if (AppUpdate is not null)
             {
@@ -580,6 +594,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        await CheckAndConfirmAppUpdateAsync().ConfigureAwait(true);
+    }
+
+    private async Task CheckAndConfirmAppUpdateAsync()
+    {
         IsCheckingAppUpdate = true;
         try
         {
@@ -726,6 +745,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         _stateStore.Save(_stateStore.Load() with { KeepInTray = value });
+    }
+
+    partial void OnAppChannelIndexChanged(int value)
+    {
+        if (_isLoadingState)
+        {
+            return;
+        }
+
+        _stateStore.Save(_stateStore.Load() with { AppChannel = AppChannel });
+        _ = CheckAndConfirmAppUpdateAsync();
     }
 
     partial void OnStartWithWindowsChanged(bool value)
