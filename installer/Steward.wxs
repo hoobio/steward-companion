@@ -44,6 +44,8 @@
     <Property Id="ARPHELPLINK" Value="https://github.com/hoobio/steward-companion" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/hoobio/steward-companion" />
     <Property Id="ARPNOREPAIR" Value="1" />
+    <!-- Every file is ours, so write all of them regardless of version: a downgrade or a lower bundled runtime otherwise leaves files missing. -->
+    <Property Id="REINSTALLMODE" Value="amus" />
 
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="INSTALLFOLDER" Name="Steward" />
