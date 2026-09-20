@@ -9,6 +9,10 @@ public sealed class StewardGuidesSavedVariablesTests : IDisposable
         ["1084041902"] = true,
         ["2792083552"] = false,
         },
+        ["status"] = {
+        ["2792083552"] = "bought on Buyer#1234, you are Player#5678; not imported",
+        ["3000000001"] = false,
+        },
         }
         """;
 
@@ -33,6 +37,9 @@ public sealed class StewardGuidesSavedVariablesTests : IDisposable
 
         Assert.Equal(1758380000000, marks.Generation);
         Assert.Equal(["1084041902"], marks.Imported);
+        Assert.Equal(
+            "bought on Buyer#1234, you are Player#5678; not imported",
+            Assert.Single(marks.Status).Value);
     }
 
     [Fact]
@@ -53,6 +60,7 @@ public sealed class StewardGuidesSavedVariablesTests : IDisposable
 
         Assert.Null(marks.Generation);
         Assert.Empty(marks.Imported);
+        Assert.Empty(marks.Status);
     }
 
     [Fact]

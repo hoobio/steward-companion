@@ -99,6 +99,7 @@ public static class GuidesPreview
         "written" => GuideRowState.Written,
         "failed" => GuideRowState.Failed,
         "newer" => GuideRowState.NeedsNewerAddon,
+        "unfinished" => GuideRowState.Unfinished,
         "expired" => GuideRowState.None,
         _ => GuideRowState.InGame,
     };

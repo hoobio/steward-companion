@@ -1,6 +1,9 @@
 namespace Steward.Core;
 
-public sealed record StewardGuidesMarks(long? Generation, IReadOnlyCollection<string> Imported);
+public sealed record StewardGuidesMarks(
+    long? Generation,
+    IReadOnlyCollection<string> Imported,
+    IReadOnlyDictionary<string, string> Status);
 
 public static class StewardGuidesSavedVariables
 {
@@ -35,13 +38,18 @@ public static class StewardGuidesSavedVariables
         {
             var root = LuaSavedVariables.Parse(File.ReadAllText(path)).GetValueOrDefault(Global);
             var generation = root?.GetNumber("generation");
-            return new StewardGuidesMarks(generation is null ? null : (long)generation.Value, Imported(root));
+            return new StewardGuidesMarks(generation is null ? null : (long)generation.Value, Imported(root), Status(root));
         }
-        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException or ArgumentException)
         {
-            return new StewardGuidesMarks(null, []);
+            return new StewardGuidesMarks(null, [], new Dictionary<string, string>(StringComparer.Ordinal));
         }
     }
+
+    private static Dictionary<string, string> Status(LuaValue? root) =>
+        (root?.GetTable("status")?.Table ?? [])
+            .Where(entry => entry.Key is { Kind: LuaKind.Text } && entry.Value is { Kind: LuaKind.Text })
+            .ToDictionary(entry => entry.Key!.Text!, entry => entry.Value.Text!, StringComparer.Ordinal);
 
     private static IReadOnlyCollection<string> Imported(LuaValue? root) =>
     [

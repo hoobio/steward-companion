@@ -8,10 +8,10 @@ public sealed class StewardGuidesAddonTests : IDisposable
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
-    private static (string Name, string Text)[] SampleGuides() =>
+    private static (string Name, string Text, string? Tag)[] SampleGuides() =>
     [
-        ("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000"),
-        ("Mists of Pandaria Guide - Bundle", "159|2792083552:other%|40000"),
+        ("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000", "Buyer#1234"),
+        ("Mists of Pandaria Guide - Bundle", "159|2792083552:other%|40000", null),
     ];
 
     private string InstallRxpGuides(string interfaceValue = Interface)
@@ -52,7 +52,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
 
         Assert.StartsWith("local generation = 1758380000000\nlocal guides = {\n", lua, StringComparison.Ordinal);
         Assert.Contains(
-            "    { name = \"Forever Leveling Guide - Both Factions\", text = [==[83|1084041902:payload%|40000]==] },",
+            "    { name = \"Forever Leveling Guide - Both Factions\", text = [==[83|1084041902:payload%|40000]==], tag = \"Buyer#1234\" },",
             lua,
             StringComparison.Ordinal);
         Assert.Contains(
@@ -60,9 +60,12 @@ public sealed class StewardGuidesAddonTests : IDisposable
             lua,
             StringComparison.Ordinal);
         Assert.Contains("rxp.guideImporter:ImportString(guide.text)", lua, StringComparison.Ordinal);
-        Assert.Contains("StewardGuidesDB = StewardGuidesDB or { imported = {} }", lua, StringComparison.Ordinal);
+        Assert.Contains("StewardGuidesDB = StewardGuidesDB or { imported = {}, status = {} }", lua, StringComparison.Ordinal);
         Assert.Contains("StewardGuidesDB.generation = generation", lua, StringComparison.Ordinal);
         Assert.Contains("Guides Loaded Successfully", lua, StringComparison.Ordinal);
+        Assert.Contains("StewardGuidesDB.status[hash] = message", lua, StringComparison.Ordinal);
+        Assert.Contains("local _, tag = BNGetInfo()", lua, StringComparison.Ordinal);
+        Assert.Contains("bought on \" .. guide.tag .. \", you are \" .. playerTag .. \"; not imported", lua, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -76,13 +79,13 @@ public sealed class StewardGuidesAddonTests : IDisposable
     public void Render_Throws_WhenAGuideHoldsTheTerminator()
     {
         Assert.Throws<InvalidOperationException>(
-            () => StewardGuidesAddon.Render([("Broken", "83|1:pay]==]load%|40000")], 1));
+            () => StewardGuidesAddon.Render([("Broken", "83|1:pay]==]load%|40000", null)], 1));
     }
 
     [Fact]
     public void Render_EscapesQuotesAndBackslashesInNames()
     {
-        var lua = StewardGuidesAddon.Render([(@"A ""B"" \ C", "1|2:x")], 1);
+        var lua = StewardGuidesAddon.Render([(@"A ""B"" \ C", "1|2:x", null)], 1);
 
         Assert.Contains(@"name = ""A \""B\"" \\ C""", lua, StringComparison.Ordinal);
     }
@@ -107,7 +110,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
         var addOnsPath = InstallRxpGuides();
         StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1);
 
-        StewardGuidesAddon.Write(addOnsPath, [("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000")], 2);
+        StewardGuidesAddon.Write(addOnsPath, [("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000", null)], 2);
 
         var lua = File.ReadAllText(Path.Combine(addOnsPath, "StewardGuides", "Guides.lua"));
         Assert.DoesNotContain("Mists of Pandaria", lua, StringComparison.Ordinal);

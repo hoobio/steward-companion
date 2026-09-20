@@ -20,6 +20,7 @@ public enum GuideRowState
     Written,
     Failed,
     NeedsNewerAddon,
+    Unfinished,
 }
 
 public sealed partial class GuideRowViewModel : ObservableObject
@@ -90,6 +91,7 @@ public sealed partial class GuideRowViewModel : ObservableObject
         GuideRowState.Written => "Written · imports on next login or /reload",
         GuideRowState.Failed => "Failed",
         GuideRowState.NeedsNewerAddon => "Needs a newer guide",
+        GuideRowState.Unfinished => "Not finished",
         _ => string.Empty,
     };
 
@@ -97,7 +99,7 @@ public sealed partial class GuideRowViewModel : ObservableObject
     {
         GuideRowState.InGame or GuideRowState.Written => "SystemFillColorSuccessBrush",
         GuideRowState.Downloading => "AccentTextFillColorPrimaryBrush",
-        GuideRowState.NeedsNewerAddon => "SystemFillColorCautionBrush",
+        GuideRowState.NeedsNewerAddon or GuideRowState.Unfinished => "SystemFillColorCautionBrush",
         GuideRowState.Failed => "SystemFillColorCriticalBrush",
         _ => "TextFillColorSecondaryBrush",
     }];
@@ -105,7 +107,7 @@ public sealed partial class GuideRowViewModel : ObservableObject
     public Brush RowBackground => !IsSelected ? NoTint : State switch
     {
         GuideRowState.Downloading => (Brush)Application.Current.Resources["InfoTintBrush"],
-        GuideRowState.NeedsNewerAddon => (Brush)Application.Current.Resources["CautionTintBrush"],
+        GuideRowState.NeedsNewerAddon or GuideRowState.Unfinished => (Brush)Application.Current.Resources["CautionTintBrush"],
         GuideRowState.Failed => (Brush)Application.Current.Resources["CriticalTintBrush"],
         _ => NoTint,
     };
@@ -114,12 +116,13 @@ public sealed partial class GuideRowViewModel : ObservableObject
         When(IsSelected && State is GuideRowState.Downloading or GuideRowState.NeedsNewerAddon);
 
     public Visibility MessageVisibility =>
-        When(IsSelected && State is GuideRowState.Failed or GuideRowState.NeedsNewerAddon);
+        When(IsSelected && State is GuideRowState.Failed or GuideRowState.NeedsNewerAddon or GuideRowState.Unfinished);
 
     public string MessageText => State switch
     {
         GuideRowState.Failed => FailureText ?? "Download failed. Retrying in 10 s.",
         GuideRowState.NeedsNewerAddon => $"Fetching a build for RXPGuides {_card.AddonVersion}",
+        GuideRowState.Unfinished => "Import did not finish; it runs again on the next login",
         _ => string.Empty,
     };
 
@@ -606,6 +609,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
 
     private static GuideRowState Map(GuideSyncResult result) => result switch
     {
+        { Outcome: GuideSyncOutcome.Unfinished } => GuideRowState.Unfinished,
         { Error: not null } => GuideRowState.Failed,
         { Outcome: GuideSyncOutcome.UpToDate } => GuideRowState.InGame,
         { Outcome: GuideSyncOutcome.Written } => GuideRowState.Written,

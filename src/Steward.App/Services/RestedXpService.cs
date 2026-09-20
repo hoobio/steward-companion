@@ -14,6 +14,7 @@ public enum GuideSyncOutcome
     Written,
     NeedsNewerAddon,
     Rejected,
+    Unfinished,
 }
 
 public sealed record GuideSyncResult(GuideSyncOutcome Outcome, DateTimeOffset UpdatedAt, string? Error = null);
@@ -23,8 +24,6 @@ public sealed class RestedXpService : IDisposable
     private static readonly TimeSpan RefreshMargin = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan KeepAliveMargin = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan RetryAfterFailure = TimeSpan.FromSeconds(10);
-
-    private const string RejectedMessage = "The addon rejected the string";
 
     private readonly RestedXpClient _client;
     private readonly AppStateStore _stateStore;
@@ -248,7 +247,7 @@ public sealed class RestedXpService : IDisposable
         WowInstall install, IReadOnlyList<string> products, CancellationToken cancellationToken)
     {
         var results = new Dictionary<string, GuideSyncResult>(StringComparer.Ordinal);
-        var strings = new List<(string Name, string Text)>();
+        var strings = new List<(string Name, string Text, string? Tag)>();
         var serverTimestamps = new Dictionary<string, long>(StringComparer.Ordinal);
 
         var state = _stateStore.Load();
@@ -268,10 +267,10 @@ public sealed class RestedXpService : IDisposable
             }
 
             var updatedAt = DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamp);
-            var guide = ReadCached(productName, serverTimestamp);
+            var (guide, tag) = ReadCached(productName, serverTimestamp);
             if (guide is null)
             {
-                var (downloaded, error) = await FetchAsync(productName, serverTimestamp, cancellationToken).ConfigureAwait(true);
+                var (downloaded, downloadedTag, error) = await FetchAsync(productName, serverTimestamp, cancellationToken).ConfigureAwait(true);
                 if (downloaded is null)
                 {
                     results[productName] = new GuideSyncResult(GuideSyncOutcome.Stale, updatedAt, error);
@@ -279,11 +278,12 @@ public sealed class RestedXpService : IDisposable
                 }
 
                 guide = downloaded;
+                tag = downloadedTag;
             }
 
             changed |= recorded.GetValueOrDefault(productName) != serverTimestamp;
             serverTimestamps[productName] = serverTimestamp;
-            strings.Add((productName, guide));
+            strings.Add((productName, guide, tag));
             results[productName] = new GuideSyncResult(GuideSyncOutcome.UpToDate, updatedAt);
         }
 
@@ -300,7 +300,7 @@ public sealed class RestedXpService : IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            foreach (var (productName, _) in strings)
+            foreach (var (productName, _, _) in strings)
             {
                 results[productName] = new GuideSyncResult(
                     GuideSyncOutcome.Downloaded, DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamps[productName]), ex.Message);
@@ -316,7 +316,7 @@ public sealed class RestedXpService : IDisposable
         }
 
         state.RestedXpGuidesGeneration[install.FlavourPath] = generation;
-        foreach (var (productName, _) in strings)
+        foreach (var (productName, _, _) in strings)
         {
             var serverTimestamp = serverTimestamps[productName];
             state.RestedXpGuides[AppStateStore.Key(install.FlavourPath, productName)] =
@@ -349,7 +349,7 @@ public sealed class RestedXpService : IDisposable
         {
             var key = AppStateStore.Key(install.FlavourPath, productName);
             if (!state.RestedXpGuides.TryGetValue(key, out var record)
-                || ReadCached(productName, record.Timestamp) is not { } guide
+                || ReadCached(productName, record.Timestamp).Guide is not { } guide
                 || StewardGuidesAddon.Hash(guide) is not { } hash)
             {
                 continue;
@@ -360,10 +360,14 @@ public sealed class RestedXpService : IDisposable
             {
                 results[productName] = new GuideSyncResult(GuideSyncOutcome.UpToDate, updatedAt);
             }
+            else if (current.Select(file => file.Status.GetValueOrDefault(hash)).FirstOrDefault(text => text is not null) is { } status)
+            {
+                results[productName] = new GuideSyncResult(GuideSyncOutcome.Rejected, updatedAt, status);
+                rejected.Add(key);
+            }
             else if (current.Count > 0)
             {
-                results[productName] = new GuideSyncResult(GuideSyncOutcome.Rejected, updatedAt, RejectedMessage);
-                rejected.Add(key);
+                results[productName] = new GuideSyncResult(GuideSyncOutcome.Unfinished, updatedAt);
             }
             else
             {
@@ -384,16 +388,16 @@ public sealed class RestedXpService : IDisposable
         return results;
     }
 
-    private async Task<(string? Guide, string? Error)> FetchAsync(string productName, long timestamp, CancellationToken cancellationToken)
+    private async Task<(string? Guide, string? Tag, string? Error)> FetchAsync(string productName, long timestamp, CancellationToken cancellationToken)
     {
         if (Session is not { } session)
         {
-            return (null, null);
+            return (null, null, null);
         }
 
         if (_lastFailure.TryGetValue(productName, out var failedAt) && DateTimeOffset.UtcNow - failedAt < RetryAfterFailure)
         {
-            return (null, null);
+            return (null, null, null);
         }
 
         try
@@ -402,7 +406,7 @@ public sealed class RestedXpService : IDisposable
             session = Session ?? session;
             var downloaded = await _client.DownloadGuideAsync(session, productName, cancellationToken).ConfigureAwait(true);
             Cache(productName, timestamp, downloaded);
-            return (downloaded.Guide, null);
+            return (downloaded.Guide, downloaded.BnetTag, null);
         }
         catch (RestedXpSessionExpiredException)
         {
@@ -412,7 +416,7 @@ public sealed class RestedXpService : IDisposable
         catch (Exception ex) when (ex is HttpRequestException or JsonException or IOException or TaskCanceledException)
         {
             _lastFailure[productName] = DateTimeOffset.UtcNow;
-            return (null, ex.Message);
+            return (null, null, ex.Message);
         }
     }
 
@@ -433,7 +437,7 @@ public sealed class RestedXpService : IDisposable
         return Path.Combine(_cacheFolder, name + extension);
     }
 
-    private string? ReadCached(string productName, long timestamp)
+    private (string? Guide, string? Tag) ReadCached(string productName, long timestamp)
     {
         try
         {
@@ -441,15 +445,15 @@ public sealed class RestedXpService : IDisposable
             var guidePath = CachePath(productName, ".txt");
             if (!File.Exists(metaPath) || !File.Exists(guidePath))
             {
-                return null;
+                return (null, null);
             }
 
             var meta = JsonSerializer.Deserialize(File.ReadAllText(metaPath), CompanionJsonContext.Default.RestedXpCachedGuide);
-            return meta?.Timestamp == timestamp ? File.ReadAllText(guidePath) : null;
+            return meta?.Timestamp == timestamp ? (File.ReadAllText(guidePath), meta.BnetTag) : (null, null);
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
-            return null;
+            return (null, null);
         }
     }
 

@@ -40,7 +40,8 @@ Because the addon file is only read at login or `/reload`, there is no client-cl
 | Downloading | A newer timestamp, fetch running | Accent-tinted row, pill `Downloading`, indeterminate `ProgressBar` under the row |
 | Written | `Guides.lua` regenerated this session | Success pill `Written · imports on next login or /reload` |
 | Failure | Download or write failed | Critical-tinted row, pill `Failed`, "Download failed. Retrying in 10 s." and a `Retry` button |
-| Rejected | The saved variable carries the current generation but does not mark the string | Critical-tinted row, pill `Failed`, "The addon rejected the string", `Retry` re-writes the folder |
+| Rejected | The saved variable carries the current generation and a status text for the string | Critical-tinted row, pill `Failed`, the addon's own status text as the message, `Retry` re-writes the folder |
+| Not finished | The saved variable carries the current generation, with neither a mark nor a status for the string | Caution-tinted row, pill `Not finished`, dim "Import did not finish; it runs again on the next login", no `Retry` |
 | Session expired | Refresh token gone while the page is open | Caution `InfoBar` above the cards with a `Sign in` action, rows dimmed to mute; dismissing it or cancelling the dialog returns to Addons, since the nav item collapses without a session |
 | No purchases | `/user-products` empty | "No guides on this account" with a `Browse guides` link |
 
