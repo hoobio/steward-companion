@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.3](https://github.com/hoobio/steward-companion/compare/v0.8.2...v0.8.3) (2026-09-20)
+
+
+### Bug Fixes
+
+* 🐛 pin the shipped .NET runtime at 10.0.12 and write every file on install regardless of version ([9c50acf](https://github.com/hoobio/steward-companion/commit/9c50acff36eea907da88c97816a1ead3ee2c23ae))
+
 ## [0.8.2](https://github.com/hoobio/steward-companion/compare/v0.8.1...v0.8.2) (2026-09-20)
 
 
