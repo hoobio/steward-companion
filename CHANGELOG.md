@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/hoobio/steward-companion/compare/v0.7.0...v0.7.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* 🐛 put the update banner's button at the right and link the release notes ([80c636b](https://github.com/hoobio/steward-companion/commit/80c636b58900f74513b5aa8b9586ae03f0318217))
+
 ## [0.7.0](https://github.com/hoobio/steward-companion/compare/v0.6.0...v0.7.0) (2026-09-20)
 
 
