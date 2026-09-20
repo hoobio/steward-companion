@@ -180,17 +180,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial Uri? AvatarUri { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AppUpdateIsOpen), nameof(AppUpdateTitle), nameof(AboutDescription), nameof(AboutActionLabel))]
+    [NotifyPropertyChangedFor(nameof(AppUpdateVisibility), nameof(AppUpdateTitle), nameof(AppUpdateChangelogUri), nameof(AboutDescription), nameof(AboutActionLabel))]
     [NotifyCanExecuteChangedFor(nameof(InstallAppUpdateCommand))]
     public partial AddonRelease? AppUpdate { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AppUpdateMessage))]
+    [NotifyPropertyChangedFor(nameof(AppUpdateActionLabel))]
     [NotifyCanExecuteChangedFor(nameof(InstallAppUpdateCommand))]
     public partial bool IsInstallingAppUpdate { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AppUpdateMessage))]
+    [NotifyPropertyChangedFor(nameof(AppUpdateActionLabel))]
     public partial double AppUpdateProgress { get; set; }
 
     [ObservableProperty]
@@ -201,13 +201,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(AboutDescription))]
     public partial bool IsLatestConfirmed { get; set; }
 
-    public bool AppUpdateIsOpen => AppUpdate is not null;
+    public Visibility AppUpdateVisibility => When(AppUpdate is not null);
 
     public string AppUpdateTitle => $"Steward {AppUpdate?.Version.TrimStart('v')} is available";
 
-    public string AppUpdateMessage => IsInstallingAppUpdate
-        ? $"Downloading, {AppUpdateProgress:P0}"
-        : "Installs silently and restarts Steward";
+    public string AppUpdateActionLabel => IsInstallingAppUpdate ? $"Downloading {AppUpdateProgress:P0}" : "Install and restart";
+
+    public Uri? AppUpdateChangelogUri => AppUpdate is null ? null : new Uri($"https://github.com/hoobio/steward-companion/releases/tag/{AppUpdate.Version}");
 
     public string AboutActionLabel => IsCheckingAppUpdate ? "Checking" : AppUpdate is null ? "Check for a new version" : "Install update";
 

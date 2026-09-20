@@ -323,16 +323,32 @@
                     </InfoBar.ActionButton>
                 </InfoBar>
 
-                <InfoBar
-                    Severity="Informational"
-                    IsClosable="False"
-                    IsOpen="{x:Bind ViewModel.AppUpdateIsOpen, Mode=OneWay}"
-                    Title="{x:Bind ViewModel.AppUpdateTitle, Mode=OneWay}"
-                    Message="{x:Bind ViewModel.AppUpdateMessage, Mode=OneWay}">
-                    <InfoBar.ActionButton>
-                        <Button Content="Install and restart" Style="{StaticResource AccentButtonStyle}" Command="{x:Bind ViewModel.InstallAppUpdateCommand}" />
-                    </InfoBar.ActionButton>
-                </InfoBar>
+                <Border
+                    CornerRadius="8"
+                    Padding="12,8"
+                    BorderThickness="1"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    Background="{ThemeResource InfoBarInformationalSeverityBackgroundBrush}"
+                    Visibility="{x:Bind ViewModel.AppUpdateVisibility, Mode=OneWay}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE946;" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind ViewModel.AppUpdateTitle, Mode=OneWay}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <HyperlinkButton Content="View changelog" Padding="4,0" NavigateUri="{x:Bind ViewModel.AppUpdateChangelogUri, Mode=OneWay}" />
+                        </StackPanel>
+                        <Button
+                            Grid.Column="2"
+                            Height="32"
+                            Content="{x:Bind ViewModel.AppUpdateActionLabel, Mode=OneWay}"
+                            Style="{StaticResource AccentButtonStyle}"
+                            Command="{x:Bind ViewModel.InstallAppUpdateCommand}" />
+                    </Grid>
+                </Border>
 
                 <InfoBar
                     Severity="Error"
