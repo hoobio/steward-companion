@@ -191,7 +191,9 @@ public sealed partial class AddonRowViewModel : ObservableObject
     public Brush StatusGlyphBrush => (Brush)Application.Current.Resources[
         State == AddonRowState.UpdateAvailable ? "SystemFillColorCautionBrush" : "SystemFillColorSuccessBrush"];
 
-    public string StatusGlyphTooltip => State == AddonRowState.UpdateAvailable ? $"{AvailableVersion} available" : "Up to date";
+    public string StatusGlyphTooltip => State == AddonRowState.UpdateAvailable
+        ? $"{AvailableVersion} available"
+        : Record?.InstalledAt is { } at ? $"Updated {RelativeTime.Describe(at, DateTimeOffset.Now)}" : "Up to date";
 
     public Visibility MemberPillVisibility => When(!IsHidden && !IsAdmin && State == AddonRowState.UpdateAvailable);
 
@@ -310,7 +312,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
             var state = _stateStore.Load();
             state.Installs[AppStateStore.Key(_install.FlavourPath, _addon.Id)] =
-                new InstalledAddonRecord(release.Version, channel, release.Sha256);
+                new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now);
             _stateStore.Save(state);
 
             InstalledVersion = release.Version;

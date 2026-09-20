@@ -66,7 +66,8 @@ public sealed record WowInstall(
 public sealed record InstalledAddonRecord(
     [property: JsonPropertyName("version")] string Version,
     [property: JsonPropertyName("channel")] string Channel,
-    [property: JsonPropertyName("sha256")] string Sha256);
+    [property: JsonPropertyName("sha256")] string Sha256,
+    [property: JsonPropertyName("installed_at")] DateTimeOffset? InstalledAt = null);
 
 public sealed record AppState(
     [property: JsonPropertyName("channels")] Dictionary<string, string> Channels,

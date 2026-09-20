@@ -57,9 +57,10 @@ public sealed class AppStateStoreTests : IDisposable
     public void Load_NewFormatFile_RoundTrips()
     {
         var store = new AppStateStore(["hoobiscripts"], StatePath);
+        var installedAt = new DateTimeOffset(2026, 9, 20, 12, 0, 0, TimeSpan.Zero);
         var saved = new AppState(
             new Dictionary<string, string> { ["hoobiscripts"] = "unstable" },
-            new Dictionary<string, InstalledAddonRecord> { ["flavour|hoobiscripts"] = new("1.0.0", "unstable", "abc123") },
+            new Dictionary<string, InstalledAddonRecord> { ["flavour|hoobiscripts"] = new("1.0.0", "unstable", "abc123", installedAt) },
             "encrypted-token");
         store.Save(saved);
 
@@ -68,6 +69,19 @@ public sealed class AppStateStoreTests : IDisposable
         Assert.Equal(saved.Channels, loaded.Channels);
         Assert.Equal(saved.Installs, loaded.Installs);
         Assert.Equal(saved.EncryptedSessionToken, loaded.EncryptedSessionToken);
+        Assert.Equal(installedAt, loaded.Installs["flavour|hoobiscripts"].InstalledAt);
+    }
+
+    [Fact]
+    public void Load_InstallWithoutInstalledAt_HasNullInstalledAt()
+    {
+        File.WriteAllText(
+            StatePath,
+            """{"channels":{},"installs":{"flavour|hoobiscripts":{"version":"1.0.0","channel":"beta","sha256":"aa"}}}""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Null(state.Installs["flavour|hoobiscripts"].InstalledAt);
     }
 
     [Fact]
