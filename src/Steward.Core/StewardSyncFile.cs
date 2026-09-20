@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace Steward.Core;
 
 public static class StewardSyncFile
@@ -9,6 +12,9 @@ public static class StewardSyncFile
 
     public static string Render(SyncPayload payload) =>
         "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload)) + ")" + Environment.NewLine;
+
+    public static string Fingerprint(SyncPayload payload) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }))));
 
     public static void Write(string addOnsPath, SyncPayload payload)
     {

@@ -12,7 +12,19 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client) : IGuildSyncApi
         throw new NotSupportedException(
             "GigagrugGuildSyncApi is pull-only: gigagrug -> app -> game. Nothing is pushed.");
 
-    public async Task<SyncPayload> PullAsync(CancellationToken ct)
+    public Task<SyncPayload> PullAsync(CancellationToken ct) => PullAsync(guildId: null, ct);
+
+    public async Task<SyncPayload> PullAsync(string? guildId, CancellationToken ct)
+    {
+        guildId ??= await ResolveGuildIdAsync(ct).ConfigureAwait(false);
+
+        var members = await client.GetGuildRosterAsync(guildId, ct).ConfigureAwait(false);
+        var discord = await client.GetDiscordMembersAsync(guildId, ct).ConfigureAwait(false);
+
+        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord);
+    }
+
+    private async Task<string> ResolveGuildIdAsync(CancellationToken ct)
     {
         var me = await client.GetMeAsync(ct).ConfigureAwait(false);
         if (me.Guilds.Count == 0)
@@ -20,10 +32,6 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client) : IGuildSyncApi
             throw new InvalidOperationException("The signed-in user has no guild to sync from.");
         }
 
-        var guildId = me.Guilds[0].Id;
-        var members = await client.GetGuildRosterAsync(guildId, ct).ConfigureAwait(false);
-        var discord = await client.GetDiscordMembersAsync(guildId, ct).ConfigureAwait(false);
-
-        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord);
+        return me.Guilds[0].Id;
     }
 }

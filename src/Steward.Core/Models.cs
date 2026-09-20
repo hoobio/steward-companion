@@ -141,7 +141,8 @@ public sealed record AppState(
     [property: JsonPropertyName("restedxp_session")] string? EncryptedRestedXpSession = null,
     [property: JsonPropertyName("restedxp_guides")] Dictionary<string, RestedXpGuideRecord> RestedXpGuides = null!,
     [property: JsonPropertyName("restedxp_guide_choices")] Dictionary<string, List<string>> RestedXpGuideChoices = null!,
-    [property: JsonPropertyName("restedxp_guides_generation")] Dictionary<string, long> RestedXpGuidesGeneration = null!)
+    [property: JsonPropertyName("restedxp_guides_generation")] Dictionary<string, long> RestedXpGuidesGeneration = null!,
+    [property: JsonPropertyName("guild_roster_sync")] Dictionary<string, string> GuildRosterSync = null!)
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

@@ -53,6 +53,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private readonly ISessionService _sessionService;
     private readonly GigagrugClient _gigagrugClient;
+    private readonly GigagrugGuildSyncApi _guildSyncApi;
     private readonly AddonUpdater _addonUpdater;
     private readonly AppUpdater _appUpdater;
     private readonly AppStateStore _stateStore;
@@ -64,6 +65,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private DispatcherQueueTimer? _recheckTimer;
     private CancellationTokenSource? _signInCts;
+    private string? _guildId;
     private DateTimeOffset _lastPass;
     private DateTimeOffset _lastGuideCheck;
     private bool _isChecking;
@@ -74,12 +76,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public MainViewModel(
         ISessionService sessionService,
         GigagrugClient gigagrugClient,
+        GigagrugGuildSyncApi guildSyncApi,
         AddonUpdater addonUpdater,
         AppUpdater appUpdater,
         AppStateStore stateStore,
         IReadOnlyList<ManagedAddon> addons,
         IReadOnlyDictionary<string, string> supportedProducts,
-        IGuildSyncApi guildSyncApi,
+        IGuildSyncApi syncApi,
         RestedXpService restedXpService)
     {
         ArgumentNullException.ThrowIfNull(addons);
@@ -87,6 +90,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _sessionService = sessionService;
         _gigagrugClient = gigagrugClient;
+        _guildSyncApi = guildSyncApi;
         _addonUpdater = addonUpdater;
         _appUpdater = appUpdater;
         _stateStore = stateStore;
@@ -115,7 +119,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
         };
 
-        Sync = new SyncViewModel(this, guildSyncApi)
+        Sync = new SyncViewModel(this, syncApi)
         {
             StateChanged = () => OnPropertyChanged(nameof(SyncBadgeVisibility)),
         };
@@ -472,6 +476,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DisposeInstalls();
         _status.Clear();
         _releases.Clear();
+        _guildId = null;
         UserName = null;
         UserHandle = null;
         Role = null;
@@ -736,7 +741,32 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             StatusMessage = ex.Message;
         }
 
+        await SyncRosterAsync().ConfigureAwait(true);
         await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
+    }
+
+    private async Task SyncRosterAsync()
+    {
+        if (!IsSignedIn || !IsApiReachable || _guildId is not { } guildId)
+        {
+            return;
+        }
+
+        SyncPayload payload;
+        try
+        {
+            payload = await _guildSyncApi.PullAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or SessionExpiredException)
+        {
+            StatusMessage = $"Could not pull the guild roster: {ex.Message}";
+            return;
+        }
+
+        foreach (var install in Installs)
+        {
+            GuildRosterSync.WriteIfChanged(install.Install, payload, _stateStore);
+        }
     }
 
     private void RefreshClients()
@@ -985,6 +1015,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Role = me.User.Role;
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = GigagrugClient.IsAdmin(me);
+            _guildId = me.Guilds.Count > 0 ? me.Guilds[0].Id : null;
             StatusMessage = null;
             Failure = GateFailure.None;
 
@@ -1003,6 +1034,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             UserHandle = null;
             Role = null;
             AvatarUri = null;
+            _guildId = null;
             StatusMessage = null;
             IsSignedIn = false;
             Failure = GateFailure.SessionExpired;
