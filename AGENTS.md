@@ -6,9 +6,13 @@ Updating is the whole of it today. It manages a set of addons rather than one, a
 
 ## Managed addons
 
-`appsettings.json` holds an `Addons` array of `{ Id, FolderName, ManifestBaseUrl }` (`ManagedAddon` in `Steward.Core`). Two entries ship today, `hoobiscripts` and `steward`; a configured addon with no manifest on any channel renders as "No releases yet" rather than as an error. Adding one is a config entry, nothing more: `AddonUpdater` takes the `ManagedAddon` and channel as parameters rather than hardcoding a folder name or manifest URL, and the UI iterates the configured list per WoW install.
+`appsettings.json` holds an `Addons` array of `{ Id, FolderName, ManifestBaseUrl, AutoInstall?, GitHubRepo? }` (`ManagedAddon` in `Steward.Core`), rendered in array order. Three entries ship today: `steward` (`AutoInstall: true`), `hoobiscripts`, and `restedxp` (`GitHubRepo: RestedXP/RXPGuides`). A configured addon with no manifest on any channel renders as "No releases yet" rather than as an error. Adding one is a config entry, nothing more: `AddonUpdater` takes the `ManagedAddon` and channel as parameters rather than hardcoding a folder name or manifest URL, and the UI iterates the configured list per WoW install.
 
-The manifest for an addon+channel is `{ManifestBaseUrl}latest-{channel}.json`; the release zip resolves relative to that manifest URI. The manifest fetch sends `Cache-Control: no-cache` per request rather than trusting the Static Web App's own cache headers, since the SWA route's header behaviour for a nested path is unconfirmed. SHA-256 verification, the zip-slip guard, and the rule that an existing addon folder is only deleted when it holds that addon's own `.toc` are unchanged from the single-addon version.
+`AutoInstall` marks an addon the background pass installs when it is missing, under the same admin gate as auto-update; it cannot be hidden. `GitHubRepo` sources releases from `https://api.github.com/repos/{repo}/releases/latest` instead of the manifest host: that endpoint excludes prereleases and drafts, the `.zip` asset is the release and its `sha256:` digest is the checksum, the tag name is the version (RXPGuides stamps the same `v4.11.4` form into its TOC), and only the `stable` channel resolves. The request carries a `User-Agent` because GitHub answers 403 without one; unauthenticated calls are limited to 60 per hour per IP. `ManifestBaseUrl` on such an addon serves only `icon.png`.
+
+A user can hide an addon they manage through CurseForge or WowUp from the row's overflow menu. Hidden ids live in `hidden_addons` in `state.json`, global rather than per install, and hidden rows are excluded from counts, auto-apply, Update all and the list; the "Hidden addons" toggle in the page header shows them again with a Hidden pill so they can be unhidden.
+
+The manifest for an addon+channel is `{ManifestBaseUrl}latest-{channel}.json`; the release zip resolves relative to that manifest URI, so an absolute `zip` URL is used as-is. The manifest fetch sends `Cache-Control: no-cache` per request rather than trusting the Static Web App's own cache headers, since the SWA route's header behaviour for a nested path is unconfirmed. SHA-256 verification, the zip-slip guard, and the rule that an existing addon folder is only deleted when it holds that addon's own `.toc` are unchanged from the single-addon version.
 
 ## Auth: default-browser sign-in over a loopback callback
 
@@ -37,6 +41,10 @@ Discovery is filtered to `SupportedProducts` in `appsettings.json`, a product co
 ## Branding
 
 `src/Steward.App/Assets/Steward.ico` (16 through 256px, PNG-compressed frames) is the one source of the app's icon: `ApplicationIcon` stamps it on the exe, `AppWindow.SetIcon` puts it on the one window, and the wxs picks it out of the publish payload for `ARPPRODUCTICON` and the Start menu shortcut. WinUI 3 does not take the window icon from the exe on its own, so the `SetIcon` calls are load-bearing.
+
+## Git workflow
+
+Commits go straight to `main` and are pushed there; this repo uses no feature branches and no pull requests for its own work. Conventional-commit subjects feed release-please, which opens the release PR itself. A worktree used for a change is fast-forwarded into `main` and removed once pushed.
 
 ## Build and test gotchas
 
@@ -83,14 +91,15 @@ Still to come, in the commits after this one: the freshness judgement (the saved
 
 ## Outstanding work
 
-The tray icon, close-to-tray and minimise-to-tray are built, on `H.NotifyIcon.WinUI`. The `TaskbarIcon` lives in `MainWindow.xaml`, takes its `IconSource` from the filesystem path `App.IconPath` because an unpackaged app cannot resolve `ms-appx:///`, and runs in `ContextMenuMode="SecondWindow"`. The `KeepInTray` setting on the Behaviour card in Settings, persisted as `keep_in_tray` in `state.json` and defaulting to true, decides whether the X button and minimise hide the window or quit. Start-with-Windows was planned, cancelled, and stays cancelled. A settings window was cancelled alongside it and has since been revived as a settings page: see `docs/design/home-and-settings.md`.
+The tray icon, close-to-tray and minimise-to-tray are built, on `H.NotifyIcon.WinUI`. The `TaskbarIcon` lives in `MainWindow.xaml`, takes its `IconSource` from the filesystem path `App.IconPath` because an unpackaged app cannot resolve `ms-appx:///`, and runs in `ContextMenuMode="SecondWindow"`. The `KeepInTray` setting on the Behaviour card in Settings, persisted as `keep_in_tray` in `state.json` and defaulting to true, decides whether the X button and minimise hide the window or quit. Start with Windows is a second Behaviour card backed by the `Steward` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, pointing at the running exe with `--tray`; that argument hides the window to the tray on launch when `KeepInTray` is on. The registry is the only store for it; the MSI does not remove the value on uninstall. The card is enabled only in a GitHub release build: the workflow's `dotnet publish` passes `-p:GitHubRelease=true`, the csproj writes that property as `AssemblyMetadata`, and `App.IsGitHubRelease` reads it back. Every other build shows "(Development)" in the window title, tray tooltip and version label. A settings window was cancelled and has since been revived as a settings page: see `docs/design/home-and-settings.md`.
 
 Checking runs at startup and on a 1-minute `DispatcherQueueTimer` in `MainViewModel` that does its network work every 15 minutes, re-checking `/api/admin/me` alongside the manifests. A background pass skips busy rows and never re-orders `Installs` or `AddonRows`. `MainViewModel.AutoApplyAsync` runs after every pass and on every tick: each eligible row's `UpdateCommand` is executed in turn, whether or not the client is running, skipping busy rows and rows whose last attempt failed until a new resolution arrives. `WowClient.IsRunning` in Core judges whether an install's client is up, by matching any `Wow*` process whose main module sits under that install's flavour folder; it drives the running dot and the `/reload` hint a row shows after an update applied while the client was running, cleared when the client stops.
 
 ## Related repos
 
-- `hoobio/HoobiScripts` (private, local clone `D:\HoobiScripts`): the quality-of-life addon, and the only entry in `appsettings.json` today. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
+- `hoobio/HoobiScripts` (private, local clone `D:\HoobiScripts`): the quality-of-life addon. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
 - `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. It has an `Addons` entry here (`steward`, `https://addon.hoobi.io/steward/`) and shows "No releases yet" until its first manifest is published through `hoobio/addons`.
+- `RestedXP/RXPGuides` (public GitHub): the levelling guide addon, managed from its GitHub releases as described under Managed addons.
 - `hoobio/addons` (private, local clone `D:\addons`): builds the channel manifests and zips this app reads, and publishes them to the Static Web App.
 
 Both addon clones live on `D:\` like every other repo, and the game loads whatever this app installs from the release channels, so a working tree is never what the client runs.
