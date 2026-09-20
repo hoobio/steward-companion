@@ -29,6 +29,11 @@ internal static class HostBuilderExtensions
             throw new InvalidOperationException("Addons must list at least one managed addon");
         }
 
+        var restedXpAccountUrl = builder.Configuration["RestedXp:AccountBaseUrl"]
+            ?? throw new InvalidOperationException("RestedXp:AccountBaseUrl is not configured");
+        var restedXpGuidesUrl = builder.Configuration["RestedXp:GuidesBaseUrl"]
+            ?? throw new InvalidOperationException("RestedXp:GuidesBaseUrl is not configured");
+
         var supportedProducts = builder.Configuration.GetSection("SupportedProducts").Get<Dictionary<string, string>>();
         if (supportedProducts is null || supportedProducts.Count == 0)
         {
@@ -58,6 +63,12 @@ internal static class HostBuilderExtensions
         builder.Services.AddSingleton(sp => new AddonUpdater(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon")));
         builder.Services.AddSingleton(sp => new AppUpdater(sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"), "hoobio/steward-companion"));
+
+        builder.Services.AddSingleton(sp => new RestedXpClient(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"),
+            restedXpAccountUrl,
+            restedXpGuidesUrl));
+        builder.Services.AddSingleton<RestedXpService>();
 
         builder.Services.AddSingleton<InMemoryGuildSyncApi>();
         builder.Services.AddSingleton<IGuildSyncApi>(sp => sp.GetRequiredService<InMemoryGuildSyncApi>());

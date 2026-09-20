@@ -30,6 +30,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan RecheckInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
 
+    private const int GuideCheckEveryPasses = 36;
+
     private static readonly string[] SummaryNames =
     [
         nameof(InstallCount),
@@ -62,6 +64,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DispatcherQueueTimer? _recheckTimer;
     private CancellationTokenSource? _signInCts;
     private DateTimeOffset _lastPass;
+    private int _passCount;
     private bool _isChecking;
     private bool _isAutoApplying;
     private bool _isLoadingState;
@@ -75,7 +78,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AppStateStore stateStore,
         IReadOnlyList<ManagedAddon> addons,
         IReadOnlyDictionary<string, string> supportedProducts,
-        IGuildSyncApi guildSyncApi)
+        IGuildSyncApi guildSyncApi,
+        RestedXpService restedXpService)
     {
         ArgumentNullException.ThrowIfNull(addons);
         ArgumentNullException.ThrowIfNull(supportedProducts);
@@ -100,6 +104,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         StartWithWindows = StartupRegistration.IsEnabled();
         _isLoadingState = false;
 
+        RestedXp = new RestedXpViewModel(restedXpService);
+
         Sync = new SyncViewModel(this, guildSyncApi)
         {
             StateChanged = () => OnPropertyChanged(nameof(SyncBadgeVisibility)),
@@ -109,6 +115,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public SyncViewModel Sync { get; }
+
+    public RestedXpViewModel RestedXp { get; }
 
     public ObservableCollection<WowInstallViewModel> Installs { get; } = [];
 
@@ -356,7 +364,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         Installs.Clear();
+        SyncGuideInstalls();
     }
+
+    private void SyncGuideInstalls() => RestedXp.SetInstalls(Installs.Select(install => install.Install));
 
     [RelayCommand]
     private async Task InitializeAsync()
@@ -453,6 +464,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
             await CheckAppUpdateAsync(cancellationToken).ConfigureAwait(true);
+            await RestedXp.CheckAsync().ConfigureAwait(true);
 
             StartRecheckTimer();
         }
@@ -532,6 +544,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         install.RowsChanged -= OnInstallRowsChanged;
         install.Dispose();
         _stateStore.Save(AppStateStore.RemoveInstall(_stateStore.Load(), install.FlavourPath));
+        SyncGuideInstalls();
         RecomputeSummary();
     }
 
@@ -559,6 +572,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
             await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
+            await RestedXp.CheckAsync().ConfigureAwait(true);
         }
         finally
         {
@@ -810,6 +824,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         viewModel.SetShowHidden(ShowHiddenAddons);
         viewModel.RowsChanged += OnInstallRowsChanged;
         Installs.Add(viewModel);
+        SyncGuideInstalls();
         return viewModel;
     }
 
@@ -824,7 +839,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RecomputeSummary();
     }
 
-    private void OnClientExited(WowInstallViewModel install) => _ = NotifySavedVariablesChangedAsync();
+    private void OnClientExited(WowInstallViewModel install)
+    {
+        _ = NotifySavedVariablesChangedAsync();
+        _ = RestedXp.WritePendingAsync(install.Install);
+    }
 
     private Task NotifySavedVariablesChangedAsync() => SavedVariablesChanged?.Invoke() ?? Task.CompletedTask;
 
@@ -875,6 +894,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
                 await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
+            }
+
+            await RestedXp.RefreshSessionAsync().ConfigureAwait(true);
+            if (++_passCount % GuideCheckEveryPasses == 0)
+            {
+                await RestedXp.CheckAsync().ConfigureAwait(true);
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)

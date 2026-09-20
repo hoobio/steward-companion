@@ -191,6 +191,32 @@
             </Grid>
         </DataTemplate>
 
+        <DataTemplate x:Key="RestedXpInstallTemplate" x:DataType="vm:RestedXpInstallViewModel">
+            <Grid ColumnSpacing="12" Padding="0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind DisplayName}" FontSize="13.5" FontWeight="SemiBold" />
+                    <TextBlock
+                        Text="{x:Bind StatusLine, Mode=OneWay}"
+                        TextWrapping="Wrap"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                </StackPanel>
+
+                <ComboBox
+                    Grid.Column="1"
+                    MinWidth="260"
+                    VerticalAlignment="Center"
+                    PlaceholderText="No guide selected"
+                    ItemsSource="{x:Bind Products}"
+                    SelectedItem="{x:Bind SelectedProduct, Mode=TwoWay}" />
+            </Grid>
+        </DataTemplate>
+
         <DataTemplate x:Key="InstallCardTemplate" x:DataType="vm:WowInstallViewModel">
             <Expander
                 IsExpanded="True"
@@ -408,6 +434,73 @@
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>
+
+                <Border
+                    CornerRadius="8"
+                    Padding="16"
+                    Background="{ThemeResource LayerFillColorDefaultBrush}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="RestedXP guides" FontSize="14" FontWeight="SemiBold" />
+
+                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.RestedXp.SignedOutVisibility, Mode=OneWay}">
+                            <TextBlock
+                                Text="Keep your purchased RestedXP guides current in game."
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBox
+                                MaxWidth="320"
+                                HorizontalAlignment="Left"
+                                PlaceholderText="Username or email"
+                                Text="{x:Bind ViewModel.RestedXp.UsernameInput, Mode=TwoWay}" />
+                            <PasswordBox
+                                MaxWidth="320"
+                                HorizontalAlignment="Left"
+                                PlaceholderText="Password"
+                                Password="{x:Bind ViewModel.RestedXp.PasswordInput, Mode=TwoWay}" />
+                            <Button
+                                Height="32"
+                                HorizontalAlignment="Left"
+                                Content="Sign in"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Command="{x:Bind ViewModel.RestedXp.SignInCommand}" />
+                            <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.RestedXp.MfaVisibility, Mode=OneWay}">
+                                <TextBox
+                                    MaxWidth="320"
+                                    HorizontalAlignment="Left"
+                                    PlaceholderText="Authenticator code"
+                                    Text="{x:Bind ViewModel.RestedXp.MfaCode, Mode=TwoWay}" />
+                                <Button
+                                    Height="32"
+                                    HorizontalAlignment="Left"
+                                    Content="Verify"
+                                    Command="{x:Bind ViewModel.RestedXp.VerifyMfaCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.RestedXp.SignedInVisibility, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock
+                                    Text="{x:Bind ViewModel.RestedXp.SignedInAsText, Mode=OneWay}"
+                                    VerticalAlignment="Center"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <HyperlinkButton
+                                    Content="Sign out"
+                                    Padding="4,0"
+                                    Command="{x:Bind ViewModel.RestedXp.SignOutCommand}" />
+                            </StackPanel>
+                            <ItemsControl
+                                ItemsSource="{x:Bind ViewModel.RestedXp.Guides}"
+                                ItemTemplate="{StaticResource RestedXpInstallTemplate}" />
+                        </StackPanel>
+
+                        <TextBlock
+                            Text="{x:Bind ViewModel.RestedXp.ErrorMessage, Mode=OneWay}"
+                            TextWrapping="Wrap"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            Visibility="{x:Bind ViewModel.RestedXp.ErrorVisibility, Mode=OneWay}" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 

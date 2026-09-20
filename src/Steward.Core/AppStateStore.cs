@@ -57,6 +57,8 @@ public sealed class AppStateStore
         Installs = new Dictionary<string, InstalledAddonRecord>(state.Installs ?? [], StringComparer.OrdinalIgnoreCase),
         AddedInstalls = state.AddedInstalls ?? [],
         HiddenAddons = state.HiddenAddons ?? [],
+        RestedXpGuides = new Dictionary<string, RestedXpGuideRecord>(state.RestedXpGuides ?? [], StringComparer.OrdinalIgnoreCase),
+        RestedXpGuideChoice = new Dictionary<string, string>(state.RestedXpGuideChoice ?? [], StringComparer.OrdinalIgnoreCase),
     };
 
     internal static AppState SeedLegacyChannel(AppState state, IReadOnlyList<string> addonIds)

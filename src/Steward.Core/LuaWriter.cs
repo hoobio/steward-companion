@@ -12,6 +12,13 @@ public static class LuaWriter
         return builder.ToString();
     }
 
+    public static string SerializeString(string text)
+    {
+        var builder = new StringBuilder();
+        WriteString(builder, text);
+        return builder.ToString();
+    }
+
     private static void WriteValue(StringBuilder builder, LuaValue value, int depth)
     {
         switch (value.Kind)
