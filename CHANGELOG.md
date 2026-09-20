@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.8.0](https://github.com/hoobio/steward-companion/compare/v0.7.3...v0.8.0) (2026-09-20)
+
+
+### Features
+
+* ✨ add the Guides page and the RestedXP sign-in dialog ([7da86a1](https://github.com/hoobio/steward-companion/commit/7da86a1cc8b8642daeec02457c8fb1adbf9e2331))
+* ✨ clear the /reload hint once a SavedVariables write shows the client reloaded after the update ([6acb00a](https://github.com/hoobio/steward-companion/commit/6acb00a432edb47daaa8fbdd168cc519268dc3e6))
+* ✨ confirm guide imports from the StewardGuides saved variable ([e58ca45](https://github.com/hoobio/steward-companion/commit/e58ca45fca9d39fa78eeab24adbe04ef1a9a2d15))
+* ✨ explain a guide row gated by client with a tooltip and link the release checklist ([3b0bea7](https://github.com/hoobio/steward-companion/commit/3b0bea74b0735e32a945db07e357c30c730ab225))
+* ✨ keep purchased RestedXP guides current in game ([03e9810](https://github.com/hoobio/steward-companion/commit/03e981048fb175d1ae9296583b8760deec0bbab4))
+* ✨ offer start with Windows from the installer, on by default ([02f9310](https://github.com/hoobio/steward-companion/commit/02f93104a1cff21b7cb8f3f2f6cb5633e80d7cf4))
+* ✨ pick the app's own update channel and hide a single-channel addon picker ([37d07fc](https://github.com/hoobio/steward-companion/commit/37d07fc1e6522a94b2474b2c95f161a4329efee7))
+* ✨ ship purchased guides through a generated StewardGuides addon and keep several per install ([9ddb1a3](https://github.com/hoobio/steward-companion/commit/9ddb1a3c698d6f1fb5f92a03927654c1a4dfce22))
+
+
+### Bug Fixes
+
+* 🐛 harden the RestedXP pass against overlaps, bad bodies and the unreachable-API retry ([c0ae56f](https://github.com/hoobio/steward-companion/commit/c0ae56fd5b994f71eff075fe852de7cc4cbe7eaa))
+* 🐛 renew the RestedXP session near the refresh token's end and refresh on demand before a download ([958035a](https://github.com/hoobio/steward-companion/commit/958035ad034ae4717def1c92f0546dfe59fb77cd))
+* 💬 rewrite user-facing copy without agency verbs and filler ([0f8e0f9](https://github.com/hoobio/steward-companion/commit/0f8e0f98aaa040f639ec655189f5a4de8848bd86))
+
+
+### Performance Improvements
+
+* ⚡ poll the addon manifests every 5 minutes and hold GitHub calls to one per repo per 15 ([cd4a39a](https://github.com/hoobio/steward-companion/commit/cd4a39aac3f2cf6f05dc24c97f5e43243c840bcb))
+
 ## [0.7.3](https://github.com/hoobio/steward-companion/compare/v0.7.2...v0.7.3) (2026-09-20)
 
 
