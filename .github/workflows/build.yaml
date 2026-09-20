@@ -99,16 +99,23 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           New-Item -ItemType Directory -Path $env:PUBLISH_DIR -Force | Out-Null
-          dotnet publish $env:PROJECT_PATH `
-            -c Release `
-            -p:Platform=x64 `
-            -p:RuntimeIdentifier=win-x64 `
-            -p:WindowsPackageType=None `
-            -p:WindowsAppSDKSelfContained=true `
-            -p:SelfContained=true `
-            -p:GitHubRelease=true `
-            -p:Version=$env:VERSION `
-            -o $env:PUBLISH_DIR
+          # NuGet's restore can fail with a bare MSB4181 and no cause (NuGet/Home#13460), so the publish gets three attempts.
+          $attempt = 0
+          do {
+            $attempt++
+            dotnet publish $env:PROJECT_PATH `
+              -c Release `
+              -p:Platform=x64 `
+              -p:RuntimeIdentifier=win-x64 `
+              -p:WindowsPackageType=None `
+              -p:WindowsAppSDKSelfContained=true `
+              -p:SelfContained=true `
+              -p:GitHubRelease=true `
+              -p:Version=$env:VERSION `
+              -o $env:PUBLISH_DIR
+            if ($LASTEXITCODE -eq 0) { break }
+            Write-Host "dotnet publish failed (exit $LASTEXITCODE), attempt $attempt of 3"
+          } while ($attempt -lt 3)
           if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)" }
           if (-not (Test-Path "$env:PUBLISH_DIR\Steward.App.exe")) {
             throw "Expected Steward.App.exe in publish output"

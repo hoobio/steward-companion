@@ -60,7 +60,7 @@ Commits go straight to `main` in the one working tree at `D:\steward-companion` 
 
 `Steward.slnx` defines no `Release|x64` solution configuration, so a solution-level `dotnet build` must not pass `-p:Platform=x64`; the CI workflow builds the solution without it and passes `-p:Platform=x64` only on the project-level `dotnet publish` of `Steward.App.csproj`.
 
-`global.json` sets `test.runner` to `Microsoft.Testing.Platform`. On .NET SDK 10.0.203, `dotnet test <directory>` fails under that runner; the working form is `dotnet test --project <csproj>`, which is what the CI workflow uses.
+`global.json` pins the SDK to `10.0.203` with `rollForward: disable`, because `DOTNET_SDK_VERSION` in the workflow only says what `setup-dotnet` installs and the runner image ships newer SDKs that `dotnet` would otherwise pick; it also sets `test.runner` to `Microsoft.Testing.Platform`. The publish step retries up to three times, since NuGet restore on the runner can fail with a bare MSB4181 "RestoreTask returned false but did not log an error" and no cause (NuGet/Home#13460), as it did twice on 20 Sep 2026. On .NET SDK 10.0.203, `dotnet test <directory>` fails under that runner; the working form is `dotnet test --project <csproj>`, which is what the CI workflow uses.
 
 `Microsoft.Win32.Registry` is already in-framework on `net10.0-windows`; adding it as an explicit `PackageReference` fails restore with `NU1510`. `WowInstalls.cs` uses `Microsoft.Win32.Registry` directly, and neither `.csproj` in this repo references the package.
 
