@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/hoobio/steward-companion/compare/v0.8.1...v0.8.2) (2026-09-20)
+
+
+### Bug Fixes
+
+* 🐛 confirm a guide import as soon as the game writes the StewardGuides saved variable ([0140851](https://github.com/hoobio/steward-companion/commit/0140851dc18463a1df47e958de0818ba52804b19))
+
 ## [0.8.1](https://github.com/hoobio/steward-companion/compare/v0.8.0...v0.8.1) (2026-09-20)
 
 
