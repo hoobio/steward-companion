@@ -67,7 +67,11 @@ A note is normalised before it is matched: any line whose trimmed content is `Y`
 
 Writing is `C_GuildInfo.SetNote(guid, note, isPublic)` (`GuildInfoDocumentation.lua:389-400`, `HasRestrictions = true`), with `isPublic = false` for the officer note, gated on `C_GuildInfo.CanEditOfficerNote()`. Both notes cap at 31 characters (`maxLetters` on the `SET_GUILD_COMMUNITIY_NOTE` dialog, `GameDialogDefs.lua:1999`), so a roster name longer than that cannot be stored and `/janny` says so rather than truncating.
 
-The first iteration of `/janny` is dry run. It shows the write it would make and writes nothing, so the matching can be judged against the real guild before it touches guild data.
+`/janny` shipped as a dry run so the matching could be judged against the real guild first, and writing was turned on once it had been. Its `Link` button writes the roster person's label to both notes, one deliberate click per character. There is no bulk link and there should not be one: the suggestion is a fuzzy match, and a bulk write would commit a column of possibly-wrong names in a single action.
+
+`ginv` records a pending link when an officer invites someone, and writes the same two notes when that character actually joins. It cannot write at invite time, because `C_GuildInfo.SetNote` takes the guid of a current guild member and an invitee is not one yet and may never accept. The join is detected from the `ERR_GUILD_JOIN_S` system message, which means it is lost under chat lockdown or across a client restart; that path is a convenience and `/janny` remains the mechanism.
+
+Both writes are gated separately on `CanEditPublicNote()` and `C_GuildInfo.CanEditOfficerNote()`, which are different permissions, and a label longer than the 31-character note cap is refused for that character rather than truncated.
 
 A Discord snowflake as the stored value was rejected: 18 to 19 of the 31 characters, unreadable to the humans who also read the column, and the stability it buys is what a re-run of `/janny` gives more cheaply. Moving the link into gigagrug proper, as a characters table keyed on `user_id`, is the right long-term home and is deferred until the note matching has proved itself in use.
 
