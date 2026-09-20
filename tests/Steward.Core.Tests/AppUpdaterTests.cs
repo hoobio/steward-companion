@@ -56,6 +56,19 @@ public sealed class AppUpdaterTests
         Assert.Null(release);
     }
 
+    [Theory]
+    [InlineData(0, 8, 0, "0.8.0-pre-release.83.e58ca45")]
+    [InlineData(0, 8, 1, "0.8.1-pre-release.88.466c7c3")]
+    public async Task CheckAsync_ReleaseChannel_OnPreReleaseBuild_ReturnsTheLatestRelease(int major, int minor, int build, string installedVersion)
+    {
+        var updater = UpdaterFor(ReleaseBody("v0.8.0", "Steward-0.8.0-x64.msi"));
+
+        var release = await updater.CheckAsync(new Version(major, minor, build, 0), installedVersion, "release", CancellationToken.None);
+
+        Assert.NotNull(release);
+        Assert.Equal("v0.8.0", release.Version);
+    }
+
     [Fact]
     public async Task CheckAsync_NoMsiAsset_ReturnsNull()
     {

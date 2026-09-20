@@ -31,10 +31,9 @@
 
     <SummaryInformation Description="Steward installer" />
 
-    <!-- A pre-release MSI carries the same numeric version as the release that follows it. -->
+    <!-- A pre-release MSI carries the same numeric version as the release that follows it, and switching back to the release channel installs an older number. -->
     <MajorUpgrade
-        DowngradeErrorMessage="A newer version of Steward is already installed."
-        AllowSameVersionUpgrades="yes"
+        AllowDowngrades="yes"
         Schedule="afterInstallInitialize" />
 
     <Media Id="1" Cabinet="Steward.cab" EmbedCab="yes" CompressionLevel="high" />

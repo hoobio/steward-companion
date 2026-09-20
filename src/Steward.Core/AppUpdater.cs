@@ -15,11 +15,18 @@ public sealed class AppUpdater(HttpClient httpClient, string repo)
         if (channel == "release")
         {
             var stable = await GitHubReleases.GetLatestAsync(httpClient, repo, ".msi", "release", cancellationToken).ConfigureAwait(false);
-            return stable is not null
-                && Version.TryParse(stable.Version.TrimStart('v', 'V'), out var available)
-                && available > installed
-                ? stable
-                : null;
+            if (stable is null)
+            {
+                return null;
+            }
+
+            // A pre-release build moves to the latest release whatever its number, since switching channels means leaving pre-release builds behind; the MSI allows the downgrade.
+            if (installedVersion.Contains('-', StringComparison.Ordinal))
+            {
+                return string.Equals(stable.Version.TrimStart('v', 'V'), installedVersion, StringComparison.OrdinalIgnoreCase) ? null : stable;
+            }
+
+            return Version.TryParse(stable.Version.TrimStart('v', 'V'), out var available) && available > installed ? stable : null;
         }
 
         if (channel != "pre-release")
@@ -49,7 +56,7 @@ public sealed class AppUpdater(HttpClient httpClient, string repo)
         }
 
         var numeric = tag.Split('-', 2)[0];
-        // The MSI refuses a downgrade, so a prerelease cut from an older numeric version is never offered.
+        // A prerelease cut towards an older number than the running build is stale, never an update.
         return Version.TryParse(numeric, out var newestNumeric) && newestNumeric >= installed ? newest : null;
     }
 
