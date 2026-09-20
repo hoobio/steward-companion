@@ -37,7 +37,7 @@ public static class GitHubReleases
         return new AddonRelease(release.TagName, asset.BrowserDownloadUrl, asset.Digest[digestPrefix.Length..], asset.Size, release.PublishedAt);
     }
 
-    internal static void ResetCache() => Cache.Clear();
+    public static void ResetCache() => Cache.Clear();
 
     private static async Task<GitHubRelease[]> ListAsync(HttpClient httpClient, string repo, CancellationToken cancellationToken)
     {
