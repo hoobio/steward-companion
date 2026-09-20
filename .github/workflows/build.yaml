@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: "${{ github.workflow }}-${{ github.ref }}-${{ startsWith(github.event.head_commit.message, 'chore(main): release') && 'release' || 'build' }}"
+  cancel-in-progress: true
 
 env:
   DOTNET_SDK_VERSION: "10.0.203"
