@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Steward.Core;
 
-public sealed record ManagedAddon(string Id, string FolderName, string ManifestBaseUrl);
+public sealed record ManagedAddon(string Id, string FolderName, string ManifestBaseUrl, bool AutoInstall = false);
 
 public sealed record AddonRelease(
     [property: JsonPropertyName("version")] string Version,

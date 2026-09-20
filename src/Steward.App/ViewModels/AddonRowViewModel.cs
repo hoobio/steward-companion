@@ -123,7 +123,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     public Visibility ReloadHintVisibility => When(NeedsReload);
 
-    public bool CanAutoApply => State == AddonRowState.UpdateAvailable && IsAdmin;
+    public bool CanAutoApply => IsAdmin && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
 
     public bool HasUpdateAvailable =>
         _status?.Release is { } release && Channel is not null && TocFile.HasUpdate(release.Version, InstalledVersion);
