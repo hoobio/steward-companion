@@ -102,7 +102,9 @@ Checking runs at startup and on a 1-minute `DispatcherQueueTimer` in `MainViewMo
 ## Related repos
 
 - `hoobio/HoobiScripts` (private, local clone `D:\HoobiScripts`): the quality-of-life addon. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
-- `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. It has an `Addons` entry here (`steward`, `https://addon.hoobi.io/steward/`) and shows "No releases yet" until its first manifest is published through `hoobio/addons`.
+- `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. It has an `Addons` entry here (`steward`, `https://addon.hoobi.io/steward/`).
+
+Both addon repos work on a `development` branch (the local clones sit on it), fast-forward `main` for a pre-release and merge the release-please PR for a release; their version history was reset to 0.0.0 on 2026-09-20, so neither has a `release` build until a `feat` lands on `main` and its release PR is merged.
 - `RestedXP/RXPGuides` (public GitHub): the levelling guide addon, managed from its GitHub releases as described under Managed addons.
 - `hoobio/addons` (private, local clone `D:\addons`): builds the channel manifests and zips this app reads, and publishes them to the Static Web App.
 
