@@ -21,6 +21,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         nameof(AddonRowViewModel.AvailableVersion),
         nameof(AddonRowViewModel.Channel),
         nameof(AddonRowViewModel.HasFailed),
+        nameof(AddonRowViewModel.IsHidden),
     ];
 
     private readonly Action<WowInstallViewModel> _remove;
@@ -88,7 +89,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public Visibility RunningDotVisibility => IsClientRunning ? Visibility.Visible : Visibility.Collapsed;
 
-    public int UpdateCount => AddonRows.Count(row => row.HasUpdateAvailable);
+    public int UpdateCount => AddonRows.Count(row => !row.IsHidden && row.HasUpdateAvailable);
 
     public string CountPillText => UpdateCount switch
     {
@@ -146,6 +147,22 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         foreach (var row in AddonRows)
         {
             row.IsAdmin = isAdmin;
+        }
+    }
+
+    public void SetShowHidden(bool showHidden)
+    {
+        foreach (var row in AddonRows)
+        {
+            row.ShowHidden = showHidden;
+        }
+    }
+
+    public void SyncHidden(IReadOnlySet<string> hiddenAddonIds)
+    {
+        foreach (var row in AddonRows)
+        {
+            row.IsHidden = hiddenAddonIds.Contains(row.AddonId);
         }
     }
 

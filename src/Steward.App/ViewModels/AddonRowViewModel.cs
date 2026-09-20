@@ -48,6 +48,9 @@ public sealed partial class AddonRowViewModel : ObservableObject
         nameof(NoticeVisibility),
         nameof(OverflowVisibility),
         nameof(CanAutoApply),
+        nameof(HideLabel),
+        nameof(RowVisibility),
+        nameof(HiddenPillVisibility),
     ];
 
     private readonly WowInstall _install;
@@ -79,6 +82,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         _changeChannelRequested = changeChannelRequested;
         _afterStewardInstalled = afterStewardInstalled;
         Icon = new BitmapImage(new Uri(new Uri(addon.ManifestBaseUrl), "icon.png"));
+        IsHidden = stateStore.Load().HiddenAddons.Contains(addon.Id, StringComparer.OrdinalIgnoreCase);
         RefreshInstalledVersion();
     }
 
@@ -119,11 +123,17 @@ public sealed partial class AddonRowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ReloadHintVisibility))]
     public partial bool NeedsReload { get; set; }
 
+    [ObservableProperty]
+    public partial bool IsHidden { get; set; }
+
+    [ObservableProperty]
+    public partial bool ShowHidden { get; set; }
+
     public bool IsClientRunning { get; set; }
 
     public Visibility ReloadHintVisibility => When(NeedsReload);
 
-    public bool CanAutoApply => IsAdmin && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
+    public bool CanAutoApply => !IsHidden && IsAdmin && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
 
     public bool HasUpdateAvailable =>
         _status?.Release is { } release && Channel is not null && TocFile.HasUpdate(release.Version, InstalledVersion);
@@ -172,16 +182,26 @@ public sealed partial class AddonRowViewModel : ObservableObject
     public Visibility ChannelPillVisibility => When(Channel is not null);
 
     public Visibility ActionVisibility =>
-        When(IsAdmin && State is AddonRowState.UpdateAvailable or AddonRowState.Missing);
+        When(!IsHidden && IsAdmin && State is AddonRowState.UpdateAvailable or AddonRowState.Missing);
 
-    public Visibility UpToDateVisibility => When(State == AddonRowState.Current);
+    public Visibility UpToDateVisibility => When(!IsHidden && State == AddonRowState.Current);
 
-    public Visibility MemberPillVisibility => When(!IsAdmin && State == AddonRowState.UpdateAvailable);
+    public Visibility MemberPillVisibility => When(!IsHidden && !IsAdmin && State == AddonRowState.UpdateAvailable);
 
     public Visibility OverflowVisibility => When(State != AddonRowState.NoReleases);
 
     public Visibility NoticeVisibility =>
         When(State != AddonRowState.Failed && !string.IsNullOrEmpty(StatusMessage));
+
+    public bool CanHide => !_addon.AutoInstall;
+
+    public Visibility HideVisibility => When(CanHide);
+
+    public string HideLabel => IsHidden ? "Show addon" : "Hide addon";
+
+    public Visibility RowVisibility => When(!IsHidden || ShowHidden);
+
+    public Visibility HiddenPillVisibility => When(IsHidden);
 
     private bool RecordedChannelDiffers =>
         Record is { } record && Channel is not null && !string.Equals(record.Channel, Channel, StringComparison.OrdinalIgnoreCase);
@@ -232,6 +252,10 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     partial void OnStatusMessageChanged(string? value) => NotifyDerived();
 
+    partial void OnIsHiddenChanged(bool value) => NotifyDerived();
+
+    partial void OnShowHiddenChanged(bool value) => NotifyDerived();
+
     private void NotifyDerived()
     {
         foreach (var name in DerivedNames)
@@ -243,7 +267,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         CopySha256Command.NotifyCanExecuteChanged();
     }
 
-    private bool CanUpdate => IsAdmin && HasUpdateAvailable;
+    private bool CanUpdate => !IsHidden && IsAdmin && HasUpdateAvailable;
 
     [RelayCommand(CanExecute = nameof(CanUpdate))]
     private Task UpdateAsync() => RunInstallAsync();
@@ -325,4 +349,21 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     [RelayCommand]
     private void ChangeChannel() => _changeChannelRequested();
+
+    [RelayCommand]
+    private void ToggleHidden()
+    {
+        var state = _stateStore.Load();
+        if (IsHidden)
+        {
+            state.HiddenAddons.RemoveAll(id => string.Equals(id, AddonId, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            state.HiddenAddons.Add(AddonId);
+        }
+
+        _stateStore.Save(state);
+        IsHidden = !IsHidden;
+    }
 }

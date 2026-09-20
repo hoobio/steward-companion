@@ -58,7 +58,8 @@ public sealed record AppState(
     [property: JsonPropertyName("installs")] Dictionary<string, InstalledAddonRecord> Installs,
     [property: JsonPropertyName("session_token")] string? EncryptedSessionToken = null,
     [property: JsonPropertyName("added_installs")] List<string> AddedInstalls = null!,
-    [property: JsonPropertyName("keep_in_tray")] bool KeepInTray = true)
+    [property: JsonPropertyName("keep_in_tray")] bool KeepInTray = true,
+    [property: JsonPropertyName("hidden_addons")] List<string> HiddenAddons = null!)
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

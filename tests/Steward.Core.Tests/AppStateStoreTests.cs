@@ -188,6 +188,27 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_MissingHiddenAddons_IsEmptyList()
+    {
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Empty(state.HiddenAddons);
+    }
+
+    [Fact]
+    public void Save_HiddenAddons_RoundTrips()
+    {
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+        store.Save(new AppState([], [], null, [], true, ["restedxp"]));
+
+        var state = store.Load();
+
+        Assert.Equal(["restedxp"], state.HiddenAddons);
+    }
+
+    [Fact]
     public void Load_CorruptFile_ReturnsEmptyState()
     {
         File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"be""");

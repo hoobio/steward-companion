@@ -41,10 +41,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(BannerDetail),
         nameof(BannerVisibility),
         nameof(UpdateAllVisibility),
-        nameof(CheckAgainVisibility),
         nameof(NoInstallsVisibility),
         nameof(IsAnyRowBusy),
         nameof(InstallsDescription),
+        nameof(HiddenToggleVisibility),
     ];
 
     private readonly ISessionService _sessionService;
@@ -160,6 +160,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool StartWithWindows { get; set; }
 
     [ObservableProperty]
+    public partial bool ShowHiddenAddons { get; set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RoleLabel))]
     public partial string? Role { get; set; }
 
@@ -175,7 +178,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public int InstallCount => Installs.Count;
 
-    public int AddonCount => Installs.Sum(install => install.AddonRows.Count);
+    public int AddonCount => Installs.Sum(install => install.AddonRows.Count(row => !row.IsHidden));
 
     public int UpdateCount => Installs.Sum(install => install.UpdateCount);
 
@@ -203,7 +206,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             var first = Installs
                 .SelectMany(install => install.AddonRows)
-                .FirstOrDefault(row => row.HasUpdateAvailable);
+                .FirstOrDefault(row => !row.IsHidden && row.HasUpdateAvailable);
             if (first is null)
             {
                 return string.Empty;
@@ -218,9 +221,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility UpdateAllVisibility => When(IsAuthorized && UpdateCount > 0);
 
-    public Visibility CheckAgainVisibility => When(UpdateCount == 0);
-
     public Visibility NoInstallsVisibility => When(Installs.Count == 0 && !IsBusy);
+
+    public Visibility HiddenToggleVisibility => When(Installs.Any(install => install.AddonRows.Any(row => row.IsHidden)));
 
     public bool StatusMessageIsOpen => !string.IsNullOrEmpty(StatusMessage);
 
@@ -258,7 +261,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ => "Member",
     };
 
-    public string VersionLabel { get; } = $"Steward {typeof(App).Assembly.GetName().Version?.ToString(3)}";
+    public string VersionLabel { get; } =
+        $"Steward {typeof(App).Assembly.GetName().Version?.ToString(3)}{(App.IsGitHubRelease ? "" : " (Development)")}";
+
+    public static string WindowTitle => App.IsGitHubRelease ? "Steward" : "Steward (Development)";
+
+    public bool CanStartWithWindows { get; } = App.IsGitHubRelease;
+
+    public string StartWithWindowsDescription { get; } = App.IsGitHubRelease
+        ? "Launches Steward to the tray when you sign in"
+        : "Only available in a released build";
 
     public string InstallsDescription => $"{InstallCount} found, read from .flavor.info and .build.info";
 
@@ -610,12 +622,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnStartWithWindowsChanged(bool value)
     {
-        if (_isLoadingState)
+        if (_isLoadingState || !App.IsGitHubRelease)
         {
             return;
         }
 
         StartupRegistration.Set(value);
+    }
+
+    partial void OnShowHiddenAddonsChanged(bool value)
+    {
+        foreach (var install in Installs)
+        {
+            install.SetShowHidden(value);
+        }
     }
 
     partial void OnAvatarUriChanged(Uri? value) => _avatarImage = value is null ? null : new BitmapImage(value);
@@ -648,12 +668,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsAddedByUser = isAddedByUser,
         };
         viewModel.SetIsAdmin(IsAuthorized);
+        viewModel.SetShowHidden(ShowHiddenAddons);
         viewModel.RowsChanged += OnInstallRowsChanged;
         Installs.Add(viewModel);
         return viewModel;
     }
 
-    private void OnInstallRowsChanged(object? sender, EventArgs e) => RecomputeSummary();
+    private void OnInstallRowsChanged(object? sender, EventArgs e)
+    {
+        var hidden = _stateStore.Load().HiddenAddons.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var install in Installs)
+        {
+            install.SyncHidden(hidden);
+        }
+
+        RecomputeSummary();
+    }
 
     private void OnClientExited(WowInstallViewModel install) => _ = NotifySavedVariablesChangedAsync();
 

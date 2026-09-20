@@ -56,6 +56,7 @@ public sealed class AppStateStore
         Channels = new Dictionary<string, string>(state.Channels ?? [], StringComparer.OrdinalIgnoreCase),
         Installs = new Dictionary<string, InstalledAddonRecord>(state.Installs ?? [], StringComparer.OrdinalIgnoreCase),
         AddedInstalls = state.AddedInstalls ?? [],
+        HiddenAddons = state.HiddenAddons ?? [],
     };
 
     internal static AppState SeedLegacyChannel(AppState state, IReadOnlyList<string> addonIds)

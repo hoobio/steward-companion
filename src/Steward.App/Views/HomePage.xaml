@@ -14,7 +14,8 @@
                 BorderBrush="{ThemeResource RowHairlineBrush}"
                 Padding="{StaticResource CardRowPadding}"
                 MinHeight="{StaticResource CardRowMinHeight}"
-                ColumnSpacing="12">
+                ColumnSpacing="12"
+                Visibility="{x:Bind RowVisibility, Mode=OneWay}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="30" />
                     <ColumnDefinition Width="*" />
@@ -179,6 +180,14 @@
                         Visibility="{x:Bind MemberPillVisibility, Mode=OneWay}">
                         <TextBlock Text="Update available" FontSize="12" />
                     </Border>
+                    <Border
+                        VerticalAlignment="Center"
+                        CornerRadius="10"
+                        Padding="8,2"
+                        Background="{ThemeResource ChipBrush}"
+                        Visibility="{x:Bind HiddenPillVisibility, Mode=OneWay}">
+                        <TextBlock Text="Hidden" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Border>
                     <Button
                         Width="32"
                         Height="32"
@@ -192,6 +201,8 @@
                                 <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" />
                                 <MenuFlyoutItem Text="Reinstall" Command="{x:Bind ReinstallCommand}" />
                                 <MenuFlyoutItem Text="Copy SHA-256" Command="{x:Bind CopySha256Command}" />
+                                <MenuFlyoutSeparator Visibility="{x:Bind HideVisibility}" />
+                                <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" Visibility="{x:Bind HideVisibility}" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
@@ -312,6 +323,11 @@
                             ToolTipService.ToolTip="Check now">
                             <FontIcon Glyph="&#xE72C;" FontSize="14" />
                         </Button>
+                        <ToggleButton
+                            Height="32"
+                            Content="Hidden addons"
+                            IsChecked="{x:Bind ViewModel.ShowHiddenAddons, Mode=TwoWay}"
+                            Visibility="{x:Bind ViewModel.HiddenToggleVisibility, Mode=OneWay}" />
                         <Button Height="32" Content="Add install" Command="{x:Bind ViewModel.BrowseCommand}" />
                     </StackPanel>
                 </Grid>
@@ -367,11 +383,6 @@
                                 Style="{StaticResource AccentButtonStyle}"
                                 Command="{x:Bind ViewModel.UpdateAllCommand}"
                                 Visibility="{x:Bind ViewModel.UpdateAllVisibility, Mode=OneWay}" />
-                            <Button
-                                Height="32"
-                                Content="Check again"
-                                Command="{x:Bind ViewModel.RefreshCommand}"
-                                Visibility="{x:Bind ViewModel.CheckAgainVisibility, Mode=OneWay}" />
                         </StackPanel>
                     </Grid>
                 </Border>
