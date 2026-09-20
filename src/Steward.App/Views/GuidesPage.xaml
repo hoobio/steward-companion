@@ -125,7 +125,7 @@
 
                 <StackPanel>
                     <TextBlock
-                        Text="Keep in game"
+                        Text="KEEP IN GAME"
                         Margin="16,8,0,7"
                         FontSize="11"
                         FontWeight="SemiBold"

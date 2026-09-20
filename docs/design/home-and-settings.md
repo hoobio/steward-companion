@@ -12,7 +12,7 @@ Fluent supplies the materials, controls and motion. The guild panel (`@hoobi/des
 
 | Role | Hex | Maps to |
 | --- | --- | --- |
-| Ground | `#1f2430` | window, behind Mica |
+| Ground | `#1f2430` | window, row hairlines, accent button text |
 | Surface | `#232834` | install cards, settings cards |
 | Raised | `#2b3140` | summary banner, hover states |
 | Chip | `#1a1f2b` | version pills, combo/segment track |
@@ -26,16 +26,37 @@ Fluent supplies the materials, controls and motion. The guild panel (`@hoobi/des
 | Caution | `#ffd580` | `SystemFillColorCaution` |
 | Critical | `#f28779` | `SystemFillColorCritical` |
 
-Override the accent and the three semantic fills in `App.xaml`, and set `RequestedTheme="Dark"` on the `Application`. Steward is dark only, matching the guild panel, which ships no light variant. Leave every other brush on stock Fluent so Mica, acrylic flyouts and high contrast keep working. Spacing follows a 4px scale; page gutters are 26px and cards are 10px apart.
+The palette is mapped onto the Fluent brushes in `App.xaml`, with `RequestedTheme="Dark"` on the `Application`. Steward is dark only, matching the guild panel, which ships no light variant. Spacing follows a 4px scale; page gutters are 26px and cards are 10px apart.
+
+Mica is off and Ground is painted solid on the window root, with the two corner glows over it: an accent `#409fff` radial at 10% from the top-left over a 1.2 by 0.9 radius fading out at 0.58, and a lavender `#d4bfff` radial at 7% from the top-right over 1.0 by 0.8 fading out at 0.62. The `NavigationView` pane and content are transparent so the glow runs unbroken across the rail and the page, and the pages carry no background of their own.
+
+Brush mapping, all in `App.xaml`:
+
+| Fluent brush | Value |
+| --- | --- |
+| `SolidBackgroundFillColorBase` | Ground |
+| `SolidBackgroundFillColorSecondary`, `LayerFillColorDefault`, `CardBackgroundFillColorDefault`, `ExpanderHeaderBackground`, `ExpanderContentBackground` | Surface |
+| `SolidBackgroundFillColorTertiary`, `LayerFillColorAlt`, `ContentDialogBackground` | Raised |
+| `ControlFillColorDefault`, `ButtonBackground` | Surface |
+| `ControlFillColorSecondary`, `ButtonBackgroundPointerOver` | Raised |
+| `ControlFillColorTertiary`, `ControlFillColorDisabled`, `ComboBoxBackground`, `SegmentedBackground`, radio and checkbox fills | Chip |
+| `ControlStrokeColorDefault`, `ControlStrokeColorSecondary`, `ControlElevationBorderBrush`, `ButtonBorderBrush` | Line |
+| `AccentButtonBackground` | Accent, with Ground text at SemiBold and no contrasting border |
+| `AccentButtonBackgroundPointerOver` | Accent hover |
+| `TextFillColorPrimary` / `Secondary` / `Tertiary` | Text / Text dim / Text mute |
+
+Buttons are 32px tall with a 1px Line border, 4px radius, 13px text (`ControlContentThemeFontSize`) and 13px horizontal padding (`ButtonPadding`). Text inputs sit on Chip in every state with a 1px border, Line at rest and Accent when focused (`TextControlBorderThemeThicknessFocused` is 1, so there is no accent underline); their brushes live in `RestedXpSignInDialog.xaml` rather than `App.xaml`, because the `TextControl*` keys resolve inside `XamlControlsResources` before an application-level override is reached.
+
+Five values outside the palette, all for disabled states, taken from the frames: `#4e5768` disabled text, `#272d3a` disabled border, `#2f5a85` disabled accent fill, `#8fb8dd` disabled accent text, `#171c26` disabled input fill.
 
 Segoe UI Variable for the interface, Cascadia Mono for versions, hashes and paths. Hanken Grotesk and DankMono stay on the web side, where a font file can be served.
 
 Surfaces are told apart by fill, not by borders:
 
-- Mica stays on the window. Page content sits directly on it with no wrapping panel.
+- Page content sits directly on the window ground with no wrapping panel.
 - Install cards and settings cards use `LayerFillColorDefault` at 8px with no stroke.
 - Addon rows inside a card are divided by a 1px hairline of the ground colour.
-- A stateful row or banner tints its whole surface at ~13% of the semantic colour instead of gaining a border.
+- A stateful row or banner tints its whole surface at ~13% of the semantic colour instead of gaining a border. An `InfoBar` is the exception and keeps its stock severity fill: the severity background is applied by a `VisualState` setter inside the WinUI template, which no application, page or control-level resource override reaches.
 - Borders remain on interactive controls: buttons, combo boxes, the segmented channel picker, text inputs.
 
 ## Channels
@@ -194,7 +215,7 @@ Removing an install is new. It drops the install from the list and its records f
 
 | Element | Control | Note |
 | --- | --- | --- |
-| Window chrome | `Window` + `MicaBackdrop` | Already set. Add `ExtendsContentIntoTitleBar` and `SetTitleBar`. |
+| Window chrome | `Window`, no backdrop | Ground painted solid, with `ExtendsContentIntoTitleBar` and `SetTitleBar`. |
 | Page switching | `Frame` | Two pages. Back arrow swaps in for the app mark on Settings. |
 | Account chip | `DropDownButton` + `PersonPicture` | Flyout gets acrylic by default. |
 | Summary banner | `Border` on `LayerFillColorDefault` | Tone tint chosen by a converter on the update count. |

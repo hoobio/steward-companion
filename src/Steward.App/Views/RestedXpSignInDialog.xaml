@@ -9,6 +9,30 @@
         <x:Double x:Key="ContentDialogMinWidth">440</x:Double>
         <x:Double x:Key="ContentDialogMaxWidth">440</x:Double>
         <Thickness x:Key="ContentDialogPadding">0</Thickness>
+        <SolidColorBrush x:Key="TextControlBackground" Color="#FF1A1F2B" />
+        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FF1A1F2B" />
+        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FF1A1F2B" />
+        <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="#FF171C26" />
+        <SolidColorBrush x:Key="TextControlBorderBrush" Color="#FF343B4C" />
+        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#FF343B4C" />
+        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#FF409FFF" />
+        <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="#FF272D3A" />
+        <SolidColorBrush x:Key="TextControlElevationBorderBrush" Color="#FF343B4C" />
+        <SolidColorBrush x:Key="TextControlElevationBorderFocusedBrush" Color="#FF409FFF" />
+        <Thickness x:Key="TextControlBorderThemeThicknessFocused">1</Thickness>
+        <SolidColorBrush x:Key="TextControlForeground" Color="#FFCBCCC6" />
+        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FFCBCCC6" />
+        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FFCBCCC6" />
+        <SolidColorBrush x:Key="TextControlForegroundDisabled" Color="#FF4E5768" />
+        <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#FF707A8C" />
+        <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#FF707A8C" />
+        <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#FF707A8C" />
+        <SolidColorBrush x:Key="TextControlPlaceholderForegroundDisabled" Color="#FF4E5768" />
+        <SolidColorBrush x:Key="TextControlHeaderForeground" Color="#FF8A9199" />
+        <SolidColorBrush x:Key="TextControlHeaderForegroundDisabled" Color="#FF4E5768" />
+        <SolidColorBrush x:Key="AccentButtonBackgroundDisabled" Color="#FF2F5A85" />
+        <SolidColorBrush x:Key="AccentButtonBorderBrushDisabled" Color="#FF2F5A85" />
+        <SolidColorBrush x:Key="AccentButtonForegroundDisabled" Color="#FF8FB8DD" />
     </ContentDialog.Resources>
 
     <Grid>
@@ -35,11 +59,15 @@
                 <TextBox
                     Header="Username or email"
                     PlaceholderText="Username or email"
+                    FontSize="13.5"
+                    MinHeight="32"
                     IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
                     Text="{x:Bind ViewModel.UsernameInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <PasswordBox
                     Header="Password"
                     PlaceholderText="Password"
+                    FontSize="13.5"
+                    MinHeight="32"
                     IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
                     Password="{x:Bind ViewModel.PasswordInput, Mode=TwoWay}" />
             </StackPanel>
@@ -64,6 +92,10 @@
                         FontSize="17"
                         CharacterSpacing="120"
                         TextAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Padding="0,9,0,0"
+                        Loaded="OnCodeBoxLoaded"
                         InputScope="Number"
                         IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"
                         TextChanged="OnCodeChanged" />

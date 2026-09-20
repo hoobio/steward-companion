@@ -12,7 +12,6 @@ using Steward.App.ViewModels;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Steward.App.Views;
@@ -33,7 +32,6 @@ public sealed partial class MainWindow : Window
         Title = MainViewModel.WindowTitle;
         AppTitleBar.Title = MainViewModel.WindowTitle;
         TrayIcon.ToolTipText = MainViewModel.WindowTitle;
-        SystemBackdrop = new MicaBackdrop();
         ViewModel.OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         ViewModel.NavigateToSettings = () => Nav.SelectedItem = Nav.SettingsItem;
         ViewModel.NavigateToAddons = () => Nav.SelectedItem = AddonsItem;

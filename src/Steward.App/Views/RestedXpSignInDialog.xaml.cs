@@ -4,6 +4,7 @@ using Steward.App.ViewModels;
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace Steward.App.Views;
 
@@ -39,6 +40,40 @@ public sealed partial class RestedXpSignInDialog : ContentDialog
     }
 
     private static string Grouped(string digits) => digits.Length > 3 ? $"{digits[..3]} {digits[3..]}" : digits;
+
+    private void OnCodeBoxLoaded(object sender, RoutedEventArgs e)
+    {
+        if (FindDescendant((TextBox)sender, "DeleteButton") is not FrameworkElement deleteButton)
+        {
+            return;
+        }
+
+        deleteButton.Width = 0;
+        deleteButton.MinWidth = 0;
+        deleteButton.MaxWidth = 0;
+        deleteButton.Margin = new Thickness(0);
+        deleteButton.Opacity = 0;
+        deleteButton.IsHitTestVisible = false;
+    }
+
+    private static FrameworkElement? FindDescendant(DependencyObject root, string name)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is FrameworkElement element && element.Name == name)
+            {
+                return element;
+            }
+
+            if (FindDescendant(child, name) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
 
     private void OnCancelClick(object sender, RoutedEventArgs e) => Hide();
 
