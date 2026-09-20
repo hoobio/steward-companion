@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Net;
 using System.Security.Cryptography;
 
 namespace Steward.Core.Tests;
@@ -116,5 +117,46 @@ public sealed class AddonUpdaterTests : IDisposable
         AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName);
 
         Assert.False(Directory.Exists(existing));
+    }
+
+    private sealed class ZipBytesStubHandler(Uri expectedUri, byte[] zipBytes) : HttpMessageHandler
+    {
+        public Uri? RequestedUri { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestedUri = request.RequestUri;
+            if (request.RequestUri != expectedUri)
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(zipBytes),
+            });
+        }
+    }
+
+    [Fact]
+    public async Task InstallAsync_GitHubAddon_DownloadsTheAbsoluteZipUrl()
+    {
+        var zipPath = CreateZip(a => WriteEntry(a, "RXPGuides/RXPGuides.toc", "## Version: v1.0.0"));
+        var zipBytes = await File.ReadAllBytesAsync(zipPath, TestContext.Current.CancellationToken);
+        var sha256 = Convert.ToHexString(SHA256.HashData(zipBytes));
+        var zipUri = new Uri("https://github.com/RestedXP/RXPGuides/releases/download/v1.0.0/RXPGuides-v1.0.0.zip");
+
+        var handler = new ZipBytesStubHandler(zipUri, zipBytes);
+        var updater = new AddonUpdater(new HttpClient(handler));
+        var addon = new ManagedAddon("restedxp", "RXPGuides", GitHubRepo: "RestedXP/RXPGuides");
+        var release = new AddonRelease("v1.0.0", zipUri.ToString(), sha256, zipBytes.Length, DateTimeOffset.UtcNow);
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        Directory.CreateDirectory(addOnsPath);
+
+        await updater.InstallAsync(addon, "release", release, addOnsPath, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(zipUri, handler.RequestedUri);
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "RXPGuides", "RXPGuides.toc")));
     }
 }

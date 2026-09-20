@@ -71,8 +71,9 @@ public sealed class AddonUpdater
         IProgress<double>? progress,
         CancellationToken cancellationToken)
     {
-        var manifestUri = ManifestUri(addon, channel);
-        var zipUri = new Uri(manifestUri, release.Zip);
+        var zipUri = addon.ManifestBaseUrl is null
+            ? new Uri(release.Zip)
+            : new Uri(ManifestUri(addon, channel), release.Zip);
         var tempZipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
 
         try
