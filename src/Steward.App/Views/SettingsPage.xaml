@@ -162,7 +162,8 @@
 
             <controls:SettingsCard
                 Header="Start with Windows"
-                Description="Launches Steward to the tray when you sign in">
+                Description="{x:Bind ViewModel.StartWithWindowsDescription}"
+                IsEnabled="{x:Bind ViewModel.CanStartWithWindows}">
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE7E8;" />
                 </controls:SettingsCard.HeaderIcon>

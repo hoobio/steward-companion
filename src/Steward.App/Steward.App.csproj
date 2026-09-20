@@ -14,12 +14,17 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <ApplicationIcon>Assets\Steward.ico</ApplicationIcon>
+    <GitHubRelease Condition="'$(GitHubRelease)' == ''">false</GitHubRelease>
   </PropertyGroup>
 
   <ItemGroup>
     <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Steward.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Steward-256.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="GitHubRelease" Value="$(GitHubRelease)" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">

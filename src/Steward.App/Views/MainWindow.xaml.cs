@@ -28,6 +28,9 @@ public sealed partial class MainWindow : Window
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppWindow.SetIcon(App.IconPath);
         ViewModel = viewModel;
+        Title = MainViewModel.WindowTitle;
+        AppTitleBar.Title = MainViewModel.WindowTitle;
+        TrayIcon.ToolTipText = MainViewModel.WindowTitle;
         SystemBackdrop = new MicaBackdrop();
         ViewModel.OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         ViewModel.NavigateToSettings = () => Nav.SelectedItem = Nav.SettingsItem;

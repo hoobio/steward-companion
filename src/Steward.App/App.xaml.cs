@@ -1,3 +1,5 @@
+using System.Reflection;
+
 using Steward.App.Hosting;
 using Steward.App.Views;
 
@@ -11,6 +13,10 @@ namespace Steward.App;
 public partial class App : Application
 {
     public static readonly string IconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Steward.ico");
+
+    public static readonly bool IsGitHubRelease = typeof(App).Assembly
+        .GetCustomAttributes<AssemblyMetadataAttribute>()
+        .Any(attribute => attribute.Key == "GitHubRelease" && attribute.Value == "true");
 
     private IHost? _host;
     private MainWindow? _window;

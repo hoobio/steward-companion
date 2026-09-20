@@ -22,7 +22,6 @@
             Height="0"
             HorizontalAlignment="Left"
             VerticalAlignment="Top"
-            ToolTipText="Steward"
             ContextMenuMode="SecondWindow"
             NoLeftClickDelay="True"
             LeftClickCommand="{x:Bind ShowWindowCommand}"
@@ -41,8 +40,7 @@
             x:Name="AppTitleBar"
             Grid.Row="0"
             Canvas.ZIndex="1"
-            Height="48"
-            Title="Steward">
+            Height="48">
             <TitleBar.Resources>
                 <x:Double x:Key="TitleBarMinDragRegionWidth">4</x:Double>
             </TitleBar.Resources>

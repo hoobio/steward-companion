@@ -90,6 +90,7 @@ jobs:
             -p:WindowsPackageType=None `
             -p:WindowsAppSDKSelfContained=true `
             -p:SelfContained=true `
+            -p:GitHubRelease=true `
             -o $env:PUBLISH_DIR
           if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)" }
           if (-not (Test-Path "$env:PUBLISH_DIR\Steward.App.exe")) {
