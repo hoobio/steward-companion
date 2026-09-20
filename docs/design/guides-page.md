@@ -8,7 +8,9 @@ Fourteen frames at 1100x720 plus a notes frame, in the order below. Foundations,
 
 ## Shell
 
-A third `NavigationView` menu item, `Guides`, after `Addons` and `Sync`, with `Settings` staying on the footer. The title bar account chip is the gigagrug identity and does not change; the RestedXP identity is a separate account and lives in the page's account strip, so the two are never confused.
+A third `NavigationView` menu item, `Guides`, after `Addons` and `Sync`, with `Settings` staying on the footer. The item is present only while the RXPGuides addon is installed in at least one WoW install and a RestedXP session exists; otherwise it is collapsed, and leaving either condition while on the page returns the user to Addons. The title bar account chip is the gigagrug identity and does not change; the RestedXP identity is a separate account and lives in the page's account strip, so the two are never confused.
+
+The sign-in entry point is on the Addons page, not here: the RestedXP Guides addon row shows a `Sign in to RestedXP` button in its action area while the addon is installed and there is no session. It opens the sign-in dialog, and a successful sign-in reveals the Guides item and navigates to it once. With that gate, the page's own signed-out state (frame 01) is unreachable and is dropped; the account strip only carries the signed-in treatment.
 
 ## Layout
 
@@ -32,13 +34,12 @@ So the row control is a radio group, one product is kept per install, and the co
 
 | State | Trigger | Page |
 | --- | --- | --- |
-| Signed out | No RestedXP session | Account strip shows `Sign in`. Install cards stay, rows replaced by "Sign in to see your guides" |
 | All current | Every kept product matches its published timestamp | Success pill `In game` per kept row |
 | Downloading | A newer timestamp, fetch running | Accent-tinted row, pill `Downloading`, indeterminate `ProgressBar` under the row |
 | Waiting | String downloaded, client running | Caution-tinted row, pill `Waiting for game to close`, running dot lit on the card header |
 | Written | String written to `RXPString` this session | Success pill `Written · imports on next login` |
 | Failure | Download or write failed | Critical-tinted row, pill `Failed`, "Download failed. Retrying in 10 s." and a `Retry` button |
-| Session expired | Refresh token gone | Caution `InfoBar` above the cards with a `Sign in` action, rows dimmed to mute |
+| Session expired | Refresh token gone while the page is open | Caution `InfoBar` above the cards with a `Sign in` action, rows dimmed to mute; dismissing it or cancelling the dialog returns to Addons, since the nav item collapses without a session |
 | No purchases | `/user-products` empty | "No guides on this account" with a `Browse guides` link |
 
 The retry wording matches the account page's own guard, which reads "Try again in 10 seconds".
