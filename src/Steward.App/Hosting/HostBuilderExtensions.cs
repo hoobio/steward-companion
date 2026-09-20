@@ -34,6 +34,9 @@ internal static class HostBuilderExtensions
         var restedXpGuidesUrl = builder.Configuration["RestedXp:GuidesBaseUrl"]
             ?? throw new InvalidOperationException("RestedXp:GuidesBaseUrl is not configured");
 
+        var productPrefixes = builder.Configuration.GetSection("RestedXp:ProductPrefixes").Get<Dictionary<string, string[]>>()
+            ?? throw new InvalidOperationException("RestedXp:ProductPrefixes is not configured");
+
         var supportedProducts = builder.Configuration.GetSection("SupportedProducts").Get<Dictionary<string, string>>();
         if (supportedProducts is null || supportedProducts.Count == 0)
         {
@@ -69,7 +72,11 @@ internal static class HostBuilderExtensions
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"),
             restedXpAccountUrl,
             restedXpGuidesUrl));
-        builder.Services.AddSingleton<RestedXpService>();
+        builder.Services.AddSingleton(sp => new RestedXpService(
+            sp.GetRequiredService<RestedXpClient>(),
+            sp.GetRequiredService<AppStateStore>(),
+            new Dictionary<string, string[]>(productPrefixes, StringComparer.OrdinalIgnoreCase),
+            sp.GetRequiredService<ILogger<RestedXpService>>()));
 
         builder.Services.AddSingleton<InMemoryGuildSyncApi>();
         builder.Services.AddSingleton<IGuildSyncApi>(sp => sp.GetRequiredService<InMemoryGuildSyncApi>());

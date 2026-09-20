@@ -17,11 +17,9 @@ public enum GuideRowState
     None,
     InGame,
     Downloading,
-    Waiting,
     Written,
     Failed,
     NeedsNewerAddon,
-    NoAccountFiles,
 }
 
 public sealed partial class GuideRowViewModel : ObservableObject
@@ -45,25 +43,31 @@ public sealed partial class GuideRowViewModel : ObservableObject
     private readonly RestedXpInstallViewModel _card;
     private readonly DateTimeOffset? _updatedAt;
 
-    public GuideRowViewModel(RestedXpInstallViewModel card, string productName, DateTimeOffset? updatedAt, bool isFirst)
+    public GuideRowViewModel(RestedXpInstallViewModel card, string productName, DateTimeOffset? updatedAt, bool isFirst, bool isAllowed)
     {
         _card = card;
         _updatedAt = updatedAt;
         ProductName = productName;
         IsFirst = isFirst;
+        IsAllowed = isAllowed;
     }
 
     public string ProductName { get; }
 
     public bool IsFirst { get; }
 
-    public string GroupName => _card.FlavourPath;
+    public bool IsAllowed { get; }
 
     public Thickness HairlineThickness => IsFirst ? default : new Thickness(0, 1, 0, 0);
 
-    public string UpdatedText => _updatedAt is { } at
-        ? $"Updated {RelativeTime.Describe(at, DateTimeOffset.Now)}"
-        : "Not published yet";
+    public string UpdatedText => !IsAllowed
+        ? "Not for this client"
+        : _updatedAt is { } at
+            ? $"Updated {RelativeTime.Describe(at, DateTimeOffset.Now)}"
+            : "Not published yet";
+
+    public Brush UpdatedBrush => (Brush)Application.Current.Resources[
+        IsAllowed ? "TextFillColorSecondaryBrush" : "TextFillColorTertiaryBrush"];
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
@@ -77,18 +81,17 @@ public sealed partial class GuideRowViewModel : ObservableObject
     {
         GuideRowState.InGame => "In game",
         GuideRowState.Downloading => "Downloading",
-        GuideRowState.Waiting => "Waiting for game to close",
-        GuideRowState.Written => "Written · imports on next login",
+        GuideRowState.Written => "Written · imports on next login or /reload",
         GuideRowState.Failed => "Failed",
         GuideRowState.NeedsNewerAddon => "Needs a newer guide",
-        _ => "Waiting for RXPGuides to run once",
+        _ => string.Empty,
     };
 
     public Brush PillBrush => (Brush)Application.Current.Resources[State switch
     {
         GuideRowState.InGame or GuideRowState.Written => "SystemFillColorSuccessBrush",
         GuideRowState.Downloading => "AccentTextFillColorPrimaryBrush",
-        GuideRowState.Waiting or GuideRowState.NeedsNewerAddon => "SystemFillColorCautionBrush",
+        GuideRowState.NeedsNewerAddon => "SystemFillColorCautionBrush",
         GuideRowState.Failed => "SystemFillColorCriticalBrush",
         _ => "TextFillColorSecondaryBrush",
     }];
@@ -96,7 +99,7 @@ public sealed partial class GuideRowViewModel : ObservableObject
     public Brush RowBackground => !IsSelected ? NoTint : State switch
     {
         GuideRowState.Downloading => (Brush)Application.Current.Resources["InfoTintBrush"],
-        GuideRowState.Waiting or GuideRowState.NeedsNewerAddon => (Brush)Application.Current.Resources["CautionTintBrush"],
+        GuideRowState.NeedsNewerAddon => (Brush)Application.Current.Resources["CautionTintBrush"],
         GuideRowState.Failed => (Brush)Application.Current.Resources["CriticalTintBrush"],
         _ => NoTint,
     };
@@ -129,10 +132,12 @@ public sealed partial class GuideRowViewModel : ObservableObject
     partial void OnIsSelectedChanged(bool value)
     {
         NotifyDerived();
-        if (value)
+        if (!value)
         {
-            _card.Select(this);
+            State = GuideRowState.None;
         }
+
+        _card.SelectionChanged();
     }
 
     partial void OnStateChanged(GuideRowState value) => NotifyDerived();
@@ -165,10 +170,9 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
 
     public ObservableCollection<GuideRowViewModel> Rows { get; } = [];
 
-    public GuideRowViewModel? SelectedRow => Rows.FirstOrDefault(row => row.IsSelected);
+    public IReadOnlyList<GuideRowViewModel> SelectedRows => [.. Rows.Where(row => row.IsSelected)];
 
-    [ObservableProperty]
-    public partial string? SelectedProduct { get; set; }
+    public IReadOnlyList<string> SelectedProducts => [.. SelectedRows.Select(row => row.ProductName)];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RunningVisibility))]
@@ -186,10 +190,16 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
 
     public Visibility NoGuidesVisibility => When(Rows.Count == 0);
 
-    public void SetProducts(IReadOnlyList<string> products, string? selected, IReadOnlyDictionary<string, long> timestamps)
+    public void SetProducts(
+        IReadOnlyList<string> products,
+        IReadOnlyCollection<string> selected,
+        IReadOnlyDictionary<string, long> timestamps,
+        Func<string, bool> isAllowed)
     {
         ArgumentNullException.ThrowIfNull(products);
+        ArgumentNullException.ThrowIfNull(selected);
         ArgumentNullException.ThrowIfNull(timestamps);
+        ArgumentNullException.ThrowIfNull(isAllowed);
 
         _isLoading = true;
         Rows.Clear();
@@ -198,34 +208,24 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
             var updatedAt = timestamps.TryGetValue(product, out var timestamp)
                 ? DateTimeOffset.FromUnixTimeMilliseconds(timestamp)
                 : (DateTimeOffset?)null;
-            Rows.Add(new GuideRowViewModel(this, product, updatedAt, Rows.Count == 0)
+            var allowed = isAllowed(product);
+            Rows.Add(new GuideRowViewModel(this, product, updatedAt, Rows.Count == 0, allowed)
             {
-                IsSelected = string.Equals(product, selected, StringComparison.Ordinal),
+                IsSelected = allowed && selected.Contains(product, StringComparer.Ordinal),
             });
         }
 
-        SelectedProduct = SelectedRow?.ProductName;
         _isLoading = false;
         OnPropertyChanged(nameof(RowsVisibility));
         OnPropertyChanged(nameof(NoGuidesVisibility));
     }
 
-    public void Select(GuideRowViewModel row)
+    public void SelectionChanged()
     {
-        ArgumentNullException.ThrowIfNull(row);
-
-        if (_isLoading)
+        if (!_isLoading)
         {
-            return;
+            _ = _choiceChanged(this);
         }
-
-        SelectedProduct = row.ProductName;
-        foreach (var other in Rows.Where(other => other != row))
-        {
-            other.State = GuideRowState.None;
-        }
-
-        _ = _choiceChanged(this);
     }
 
     public Task ResyncAsync() => _choiceChanged(this);
@@ -337,7 +337,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
             if (card is null)
             {
                 card = new RestedXpInstallViewModel(install.Install, OnChoiceChangedAsync);
-                card.SetProducts(_service.Products, _service.GuideChoice(install.FlavourPath) ?? _service.DefaultProduct, _service.Timestamps);
+                LoadProducts(card);
                 Guides.Add(card);
             }
 
@@ -394,28 +394,18 @@ public sealed partial class RestedXpViewModel : ObservableObject
 
         foreach (var card in Guides.ToList())
         {
-            card.SetProducts(_service.Products, _service.GuideChoice(card.FlavourPath) ?? _service.DefaultProduct, _service.Timestamps);
+            LoadProducts(card);
             await SyncAsync(card).ConfigureAwait(true);
         }
 
         BattleTag = _service.BattleTag;
     }
 
-    public async Task WritePendingAsync(WowInstall install)
-    {
-        ArgumentNullException.ThrowIfNull(install);
-
-        if (IsPreview)
-        {
-            return;
-        }
-
-        var card = Guides.FirstOrDefault(g => string.Equals(g.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase));
-        if (card is not null)
-        {
-            await SyncAsync(card, cacheOnly: true).ConfigureAwait(true);
-        }
-    }
+    private void LoadProducts(RestedXpInstallViewModel card) => card.SetProducts(
+        _service.Products,
+        [.. _service.GuideChoices(card.Install)],
+        _service.Timestamps,
+        product => _service.IsAllowed(card.Install, product));
 
     [RelayCommand]
     private async Task SignInAsync()
@@ -512,7 +502,7 @@ public sealed partial class RestedXpViewModel : ObservableObject
         ErrorMessage = null;
         foreach (var card in Guides)
         {
-            card.SetProducts([], null, _service.Timestamps);
+            card.SetProducts([], [], _service.Timestamps, _ => false);
             card.IsSessionActive = false;
         }
     }
@@ -543,41 +533,29 @@ public sealed partial class RestedXpViewModel : ObservableObject
 
     private async Task OnChoiceChangedAsync(RestedXpInstallViewModel card)
     {
-        if (card.SelectedProduct is not { } product)
-        {
-            return;
-        }
-
-        _service.SetGuideChoice(card.FlavourPath, product);
+        _service.SetGuideChoices(card.FlavourPath, card.SelectedProducts);
         await SyncAsync(card).ConfigureAwait(true);
     }
 
-    private async Task SyncAsync(RestedXpInstallViewModel card, bool cacheOnly = false)
+    private async Task SyncAsync(RestedXpInstallViewModel card)
     {
         if (IsPreview)
         {
             return;
         }
 
-        if (card.SelectedRow is not { } row)
-        {
-            return;
-        }
-
-        if (!cacheOnly)
+        var rows = card.SelectedRows;
+        foreach (var row in rows)
         {
             row.State = GuideRowState.Downloading;
         }
 
         try
         {
-            if (await _service.SyncAsync(card.Install, row.ProductName, cacheOnly, CancellationToken.None).ConfigureAwait(true) is { } result)
+            var results = await _service.SyncAsync(card.Install, card.SelectedProducts, CancellationToken.None).ConfigureAwait(true);
+            foreach (var row in rows)
             {
-                row.State = Map(result);
-            }
-            else if (!cacheOnly)
-            {
-                row.State = GuideRowState.None;
+                row.State = results.TryGetValue(row.ProductName, out var result) ? Map(result) : GuideRowState.None;
             }
         }
         catch (RestedXpSessionExpiredException)
@@ -587,7 +565,10 @@ public sealed partial class RestedXpViewModel : ObservableObject
         catch (Exception ex) when (IsRecoverable(ex))
         {
             ErrorMessage = ex.Message;
-            row.State = GuideRowState.Failed;
+            foreach (var row in rows)
+            {
+                row.State = GuideRowState.Failed;
+            }
         }
     }
 
@@ -598,10 +579,8 @@ public sealed partial class RestedXpViewModel : ObservableObject
     {
         { Error: not null } => GuideRowState.Failed,
         { Outcome: GuideSyncOutcome.UpToDate } => GuideRowState.InGame,
-        { Outcome: GuideSyncOutcome.Stale } => GuideRowState.Downloading,
-        { Outcome: GuideSyncOutcome.Downloaded } => GuideRowState.Waiting,
         { Outcome: GuideSyncOutcome.Written } => GuideRowState.Written,
         { Outcome: GuideSyncOutcome.NeedsNewerAddon } => GuideRowState.NeedsNewerAddon,
-        _ => GuideRowState.NoAccountFiles,
+        _ => GuideRowState.Downloading,
     };
 }

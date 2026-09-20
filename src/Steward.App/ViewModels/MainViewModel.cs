@@ -881,11 +881,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RecomputeSummary();
     }
 
-    private void OnClientExited(WowInstallViewModel install)
-    {
-        _ = NotifySavedVariablesChangedAsync();
-        _ = RestedXp.WritePendingAsync(install.Install);
-    }
+    private void OnClientExited(WowInstallViewModel install) => _ = NotifySavedVariablesChangedAsync();
 
     private Task NotifySavedVariablesChangedAsync() => SavedVariablesChanged?.Invoke() ?? Task.CompletedTask;
 

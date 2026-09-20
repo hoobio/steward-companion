@@ -136,11 +136,15 @@ public sealed record AppState(
     [property: JsonPropertyName("app_channel")] string AppChannel = "release",
     [property: JsonPropertyName("restedxp_session")] string? EncryptedRestedXpSession = null,
     [property: JsonPropertyName("restedxp_guides")] Dictionary<string, RestedXpGuideRecord> RestedXpGuides = null!,
-    [property: JsonPropertyName("restedxp_guide_choice")] Dictionary<string, string> RestedXpGuideChoice = null!)
+    [property: JsonPropertyName("restedxp_guide_choices")] Dictionary<string, List<string>> RestedXpGuideChoices = null!)
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? LegacyChannel { get; init; }
+
+    [JsonPropertyName("restedxp_guide_choice")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, string>? LegacyRestedXpGuideChoice { get; init; }
 }
 
 [JsonSerializable(typeof(AddonRelease))]

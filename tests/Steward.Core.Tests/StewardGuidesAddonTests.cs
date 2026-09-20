@@ -1,0 +1,142 @@
+namespace Steward.Core.Tests;
+
+public sealed class StewardGuidesAddonTests : IDisposable
+{
+    private const string Interface = "11509, 50504, 120100, 16001";
+
+    private readonly string _root = Directory.CreateTempSubdirectory("steward-guides-").FullName;
+
+    public void Dispose() => Directory.Delete(_root, recursive: true);
+
+    private static (string Name, string Text)[] SampleGuides() =>
+    [
+        ("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000"),
+        ("Mists of Pandaria Guide - Bundle", "159|2792083552:other%|40000"),
+    ];
+
+    private string InstallRxpGuides(string interfaceValue = Interface)
+    {
+        var addOnsPath = Path.Combine(_root, "AddOns");
+        var rxpPath = Path.Combine(addOnsPath, "RXPGuides");
+        Directory.CreateDirectory(rxpPath);
+        File.WriteAllText(
+            Path.Combine(rxpPath, "RXPGuides.toc"),
+            $"## Interface: {interfaceValue}\n## Title: RestedXP Guides\n## Version: v4.11.4\n");
+        return addOnsPath;
+    }
+
+    [Fact]
+    public void Toc_CarriesTheDirectivesTheClientNeeds()
+    {
+        var lines = StewardGuidesAddon.Toc(Interface).Split('\n');
+
+        Assert.Equal($"## Interface: {Interface}", lines[0]);
+        Assert.Equal("## Title: Steward Guides", lines[1]);
+        Assert.Equal("## Category: Hoobi", lines[2]);
+        Assert.Equal(
+            "## Notes: Purchased RestedXP guides, kept current by the Steward desktop app. Nothing to configure here.",
+            lines[3]);
+        Assert.Equal("## Author: Hoobi", lines[4]);
+        Assert.Equal(@"## IconTexture: Interface\AddOns\StewardGuides\Icon", lines[5]);
+        Assert.Equal("## Dependencies: RXPGuides", lines[6]);
+        Assert.Equal("## SavedVariables: StewardGuidesDB", lines[7]);
+        Assert.StartsWith("## Version: ", lines[8], StringComparison.Ordinal);
+        Assert.Equal(string.Empty, lines[9]);
+        Assert.Equal("Guides.lua", lines[10]);
+    }
+
+    [Fact]
+    public void Render_WritesEachGuideAsALongBracketLiteralAndKeepsTheBootstrap()
+    {
+        var lua = StewardGuidesAddon.Render(SampleGuides());
+
+        Assert.StartsWith("local guides = {\n", lua, StringComparison.Ordinal);
+        Assert.Contains(
+            "    { name = \"Forever Leveling Guide - Both Factions\", text = [==[83|1084041902:payload%|40000]==] },",
+            lua,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "    { name = \"Mists of Pandaria Guide - Bundle\", text = [==[159|2792083552:other%|40000]==] },",
+            lua,
+            StringComparison.Ordinal);
+        Assert.Contains("rxp.guideImporter:ImportString(guide.text)", lua, StringComparison.Ordinal);
+        Assert.Contains("StewardGuidesDB = StewardGuidesDB or { imported = {} }", lua, StringComparison.Ordinal);
+        Assert.Contains("Guides Loaded Successfully", lua, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Render_Throws_WhenAGuideHoldsTheTerminator()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => StewardGuidesAddon.Render([("Broken", "83|1:pay]==]load%|40000")]));
+    }
+
+    [Fact]
+    public void Render_EscapesQuotesAndBackslashesInNames()
+    {
+        var lua = StewardGuidesAddon.Render([(@"A ""B"" \ C", "1|2:x")]);
+
+        Assert.Contains(@"name = ""A \""B\"" \\ C""", lua, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Write_CreatesTheAddonFolderWithTheInterfaceNumbersFromRxpGuides()
+    {
+        var addOnsPath = InstallRxpGuides();
+
+        StewardGuidesAddon.Write(addOnsPath, SampleGuides());
+
+        var folder = Path.Combine(addOnsPath, "StewardGuides");
+        Assert.Contains($"## Interface: {Interface}", File.ReadAllText(Path.Combine(folder, "StewardGuides.toc")), StringComparison.Ordinal);
+        Assert.Contains("[==[83|1084041902:payload%|40000]==]", File.ReadAllText(Path.Combine(folder, "Guides.lua")), StringComparison.Ordinal);
+        Assert.Equal(16402, new FileInfo(Path.Combine(folder, "Icon.tga")).Length);
+        Assert.Empty(Directory.GetFiles(folder, "*.tmp"));
+    }
+
+    [Fact]
+    public void Write_ReplacesTheFolderItWroteBefore()
+    {
+        var addOnsPath = InstallRxpGuides();
+        StewardGuidesAddon.Write(addOnsPath, SampleGuides());
+
+        StewardGuidesAddon.Write(addOnsPath, [("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000")]);
+
+        var lua = File.ReadAllText(Path.Combine(addOnsPath, "StewardGuides", "Guides.lua"));
+        Assert.DoesNotContain("Mists of Pandaria", lua, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Write_Throws_WhenTheFolderIsNotOurs()
+    {
+        var addOnsPath = InstallRxpGuides();
+        var folder = Path.Combine(addOnsPath, "StewardGuides");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "StewardGuides.toc"), "## Title: Someone else\n## Author: Someone else\n");
+
+        Assert.Throws<InvalidOperationException>(() => StewardGuidesAddon.Write(addOnsPath, SampleGuides()));
+
+        Assert.False(File.Exists(Path.Combine(folder, "Guides.lua")));
+    }
+
+    [Fact]
+    public void Write_Throws_WhenRxpGuidesIsNotInstalled()
+    {
+        var addOnsPath = Path.Combine(_root, "AddOns");
+        Directory.CreateDirectory(addOnsPath);
+
+        Assert.Throws<InvalidOperationException>(() => StewardGuidesAddon.Write(addOnsPath, SampleGuides()));
+    }
+
+    [Fact]
+    public void Write_Throws_ForAnAddOnsPathContainingAWtfSegment()
+    {
+        var addOnsPath = Path.Combine(_root, "WTF", "AddOns");
+        var rxpPath = Path.Combine(addOnsPath, "RXPGuides");
+        Directory.CreateDirectory(rxpPath);
+        File.WriteAllText(Path.Combine(rxpPath, "RXPGuides.toc"), $"## Interface: {Interface}\n");
+
+        Assert.Throws<InvalidOperationException>(() => StewardGuidesAddon.Write(addOnsPath, SampleGuides()));
+
+        Assert.False(Directory.Exists(Path.Combine(addOnsPath, "StewardGuides")));
+    }
+}

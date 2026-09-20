@@ -10,12 +10,15 @@ public static class GuidesPreview
     private const string Email = "ayian@outlook.com";
     private const string BattleTag = "Hoobi#11438";
     private const string Forever = "Forever Leveling Guide - Both Factions";
+    private const string Mists = "Mists of Pandaria Guide - Bundle";
+    private const string WarWithin = "The War Within Both Faction Leveling Guide";
 
     private static readonly (string Product, TimeSpan Age)[] Catalogue =
     [
         (Forever, TimeSpan.FromDays(2)),
-        ("Mists of Pandaria Guide - Bundle", TimeSpan.FromDays(21)),
+        (Mists, TimeSpan.FromDays(21)),
         ("Cataclysm Alliance Leveling Guide 1-85", TimeSpan.FromDays(150)),
+        (WarWithin, TimeSpan.FromDays(4)),
     ];
 
     private static readonly WowInstall Install = new(
@@ -52,15 +55,19 @@ public static class GuidesPreview
 
         var card = new RestedXpInstallViewModel(Install, _ => Task.CompletedTask)
         {
-            IsClientRunning = scenario == "waiting",
             AddonVersion = "v4.11.4",
             IsSessionActive = scenario != "expired",
         };
-        card.SetProducts([.. products.Select(entry => entry.Product)], Forever, timestamps);
+        string[] selected = scenario == "current" ? [Forever, Mists] : [Forever];
+        card.SetProducts(
+            [.. products.Select(entry => entry.Product)],
+            selected,
+            timestamps,
+            product => !string.Equals(product, WarWithin, StringComparison.Ordinal));
 
         var signedIn = !OpensDialog(scenario) && scenario != "expired";
         main.RestedXp.ApplyPreview(Email, BattleTag, card, signedIn, scenario == "expired");
-        if (card.SelectedRow is { } row)
+        foreach (var row in card.SelectedRows)
         {
             row.State = State(scenario);
         }
@@ -89,7 +96,6 @@ public static class GuidesPreview
     private static GuideRowState State(string scenario) => scenario switch
     {
         "downloading" => GuideRowState.Downloading,
-        "waiting" => GuideRowState.Waiting,
         "written" => GuideRowState.Written,
         "failed" => GuideRowState.Failed,
         "newer" => GuideRowState.NeedsNewerAddon,

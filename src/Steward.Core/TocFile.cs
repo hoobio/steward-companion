@@ -2,17 +2,19 @@ namespace Steward.Core;
 
 public static class TocFile
 {
-    public static string? ReadVersion(string tocPath)
+    public static string? ReadVersion(string tocPath) => ReadDirective(tocPath, "Version");
+
+    public static string? ReadDirective(string tocPath, string directive)
     {
         if (!File.Exists(tocPath))
         {
             return null;
         }
 
+        var prefix = $"## {directive}:";
         foreach (var line in File.ReadLines(tocPath))
         {
             var trimmed = line.TrimEnd('\r');
-            const string prefix = "## Version:";
             if (!trimmed.StartsWith(prefix, StringComparison.Ordinal))
             {
                 continue;

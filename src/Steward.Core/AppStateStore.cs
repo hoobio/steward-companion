@@ -51,7 +51,7 @@ public sealed class AppStateStore
             RestedXpGuides = (state.RestedXpGuides ?? [])
                 .Where(entry => !entry.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
-            RestedXpGuideChoice = (state.RestedXpGuideChoice ?? [])
+            RestedXpGuideChoices = (state.RestedXpGuideChoices ?? [])
                 .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
         };
@@ -64,8 +64,20 @@ public sealed class AppStateStore
         AddedInstalls = state.AddedInstalls ?? [],
         HiddenAddons = state.HiddenAddons ?? [],
         RestedXpGuides = new Dictionary<string, RestedXpGuideRecord>(state.RestedXpGuides ?? [], StringComparer.OrdinalIgnoreCase),
-        RestedXpGuideChoice = new Dictionary<string, string>(state.RestedXpGuideChoice ?? [], StringComparer.OrdinalIgnoreCase),
+        RestedXpGuideChoices = MergeGuideChoices(state),
+        LegacyRestedXpGuideChoice = null,
     };
+
+    private static Dictionary<string, List<string>> MergeGuideChoices(AppState state)
+    {
+        var choices = new Dictionary<string, List<string>>(state.RestedXpGuideChoices ?? [], StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in state.LegacyRestedXpGuideChoice ?? [])
+        {
+            choices.TryAdd(entry.Key, [entry.Value]);
+        }
+
+        return choices;
+    }
 
     internal static AppState SeedLegacyChannel(AppState state, IReadOnlyList<string> addonIds)
     {

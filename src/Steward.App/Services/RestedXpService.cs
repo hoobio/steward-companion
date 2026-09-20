@@ -15,7 +15,6 @@ public enum GuideSyncOutcome
     Downloaded,
     Written,
     NeedsNewerAddon,
-    NoAccountFiles,
 }
 
 public sealed record GuideSyncResult(GuideSyncOutcome Outcome, DateTimeOffset UpdatedAt, string? Error = null);
@@ -28,6 +27,7 @@ public sealed partial class RestedXpService : IDisposable
 
     private readonly RestedXpClient _client;
     private readonly AppStateStore _stateStore;
+    private readonly IReadOnlyDictionary<string, string[]> _productPrefixes;
     private readonly ILogger<RestedXpService> _logger;
     private readonly string _cacheFolder;
     private readonly Dictionary<string, DateTimeOffset> _lastFailure = new(StringComparer.OrdinalIgnoreCase);
@@ -35,10 +35,15 @@ public sealed partial class RestedXpService : IDisposable
 
     private string? _mfaSessionId;
 
-    public RestedXpService(RestedXpClient client, AppStateStore stateStore, ILogger<RestedXpService> logger)
+    public RestedXpService(
+        RestedXpClient client,
+        AppStateStore stateStore,
+        IReadOnlyDictionary<string, string[]> productPrefixes,
+        ILogger<RestedXpService> logger)
     {
         _client = client;
         _stateStore = stateStore;
+        _productPrefixes = productPrefixes;
         _logger = logger;
         _cacheFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward", "guides");
@@ -196,29 +201,44 @@ public sealed partial class RestedXpService : IDisposable
         Timestamps = await _client.GetTimestampsAsync(cancellationToken).ConfigureAwait(true);
     }
 
-    public string? DefaultProduct => Products.FirstOrDefault(name => name.StartsWith("Forever", StringComparison.OrdinalIgnoreCase))
-        ?? (Products.Count > 0 ? Products[0] : null);
-
     [LoggerMessage(Level = LogLevel.Warning, Message = "RestedXP verify-mfa answered an unrecognised shape with keys {Keys}")]
     private partial void LogUnexpectedMfaShape(string keys);
 
-    public string? GuideChoice(string flavourPath) => _stateStore.Load().RestedXpGuideChoice.GetValueOrDefault(flavourPath);
+    public bool IsAllowed(WowInstall install, string productName)
+    {
+        ArgumentNullException.ThrowIfNull(install);
 
-    public void SetGuideChoice(string flavourPath, string productName)
+        return install.ProductCode is { } code
+            && _productPrefixes.TryGetValue(code, out var prefixes)
+            && prefixes.Any(prefix => productName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public IReadOnlyList<string> GuideChoices(WowInstall install)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+
+        return _stateStore.Load().RestedXpGuideChoices.GetValueOrDefault(install.FlavourPath) is { } stored
+            ? [.. stored.Where(product => Products.Contains(product, StringComparer.Ordinal))]
+            : [.. Products.Where(product => IsAllowed(install, product))];
+    }
+
+    public void SetGuideChoices(string flavourPath, IReadOnlyList<string> products)
     {
         var state = _stateStore.Load();
-        state.RestedXpGuideChoice[flavourPath] = productName;
+        state.RestedXpGuideChoices[flavourPath] = [.. products];
         _stateStore.Save(state);
     }
 
-    public async Task<GuideSyncResult?> SyncAsync(WowInstall install, string productName, bool cacheOnly, CancellationToken cancellationToken)
+    public async Task<IReadOnlyDictionary<string, GuideSyncResult>> SyncAsync(
+        WowInstall install, IReadOnlyList<string> products, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(install);
+        ArgumentNullException.ThrowIfNull(products);
 
         await _syncGate.WaitAsync(cancellationToken).ConfigureAwait(true);
         try
         {
-            return await SyncCoreAsync(install, productName, cacheOnly, cancellationToken).ConfigureAwait(true);
+            return await SyncCoreAsync(install, products, cancellationToken).ConfigureAwait(true);
         }
         finally
         {
@@ -226,85 +246,119 @@ public sealed partial class RestedXpService : IDisposable
         }
     }
 
-    private async Task<GuideSyncResult?> SyncCoreAsync(WowInstall install, string productName, bool cacheOnly, CancellationToken cancellationToken)
+    private async Task<IReadOnlyDictionary<string, GuideSyncResult>> SyncCoreAsync(
+        WowInstall install, IReadOnlyList<string> products, CancellationToken cancellationToken)
     {
-        if (!Timestamps.TryGetValue(productName, out var serverTimestamp))
-        {
-            return cacheOnly
-                ? null
-                : new GuideSyncResult(GuideSyncOutcome.Stale, DateTimeOffset.UnixEpoch, $"RestedXP publish no timestamp for {productName}.");
-        }
-
-        var updatedAt = DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamp);
-        var key = AppStateStore.Key(install.FlavourPath, productName);
-        if (_stateStore.Load().RestedXpGuides.GetValueOrDefault(key)?.Timestamp == serverTimestamp)
-        {
-            return new GuideSyncResult(GuideSyncOutcome.UpToDate, updatedAt);
-        }
-
-        var guide = ReadCached(productName, serverTimestamp);
-        if (guide is null)
-        {
-            if (cacheOnly)
-            {
-                return null;
-            }
-
-            if (Session is not { } session)
-            {
-                return new GuideSyncResult(GuideSyncOutcome.Stale, updatedAt);
-            }
-
-            if (_lastFailure.TryGetValue(productName, out var failedAt) && DateTimeOffset.UtcNow - failedAt < RetryAfterFailure)
-            {
-                return new GuideSyncResult(GuideSyncOutcome.Stale, updatedAt);
-            }
-
-            try
-            {
-                await EnsureFreshSessionAsync(forCall: true, cancellationToken).ConfigureAwait(true);
-                session = Session ?? session;
-                var downloaded = await _client.DownloadGuideAsync(session, productName, cancellationToken).ConfigureAwait(true);
-                guide = downloaded.Guide;
-                Cache(productName, serverTimestamp, downloaded);
-            }
-            catch (RestedXpSessionExpiredException)
-            {
-                SignOut();
-                throw;
-            }
-            catch (Exception ex) when (ex is HttpRequestException or JsonException or IOException or TaskCanceledException)
-            {
-                _lastFailure[productName] = DateTimeOffset.UtcNow;
-                return new GuideSyncResult(GuideSyncOutcome.Stale, updatedAt, ex.Message);
-            }
-        }
-
-        // WoW rewrites SavedVariables from memory on logout, so a write made while the client runs is discarded.
-        if (WowClient.IsRunning(install))
-        {
-            return new GuideSyncResult(GuideSyncOutcome.Downloaded, updatedAt);
-        }
-
-        int written;
-        try
-        {
-            written = RxpGuideString.Write(install.FlavourPath, guide);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return new GuideSyncResult(GuideSyncOutcome.Downloaded, updatedAt, ex.Message);
-        }
-
-        if (written == 0)
-        {
-            return new GuideSyncResult(GuideSyncOutcome.NoAccountFiles, updatedAt);
-        }
+        var results = new Dictionary<string, GuideSyncResult>(StringComparer.Ordinal);
+        var strings = new List<(string Name, string Text)>();
+        var serverTimestamps = new Dictionary<string, long>(StringComparer.Ordinal);
 
         var state = _stateStore.Load();
-        state.RestedXpGuides[key] = new RestedXpGuideRecord(serverTimestamp, DateTimeOffset.Now);
+        var prefix = AppStateStore.Key(install.FlavourPath, string.Empty);
+        var recorded = state.RestedXpGuides
+            .Where(entry => entry.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(entry => entry.Key[prefix.Length..], entry => entry.Value.Timestamp, StringComparer.Ordinal);
+        var changed = !recorded.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(products);
+
+        foreach (var productName in products)
+        {
+            if (!Timestamps.TryGetValue(productName, out var serverTimestamp))
+            {
+                results[productName] = new GuideSyncResult(
+                    GuideSyncOutcome.Stale, DateTimeOffset.UnixEpoch, $"RestedXP publish no timestamp for {productName}.");
+                continue;
+            }
+
+            var updatedAt = DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamp);
+            var guide = ReadCached(productName, serverTimestamp);
+            if (guide is null)
+            {
+                var (downloaded, error) = await FetchAsync(productName, serverTimestamp, cancellationToken).ConfigureAwait(true);
+                if (downloaded is null)
+                {
+                    results[productName] = new GuideSyncResult(GuideSyncOutcome.Stale, updatedAt, error);
+                    continue;
+                }
+
+                guide = downloaded;
+            }
+
+            changed |= recorded.GetValueOrDefault(productName) != serverTimestamp;
+            serverTimestamps[productName] = serverTimestamp;
+            strings.Add((productName, guide));
+            results[productName] = new GuideSyncResult(GuideSyncOutcome.UpToDate, updatedAt);
+        }
+
+        if (!changed || strings.Count != products.Count)
+        {
+            return results;
+        }
+
+        try
+        {
+            StewardGuidesAddon.Write(install.AddOnsPath, strings);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            foreach (var (productName, _) in strings)
+            {
+                results[productName] = new GuideSyncResult(
+                    GuideSyncOutcome.Downloaded, DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamps[productName]), ex.Message);
+            }
+
+            return results;
+        }
+
+        foreach (var staleKey in state.RestedXpGuides.Keys
+            .Where(key => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())
+        {
+            state.RestedXpGuides.Remove(staleKey);
+        }
+
+        var writtenAt = DateTimeOffset.Now;
+        foreach (var (productName, _) in strings)
+        {
+            var serverTimestamp = serverTimestamps[productName];
+            state.RestedXpGuides[AppStateStore.Key(install.FlavourPath, productName)] =
+                new RestedXpGuideRecord(serverTimestamp, writtenAt);
+            results[productName] = new GuideSyncResult(
+                GuideSyncOutcome.Written, DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamp));
+        }
+
         _stateStore.Save(state);
-        return new GuideSyncResult(GuideSyncOutcome.Written, updatedAt);
+        return results;
+    }
+
+    private async Task<(string? Guide, string? Error)> FetchAsync(string productName, long timestamp, CancellationToken cancellationToken)
+    {
+        if (Session is not { } session)
+        {
+            return (null, null);
+        }
+
+        if (_lastFailure.TryGetValue(productName, out var failedAt) && DateTimeOffset.UtcNow - failedAt < RetryAfterFailure)
+        {
+            return (null, null);
+        }
+
+        try
+        {
+            await EnsureFreshSessionAsync(forCall: true, cancellationToken).ConfigureAwait(true);
+            session = Session ?? session;
+            var downloaded = await _client.DownloadGuideAsync(session, productName, cancellationToken).ConfigureAwait(true);
+            Cache(productName, timestamp, downloaded);
+            return (downloaded.Guide, null);
+        }
+        catch (RestedXpSessionExpiredException)
+        {
+            SignOut();
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or IOException or TaskCanceledException)
+        {
+            _lastFailure[productName] = DateTimeOffset.UtcNow;
+            return (null, ex.Message);
+        }
     }
 
     private void Store(string username, RestedXpLoginResponse response)

@@ -165,17 +165,30 @@ public sealed class AppStateStoreTests : IDisposable
                 [AppStateStore.Key(@"C:\wow\_retail_", "Forever Leveling Guide")] = new(1, DateTimeOffset.UnixEpoch),
                 [AppStateStore.Key(@"C:\wow\_classic_era_", "Forever Leveling Guide")] = new(2, DateTimeOffset.UnixEpoch),
             },
-            RestedXpGuideChoice = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            RestedXpGuideChoices = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
             {
-                [@"C:\wow\_retail_"] = "Forever Leveling Guide",
-                [@"C:\wow\_classic_era_"] = "Forever Leveling Guide",
+                [@"C:\wow\_retail_"] = ["Forever Leveling Guide"],
+                [@"C:\wow\_classic_era_"] = ["Forever Leveling Guide"],
             },
         };
 
         var result = AppStateStore.RemoveInstall(state, @"C:\wow\_retail_");
 
         Assert.Equal([AppStateStore.Key(@"C:\wow\_classic_era_", "Forever Leveling Guide")], result.RestedXpGuides.Keys);
-        Assert.Equal([@"C:\wow\_classic_era_"], result.RestedXpGuideChoice.Keys);
+        Assert.Equal([@"C:\wow\_classic_era_"], result.RestedXpGuideChoices.Keys);
+    }
+
+    [Fact]
+    public void Load_MigratesTheSingleGuideChoiceIntoAOneItemList()
+    {
+        File.WriteAllText(
+            StatePath,
+            """{"channels":{},"installs":{},"restedxp_guide_choice":{"C:\\wow\\_classic_beta_":"Forever Leveling Guide"}}""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Equal(["Forever Leveling Guide"], state.RestedXpGuideChoices[@"C:\wow\_classic_beta_"]);
+        Assert.Null(state.LegacyRestedXpGuideChoice);
     }
 
     [Fact]
