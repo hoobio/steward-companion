@@ -68,6 +68,23 @@
       <ComponentRef Id="StartMenuShortcut" />
     </Feature>
 
+    <!-- A tray-parked Steward cancels WM_CLOSE and hides instead, so the terminate fallback is what actually frees the files. -->
+    <util:CloseApplication Id="CloseSteward"
+                           Target="Steward.App.exe"
+                           CloseMessage="yes"
+                           RebootPrompt="no"
+                           Timeout="5"
+                           TerminateProcess="0" />
+
+    <CustomAction Id="LaunchSteward"
+                  FileRef="StewardAppExe"
+                  ExeCommand=""
+                  Return="asyncNoWait" />
+
+    <InstallExecuteSequence>
+      <Custom Action="LaunchSteward" After="InstallFinalize" Condition="NOT REMOVE" />
+    </InstallExecuteSequence>
+
   </Package>
 
   <Fragment>

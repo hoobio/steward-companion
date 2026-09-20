@@ -30,13 +30,12 @@ public sealed class AppUpdater(HttpClient httpClient, string repo)
         return msiPath;
     }
 
-    public static void InstallAfterExit(string msiPath, string relaunchPath, string logPath)
+    public static void InstallAfterExit(string msiPath, string logPath)
     {
         var script = $"""
             Wait-Process -Id {Environment.ProcessId} -ErrorAction SilentlyContinue
             Start-Process msiexec.exe -ArgumentList '/i', '"{msiPath}"', '/qn', '/l*v', '"{logPath}"' -Wait
             Remove-Item -LiteralPath '{msiPath}' -ErrorAction SilentlyContinue
-            Start-Process -FilePath '{relaunchPath}'
             """;
         var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
         Process.Start(new ProcessStartInfo("powershell.exe", $"-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand {encoded}")

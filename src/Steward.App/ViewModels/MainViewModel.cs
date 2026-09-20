@@ -571,7 +571,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             var msiPath = await _appUpdater.DownloadAsync(release, new Progress<double>(value => AppUpdateProgress = value), CancellationToken.None)
                 .ConfigureAwait(true);
-            AppUpdater.InstallAfterExit(msiPath, Environment.ProcessPath!, Path.Combine(DataFolder, "update.log"));
+            AppUpdater.InstallAfterExit(msiPath, Path.Combine(DataFolder, "update.log"));
             QuitRequested?.Invoke();
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException)
