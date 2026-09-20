@@ -66,6 +66,14 @@ Commits go straight to `main` in the one working tree at `D:\steward-companion` 
 
 CommunityToolkit.Mvvm's field-backed `[ObservableProperty]` triggers diagnostic `MVVMTK0045` under WinUI; the ViewModels here declare partial properties instead (`[ObservableProperty] public partial string? Foo { get; set; }`).
 
+## Roster sync
+
+`docs/design/roster-sync.md` is the agreed contract between this app, gigagrug and the Steward addon, and it is the source of truth for how the three interact. Read it before touching anything that crosses a repo boundary. It carries the direction of travel, the identity and linking rules, the gigagrug endpoints in use, the confirmed Forever client API facts, and the per-repo branch rules.
+
+The short version. gigagrug holds the people, the addon holds the characters, and this app is the only party that can talk to both. `GET /api/admin/{guild_id}/roster` and `GET /api/admin/{guild_id}/members` already existed for the admin SPA and needed no server change; `AdminMe.Guilds` supplies the guild id. `GuildRosterMember` and `DiscordMember` in `SyncModels` carry them, `RosterNotes.Trim` drops the lone `Y` and `N` lines a gigagrug note collects, and `StewardSyncFile` emits them as `["members"]` and `["discord"]` alongside the existing datasets. `GigagrugGuildSyncApi` is the real `IGuildSyncApi`; `InMemoryGuildSyncApi` stays registered as the default because the Sync page is built against its fake dataset behaviour.
+
+The existing `RosterMember` record is the WoW guild roster the addon observes, not the gigagrug roster of people. The two are different datasets and the names are deliberately distinct.
+
 ## Saved variables
 
 Roster, loot and attendance read WoW SavedVariables files. Those files are one per addon per scope: everything under an addon's `## SavedVariables:` TOC directive lands in one shared account-level file at `WTF\Account\<ACCOUNT>\SavedVariables\<Addon>.lua` under the flavour folder, and `## SavedVariablesPerCharacter:` in a per-character file at `WTF\Account\<ACCOUNT>\<Realm>\<Character>\SavedVariables\<Addon>.lua`. Account folder names look like `54939295#1`, and the `.lua.bak` beside each file is ignored.
@@ -126,7 +134,8 @@ Checking runs at startup and on a 1-minute `DispatcherQueueTimer` in `MainViewMo
 ## Related repos
 
 - `hoobio/HoobiScripts` (private, local clone `D:\HoobiScripts`): the quality-of-life addon. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
-- `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. It has an `Addons` entry here (`steward`, `https://addon.hoobi.io/steward/`).
+- `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. It has an `Addons` entry here (`steward`, `https://addon.hoobi.io/steward/`). The contract between it and this app is `docs/design/roster-sync.md`.
+- `hoobio/gigagrug` (private, local clone `D:\gigagrug`): the Discord bot, guild API and admin SPA behind `api.hoobi.io/guild`. It holds the roster of people and the Discord member list this app pulls. Also covered by `docs/design/roster-sync.md`.
 
 Both addon repos work on a `development` branch (the local clones sit on it), fast-forward `main` for a pre-release and merge the release-please PR for a release; their version history was reset to 0.0.0 on 2026-09-20, so neither has a `release` build until a `feat` lands on `main` and its release PR is merged.
 - `RestedXP/RXPGuides` (public GitHub): the levelling guide addon, managed from its GitHub releases as described under Managed addons. Their paid guide API is documented in `docs/design/restedxp-guides.md`, and the page that drives it in `docs/design/guides-page.md`.
