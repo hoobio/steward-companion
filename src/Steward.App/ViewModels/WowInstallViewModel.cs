@@ -133,7 +133,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         foreach (var row in AddonRows)
         {
             row.IsClientRunning = IsClientRunning;
-            if (!IsClientRunning)
+            if (row.NeedsReload && (!IsClientRunning || SavedVariablesFreshness.WrittenSince(Install.FlavourPath, row.ReloadPendingSince)))
             {
                 row.NeedsReload = false;
             }

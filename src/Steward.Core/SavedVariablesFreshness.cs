@@ -28,6 +28,14 @@ public static class SavedVariablesFreshness
         return lastFileWrite.Value > client.StartTime + ClockTolerance ? Freshness.Fresh : Freshness.Stale;
     }
 
+    public static bool WrittenSince(string flavourPath, DateTimeOffset since)
+    {
+        var accountRoot = Path.Combine(flavourPath, "WTF", "Account");
+        return Directory.Exists(accountRoot) && Directory
+            .EnumerateFiles(accountRoot, "*.lua", SearchOption.AllDirectories)
+            .Any(path => File.GetLastWriteTimeUtc(path) > since + ClockTolerance);
+    }
+
     public static DateTimeOffset? LastWrite(SavedVariablesSnapshot? snapshot) =>
         snapshot?.ExportedAt ?? NewestFileWriteTime(snapshot);
 

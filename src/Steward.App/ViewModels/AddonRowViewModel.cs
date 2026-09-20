@@ -135,6 +135,8 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     public bool IsClientRunning { get; set; }
 
+    public DateTimeOffset ReloadPendingSince { get; private set; }
+
     public Visibility ReloadHintVisibility => When(NeedsReload);
 
     public bool CanAutoApply => !IsHidden && IsAdmin && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
@@ -316,6 +318,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
             _stateStore.Save(state);
 
             InstalledVersion = release.Version;
+            ReloadPendingSince = DateTimeOffset.Now;
             NeedsReload = IsClientRunning;
 
             if (string.Equals(AddonId, StewardSavedVariables.AddonName, StringComparison.OrdinalIgnoreCase))

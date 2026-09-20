@@ -102,4 +102,25 @@ public sealed class SavedVariablesFreshnessTests
     {
         Assert.Null(SavedVariablesFreshness.LastWrite(null));
     }
+
+    [Fact]
+    public void WrittenSince_TracksNewestSavedVariablesFile()
+    {
+        var flavourPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var savedVariables = Path.Combine(flavourPath, "WTF", "Account", "ACCOUNT#1", "SavedVariables");
+        Directory.CreateDirectory(savedVariables);
+        var file = Path.Combine(savedVariables, "Steward.lua");
+        File.WriteAllText(file, "StewardDB = {}");
+        var writtenAt = (DateTimeOffset)File.GetLastWriteTimeUtc(file);
+        try
+        {
+            Assert.False(SavedVariablesFreshness.WrittenSince(Path.Combine(flavourPath, "missing"), writtenAt.AddMinutes(-1)));
+            Assert.False(SavedVariablesFreshness.WrittenSince(flavourPath, writtenAt));
+            Assert.True(SavedVariablesFreshness.WrittenSince(flavourPath, writtenAt.AddMinutes(-1)));
+        }
+        finally
+        {
+            Directory.Delete(flavourPath, recursive: true);
+        }
+    }
 }
