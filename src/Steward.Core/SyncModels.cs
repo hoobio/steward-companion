@@ -31,9 +31,14 @@ public sealed record DiscordMember(
 public sealed record RosterStatusDef(
     [property: JsonPropertyName("name")] string Name);
 
+public sealed record OriginDef(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("color")] string Color);
+
 public sealed record GuildRosterResponse(
     [property: JsonPropertyName("members")] IReadOnlyList<GuildRosterMember> Members,
-    [property: JsonPropertyName("statuses")] IReadOnlyList<RosterStatusDef>? Statuses);
+    [property: JsonPropertyName("statuses")] IReadOnlyList<RosterStatusDef>? Statuses,
+    [property: JsonPropertyName("origins")] IReadOnlyList<OriginDef>? Origins);
 
 public sealed record DiscordMembersResponse(
     [property: JsonPropertyName("members")] IReadOnlyList<DiscordMember> Members);
@@ -94,6 +99,8 @@ public sealed record SyncPayload(
     IReadOnlyList<string> Statuses)
 {
     public AvatarImage? Avatar { get; init; }
+
+    public IReadOnlyList<OriginDef> Origins { get; init; } = [];
 }
 
 public sealed record SyncServerState(

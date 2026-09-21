@@ -23,10 +23,10 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore st
         guildId ??= guild?.Id
             ?? throw new InvalidOperationException("The signed-in user has no guild to sync from.");
 
-        var (members, statuses) = await client.GetGuildRosterAsync(guildId, ct).ConfigureAwait(false);
+        var (members, statuses, origins) = await client.GetGuildRosterAsync(guildId, ct).ConfigureAwait(false);
         var discord = await client.GetDiscordMembersAsync(guildId, ct).ConfigureAwait(false);
         var icon = await images.LoadAsync(guild?.IconUrl, ct).ConfigureAwait(false);
 
-        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon };
+        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins };
     }
 }

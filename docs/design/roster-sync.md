@@ -28,6 +28,8 @@ Two files, one direction each. The rule exists because the client rewrites its w
 
 `StewardSync.lua` is a plain Lua file listed in the TOC. It calls `Steward.LoadSync({...})` rather than assigning a global, so the addon owns the shape of what arrives. The addon updater replaces the whole addon folder, so the desktop app rewrites this file immediately after every addon update.
 
+`["origins"]` carries the roster's origin definitions, each `{ ["name"], ["color"] }`, straight through from the roster endpoint so the addon can colour a member's origin by name. It is always present, an empty array when the endpoint omits the field.
+
 ## Images
 
 The sandbox has no network, so an image reaches the game the same way data does: the desktop app fetches it, converts it, and writes it into the addon folder. The signed-in user's Discord avatar is the first of these, drawn in the window portrait circles.

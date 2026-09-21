@@ -137,6 +137,33 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
+    public void Render_ProducesTheOriginsTable()
+    {
+        var payload = SamplePayload() with { Origins = [new OriginDef("EU", "#1d7fd6")] };
+        var rendered = StewardSyncFile.Render(payload);
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"];
+
+        var origin = Assert.Single(table.GetTable("origins")!.Items);
+        Assert.Equal("EU", origin.GetString("name"));
+        Assert.Equal("#1d7fd6", origin.GetString("color"));
+    }
+
+    [Fact]
+    public void Render_ProducesAnEmptyOriginsTable_WhenThePayloadCarriesNone()
+    {
+        var rendered = StewardSyncFile.Render(SamplePayload());
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"];
+
+        Assert.Empty(table.GetTable("origins")!.Items);
+    }
+
+    [Fact]
     public void Write_CreatesTheSyncFile_WhenTheAddonIsInstalled()
     {
         var addOnsPath = InstallAddon();

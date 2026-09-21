@@ -33,7 +33,8 @@ public sealed class GigagrugClientTests
         "notes_warning":false,"signups":5,"last_signup_at":123,
         "primary":{"class":"WARRIOR","spec":"Fury","role":"Melee"},"secondary":null}],
         "statuses":[{"name":"Officer","color":"#ff0000","role_id":"9","position":0},
-        {"name":"Raider","color":"#00ff00","role_id":null,"position":1}]}
+        {"name":"Raider","color":"#00ff00","role_id":null,"position":1}],
+        "origins":[{"name":"EU","color":"#1d7fd6","position":0}]}
         """;
 
     private const string MembersBody =
@@ -44,7 +45,7 @@ public sealed class GigagrugClientTests
     {
         var (client, handler) = ClientFor(HttpStatusCode.OK, RosterBody);
 
-        var (members, statuses) = await client.GetGuildRosterAsync("1", CancellationToken.None);
+        var (members, statuses, origins) = await client.GetGuildRosterAsync("1", CancellationToken.None);
 
         Assert.Equal("https://api.example.com/guild/api/admin/1/roster", handler.RequestUrl);
         var member = Assert.Single(members);
@@ -53,16 +54,20 @@ public sealed class GigagrugClientTests
         Assert.Equal("WARRIOR", member.Primary?.Class);
         Assert.Null(member.Secondary);
         Assert.Equal(["Officer", "Raider"], statuses);
+        var origin = Assert.Single(origins);
+        Assert.Equal("EU", origin.Name);
+        Assert.Equal("#1d7fd6", origin.Color);
     }
 
     [Fact]
-    public async Task GetGuildRosterAsync_Success_GivesAnEmptyStatusesList_WhenTheFieldIsAbsent()
+    public async Task GetGuildRosterAsync_Success_GivesAnEmptyStatusesAndOriginsList_WhenTheFieldsAreAbsent()
     {
         var (client, _) = ClientFor(HttpStatusCode.OK, """{"members":[]}""");
 
-        var (_, statuses) = await client.GetGuildRosterAsync("1", CancellationToken.None);
+        var (_, statuses, origins) = await client.GetGuildRosterAsync("1", CancellationToken.None);
 
         Assert.Empty(statuses);
+        Assert.Empty(origins);
     }
 
     [Fact]

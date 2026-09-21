@@ -104,6 +104,7 @@ public static class StewardSyncFile
         entries.Add(new(LuaValue.FromString("members"), LuaValue.Array(payload.Members.Select(MemberToLua))));
         entries.Add(new(LuaValue.FromString("discord"), LuaValue.Array(payload.Discord.Select(DiscordToLua))));
         entries.Add(new(LuaValue.FromString("statuses"), LuaValue.Array(payload.Statuses.Select(LuaValue.FromString))));
+        entries.Add(new(LuaValue.FromString("origins"), LuaValue.Array(payload.Origins.Select(OriginToLua))));
 
         return LuaValue.FromTable(entries);
     }
@@ -157,6 +158,10 @@ public static class StewardSyncFile
             new LuaEntry(LuaValue.FromString("class"), LuaValue.FromString(build.Class)),
             new LuaEntry(LuaValue.FromString("spec"), LuaValue.FromString(build.Spec)),
             new LuaEntry(LuaValue.FromString("role"), LuaValue.FromString(build.Role)));
+
+    private static LuaValue OriginToLua(OriginDef origin) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(origin.Name)),
+        new LuaEntry(LuaValue.FromString("color"), LuaValue.FromString(origin.Color)));
 
     private static LuaValue DiscordToLua(DiscordMember member) => LuaValue.FromTable(
         new LuaEntry(LuaValue.FromString("id"), LuaValue.FromString(member.Id)),
