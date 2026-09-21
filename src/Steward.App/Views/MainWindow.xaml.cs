@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows.Input;
 
 using CommunityToolkit.Mvvm.Input;
@@ -149,7 +150,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (ViewModel.KeepInTray)
+        if (ViewModel.CloseToTray)
         {
             args.Cancel = true;
             HideToTray();
@@ -162,7 +163,7 @@ public sealed partial class MainWindow : Window
     private void OnWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
     {
         if (args.DidPresenterChange
-            && ViewModel.KeepInTray
+            && ViewModel.MinimizeToTray
             && sender.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized })
         {
             HideToTray();
@@ -175,16 +176,17 @@ public sealed partial class MainWindow : Window
         EfficiencyModeUtilities.SetEfficiencyMode(true);
     }
 
-    private void ShowFromTray()
+    public void ShowFromTray()
     {
         EfficiencyModeUtilities.SetEfficiencyMode(false);
+        AppWindow.Show(activateWindow: true);
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.Restore();
         }
 
-        AppWindow.Show();
         Activate();
+        Native.ForceForeground(ViewModel.OwnerWindowHandle);
     }
 
     private void QuitCompletely()
@@ -192,5 +194,44 @@ public sealed partial class MainWindow : Window
         _quitting = true;
         TrayIcon.Dispose();
         Application.Current.Exit();
+    }
+}
+
+internal static class Native
+{
+    [DllImport("user32.dll")]
+    private static extern nint GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(nint hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint hWnd, nint processId);
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint attachTo, uint attachFrom, bool attach);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    // Windows refuses SetForegroundWindow to a process that did not receive the last input event; a tray click goes to explorer, so borrow its input queue for the call.
+    public static void ForceForeground(nint handle)
+    {
+        var foreground = GetForegroundWindow();
+        if (foreground == handle)
+        {
+            return;
+        }
+
+        var owner = GetWindowThreadProcessId(foreground, nint.Zero);
+        var self = GetCurrentThreadId();
+        var attached = owner != self && AttachThreadInput(self, owner, true);
+
+        SetForegroundWindow(handle);
+
+        if (attached)
+        {
+            AttachThreadInput(self, owner, false);
+        }
     }
 }

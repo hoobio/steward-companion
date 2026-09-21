@@ -13,8 +13,7 @@
   this file on the chrome. Extensions are pinned to the WiX tool version in build.yaml.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
-     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
 
   <?define UpgradeCodeGuid = "CCD0BF88-7A8E-4F74-9DB7-9B9272B3D503" ?>
   <?define ShortcutGuid = "DA062698-AF5C-4CA3-B0BB-FF90D287B0C1" ?>
@@ -73,13 +72,17 @@
       <ComponentRef Id="StartMenuShortcut" />
     </Feature>
 
-    <!-- A tray-parked Steward cancels WM_CLOSE and hides instead, so the terminate fallback is what actually frees the files. -->
-    <util:CloseApplication Id="CloseSteward"
-                           Target="Steward.App.exe"
-                           CloseMessage="yes"
-                           RebootPrompt="no"
-                           Timeout="5"
-                           TerminateProcess="0" />
+    <!-- A tray-parked Steward cancels WM_CLOSE and hides instead, so util:CloseApplication never freed the files; taskkill is what actually ends it. -->
+    <SetProperty Id="StopSteward"
+                 Value='"[SystemFolder]taskkill.exe" /f /im Steward.App.exe'
+                 Before="StopSteward"
+                 Sequence="execute" />
+    <CustomAction Id="StopSteward"
+                  DllEntry="WixQuietExec"
+                  BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)"
+                  Execute="immediate"
+                  Impersonate="yes"
+                  Return="ignore" />
 
     <CustomAction Id="LaunchSteward"
                   FileRef="StewardAppExe"
@@ -87,7 +90,9 @@
                   Return="asyncNoWait" />
 
     <InstallExecuteSequence>
-      <Custom Action="LaunchSteward" After="InstallFinalize" Condition="NOT REMOVE" />
+      <Custom Action="StopSteward" Before="InstallValidate" />
+      <!-- A full-UI install launches from Finish instead, so the exit dialog cannot steal the foreground back off the window it just opened. -->
+      <Custom Action="LaunchSteward" After="InstallFinalize" Condition="NOT REMOVE AND UILevel &lt; 5" />
     </InstallExecuteSequence>
 
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
@@ -114,6 +119,7 @@
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="99" />
       <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="99" />
       <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="RegisterStartup" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed AND NOT WIX_UPGRADE_DETECTED" Order="98" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchSteward" Condition="NOT Installed OR WIX_UPGRADE_DETECTED" Order="99" />
     </UI>
 
   </Package>

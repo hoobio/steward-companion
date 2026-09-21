@@ -45,13 +45,13 @@ public partial class App : Application
             return;
         }
 
-        if (Environment.GetCommandLineArgs().Contains(StartupRegistration.TrayArgument) && _window.ViewModel.KeepInTray)
+        if (Environment.GetCommandLineArgs().Contains(StartupRegistration.TrayArgument) && _window.ViewModel.MinimizeToTray)
         {
             _window.HideToTray();
         }
         else
         {
-            _window.Activate();
+            _window.ShowFromTray();
         }
         _ = _window.ViewModel.InitializeCommand.ExecuteAsync(null);
     }

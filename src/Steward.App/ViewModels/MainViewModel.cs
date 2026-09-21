@@ -104,7 +104,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var state = stateStore.Load();
         _isLoadingState = true;
-        KeepInTray = state.KeepInTray;
+        MinimizeToTray = state.MinimizeToTray;
+        CloseToTray = state.CloseToTray;
         AppChannelIndex = state.AppChannel == "pre-release" ? 1 : 0;
         StartWithWindows = StartupRegistration.IsEnabled();
         _isLoadingState = false;
@@ -191,7 +192,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial GateFailure Failure { get; set; }
 
     [ObservableProperty]
-    public partial bool KeepInTray { get; set; }
+    public partial bool MinimizeToTray { get; set; }
+
+    [ObservableProperty]
+    public partial bool CloseToTray { get; set; }
 
     [ObservableProperty]
     public partial bool StartWithWindows { get; set; }
@@ -885,14 +889,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    partial void OnKeepInTrayChanged(bool value)
+    partial void OnMinimizeToTrayChanged(bool value)
     {
         if (_isLoadingState)
         {
             return;
         }
 
-        _stateStore.Save(_stateStore.Load() with { KeepInTray = value });
+        _stateStore.Save(_stateStore.Load() with { MinimizeToTray = value });
+    }
+
+    partial void OnCloseToTrayChanged(bool value)
+    {
+        if (_isLoadingState)
+        {
+            return;
+        }
+
+        _stateStore.Save(_stateStore.Load() with { CloseToTray = value });
     }
 
     partial void OnAppChannelIndexChanged(int value)

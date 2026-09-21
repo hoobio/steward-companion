@@ -198,16 +198,18 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
-    public void Load_KeepInTray_DefaultsTrue_AndRoundTrips()
+    public void Load_TrayBehaviour_DefaultsToMinimizeOnly_AndRoundTrips()
     {
         File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
         var store = new AppStateStore(["hoobiscripts"], StatePath);
 
-        Assert.True(store.Load().KeepInTray);
+        Assert.True(store.Load().MinimizeToTray);
+        Assert.False(store.Load().CloseToTray);
 
-        store.Save(store.Load() with { KeepInTray = false });
+        store.Save(store.Load() with { MinimizeToTray = false, CloseToTray = true });
 
-        Assert.False(store.Load().KeepInTray);
+        Assert.False(store.Load().MinimizeToTray);
+        Assert.True(store.Load().CloseToTray);
     }
 
     [Fact]

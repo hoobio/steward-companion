@@ -153,12 +153,21 @@
             <TextBlock Text="Behaviour" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,20,0,4" />
 
             <controls:SettingsCard
-                Header="Keep running in the tray"
-                Description="Closing or minimising the window hides Steward to the tray instead of quitting">
+                Header="Minimise to the tray"
+                Description="Minimising the window hides Steward to the tray instead of the taskbar">
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE7C4;" />
                 </controls:SettingsCard.HeaderIcon>
-                <ToggleSwitch IsOn="{x:Bind ViewModel.KeepInTray, Mode=TwoWay}" />
+                <ToggleSwitch IsOn="{x:Bind ViewModel.MinimizeToTray, Mode=TwoWay}" />
+            </controls:SettingsCard>
+
+            <controls:SettingsCard
+                Header="Close to the tray"
+                Description="Closing the window keeps Steward running in the tray instead of quitting">
+                <controls:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE8BB;" />
+                </controls:SettingsCard.HeaderIcon>
+                <ToggleSwitch IsOn="{x:Bind ViewModel.CloseToTray, Mode=TwoWay}" />
             </controls:SettingsCard>
 
             <controls:SettingsCard
