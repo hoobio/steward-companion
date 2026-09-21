@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.9.0](https://github.com/hoobio/steward-companion/compare/v0.8.3...v0.9.0) (2026-09-21)
+
+
+### Features
+
+* ✨ rename the addon update channel from development to develop ([ef3453f](https://github.com/hoobio/steward-companion/commit/ef3453ff4903fe6de93da116450f7db7b888d051))
+* ✨ split minimise to tray from close to tray, and let the installer end a tray-parked instance ([24f1a24](https://github.com/hoobio/steward-companion/commit/24f1a2465b3b5077c7c35dec89aeb1c2f689c9b0))
+* ✨ stop a user with no officer role at the sign-in gate ([c1adc2a](https://github.com/hoobio/steward-companion/commit/c1adc2a3eac0ce7eef2c2b952a90e050de7e4e99))
+* ✨ take self-update from the manifest host and poll it every minute ([1987db0](https://github.com/hoobio/steward-companion/commit/1987db0c92b49a5d61a725461713a4102b40d4f8))
+* 🎸 carry the guild's ordered status catalogue into StewardSync.lua ([18f04c1](https://github.com/hoobio/steward-companion/commit/18f04c19a9baa1f677c030da96a02895f4d0012b))
+* 🎸 choose the guild to sync and carry the Discord avatar into the game ([d733cd5](https://github.com/hoobio/steward-companion/commit/d733cd524f66408749c4b0f1307eb6b4e374a074))
+* 🎸 pull the gigagrug guild roster and Discord member list into StewardSync.lua ([b92958f](https://github.com/hoobio/steward-companion/commit/b92958f11d9f6936c2ada59eb9448db4c7d35880))
+* 🎸 pull the gigagrug roster on every refresh pass and write StewardSync.lua ([9aa4f6b](https://github.com/hoobio/steward-companion/commit/9aa4f6bdb2dba0d810c4cf730e5fa94de64f9582))
+
+
+### Bug Fixes
+
+* 🐛 cut the trailing explanations out of the app's banners and empty states ([cb55efc](https://github.com/hoobio/steward-companion/commit/cb55efc23856ece3b891b25ff2f6050a53197cc4))
+* 🐛 detect GitHub rate limits and back off until reset ([f9bc2c5](https://github.com/hoobio/steward-companion/commit/f9bc2c5e288cd8f0ab4608ac83b1352a659626ec))
+* 🐛 keep the addon row name column from collapsing under a long action button ([df4dfbe](https://github.com/hoobio/steward-companion/commit/df4dfbe77cbe90457dee2140811a5df0bb9ce9ce))
+* 🐛 show the guild's Discord icon in game, not the signed-in user's avatar ([3ddafba](https://github.com/hoobio/steward-companion/commit/3ddafbaa254f5d085a9094e74d87836b95623a43))
+
 ## [0.8.3](https://github.com/hoobio/steward-companion/compare/v0.8.2...v0.8.3) (2026-09-20)
 
 
