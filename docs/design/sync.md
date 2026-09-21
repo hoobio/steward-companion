@@ -26,10 +26,9 @@ Unconfirmed. The shapes below are what the page needs, not an agreed API. Get th
 
 Until that contract is agreed, the app runs the page against `InMemoryGuildSyncApi`, the only implementation of `IGuildSyncApi` registered today. It answers with mock counts and a mock local snapshot, so every card, count and banner renders without the endpoints existing. `Send`, `Sync now`, `Write again` and `Update in game` are rendered per this design but disabled, tooltipped "Available once the guild API ships". The fake's `Scenario` property carries `InSync`, `Ready`, `DatasetFailure`, `Unreachable` and `Slow`, defaulting to `Ready`; it is set from code, with no picker in the UI, and is how each state below is reached while the real endpoints are absent. A card drawing on the fake's records carries a `Sample` pill.
 
-Two things to settle with the API owner before implementing:
+One thing to settle with the API owner before implementing: **how the server merges overlapping records.** The page reports a merge result per dataset and never opens a conflict dialog, which assumes the server resolves overlaps and answers with what it took.
 
-- **Whether a member role may push.** This design gates pushing behind `global`/`admin`, matching every other privileged action in the app, and leaves pulling open to any signed-in user. If members are meant to contribute their own attendance, that inverts and the role gate moves off push entirely.
-- **How the server merges overlapping records.** The page reports a merge result per dataset and never opens a conflict dialog, which assumes the server resolves overlaps and answers with what it took.
+Roles are settled. Steward is an officer tool: gigagrug answers 403 on every `/api/admin/` route to a user with no seat and no global admin, so a member reaching this page has nothing to send and nothing to pull. The app stops such a user at the sign-in gate, described in the [Addons page design](home-and-settings.md#not-authorised), and this page is only ever reached by `global`/`admin`.
 
 ## Reading and writing on disk
 
@@ -89,7 +88,6 @@ This is the second destination the home design was waiting for, so the shell mov
 | In sync | Every dataset matches the server |
 | Syncing | A push or pull running |
 | Dataset failure | The server rejected one dataset |
-| Member role | Role outside `global`/`admin` |
 | Unreachable | `api.hoobi.io` not answering |
 
 ### Addon missing
@@ -140,12 +138,6 @@ The row owns the progress, matching an addon update. The count is replaced by a 
 Row-level, critical text under the source file, with `Retry`: "The server rejected this payload: 3 loot events reference an unknown character. Nothing was recorded." One dataset failing does not stop the others.
 
 The window-level `InfoBar` stays reserved for session and connectivity, as on the Addons page.
-
-### Member role
-
-`Send`, `Sync now` and the per-row send actions disappear rather than greying out. Counts, timestamps and the pull actions stay, since reading the merged guild data into the game is not a privileged action.
-
-Window-level informational `InfoBar`: "Signed in as {name}. Sending guild records needs an officer role on the guild panel. You can still pull the guild view into the game." with an Open guild panel link.
 
 ### Unreachable
 

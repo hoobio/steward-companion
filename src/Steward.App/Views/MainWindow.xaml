@@ -183,6 +183,17 @@
                     IsClosable="False"
                     Severity="Error"
                     HorizontalAlignment="Center"
+                    Visibility="{x:Bind ViewModel.NotAuthorizedVisibility, Mode=OneWay}"
+                    Message="That Discord account has no officer role on the guild panel. Steward is for officers, so there is nothing to show. Ask an officer to raise your role, then sign in again.">
+                    <InfoBar.ActionButton>
+                        <HyperlinkButton Content="Open guild panel" NavigateUri="https://guild.hoobi.io" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+                <InfoBar
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Error"
+                    HorizontalAlignment="Center"
                     Visibility="{x:Bind ViewModel.UnreachableVisibility, Mode=OneWay}"
                     Message="Could not reach api.hoobi.io. Check your connection. Addon versions cannot be checked until it is reachable.">
                     <InfoBar.ActionButton>

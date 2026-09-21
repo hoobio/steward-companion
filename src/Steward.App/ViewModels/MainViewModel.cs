@@ -23,6 +23,7 @@ public enum GateFailure
     Timeout,
     SessionExpired,
     Unreachable,
+    NotAuthorized,
 }
 
 public sealed partial class MainViewModel : ObservableObject, IDisposable
@@ -154,7 +155,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Func<WowInstall, Task>? AfterStewardInstalled { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(MemberInfoBarText))]
     public partial string? UserName { get; set; }
 
     [ObservableProperty]
@@ -162,7 +162,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string? StatusMessage { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(MemberInfoBarVisibility), nameof(MemberInfoBarIsOpen))]
     public partial bool IsAuthorized { get; set; }
 
     [ObservableProperty]
@@ -178,7 +177,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(GateVisibility), nameof(ShellChromeVisibility))]
-    [NotifyPropertyChangedFor(nameof(MemberInfoBarVisibility), nameof(MemberInfoBarIsOpen))]
     public partial bool IsSignedIn { get; set; }
 
     [ObservableProperty]
@@ -187,7 +185,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool IsSigningIn { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(IsApiReachable), nameof(RetryVisibility))]
+    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(NotAuthorizedVisibility), nameof(IsApiReachable), nameof(RetryVisibility))]
     public partial GateFailure Failure { get; set; }
 
     [ObservableProperty]
@@ -310,13 +308,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool StatusMessageIsOpen => !string.IsNullOrEmpty(StatusMessage);
 
-    public bool MemberInfoBarIsOpen => IsSignedIn && !IsAuthorized;
-
-    public Visibility MemberInfoBarVisibility => When(MemberInfoBarIsOpen);
-
-    public string MemberInfoBarText =>
-        $"Signed in as {UserName}. Applying addon updates needs an officer role on the guild panel. Ask an officer to raise yours.";
-
     public Visibility GateVisibility => When(!IsSignedIn);
 
     public Visibility ShellChromeVisibility => When(IsSignedIn);
@@ -333,6 +324,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Visibility SessionExpiredVisibility => When(Failure == GateFailure.SessionExpired);
 
     public Visibility UnreachableVisibility => When(Failure == GateFailure.Unreachable);
+
+    public Visibility NotAuthorizedVisibility => When(Failure == GateFailure.NotAuthorized);
 
     public bool IsApiReachable => Failure != GateFailure.Unreachable;
 
@@ -510,7 +503,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsBusy = true;
         try
         {
-            if (await RecheckAuthorizationAsync(cancellationToken).ConfigureAwait(true) == AuthCheckResult.SessionExpired)
+            if (await RecheckAuthorizationAsync(cancellationToken).ConfigureAwait(true)
+                is AuthCheckResult.SessionExpired or AuthCheckResult.NotAuthorized)
             {
                 return;
             }
@@ -1037,7 +1031,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var result = await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
-            if (result != AuthCheckResult.SessionExpired && IsApiReachable)
+            if (result == AuthCheckResult.Authorized)
             {
                 await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
                 await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
@@ -1080,6 +1074,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var me = await _gigagrugClient.GetMeAsync(cancellationToken).ConfigureAwait(true);
+            if (!GigagrugClient.IsAdmin(me))
+            {
+                SignOutTo(GateFailure.NotAuthorized);
+                return AuthCheckResult.NotAuthorized;
+            }
+
             UserName = me.User.Name;
             UserHandle = me.User.Username is { Length: > 0 } u ? $"@{u}" : null;
             Role = me.User.Role;
@@ -1099,28 +1099,33 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (SessionExpiredException)
         {
-            _sessionService.ClearSession();
-            IsAuthorized = false;
-            IsGlobalAdmin = false;
-            UserName = null;
-            UserHandle = null;
-            Role = null;
-            AvatarUri = null;
-            _guildId = null;
-            SetGuilds([], null);
-            StatusMessage = null;
-            IsSignedIn = false;
-            Failure = GateFailure.SessionExpired;
-            _recheckTimer?.Stop();
-            PropagateAuthorized();
+            SignOutTo(GateFailure.SessionExpired);
             return AuthCheckResult.SessionExpired;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             Failure = GateFailure.Unreachable;
             StatusMessage = ex.Message;
-            return AuthCheckResult.NotAuthorized;
+            return AuthCheckResult.Unreachable;
         }
+    }
+
+    private void SignOutTo(GateFailure failure)
+    {
+        _sessionService.ClearSession();
+        IsAuthorized = false;
+        IsGlobalAdmin = false;
+        UserName = null;
+        UserHandle = null;
+        Role = null;
+        AvatarUri = null;
+        _guildId = null;
+        SetGuilds([], null);
+        StatusMessage = null;
+        IsSignedIn = false;
+        Failure = failure;
+        _recheckTimer?.Stop();
+        PropagateAuthorized();
     }
 
     private void PropagateAuthorized()
@@ -1138,5 +1143,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Authorized,
         NotAuthorized,
         SessionExpired,
+        Unreachable,
     }
 }

@@ -327,16 +327,6 @@
                     </StackPanel>
                 </Grid>
 
-                <InfoBar
-                    Severity="Informational"
-                    IsClosable="False"
-                    IsOpen="{x:Bind ViewModel.MemberInfoBarIsOpen, Mode=OneWay}"
-                    Message="{x:Bind ViewModel.MemberInfoBarText, Mode=OneWay}">
-                    <InfoBar.ActionButton>
-                        <HyperlinkButton Content="Open guild panel" NavigateUri="https://guild.hoobi.io" />
-                    </InfoBar.ActionButton>
-                </InfoBar>
-
                 <Border
                     CornerRadius="8"
                     Padding="12,8"

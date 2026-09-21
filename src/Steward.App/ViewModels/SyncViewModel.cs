@@ -30,8 +30,6 @@ public sealed partial class SyncViewModel : ObservableObject
         nameof(LastSyncedText),
         nameof(GeneratedFilePath),
         nameof(GeneratedFileDescription),
-        nameof(MemberInfoBarIsOpen),
-        nameof(MemberInfoBarText),
     ];
 
     private readonly MainViewModel _main;
@@ -142,12 +140,6 @@ public sealed partial class SyncViewModel : ObservableObject
                 : $"{GeneratedFilePath}, not written yet. Writes now, read in game after /reload.";
         }
     }
-
-    public bool MemberInfoBarIsOpen => _main.IsSignedIn && !_main.IsAuthorized;
-
-    public string MemberInfoBarText =>
-        $"Signed in as {_main.UserName}. Sending guild records needs an officer role on the guild panel. "
-        + "You can still pull the guild view into the game.";
 
     public bool UnreachableIsOpen => IsUnreachable;
 

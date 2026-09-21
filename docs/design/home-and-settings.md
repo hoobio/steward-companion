@@ -106,7 +106,7 @@ Two pages, so no navigation pane.
 | Signing in | Browser opened on the desktop sign-in URL, no code received yet |
 | Sign-in failure | Browser timeout, expired session, or unreachable host |
 | No installs | Discovery returned nothing |
-| Member role | Session valid, role outside `global`/`admin` |
+| Not authorised | Session valid, role outside `global`/`admin` |
 | Admin, updates available | Role `global`/`admin` and a manifest version differs from what is recorded |
 | No releases | An addon has no manifest on any channel the user can see |
 | Updating | `AddonRowViewModel.UpdateAsync` running |
@@ -130,6 +130,7 @@ An `InfoBar` directly above the sign-in button, inside the centred stack. The bu
 - Browser timeout, caution: "No sign-in reached Steward from the browser. Sign in again." Raised when the loopback listener sees no code within 5 minutes or the tab was closed.
 - Expired session, caution: "Your session expired. Sessions last 30 days from last use. Sign in again to carry on."
 - Unreachable host, critical: "Could not reach api.hoobi.io. Check your connection. Steward will not have current addon versions until it can." Action button retries.
+- Not authorised, critical: see below.
 
 ### No installs
 
@@ -137,11 +138,11 @@ Centred empty state: folder glyph at 44px, "No World of Warcraft installs found"
 
 The page header stays visible above it.
 
-### Member role
+### Not authorised
 
-Update, Update all and Install disappear rather than greying out. Versions, installs and channel pills stay readable, and a row with an update shows an `Update available` pill where the button was. The channel rows in Settings go read-only, showing the channel as text rather than a picker.
+Steward is an officer tool. gigagrug answers 403 on every `/api/admin/` route to a user with no seat and no global admin, leaving only `/api/admin/me`, so a member past the gate would see an app with no data in it.
 
-A window-level informational `InfoBar` sits above the cards: "Signed in as {name}. Applying addon updates needs an officer role on the guild panel. Ask an officer to raise yours." with an Open guild panel link.
+The app never gets there. `/api/admin/me` comes back with a role outside `global`/`admin`, the stored session is cleared and the window stays on the gate, with a critical `InfoBar` above the sign-in button: "That Discord account has no officer role on the guild panel. Steward is for officers, so there is nothing to show. Ask an officer to raise your role, then sign in again." with an Open guild panel link. The same check runs on the background pass, so an officer demoted mid-session lands back on the gate.
 
 ### Admin, updates available
 
