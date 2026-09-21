@@ -137,7 +137,7 @@ public sealed partial class SyncViewModel : ObservableObject
 
             return File.Exists(GeneratedFilePath)
                 ? $"{GeneratedFilePath}, written {Relative(File.GetLastWriteTime(GeneratedFilePath))}"
-                : $"{GeneratedFilePath}, not written yet. Writes now, read in game after /reload.";
+                : $"{GeneratedFilePath}, not written yet. Readable in game after /reload.";
         }
     }
 

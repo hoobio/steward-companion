@@ -142,7 +142,7 @@ The page header stays visible above it.
 
 Steward is an officer tool. gigagrug answers 403 on every `/api/admin/` route to a user with no seat and no global admin, leaving only `/api/admin/me`, so a member past the gate would see an app with no data in it.
 
-The app never gets there. `/api/admin/me` comes back with a role outside `global`/`admin`, the stored session is cleared and the window stays on the gate, with a critical `InfoBar` above the sign-in button: "That Discord account has no officer role on the guild panel. Steward is for officers, so there is nothing to show. Ask an officer to raise your role, then sign in again." with an Open guild panel link. The same check runs on the background pass, so an officer demoted mid-session lands back on the gate.
+The app never gets there. `/api/admin/me` comes back with a role outside `global`/`admin`, the stored session is cleared and the window stays on the gate, with a critical `InfoBar` above the sign-in button: "That Discord account has no officer role." No link, no instruction. The same check runs on the background pass, so an officer demoted mid-session returns to the gate.
 
 ### Admin, updates available
 

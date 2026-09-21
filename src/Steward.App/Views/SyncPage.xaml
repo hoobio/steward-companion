@@ -274,7 +274,7 @@
                             CornerRadius="10"
                             Padding="8,2"
                             Background="{ThemeResource ChipBrush}"
-                            ToolTipService.ToolTip="Mock records from the in-memory guild API"
+                            ToolTipService.ToolTip="Sample records, not your guild's data"
                             Visibility="{x:Bind SamplePillVisibility}">
                             <TextBlock
                                 Text="Sample"
@@ -417,7 +417,7 @@
                 Severity="Error"
                 IsClosable="False"
                 IsOpen="{x:Bind ViewModel.UnreachableIsOpen, Mode=OneWay}"
-                Message="Could not reach api.hoobi.io. Check your connection. Guild data cannot be sent or pulled until it is reachable." />
+                Message="Could not reach api.hoobi.io. Check your connection." />
 
             <StackPanel
                 HorizontalAlignment="Center"
@@ -440,7 +440,7 @@
                     HorizontalAlignment="Center"
                     TextAlignment="Center"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="Sync reads roster, loot and attendance out of the Steward addon's saved variables. The addon has no releases yet, so there is nothing to install from here." />
+                    Text="Sync reads roster, loot and attendance from the Steward addon's saved variables. The addon has no releases yet." />
                 <HyperlinkButton
                     Content="Open guild panel"
                     HorizontalAlignment="Center"

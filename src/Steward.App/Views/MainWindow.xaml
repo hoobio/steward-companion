@@ -177,25 +177,21 @@
                     Severity="Warning"
                     HorizontalAlignment="Center"
                     Visibility="{x:Bind ViewModel.SessionExpiredVisibility, Mode=OneWay}"
-                    Message="Your session expired. Sessions last 30 days from last use. Sign in again." />
+                    Message="Your session expired. Sign in again." />
                 <InfoBar
                     IsOpen="True"
                     IsClosable="False"
                     Severity="Error"
                     HorizontalAlignment="Center"
                     Visibility="{x:Bind ViewModel.NotAuthorizedVisibility, Mode=OneWay}"
-                    Message="That Discord account has no officer role on the guild panel. Steward is for officers, so there is nothing to show. Ask an officer to raise your role, then sign in again.">
-                    <InfoBar.ActionButton>
-                        <HyperlinkButton Content="Open guild panel" NavigateUri="https://guild.hoobi.io" />
-                    </InfoBar.ActionButton>
-                </InfoBar>
+                    Message="That Discord account has no officer role." />
                 <InfoBar
                     IsOpen="True"
                     IsClosable="False"
                     Severity="Error"
                     HorizontalAlignment="Center"
                     Visibility="{x:Bind ViewModel.UnreachableVisibility, Mode=OneWay}"
-                    Message="Could not reach api.hoobi.io. Check your connection. Addon versions cannot be checked until it is reachable.">
+                    Message="Could not reach api.hoobi.io. Check your connection.">
                     <InfoBar.ActionButton>
                         <Button Content="Retry" Command="{x:Bind ViewModel.SignInCommand}" />
                     </InfoBar.ActionButton>
@@ -226,7 +222,7 @@
                     HorizontalAlignment="Center"
                     TextAlignment="Center"
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Text="Opens your browser. The session is stored on this machine; your password is not." />
+                    Text="Opens your browser. Steward stores the session on this machine and never sees your password." />
             </StackPanel>
 
             <StackPanel
