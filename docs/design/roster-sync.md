@@ -65,6 +65,18 @@ Both notes are read and they rank:
 
 A note is normalised before it is matched: any line whose trimmed content is `Y` or `N`, in either case, is dropped, then blank lines are trimmed. `"Y\nHoobi"` normalises to `"Hoobi"`. The normalised value is matched against the roster member's `display_name`, then sign-up `name`, then `discord_tag`, case-insensitively, then fuzzily.
 
+## What an addon may and may not do to Blizzard's guild list
+
+The native guild window is the daily driver and Steward extends it, so the boundary is worth stating precisely. Tested in game, not reasoned:
+
+**Works.** Drawing our own font strings on the member list rows and our own header button in the column display, and repositioning Blizzard's row widgets and header buttons with `SetPoint` so the inserted column lines up. Relabelling Blizzard's `Name` header to `Character` with `SetText`. Hanging an addon-created pane off `GuildMemberDetailFrame`. Anchoring a pane to a `StaticPopup` without parenting to it. All of `Modules\GuildColumn.lua`, `Modules\MemberDetail.lua` and `Modules\NoteSuggest.lua` live here.
+
+**Does not work: sorting the list.** Reordering means `table.sort` on `CommunitiesFrame.MemberList.sortedMemberList`, and there is no route around it. Assigning a fresh list taints the frame; substituting a DataProvider taints the container every `elementData` is read from. The tainted slots reach `RefreshListDisplay` (`CommunitiesMemberList.lua:313-322`), then `SetMember`, `OnClubMemberButtonClicked` (`:764`), `DisplayMember`, `self.memberId` (`GuildRoster.lua:97`) and `SetupRankDropdown` (`:84-89`), so `C_GuildInfo.SetGuildRankOrder` (`:38`) refuses rank changes until a reload. Built, shipped behind a flag, confirmed broken in game on 21 Sep 2026, reverted.
+
+The rule that separates the two: **drawing on Blizzard's UI is fine, and so is moving what it has already drawn. Putting values into the data it reads back is not.** Sorting fails because the list order *is* data Blizzard reads back, while a font string and a `SetPoint` are not.
+
+Cells are aligned by measuring each header's position rather than by matching constants, since the header chain and the row chain use different widths and drift apart otherwise.
+
 ## An addon cannot write a guild note
 
 Established the hard way on 21 Sep 2026, after `/janny`'s Link button shipped, appeared to work, and wrote nothing.
