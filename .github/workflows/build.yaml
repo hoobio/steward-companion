@@ -248,3 +248,26 @@ jobs:
           gh release create "$tag" --prerelease --target "$GITHUB_SHA" --title "$tag" --generate-notes ${previous:+--notes-start-tag "$previous"} "release/Steward-$VERSION-x64.msi"
           gh release list --limit 100 --json tagName,isPrerelease,createdAt --jq '[.[] | select(.isPrerelease)] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' \
             | xargs -r -n1 gh release delete --cleanup-tag --yes
+
+  dispatch:
+    name: Notify addons
+    needs: [release, pre-release]
+    # Ordering only: whichever of the two published, the manifests the app polls are rebuilt from the release list.
+    if: always() && (needs.release.result == 'success' || needs.pre-release.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Requires the release-please GitHub App to also be installed on hoobio/addons.
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          owner: hoobio
+          repositories: addons
+
+      - name: Dispatch addon-released
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh api repos/hoobio/addons/dispatches -f event_type=addon-released

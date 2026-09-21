@@ -27,7 +27,6 @@ public enum GateFailure
 
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
-    private static readonly TimeSpan RecheckInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
 
     private static readonly TimeSpan GuideCheckInterval = TimeSpan.FromHours(3);
@@ -1022,7 +1021,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         UpdateLastCheckedText();
         _ = NotifySavedVariablesChangedAsync();
-        if (!_isChecking && (Failure == GateFailure.Unreachable || DateTimeOffset.Now - _lastPass >= RecheckInterval))
+        if (!_isChecking)
         {
             _ = RunBackgroundPassAsync();
             return;

@@ -22,6 +22,8 @@ internal static class HostBuilderExtensions
 
         var baseUrl = builder.Configuration["Gigagrug:BaseUrl"]
             ?? throw new InvalidOperationException("Gigagrug:BaseUrl is not configured");
+        var appManifestBaseUrl = builder.Configuration["App:ManifestBaseUrl"]
+            ?? throw new InvalidOperationException("App:ManifestBaseUrl is not configured");
         var addons = builder.Configuration.GetSection("Addons").Get<ManagedAddon[]>()
             ?? throw new InvalidOperationException("Addons is not configured");
         if (addons.Length == 0)
@@ -72,7 +74,7 @@ internal static class HostBuilderExtensions
             baseUrl));
         builder.Services.AddSingleton(sp => new AddonUpdater(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon")));
-        builder.Services.AddSingleton(sp => new AppUpdater(sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"), "hoobio/steward-companion"));
+        builder.Services.AddSingleton(sp => new AppUpdater(sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"), appManifestBaseUrl));
 
         builder.Services.AddSingleton(sp => new RestedXpClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"),

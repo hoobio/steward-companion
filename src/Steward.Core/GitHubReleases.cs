@@ -18,7 +18,8 @@ public sealed class GitHubRateLimitedException(DateTimeOffset? resetAt) : Except
 public static class GitHubReleases
 {
     private static readonly ConcurrentDictionary<string, (DateTimeOffset FetchedAt, GitHubRelease[] Releases)> Cache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(15);
+    // The manifest host is polled every minute; GitHub's 60-an-hour unauthenticated cap is why the addons sourced from it are not.
+    private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(60);
     private static DateTimeOffset? _rateLimitedUntil;
 
     public static async Task<AddonRelease?> GetLatestAsync(

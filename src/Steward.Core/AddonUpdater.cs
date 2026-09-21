@@ -21,13 +21,18 @@ public sealed class AddonUpdater
                 : null;
         }
 
-        var manifestUri = ManifestUri(addon, channel);
+        return await FetchManifestAsync(_httpClient, ManifestUri(addon, channel), cancellationToken).ConfigureAwait(false);
+    }
+
+    public static async Task<AddonRelease?> FetchManifestAsync(HttpClient httpClient, Uri manifestUri, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(httpClient);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, manifestUri);
         // The Static Web App route for this manifest has unconfirmed cache headers.
         request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
 
-        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         // A channel with no releases publishes the literal JSON `null`, so null here means an empty channel rather than a fault.

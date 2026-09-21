@@ -1,9 +1,10 @@
 using System.Diagnostics;
+using System.Net;
 using System.Text;
 
 namespace Steward.Core;
 
-public sealed class AppUpdater(HttpClient httpClient, string repo)
+public sealed class AppUpdater(HttpClient httpClient, string manifestBaseUrl)
 {
     public async Task<AddonRelease?> CheckAsync(Version current, string installedVersion, string channel, CancellationToken cancellationToken)
     {
@@ -14,7 +15,7 @@ public sealed class AppUpdater(HttpClient httpClient, string repo)
 
         if (channel == "release")
         {
-            var stable = await GitHubReleases.GetLatestAsync(httpClient, repo, ".msi", "release", cancellationToken).ConfigureAwait(false);
+            var stable = await LatestAsync("release", cancellationToken).ConfigureAwait(false);
             if (stable is null)
             {
                 return null;
@@ -34,8 +35,8 @@ public sealed class AppUpdater(HttpClient httpClient, string repo)
             throw new ArgumentOutOfRangeException(nameof(channel), channel, "Steward has release and pre-release channels only.");
         }
 
-        var latestRelease = await GitHubReleases.GetLatestAsync(httpClient, repo, ".msi", "release", cancellationToken).ConfigureAwait(false);
-        var latestPreRelease = await GitHubReleases.GetLatestAsync(httpClient, repo, ".msi", "pre-release", cancellationToken).ConfigureAwait(false);
+        var latestRelease = await LatestAsync("release", cancellationToken).ConfigureAwait(false);
+        var latestPreRelease = await LatestAsync("pre-release", cancellationToken).ConfigureAwait(false);
         var newest = (latestRelease, latestPreRelease) switch
         {
             (null, null) => null,
@@ -58,6 +59,19 @@ public sealed class AppUpdater(HttpClient httpClient, string repo)
         var numeric = tag.Split('-', 2)[0];
         // A prerelease cut towards an older number than the running build is stale, never an update.
         return Version.TryParse(numeric, out var newestNumeric) && newestNumeric >= installed ? newest : null;
+    }
+
+    private async Task<AddonRelease?> LatestAsync(string channel, CancellationToken cancellationToken)
+    {
+        var manifestUri = new Uri(new Uri(manifestBaseUrl), $"latest-{channel}.json");
+        try
+        {
+            return await AddonUpdater.FetchManifestAsync(httpClient, manifestUri, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
     }
 
     public async Task<string> DownloadAsync(AddonRelease release, IProgress<double>? progress, CancellationToken cancellationToken)
