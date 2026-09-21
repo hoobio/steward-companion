@@ -130,11 +130,11 @@ The general rule from HoobiScripts' `AGENTS.md` holds: a familiar bare global is
 
 | Repo | Branch | Release |
 | --- | --- | --- |
-| `hoobio/Steward` | push to `development` only | development channel publishes on every push. No pre-release, no release. |
+| `hoobio/Steward` | push to `develop` only | develop channel publishes on every push. No pre-release, no release. |
 | `hoobio/steward-companion` | push to `main` only | no release cut: leave the release-please PR unmerged. |
 | `hoobio/gigagrug` | push direct to `main` if a change is needed | assume none is needed |
 
-The companion repo uses no feature branches, no worktrees and no pull requests for its own work. The addon repo works day to day on `development`, fast-forwards `main` for a pre-release and merges the release-please PR for a release; neither happens this sprint.
+The companion repo uses no feature branches, no worktrees and no pull requests for its own work. The addon repo works day to day on `develop`, fast-forwards `main` for a pre-release and merges the release-please PR for a release; neither happens this sprint.
 
 ## Out of scope
 

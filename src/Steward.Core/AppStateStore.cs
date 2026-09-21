@@ -29,7 +29,7 @@ public sealed class AppStateStore
         {
             var state = JsonSerializer.Deserialize(File.ReadAllText(_path), CompanionJsonContext.Default.AppState)
                 ?? new AppState([], []);
-            return SeedLegacyChannel(Normalise(state), _addonIds);
+            return MigrateDevelopmentChannel(SeedLegacyChannel(Normalise(state), _addonIds));
         }
         catch (JsonException)
         {
@@ -101,6 +101,25 @@ public sealed class AppStateStore
         }
 
         return state with { Channels = channels, LegacyChannel = null };
+    }
+
+    internal static AppState MigrateDevelopmentChannel(AppState state)
+    {
+        if (!state.Channels.Values.Any(c => string.Equals(c, "development", StringComparison.OrdinalIgnoreCase)))
+        {
+            return state;
+        }
+
+        var channels = new Dictionary<string, string>(state.Channels, StringComparer.OrdinalIgnoreCase);
+        foreach (var addonId in channels.Keys.ToList())
+        {
+            if (string.Equals(channels[addonId], "development", StringComparison.OrdinalIgnoreCase))
+            {
+                channels[addonId] = "develop";
+            }
+        }
+
+        return state with { Channels = channels };
     }
 
     public void Save(AppState state)

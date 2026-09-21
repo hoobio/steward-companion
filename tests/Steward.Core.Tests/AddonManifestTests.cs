@@ -65,17 +65,17 @@ public sealed class AddonManifestTests
     public async Task GetLatestAsync_PopulatedChannel_DeserialisesTheRelease()
     {
         const string body = """
-        {"version":"0.5.0-development.e73f4bf","channel":"development","zip":"HoobiScripts-0.5.0-development.e73f4bf.zip",
+        {"version":"0.5.0-develop.e73f4bf","channel":"develop","zip":"HoobiScripts-0.5.0-develop.e73f4bf.zip",
          "sha256":"fad9149904b658d1f066f4f41c9301f8f18070249c44b5a3480bb558aefd0983","size":26222,
          "released":"2026-09-19T12:12:01+10:00"}
         """;
         var (updater, _) = UpdaterFor(HttpStatusCode.OK, body);
 
-        var release = await updater.GetLatestAsync(Addon, "development", CancellationToken.None);
+        var release = await updater.GetLatestAsync(Addon, "develop", CancellationToken.None);
 
         Assert.NotNull(release);
-        Assert.Equal("0.5.0-development.e73f4bf", release.Version);
-        Assert.Equal("HoobiScripts-0.5.0-development.e73f4bf.zip", release.Zip);
+        Assert.Equal("0.5.0-develop.e73f4bf", release.Version);
+        Assert.Equal("HoobiScripts-0.5.0-develop.e73f4bf.zip", release.Zip);
         Assert.Equal("fad9149904b658d1f066f4f41c9301f8f18070249c44b5a3480bb558aefd0983", release.Sha256);
         Assert.Equal(26222, release.Size);
         Assert.Equal(2026, release.Released.Year);
@@ -113,11 +113,11 @@ public sealed class AddonManifestTests
                 ? (HttpStatusCode.OK, "null")
                 : (HttpStatusCode.NotFound, "not found"));
 
-        var releases = await updater.ProbeChannelsAsync(Addon, ["release", "pre-release", "development"], CancellationToken.None);
+        var releases = await updater.ProbeChannelsAsync(Addon, ["release", "pre-release", "develop"], CancellationToken.None);
 
         Assert.NotNull(releases["release"]);
         Assert.Null(releases["pre-release"]);
-        Assert.Null(releases["development"]);
+        Assert.Null(releases["develop"]);
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public sealed class AddonManifestTests
     {
         var (updater, handler) = UpdaterFor(HttpStatusCode.OK, "null");
 
-        var release = await updater.GetLatestAsync(GitHubAddon, "development", CancellationToken.None);
+        var release = await updater.GetLatestAsync(GitHubAddon, "develop", CancellationToken.None);
 
         Assert.Null(release);
         Assert.Null(handler.LastUri);

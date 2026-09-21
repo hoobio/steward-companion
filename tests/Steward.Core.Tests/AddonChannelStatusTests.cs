@@ -16,10 +16,10 @@ public sealed class AddonChannelStatusTests
     }
 
     [Theory]
-    [InlineData(new[] { "release", "pre-release", "development" }, "release")]
-    [InlineData(new[] { "pre-release", "development" }, "pre-release")]
-    [InlineData(new[] { "development" }, "development")]
-    public void Resolve_NothingStored_PrefersRelease_ThenPreRelease_ThenDevelopment(string[] available, string expected)
+    [InlineData(new[] { "release", "pre-release", "develop" }, "release")]
+    [InlineData(new[] { "pre-release", "develop" }, "pre-release")]
+    [InlineData(new[] { "develop" }, "develop")]
+    public void Resolve_NothingStored_PrefersRelease_ThenPreRelease_ThenDevelop(string[] available, string expected)
     {
         var status = AddonChannelStatus.Resolve(null, ReleasesOn(available), AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
 
@@ -29,7 +29,7 @@ public sealed class AddonChannelStatusTests
     [Fact]
     public void Resolve_StoredChannelWithARelease_KeepsIt_AndGivesNoNotice()
     {
-        var status = AddonChannelStatus.Resolve("pre-release", ReleasesOn("release", "pre-release", "development"), AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
+        var status = AddonChannelStatus.Resolve("pre-release", ReleasesOn("release", "pre-release", "develop"), AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
 
         Assert.Equal("pre-release", status.Channel);
         Assert.Null(status.Notice);
@@ -62,7 +62,7 @@ public sealed class AddonChannelStatusTests
             ["pre-release"] = Release,
         };
 
-        var status = AddonChannelStatus.Resolve("development", releases, AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
+        var status = AddonChannelStatus.Resolve("develop", releases, AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
 
         Assert.Equal("release", status.Channel);
         Assert.Null(status.Notice);
@@ -71,11 +71,11 @@ public sealed class AddonChannelStatusTests
     [Fact]
     public void Has_ReportsPerChannelAvailability()
     {
-        var status = AddonChannelStatus.Resolve("release", ReleasesOn("release", "development"), AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
+        var status = AddonChannelStatus.Resolve("release", ReleasesOn("release", "develop"), AddonChannelStatus.Ordered, AddonChannelStatus.DefaultPreference);
 
         Assert.True(status.Has("release"));
         Assert.False(status.Has("pre-release"));
-        Assert.True(status.Has("development"));
+        Assert.True(status.Has("develop"));
     }
 
     [Fact]

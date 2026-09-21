@@ -20,6 +20,17 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_MigratesAStoredDevelopmentChannel_ToDevelop()
+    {
+        File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"development","steward":"release"},"installs":{}}""");
+
+        var state = new AppStateStore(["hoobiscripts", "steward"], StatePath).Load();
+
+        Assert.Equal("develop", state.Channels["hoobiscripts"]);
+        Assert.Equal("release", state.Channels["steward"]);
+    }
+
+    [Fact]
     public void Load_KeepsAnExplicitPerAddonChannel_OverTheLegacyValue()
     {
         File.WriteAllText(StatePath, """{"channel":"stable","channels":{"hoobiscripts":"unstable"},"installs":{}}""");
