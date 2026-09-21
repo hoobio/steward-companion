@@ -18,7 +18,7 @@
                 Visibility="{x:Bind RowVisibility, Mode=OneWay}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="30" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" MinWidth="220" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -41,7 +41,12 @@
                 </Border>
 
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind DisplayName}" FontSize="13.5" FontWeight="SemiBold" />
+                    <TextBlock
+                        Text="{x:Bind DisplayName}"
+                        FontSize="13.5"
+                        FontWeight="SemiBold"
+                        TextWrapping="NoWrap"
+                        TextTrimming="CharacterEllipsis" />
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon
                             Glyph="{x:Bind StatusGlyph, Mode=OneWay}"
@@ -54,10 +59,14 @@
                             Text="{x:Bind SubtitleText, Mode=OneWay}"
                             FontFamily="Cascadia Mono"
                             FontSize="11.5"
+                            TextWrapping="NoWrap"
+                            TextTrimming="CharacterEllipsis"
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     </StackPanel>
                     <TextBlock
                         Text="Type /reload in game to load the updated files"
+                        TextWrapping="NoWrap"
+                        TextTrimming="CharacterEllipsis"
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Foreground="{ThemeResource SystemFillColorSuccessBrush}"
                         Visibility="{x:Bind ReloadHintVisibility, Mode=OneWay}" />

@@ -171,7 +171,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
     {
         _ when IsBusy => "Updating",
         _ when State == AddonRowState.Missing => "Install",
-        _ when RecordedChannelDiffers && AvailableVersion is { } version => $"Switch to {version}",
+        _ when RecordedChannelDiffers && Channel is { } channel => $"Switch to {channel}",
         _ => "Update",
     };
 

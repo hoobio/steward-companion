@@ -162,7 +162,7 @@ An addon row is: 30px addon glyph, name at 13.5px with the addon id in mono bene
 
 The channel pill is read only here. The same addon appears once per install and they all share one channel, so a picker on the row would change three rows at once. The row's overflow menu carries `Change channel`, which opens Settings, alongside Open folder, Reinstall and Copy SHA-256.
 
-Availability is string inequality against the recorded version, so a channel switch can move a version down. The button reads `Switch to {version}` rather than `Update` when the addon's recorded channel differs from the effective one.
+Availability is string inequality against the recorded version, so a channel switch can move a version down. The button reads `Switch to {channel}` rather than `Update` when the addon's recorded channel differs from the effective one; the version pair beside it already carries the target version, and a full version string in the button starves the name column.
 
 ### Updating
 
