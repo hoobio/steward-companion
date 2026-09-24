@@ -66,6 +66,25 @@ Commits go straight to `main` in the one working tree at `D:\steward-companion` 
 
 CommunityToolkit.Mvvm's field-backed `[ObservableProperty]` triggers diagnostic `MVVMTK0045` under WinUI; the ViewModels here declare partial properties instead (`[ObservableProperty] public partial string? Foo { get; set; }`).
 
+## UI verification
+
+A change to anything visible is launched and driven before it is reported done; a clean build is not evidence that a view looks or behaves right. The sequence:
+
+1. Stop any running `Steward.App` (`Get-Process Steward.App -ea 0 | Stop-Process`), since a running instance locks the exe and the build then fails on the copy step rather than on the code.
+2. `dotnet build Steward.slnx -c Debug`, then launch `src\Steward.App\bin\Debug\net10.0-windows10.0.26100.0\win-x64\Steward.App.exe`. It shares `%LocalAppData%\Steward\state.json` with the installed build, so it starts signed in with real data.
+3. Drive it from PowerShell with `tools\UiDriver.psm1`: `Start-UiApp`, `Find-UiElement` (UI Automation), `Invoke-UiClick`, `Move-UiPointer`, `Save-UiScreenshot`, and `Get-UiPopup` for a menu or flyout, which opens as its own top-level window. The scenario script for a given change is written per task in the scratchpad and is not checked in.
+4. Read every screenshot. For motion (hover, press, open), `Measure-UiTransition` moves the pointer and grabs the region every ~8ms for 250ms, returning each frame's sampled colour, so a flash shows up as a frame brighter than both ends.
+
+Two driver facts are load-bearing. WinUI ignores `SetCursorPos` for hover, so the pointer moves through injected absolute `mouse_event` input. Windowed popups are layered windows, so the screen grab uses `BitBlt` with `CAPTUREBLT`; `Graphics.CopyFromScreen` leaves them out and rejects that flag.
+
+The user's own mouse and snipping overlay land in the same captures, so a run is repeated when a frame shows a dimmed screen or a selection rectangle.
+
+## Design system
+
+The house design system is `D:\hoobi-design` (React and Tailwind, no XAML output); its `AGENTS.md` "WinUI 3 conventions" table is the spec this app ports into `App.xaml` by hand. Controls, cards, pills, alerts and flyouts carry no border, and fill alone tells surfaces apart; the only strokes are hairline dividers. Corners are 4px on controls and 8px on surfaces and overlays. Related cards under one heading form a group: a `StackPanel` with `Spacing="1"`, so the page ground shows through as the hairline, and the `GroupTopCornerRadius`, `GroupMiddleCornerRadius` and `GroupBottomCornerRadius` resources on its cards, so only the group's outer corners are rounded. A plain list of commands is a native `MenuFlyout`, which gets the system acrylic backdrop, rounded window corners and item metrics from WinUI. A dropdown whose rows hold more than a menu item can (the account card, the guild switcher's icon, name and role rows) is a custom `Flyout` made to match it: `ShouldConstrainToRootBounds="False"`, a `DesktopAcrylicBackdrop`, the `MenuFlyoutPresenter*` brushes, an explicit `Placement` (the default is `Top`, which opens upward once the popup is no longer confined to the window) and rows with menu item metrics.
+
+A button with a clear rest background uses the `SubtleFillColor*` brushes for rest, hover and pressed. The Button template animates its background through a `BrushTransition` that interpolates ARGB, and `Transparent` is `#00FFFFFF`, so a clear rest brush against an opaque hover colour fades through white.
+
 ## Roster sync
 
 `docs/design/roster-sync.md` is the agreed contract between this app, gigagrug and the Steward addon, and it is the source of truth for how the three interact. Read it before touching anything that crosses a repo boundary. It carries the direction of travel, the identity and linking rules, the gigagrug endpoints in use, the confirmed Forever client API facts, and the per-repo branch rules.
