@@ -57,13 +57,12 @@ public sealed class GuildRosterSyncTests : IDisposable
         var target = Path.Combine(install.AddOnsPath, "Steward", "StewardSync.lua");
 
         Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore));
-        Assert.True(File.Exists(target));
-        File.Delete(target);
+        var first = File.ReadAllText(target);
 
         var written = GuildRosterSync.WriteIfChanged(install, SamplePayload() with { WrittenAt = DateTimeOffset.FromUnixTimeSeconds(1758280000) }, stateStore);
 
         Assert.False(written);
-        Assert.False(File.Exists(target));
+        Assert.Equal(first, File.ReadAllText(target));
     }
 
     [Fact]
@@ -102,6 +101,19 @@ public sealed class GuildRosterSyncTests : IDisposable
 
         Assert.True(GuildRosterSync.WriteIfChanged(install, payload, stateStore));
         Assert.True(File.Exists(StewardSyncFile.AvatarPathFor(install.AddOnsPath)));
+    }
+
+    [Fact]
+    public void WriteIfChanged_Rewrites_WhenAnAddonUpdateRemovedTheSyncFile()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore));
+        File.Delete(StewardSyncFile.PathFor(install.AddOnsPath));
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore));
+        Assert.True(File.Exists(StewardSyncFile.PathFor(install.AddOnsPath)));
     }
 
     [Fact]

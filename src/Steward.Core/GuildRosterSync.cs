@@ -12,6 +12,7 @@ public static class GuildRosterSync
         var state = stateStore.Load();
         if (state.GuildRosterSync.TryGetValue(install.FlavourPath, out var last)
             && last == fingerprint
+            && File.Exists(StewardSyncFile.PathFor(install.AddOnsPath))
             && (payload.Avatar is null || File.Exists(StewardSyncFile.AvatarPathFor(install.AddOnsPath))))
         {
             return false;

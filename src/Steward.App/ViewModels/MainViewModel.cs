@@ -125,7 +125,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             StateChanged = () => OnPropertyChanged(nameof(SyncBadgeVisibility)),
         };
         SavedVariablesChanged = Sync.ReloadAsync;
-        AfterStewardInstalled = Sync.WriteGeneratedFileAsync;
+        AfterStewardInstalled = _ => Sync.WriteGeneratedFileAsync();
     }
 
     public SyncViewModel Sync { get; }
@@ -803,11 +803,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ = SyncRosterAsync();
     }
 
-    private async Task SyncRosterAsync()
+    public async Task<string?> SyncRosterAsync()
     {
         if (!IsSignedIn || !IsApiReachable || _guildId is not { } guildId)
         {
-            return;
+            return null;
         }
 
         SyncPayload payload;
@@ -817,14 +817,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or SessionExpiredException)
         {
-            StatusMessage = $"Could not pull the guild roster: {ex.Message}";
-            return;
+            var message = $"Could not pull the guild roster: {ex.Message}";
+            StatusMessage = message;
+            return message;
         }
 
         foreach (var install in Installs)
         {
             GuildRosterSync.WriteIfChanged(install.Install, payload, _stateStore);
         }
+
+        return null;
     }
 
     private void RefreshClients()

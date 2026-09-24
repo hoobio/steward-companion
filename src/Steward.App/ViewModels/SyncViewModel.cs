@@ -185,21 +185,9 @@ public sealed partial class SyncViewModel : ObservableObject
         }
     }
 
-    public async Task WriteGeneratedFileAsync(WowInstall install)
+    public async Task WriteGeneratedFileAsync()
     {
-        ArgumentNullException.ThrowIfNull(install);
-
-        GeneratedFileError = null;
-        try
-        {
-            var payload = await _api.PullAsync(CancellationToken.None).ConfigureAwait(true);
-            StewardSyncFile.Write(install.AddOnsPath, payload);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
-        {
-            GeneratedFileError = ex.Message;
-        }
-
+        GeneratedFileError = await _main.SyncRosterAsync().ConfigureAwait(true);
         Recompute();
     }
 
@@ -414,10 +402,7 @@ public sealed partial class SyncViewModel : ObservableObject
     [RelayCommand]
     private async Task WriteAgainAsync()
     {
-        if (_main.Installs.Count > 0)
-        {
-            await WriteGeneratedFileAsync(_main.Installs[0].Install).ConfigureAwait(true);
-        }
+        await WriteGeneratedFileAsync().ConfigureAwait(true);
     }
 
     private void Recompute()

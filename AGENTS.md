@@ -118,7 +118,9 @@ The client only serialises saved variables at logout, exit or `/reload`, rewriti
 
 The generated-file writer is `StewardSyncFile` (`Interface\AddOns\Steward\StewardSync.lua`, written by calling `Steward.LoadSync({...})`), guarded by the same TOC-existence check as `RemoveExistingInstall` and written temp-then-move; the addon's own TOC must list `StewardSync.lua` for the client to load it, a dependency on the addon repo.
 
-Still to come, in the commits after this one: the freshness judgement (the saved-variables mtime against the running client's process start time from `WowClient`, plus `exportedAt`), the rewrite of the generated file after an addon update since the updater replaces the whole addon folder, and the sync page itself. The addon side of the contract lives in `hoobio/Steward`'s `AGENTS.md`.
+Installing or updating the Steward addon replaces the whole folder, so `StewardSync.lua` and `Avatar.tga` go with it. Two things put them back. `GuildRosterSync.WriteIfChanged` skips on an unchanged fingerprint only when both files are still on disk, so the next background pass rewrites them; and `AfterStewardInstalled` runs `MainViewModel.SyncRosterAsync` the moment an install finishes, for the user who launches the game before that pass. `SyncViewModel.WriteGeneratedFileAsync` (the Write again button and the post-install hook) goes through that same method rather than pulling from its own `IGuildSyncApi`, which is `InMemoryGuildSyncApi` by default and wrote the fake dataset over the real roster.
+
+Still to come, in the commits after this one: the freshness judgement (the saved-variables mtime against the running client's process start time from `WowClient`, plus `exportedAt`) and the sync page itself. The addon side of the contract lives in `hoobio/Steward`'s `AGENTS.md`.
 
 ## RestedXP guides
 
