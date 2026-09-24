@@ -264,9 +264,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsAnyRowBusy => Installs.Any(install => install.AddonRows.Any(row => row.IsBusy));
 
     public string HeaderSubtitle =>
-        InstallCount == 0
-            ? $"No World of Warcraft installs, {LastCheckedRelative}"
-            : $"{InstallCount} World of Warcraft install{(InstallCount == 1 ? "" : "s")}, last checked {LastCheckedRelative}";
+        _lastPass == default ? "Not checked for updates yet" : $"Last checked for updates {LastCheckedRelative}";
 
     public Brush BannerBrush => (Brush)Application.Current.Resources[
         UpdateCount > 0 ? "CautionTintBrush" : "SuccessTintBrush"];
