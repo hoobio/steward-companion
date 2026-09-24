@@ -626,6 +626,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsBusy = true;
         try
         {
+            if (await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true)
+                is AuthCheckResult.SessionExpired or AuthCheckResult.NotAuthorized)
+            {
+                return;
+            }
+
             GitHubReleases.ResetCache();
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
             await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
