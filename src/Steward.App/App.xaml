@@ -206,7 +206,7 @@
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
 
-            <Thickness x:Key="PageGutter">26,16,26,26</Thickness>
+            <Thickness x:Key="PageGutter">26,7,26,26</Thickness>
             <Thickness x:Key="PageTitleMargin">0,-2,0,0</Thickness>
             <Thickness x:Key="CardRowPadding">16,10</Thickness>
             <x:Double x:Key="CardRowMinHeight">52</x:Double>
