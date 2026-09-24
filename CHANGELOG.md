@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.10.0](https://github.com/hoobio/steward-companion/compare/v0.9.0...v0.10.0) (2026-09-24)
+
+
+### Features
+
+* ✨ carry each origin's colour through to the addon ([2fa43c2](https://github.com/hoobio/steward-companion/commit/2fa43c2a142582986fde9b7c0e085d0097bc3268))
+
+
+### Bug Fixes
+
+* 🐛 even out the Addons page spacing and say when updates were last checked ([4f6794b](https://github.com/hoobio/steward-companion/commit/4f6794b5eea23c8cf31b8d215328738dbcd2f8b9))
+* 🐛 line the page title up with its navigation item ([1e6d6f9](https://github.com/hoobio/steward-companion/commit/1e6d6f9110cf14cf8e5cfeda02db6d6d922ebca7))
+* 🐛 restore and raise the window on a tray icon click, including after a tray launch ([f408cd0](https://github.com/hoobio/steward-companion/commit/f408cd0dcba0e68fd1a6dbfc3649db60103c5fed))
+* 🐛 retry the admin check when Retry is clicked ([8501181](https://github.com/hoobio/steward-companion/commit/85011813d75a57d821643d2549b9057371ce3897))
+* 🐛 rewrite the roster file after an addon update and stop Write again writing sample data ([8aebd22](https://github.com/hoobio/steward-companion/commit/8aebd228be2e5d1bb3d5ca10932219342c8ee1f1))
+* 🐛 stop the dropdown hover flash and bring controls in line with hoobi-design ([95f54ff](https://github.com/hoobio/steward-companion/commit/95f54ff93938ae694b18ba1e48ed05e87768b5e9))
+
 ## [0.9.0](https://github.com/hoobio/steward-companion/compare/v0.8.3...v0.9.0) (2026-09-21)
 
 
