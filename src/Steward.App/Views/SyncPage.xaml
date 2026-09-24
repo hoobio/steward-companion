@@ -93,7 +93,7 @@
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind Name}" FontSize="13.5" FontWeight="SemiBold" />
                     <TextBlock
-                        Text="{x:Bind SourceFile}"
+                        Text="{x:Bind SourceFile, Mode=OneWay}"
                         FontFamily="Cascadia Mono"
                         FontSize="11.5"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
@@ -123,7 +123,7 @@
 
                 <Grid Grid.Column="2" VerticalAlignment="Center">
                     <TextBlock
-                        Text="{x:Bind RecordsText}"
+                        Text="{x:Bind RecordsText, Mode=OneWay}"
                         FontSize="12.5"
                         TextAlignment="Right"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -135,13 +135,13 @@
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                         Visibility="{x:Bind NothingYetVisibility, Mode=OneWay}" />
                     <TextBlock
-                        Text="{x:Bind SendingText}"
+                        Text="{x:Bind SendingText, Mode=OneWay}"
                         FontSize="12.5"
                         TextAlignment="Right"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Visibility="{x:Bind SendingVisibility, Mode=OneWay}" />
                     <TextBlock
-                        Text="{x:Bind PullPendingText}"
+                        Text="{x:Bind PullPendingText, Mode=OneWay}"
                         FontSize="12.5"
                         TextAlignment="Right"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -151,7 +151,7 @@
                 <TextBlock
                     Grid.Column="3"
                     VerticalAlignment="Center"
-                    Text="{x:Bind NewText}"
+                    Text="{x:Bind NewText, Mode=OneWay}"
                     FontSize="12.5"
                     TextAlignment="Right"
                     Foreground="{StaticResource NewCountBrush}"
@@ -160,10 +160,10 @@
                 <TextBlock
                     Grid.Column="4"
                     VerticalAlignment="Center"
-                    Text="{x:Bind ExportedAtText}"
+                    Text="{x:Bind ExportedAtText, Mode=OneWay}"
                     FontSize="12"
                     TextAlignment="Right"
-                    Foreground="{x:Bind ExportedAtBrush}"
+                    Foreground="{x:Bind ExportedAtBrush, Mode=OneWay}"
                     Visibility="{x:Bind ExportedAtVisibility, Mode=OneWay}" />
 
                 <StackPanel
@@ -237,11 +237,11 @@
                                 FontSize="11.5"
                                 Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                             <TextBlock
-                                Text="{x:Bind ReadError}"
+                                Text="{x:Bind ReadError, Mode=OneWay}"
                                 TextWrapping="Wrap"
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                Visibility="{x:Bind ReadErrorVisibility}" />
+                                Visibility="{x:Bind ReadErrorVisibility, Mode=OneWay}" />
                         </StackPanel>
 
                         <Border
@@ -251,7 +251,7 @@
                             Padding="6,2"
                             Background="{ThemeResource ChipBrush}">
                             <TextBlock
-                                Text="{x:Bind ClientVersion}"
+                                Text="{x:Bind ClientVersion, Mode=OneWay}"
                                 FontFamily="Cascadia Mono"
                                 FontSize="11.5"
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -263,7 +263,7 @@
                             CornerRadius="4"
                             Padding="8,2"
                             Background="{ThemeResource CautionTintBrush}"
-                            Visibility="{x:Bind RunningPillVisibility}">
+                            Visibility="{x:Bind RunningPillVisibility, Mode=OneWay}">
                             <TextBlock Text="Running" FontSize="12" />
                         </Border>
 
@@ -274,7 +274,7 @@
                             Padding="8,2"
                             Background="{ThemeResource ChipBrush}"
                             ToolTipService.ToolTip="Sample records, not your guild's data"
-                            Visibility="{x:Bind SamplePillVisibility}">
+                            Visibility="{x:Bind SamplePillVisibility, Mode=OneWay}">
                             <TextBlock
                                 Text="Sample"
                                 FontSize="12"

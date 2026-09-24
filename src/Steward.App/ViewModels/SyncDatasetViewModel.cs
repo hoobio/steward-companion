@@ -46,19 +46,19 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
 
     public required string Glyph { get; init; }
 
-    public required string SourceFile { get; init; }
+    public required string SourceFile { get; set; }
 
-    public required int LocalCount { get; init; }
+    public required int LocalCount { get; set; }
 
-    public required int ServerCount { get; init; }
+    public required int ServerCount { get; set; }
 
-    public required string ExportedAtText { get; init; }
+    public required string ExportedAtText { get; set; }
 
-    public required bool IsStale { get; init; }
+    public required bool IsStale { get; set; }
 
     public required bool IsFirst { get; init; }
 
-    public required SyncPayload Payload { get; init; }
+    public required SyncPayload Payload { get; set; }
 
     public required Func<SyncDatasetViewModel, Task> Send { get; init; }
 
@@ -121,6 +121,20 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
 
     public Brush ExportedAtBrush => (Brush)Application.Current.Resources[
         IsStale ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];
+
+    public void CopyFrom(SyncDatasetViewModel fresh)
+    {
+        SourceFile = fresh.SourceFile;
+        LocalCount = fresh.LocalCount;
+        ServerCount = fresh.ServerCount;
+        ExportedAtText = fresh.ExportedAtText;
+        IsStale = fresh.IsStale;
+        Payload = fresh.Payload;
+        IsAdmin = fresh.IsAdmin;
+        IsBlocked = fresh.IsBlocked;
+        Error = fresh.Error;
+        OnPropertyChanged(string.Empty);
+    }
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 

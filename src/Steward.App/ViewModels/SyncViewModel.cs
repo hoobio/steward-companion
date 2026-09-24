@@ -170,10 +170,21 @@ public sealed partial class SyncViewModel : ObservableObject
             }
 
             _lastSyncedAt = server?.LastSyncedAt;
-            Installs.Clear();
-            foreach (var install in _main.Installs)
+            var fresh = _main.Installs.Select(install => Build(install, server)).ToList();
+            if (fresh.Select(view => view.FlavourPath).SequenceEqual(Installs.Select(view => view.FlavourPath)))
             {
-                Installs.Add(Build(install, server));
+                for (var i = 0; i < fresh.Count; i++)
+                {
+                    Installs[i].CopyFrom(fresh[i]);
+                }
+            }
+            else
+            {
+                Installs.Clear();
+                foreach (var view in fresh)
+                {
+                    Installs.Add(view);
+                }
             }
 
             Recompute();

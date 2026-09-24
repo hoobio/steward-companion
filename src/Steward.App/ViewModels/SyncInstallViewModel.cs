@@ -12,15 +12,23 @@ public sealed partial class SyncInstallViewModel : ObservableObject
 
     public required string FlavourPath { get; init; }
 
-    public required string? ClientVersion { get; init; }
+    [ObservableProperty]
+    public partial string? ClientVersion { get; set; }
 
-    public required bool IsClientRunning { get; init; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RunningPillVisibility))]
+    public partial bool IsClientRunning { get; set; }
 
-    public required bool IsSample { get; init; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SamplePillVisibility))]
+    public partial bool IsSample { get; set; }
 
-    public required bool AddonMissing { get; init; }
+    [ObservableProperty]
+    public partial bool AddonMissing { get; set; }
 
-    public required string? ReadError { get; init; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReadErrorVisibility))]
+    public partial string? ReadError { get; set; }
 
     public ObservableCollection<SyncDatasetViewModel> Datasets { get; } = [];
 
@@ -29,6 +37,19 @@ public sealed partial class SyncInstallViewModel : ObservableObject
     public Visibility SamplePillVisibility => When(IsSample);
 
     public Visibility ReadErrorVisibility => When(ReadError is not null);
+
+    public void CopyFrom(SyncInstallViewModel fresh)
+    {
+        ClientVersion = fresh.ClientVersion;
+        IsClientRunning = fresh.IsClientRunning;
+        IsSample = fresh.IsSample;
+        AddonMissing = fresh.AddonMissing;
+        ReadError = fresh.ReadError;
+        for (var i = 0; i < Datasets.Count; i++)
+        {
+            Datasets[i].CopyFrom(fresh.Datasets[i]);
+        }
+    }
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 }
