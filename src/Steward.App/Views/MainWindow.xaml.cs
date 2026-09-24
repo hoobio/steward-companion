@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Windows.Input;
 
 using CommunityToolkit.Mvvm.Input;
 
@@ -23,7 +22,6 @@ public sealed partial class MainWindow : Window
 
     public MainWindow(MainViewModel viewModel)
     {
-        ShowWindowCommand = new RelayCommand(ShowFromTray);
         InitializeComponent();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
@@ -52,14 +50,14 @@ public sealed partial class MainWindow : Window
 
         // An unpackaged app cannot resolve ms-appx:/// for the tray icon, so it loads from disk.
         TrayIcon.IconSource = new BitmapImage(new Uri(App.IconPath));
+        // x:Bind in a Window evaluates only once its content loads, which a --tray launch never does.
+        TrayIcon.LeftClickCommand = TrayIcon.DoubleClickCommand = new RelayCommand(ShowFromTray);
         TrayIcon.ForceCreate();
         AppWindow.Closing += OnWindowClosing;
         AppWindow.Changed += OnWindowChanged;
     }
 
     public MainViewModel ViewModel { get; }
-
-    public ICommand ShowWindowCommand { get; }
 
     private void OnNavSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
@@ -180,7 +178,7 @@ public sealed partial class MainWindow : Window
     {
         EfficiencyModeUtilities.SetEfficiencyMode(false);
         AppWindow.Show(activateWindow: true);
-        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter)
         {
             presenter.Restore();
         }
@@ -206,6 +204,9 @@ internal static class Native
     private static extern bool SetForegroundWindow(nint hWnd);
 
     [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(nint hWnd);
+
+    [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(nint hWnd, nint processId);
 
     [DllImport("user32.dll")]
@@ -227,6 +228,7 @@ internal static class Native
         var self = GetCurrentThreadId();
         var attached = owner != self && AttachThreadInput(self, owner, true);
 
+        BringWindowToTop(handle);
         SetForegroundWindow(handle);
 
         if (attached)

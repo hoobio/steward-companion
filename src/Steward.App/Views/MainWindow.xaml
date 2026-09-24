@@ -23,9 +23,7 @@
             HorizontalAlignment="Left"
             VerticalAlignment="Top"
             ContextMenuMode="SecondWindow"
-            NoLeftClickDelay="True"
-            LeftClickCommand="{x:Bind ShowWindowCommand}"
-            DoubleClickCommand="{x:Bind ShowWindowCommand}">
+            NoLeftClickDelay="True">
             <tb:TaskbarIcon.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem Text="Open Steward" Click="OnTrayOpenClick" />
