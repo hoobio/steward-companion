@@ -13,7 +13,6 @@
             <Button
                 Height="40"
                 Padding="8,0"
-                Background="Transparent"
                 BorderThickness="0"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Stretch"
@@ -261,7 +260,7 @@
                         <Border
                             Grid.Column="2"
                             VerticalAlignment="Center"
-                            CornerRadius="10"
+                            CornerRadius="4"
                             Padding="8,2"
                             Background="{ThemeResource CautionTintBrush}"
                             Visibility="{x:Bind RunningPillVisibility}">
@@ -271,7 +270,7 @@
                         <Border
                             Grid.Column="3"
                             VerticalAlignment="Center"
-                            CornerRadius="10"
+                            CornerRadius="4"
                             Padding="8,2"
                             Background="{ThemeResource ChipBrush}"
                             ToolTipService.ToolTip="Sample records, not your guild's data"
@@ -315,12 +314,12 @@
                     VerticalAlignment="Center"
                     HorizontalContentAlignment="Stretch"
                     Visibility="{x:Bind ViewModel.Main.GuildPickerVisibility, Mode=OneWay}">
-                    <!-- Every state is declared rather than left to the default Button template, which restores its own rest brush over a locally set transparent Background and flashes on pointer exit. -->
+                    <!-- The template's BrushTransition interpolates ARGB, so an opaque hover over a clear rest brush fades through white; the subtle fills share one RGB. -->
                     <Button.Resources>
-                        <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
-                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FF2B3140" />
-                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FF1A1F2B" />
-                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                        <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                        <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                        <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                        <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
                         <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
                         <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
                         <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
@@ -370,17 +369,27 @@
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     </Grid>
                     <Button.Flyout>
-                        <Flyout x:Name="GuildFlyout" Placement="BottomEdgeAlignedLeft">
+                        <Flyout x:Name="GuildFlyout" Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
+                            <Flyout.SystemBackdrop>
+                                <DesktopAcrylicBackdrop />
+                            </Flyout.SystemBackdrop>
                             <Flyout.FlyoutPresenterStyle>
                                 <Style TargetType="FlyoutPresenter">
                                     <Setter Property="Padding" Value="4" />
+                                    <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
+                                    <Setter Property="BorderBrush" Value="{ThemeResource MenuFlyoutPresenterBorderBrush}" />
                                 </Style>
                             </Flyout.FlyoutPresenterStyle>
-                            <StackPanel Width="216">
+                            <StackPanel Width="232" Spacing="2">
+                                <StackPanel.Resources>
+                                    <StaticResource x:Key="ButtonBackground" ResourceKey="MenuFlyoutItemBackground" />
+                                    <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="MenuFlyoutItemBackgroundPointerOver" />
+                                    <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="MenuFlyoutItemBackgroundPressed" />
+                                </StackPanel.Resources>
                                 <TextBlock
                                     Text="Switch server"
                                     FontSize="11.5"
-                                    Margin="8,4,8,4"
+                                    Margin="8,4,8,2"
                                     Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                                 <ItemsControl
                                     ItemsSource="{x:Bind ViewModel.Main.Guilds}"
@@ -416,6 +425,7 @@
             <InfoBar
                 Severity="Error"
                 IsClosable="False"
+                CornerRadius="8"
                 IsOpen="{x:Bind ViewModel.UnreachableIsOpen, Mode=OneWay}"
                 Message="Could not reach api.hoobi.io. Check your connection." />
 

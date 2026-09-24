@@ -66,7 +66,7 @@
                     </Border>
                     <Border
                         VerticalAlignment="Center"
-                        CornerRadius="10"
+                        CornerRadius="4"
                         Padding="8,2"
                         Background="{ThemeResource AccentFillColorTertiaryBrush}"
                         Visibility="{x:Bind AddedByYouVisibility, Mode=OneWay}">
@@ -88,39 +88,43 @@
 
             <TextBlock Text="Account" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4" />
 
-            <controls:SettingsCard
-                Header="{x:Bind ViewModel.UserName, Mode=OneWay}"
-                Description="Signed in with Discord, guild.hoobi.io">
-                <controls:SettingsCard.HeaderIcon>
-                    <ImageIcon Width="32" Height="32" Source="{x:Bind ViewModel.AvatarImage, Mode=OneWay}" />
-                </controls:SettingsCard.HeaderIcon>
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Border
-                        VerticalAlignment="Center"
-                        CornerRadius="4"
-                        Padding="6,2"
-                        Background="{ThemeResource AccentFillColorTertiaryBrush}">
-                        <TextBlock Text="{x:Bind ViewModel.RoleLabel, Mode=OneWay}" FontSize="12" />
-                    </Border>
-                    <Button
-                        Content="Sign out"
-                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                        Command="{x:Bind ViewModel.SignOutCommand}" />
-                </StackPanel>
-            </controls:SettingsCard>
+            <StackPanel Spacing="1">
+                <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupTopCornerRadius}"
+                    Header="{x:Bind ViewModel.UserName, Mode=OneWay}"
+                    Description="Signed in with Discord, guild.hoobi.io">
+                    <controls:SettingsCard.HeaderIcon>
+                        <ImageIcon Width="32" Height="32" Source="{x:Bind ViewModel.AvatarImage, Mode=OneWay}" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Border
+                            VerticalAlignment="Center"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            Background="{ThemeResource AccentFillColorTertiaryBrush}">
+                            <TextBlock Text="{x:Bind ViewModel.RoleLabel, Mode=OneWay}" FontSize="12" />
+                        </Border>
+                        <Button
+                            Content="Sign out"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            Command="{x:Bind ViewModel.SignOutCommand}" />
+                    </StackPanel>
+                </controls:SettingsCard>
 
-            <controls:SettingsCard
-                Header="Guild panel"
-                Description="guild.hoobi.io"
-                IsClickEnabled="True"
-                Click="OnGuildPanelClick">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon Glyph="&#xE774;" />
-                </controls:SettingsCard.HeaderIcon>
-                <controls:SettingsCard.ActionIcon>
-                    <FontIcon Glyph="&#xE8A7;" FontSize="14" />
-                </controls:SettingsCard.ActionIcon>
-            </controls:SettingsCard>
+                <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupBottomCornerRadius}"
+                    Header="Guild panel"
+                    Description="guild.hoobi.io"
+                    IsClickEnabled="True"
+                    Click="OnGuildPanelClick">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE774;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <controls:SettingsCard.ActionIcon>
+                        <FontIcon Glyph="&#xE8A7;" FontSize="14" />
+                    </controls:SettingsCard.ActionIcon>
+                </controls:SettingsCard>
+            </StackPanel>
 
             <controls:SettingsExpander
                 Margin="0,20,0,0"
@@ -152,79 +156,94 @@
 
             <TextBlock Text="Behaviour" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,20,0,4" />
 
-            <controls:SettingsCard
-                Header="Minimise to the tray"
-                Description="Minimising the window hides Steward to the tray instead of the taskbar">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon Glyph="&#xE7C4;" />
-                </controls:SettingsCard.HeaderIcon>
-                <ToggleSwitch IsOn="{x:Bind ViewModel.MinimizeToTray, Mode=TwoWay}" />
-            </controls:SettingsCard>
+            <StackPanel Spacing="1">
+                <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupTopCornerRadius}"
+                    Header="Minimise to the tray"
+                    Description="Minimising the window hides Steward to the tray instead of the taskbar">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE7C4;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.MinimizeToTray, Mode=TwoWay}" />
+                </controls:SettingsCard>
 
-            <controls:SettingsCard
-                Header="Close to the tray"
-                Description="Closing the window keeps Steward running in the tray instead of quitting">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon Glyph="&#xE8BB;" />
-                </controls:SettingsCard.HeaderIcon>
-                <ToggleSwitch IsOn="{x:Bind ViewModel.CloseToTray, Mode=TwoWay}" />
-            </controls:SettingsCard>
+                <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Close to the tray"
+                    Description="Closing the window keeps Steward running in the tray instead of quitting">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8BB;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.CloseToTray, Mode=TwoWay}" />
+                </controls:SettingsCard>
 
-            <controls:SettingsCard
-                Header="Start with Windows"
-                Description="{x:Bind ViewModel.StartWithWindowsDescription}"
-                IsEnabled="{x:Bind ViewModel.CanStartWithWindows}">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon Glyph="&#xE7E8;" />
-                </controls:SettingsCard.HeaderIcon>
-                <ToggleSwitch IsOn="{x:Bind ViewModel.StartWithWindows, Mode=TwoWay}" />
-            </controls:SettingsCard>
+                <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupBottomCornerRadius}"
+                    Header="Start with Windows"
+                    Description="{x:Bind ViewModel.StartWithWindowsDescription}"
+                    IsEnabled="{x:Bind ViewModel.CanStartWithWindows}">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE7E8;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.StartWithWindows, Mode=TwoWay}" />
+                </controls:SettingsCard>
+            </StackPanel>
 
             <TextBlock Text="About" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,20,0,4" />
 
-            <controls:SettingsCard
-                Header="Update channel"
-                Description="Pre-release builds come from every push to main, release builds from a merged release PR">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon Glyph="&#xE895;" />
-                </controls:SettingsCard.HeaderIcon>
-                <controls:Segmented
-                    SelectionMode="Single"
-                    SelectedIndex="{x:Bind ViewModel.AppChannelIndex, Mode=TwoWay}">
-                    <controls:SegmentedItem Content="release" />
-                    <controls:SegmentedItem Content="pre-release" />
-                </controls:Segmented>
-            </controls:SettingsCard>
+            <StackPanel Spacing="1">
+                <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupTopCornerRadius}"
+                    Header="Update channel"
+                    Description="Pre-release builds come from every push to main, release builds from a merged release PR">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE895;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <controls:Segmented
+                        SelectionMode="Single"
+                        SelectedIndex="{x:Bind ViewModel.AppChannelIndex, Mode=TwoWay}">
+                        <controls:SegmentedItem Content="release" />
+                        <controls:SegmentedItem Content="pre-release" />
+                    </controls:Segmented>
+                </controls:SettingsCard>
 
-            <controls:SettingsCard Header="Steward" Description="{x:Bind ViewModel.AboutDescription, Mode=OneWay}">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon Glyph="&#xE946;" />
-                </controls:SettingsCard.HeaderIcon>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="{x:Bind ViewModel.AboutActionLabel, Mode=OneWay}" Command="{x:Bind ViewModel.CheckOrInstallAppUpdateCommand}" />
-                    <Button Content="Release notes" Click="OnReleasesClick" />
-                </StackPanel>
-            </controls:SettingsCard>
+                <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Steward"
+                    Description="{x:Bind ViewModel.AboutDescription, Mode=OneWay}">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE946;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="{x:Bind ViewModel.AboutActionLabel, Mode=OneWay}" Command="{x:Bind ViewModel.CheckOrInstallAppUpdateCommand}" />
+                        <Button Content="Release notes" Click="OnReleasesClick" />
+                    </StackPanel>
+                </controls:SettingsCard>
 
-            <controls:SettingsCard Header="App data" Description="{x:Bind ViewModel.StatePath, Mode=OneWay}">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon Glyph="&#xE8B7;" />
-                </controls:SettingsCard.HeaderIcon>
-                <Button Content="Open folder" Click="OnOpenDataFolderClick" />
-            </controls:SettingsCard>
+                <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="App data"
+                    Description="{x:Bind ViewModel.StatePath, Mode=OneWay}">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8B7;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <Button Content="Open folder" Click="OnOpenDataFolderClick" />
+                </controls:SettingsCard>
 
-            <controls:SettingsCard
-                Header="Source and issues"
-                Description="github.com/hoobio/steward-companion"
-                IsClickEnabled="True"
-                Click="OnRepositoryClick">
-                <controls:SettingsCard.HeaderIcon>
-                    <FontIcon Glyph="&#xE943;" />
-                </controls:SettingsCard.HeaderIcon>
-                <controls:SettingsCard.ActionIcon>
-                    <FontIcon Glyph="&#xE8A7;" FontSize="14" />
-                </controls:SettingsCard.ActionIcon>
-            </controls:SettingsCard>
+                <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupBottomCornerRadius}"
+                    Header="Source and issues"
+                    Description="github.com/hoobio/steward-companion"
+                    IsClickEnabled="True"
+                    Click="OnRepositoryClick">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE943;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <controls:SettingsCard.ActionIcon>
+                        <FontIcon Glyph="&#xE8A7;" FontSize="14" />
+                    </controls:SettingsCard.ActionIcon>
+                </controls:SettingsCard>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

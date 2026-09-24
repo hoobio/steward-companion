@@ -77,11 +77,11 @@
                             <SolidColorBrush x:Key="ControlFillColorTertiaryBrush" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="ControlFillColorDisabledBrush" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="ControlFillColorInputActiveBrush" Color="#FF1A1F2B" />
-                            <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="#FF343B4C" />
-                            <SolidColorBrush x:Key="ControlStrokeColorSecondaryBrush" Color="#FF343B4C" />
-                            <SolidColorBrush x:Key="ControlElevationBorderBrush" Color="#FF343B4C" />
+                            <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="ControlStrokeColorSecondaryBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="ControlElevationBorderBrush" Color="Transparent" />
 
-                            <SolidColorBrush x:Key="ButtonBackground" Color="#FF232834" />
+                            <SolidColorBrush x:Key="ButtonBackground" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FF2B3140" />
                             <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#FF1A1F2B" />
@@ -89,10 +89,10 @@
                             <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFCBCCC6" />
                             <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFCBCCC6" />
                             <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#FF4E5768" />
-                            <SolidColorBrush x:Key="ButtonBorderBrush" Color="#FF343B4C" />
-                            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#FF343B4C" />
-                            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#FF343B4C" />
-                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="#FF272D3A" />
+                            <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
 
                             <SolidColorBrush x:Key="AccentButtonBackground" Color="#FF409FFF" />
                             <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#FF73D0FF" />
@@ -102,10 +102,10 @@
                             <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#FF1F2430" />
                             <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#FF1F2430" />
                             <SolidColorBrush x:Key="AccentButtonForegroundDisabled" Color="#FF8FB8DD" />
-                            <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="#FF409FFF" />
-                            <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="#FF73D0FF" />
-                            <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="#FF73D0FF" />
-                            <SolidColorBrush x:Key="AccentButtonBorderBrushDisabled" Color="#FF2F5A85" />
+                            <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="Transparent" />
+                            <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="Transparent" />
+                            <SolidColorBrush x:Key="AccentButtonBorderBrushDisabled" Color="Transparent" />
 
                             <SolidColorBrush x:Key="ComboBoxBackground" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#FF2B3140" />
@@ -113,17 +113,17 @@
                             <SolidColorBrush x:Key="ComboBoxBackgroundFocused" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="ComboBoxBackgroundUnfocused" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="ComboBoxBackgroundDisabled" Color="#FF1A1F2B" />
-                            <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#FF343B4C" />
-                            <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#FF343B4C" />
-                            <SolidColorBrush x:Key="ComboBoxBorderBrushPressed" Color="#FF343B4C" />
-                            <SolidColorBrush x:Key="ComboBoxBorderBrushDisabled" Color="#FF272D3A" />
-                            <SolidColorBrush x:Key="ComboBoxBackgroundBorderBrushFocused" Color="#FF343B4C" />
-                            <SolidColorBrush x:Key="ComboBoxBackgroundBorderBrushUnfocused" Color="#FF343B4C" />
+                            <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="Transparent" />
+                            <SolidColorBrush x:Key="ComboBoxBorderBrushPressed" Color="Transparent" />
+                            <SolidColorBrush x:Key="ComboBoxBorderBrushDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ComboBoxBackgroundBorderBrushFocused" Color="Transparent" />
+                            <SolidColorBrush x:Key="ComboBoxBackgroundBorderBrushUnfocused" Color="Transparent" />
                             <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#FF2B3140" />
-                            <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#FF343B4C" />
+                            <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="Transparent" />
 
                             <SolidColorBrush x:Key="SegmentedBackground" Color="#FF1A1F2B" />
-                            <SolidColorBrush x:Key="SegmentedBorderBrush" Color="#FF343B4C" />
+                            <SolidColorBrush x:Key="SegmentedBorderBrush" Color="Transparent" />
 
                             <SolidColorBrush x:Key="RadioButtonOuterEllipseFill" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="RadioButtonOuterEllipseFillPointerOver" Color="#FF1A1F2B" />
@@ -177,6 +177,13 @@
 
                             <x:Double x:Key="ControlContentThemeFontSize">13</x:Double>
                             <Thickness x:Key="ButtonPadding">13,4,13,5</Thickness>
+
+                            <Thickness x:Key="ButtonBorderThemeThickness">0</Thickness>
+                            <Thickness x:Key="ComboBoxBorderThemeThickness">0</Thickness>
+                            <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+                            <Thickness x:Key="InfoBarBorderThickness">0</Thickness>
+                            <Thickness x:Key="FlyoutBorderThemeThickness">0</Thickness>
+                            <Thickness x:Key="MenuFlyoutPresenterBorderThemeThickness">0</Thickness>
                         </ResourceDictionary>
                         <ResourceDictionary x:Key="HighContrast">
                             <SolidColorBrush x:Key="RowHairlineBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
@@ -210,6 +217,9 @@
             <Thickness x:Key="PageTitleMargin">0,-2,0,0</Thickness>
             <Thickness x:Key="CardRowPadding">16,10</Thickness>
             <x:Double x:Key="CardRowMinHeight">52</x:Double>
+            <CornerRadius x:Key="GroupTopCornerRadius">8,8,0,0</CornerRadius>
+            <CornerRadius x:Key="GroupMiddleCornerRadius">0</CornerRadius>
+            <CornerRadius x:Key="GroupBottomCornerRadius">0,0,8,8</CornerRadius>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

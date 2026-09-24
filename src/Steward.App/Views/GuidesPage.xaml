@@ -172,6 +172,7 @@
                 x:Name="SessionExpiredBar"
                 Severity="Warning"
                 IsClosable="True"
+                CornerRadius="8"
                 CloseButtonClick="OnSessionBarClosed"
                 IsOpen="{x:Bind ViewModel.RestedXp.IsSessionExpired, Mode=OneWay}"
                 Message="Your RestedXP session expired. Sign in again.">
