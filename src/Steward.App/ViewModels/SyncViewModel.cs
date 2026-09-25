@@ -408,7 +408,12 @@ public sealed partial class SyncViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private Task RefreshAsync() => ReloadAsync();
+    private async Task RefreshAsync()
+    {
+        // AsyncRelayCommand never reports IsRunning for a task that completes synchronously, which ReloadAsync does against local files.
+        await Task.Yield();
+        await ReloadAsync().ConfigureAwait(true);
+    }
 
     [RelayCommand]
     private async Task WriteAgainAsync()
