@@ -82,7 +82,62 @@ public sealed record SavedVariablesSnapshot(
     IReadOnlyList<RosterMember> Roster,
     IReadOnlyList<LootEvent> Loot,
     IReadOnlyList<AttendanceRecord> Attendance,
-    int Skipped);
+    int Skipped,
+    IReadOnlyList<CharacterObservation> Characters,
+    string? CharactersFingerprint);
+
+public sealed record CharacterObservation(
+    string CharacterGuid,
+    string Name,
+    string Realm,
+    string Guild,
+    int Level,
+    int ClassId,
+    int RaceId,
+    int RankIndex,
+    DateTimeOffset? LastOnline,
+    string? LinkedUserId,
+    bool LinkKnown,
+    DateTimeOffset? ObservedAt);
+
+public sealed record CharacterSyncEntry(
+    [property: JsonPropertyName("guid")] string CharacterGuid,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("realm")] string Realm,
+    [property: JsonPropertyName("guild")] string Guild,
+    [property: JsonPropertyName("level")] int Level,
+    [property: JsonPropertyName("classId")] int ClassId,
+    [property: JsonPropertyName("raceId")] int RaceId,
+    [property: JsonPropertyName("rankIndex")] int RankIndex,
+    [property: JsonPropertyName("lastOnline")] long? LastOnline,
+    [property: JsonPropertyName("linkedUserId")] string? LinkedUserId,
+    [property: JsonPropertyName("linkKnown")] bool LinkKnown,
+    [property: JsonPropertyName("observedAt")] long? ObservedAt);
+
+public sealed record CharacterSyncRequest(
+    [property: JsonPropertyName("batchId")] string BatchId,
+    [property: JsonPropertyName("appVersion")] string AppVersion,
+    [property: JsonPropertyName("characters")] IReadOnlyList<CharacterSyncEntry> Characters);
+
+public sealed record CharacterSyncRejection(
+    [property: JsonPropertyName("guid")] string CharacterGuid,
+    [property: JsonPropertyName("reason")] string Reason);
+
+public sealed record CharacterSyncResponse(
+    [property: JsonPropertyName("accepted")] int Accepted,
+    [property: JsonPropertyName("rejected")] IReadOnlyList<CharacterSyncRejection> Rejected);
+
+public sealed record CharacterPushRecord(
+    [property: JsonPropertyName("fingerprint")] string Fingerprint,
+    [property: JsonPropertyName("pushed_at")] DateTimeOffset PushedAt,
+    [property: JsonPropertyName("accepted")] int Accepted);
+
+public static class CharacterPushGate
+{
+    public static bool ShouldPush(string? fingerprint, IReadOnlyDictionary<string, CharacterPushRecord> lastPushes, string flavourPath) =>
+        fingerprint is not null
+        && (!lastPushes.TryGetValue(flavourPath, out var last) || !string.Equals(last.Fingerprint, fingerprint, StringComparison.Ordinal));
+}
 
 public sealed record WowClientProcess(int ProcessId, DateTimeOffset StartTime);
 

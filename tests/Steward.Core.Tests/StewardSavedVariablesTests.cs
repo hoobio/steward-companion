@@ -155,6 +155,69 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void Read_MapsCharacters()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["characters"] = {
+            ["Player-4395-0A1B2C3D"] = {
+                ["name"] = "Hoobi Furry", ["realm"] = "Nightslayer", ["guild"] = "Gigagrug",
+                ["level"] = 60, ["classID"] = 1, ["raceID"] = 2, ["rankIndex"] = 1,
+                ["lastOnline"] = 1758250000, ["linkedUserId"] = "123456789012345678",
+                ["linkKnown"] = true, ["observedAt"] = 1758260000,
+            },
+            },
+            }
+            """));
+
+        var character = Assert.Single(snapshot.Characters);
+        Assert.Equal("Player-4395-0A1B2C3D", character.CharacterGuid);
+        Assert.Equal("Hoobi Furry", character.Name);
+        Assert.Equal("Nightslayer", character.Realm);
+        Assert.Equal("Gigagrug", character.Guild);
+        Assert.Equal(60, character.Level);
+        Assert.Equal(1, character.ClassId);
+        Assert.Equal(2, character.RaceId);
+        Assert.Equal(1, character.RankIndex);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758250000), character.LastOnline);
+        Assert.Equal("123456789012345678", character.LinkedUserId);
+        Assert.True(character.LinkKnown);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000), character.ObservedAt);
+        Assert.NotNull(snapshot.CharactersFingerprint);
+        Assert.Equal(0, snapshot.Skipped);
+    }
+
+    [Fact]
+    public void Read_SkipsACharacterWithNoGuidKey()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["characters"] = {
+            { ["name"] = "Orphan", ["realm"] = "Nightslayer" }, -- [1]
+            },
+            }
+            """));
+
+        Assert.Empty(snapshot.Characters);
+        Assert.Equal(1, snapshot.Skipped);
+    }
+
+    [Fact]
+    public void Read_SkipsACharacterMissingRequiredFields()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["characters"] = {
+            ["Player-4395-0A1B2C3D"] = { ["realm"] = "Nightslayer" },
+            },
+            }
+            """));
+
+        Assert.Empty(snapshot.Characters);
+        Assert.Equal(1, snapshot.Skipped);
+    }
+
+    [Fact]
     public void Read_ReturnsNull_WhenNoFileExists()
     {
         Assert.Null(StewardSavedVariables.Read(_root));

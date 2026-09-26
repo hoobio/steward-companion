@@ -130,6 +130,7 @@ public sealed class GigagrugClient
     public const string AddonsFeature = "addons";
     public const string GuidesFeature = "guides";
     public const string StewardFeature = "steward";
+    public const string SyncFeature = "sync";
 
     private static readonly IReadOnlySet<string> AllFeatures = new HashSet<string>(
         [AddonsFeature, GuidesFeature, StewardFeature], StringComparer.Ordinal);
@@ -144,4 +145,38 @@ public sealed class GigagrugClient
         me.User.Features is { } features
             ? new HashSet<string>(features, StringComparer.Ordinal)
             : IsAdmin(me) ? AllFeatures : new HashSet<string>(StringComparer.Ordinal);
+
+    // sync is never standalone: a user holding only it has nothing else to do in the app.
+    public static bool IsAuthorizing(IReadOnlySet<string> features) =>
+        AllFeatures.Any(features.Contains);
+
+    public async Task<CharacterSyncResponse> PostCharacterSyncAsync(
+        string guildId, CharacterSyncRequest batch, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .PostAsJsonAsync(
+                $"{_baseUrl}/api/admin/{guildId}/characters/sync",
+                batch,
+                CompanionJsonContext.Default.CharacterSyncRequest,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"POST /api/admin/{guildId}/characters/sync returned {(int)response.StatusCode} {response.StatusCode}");
+        }
+
+        var result = await response.Content
+            .ReadFromJsonAsync(CompanionJsonContext.Default.CharacterSyncResponse, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result ?? throw new HttpRequestException(
+            $"POST /api/admin/{guildId}/characters/sync returned an empty body");
+    }
 }

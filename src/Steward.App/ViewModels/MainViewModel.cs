@@ -60,6 +60,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(HiddenToggleVisibility),
         nameof(GuidesVisibility),
         nameof(SyncVisibility),
+        nameof(CharacterSyncVisibility),
     ];
 
     private readonly ISessionService _sessionService;
@@ -288,6 +289,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private bool HasStewardFeature => _features.Contains(GigagrugClient.StewardFeature);
 
+    public bool HasSyncFeature => _features.Contains(GigagrugClient.SyncFeature);
+
     private IReadOnlyList<ManagedAddon> VisibleAddons() =>
         [.. _addons.Where(addon => addon.Features.Any(_features.Contains))];
 
@@ -354,6 +357,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             && row.State is not (AddonRowState.Missing or AddonRowState.NoReleases)))));
 
     public Visibility SyncVisibility => When(HasStewardFeature);
+
+    public Visibility CharacterSyncVisibility => When(HasSyncFeature);
+
+    public ObservableCollection<CharacterSyncRowViewModel> CharacterSyncRows { get; } = [];
 
     public Visibility TimeoutVisibility => When(Failure == GateFailure.Timeout);
 
@@ -927,6 +934,93 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return null;
     }
 
+    private async Task PushCharacterSyncAsync()
+    {
+        if (!HasSyncFeature || _guildId is not { } guildId)
+        {
+            return;
+        }
+
+        foreach (var install in Installs)
+        {
+            await PushCharacterSyncAsync(install, guildId).ConfigureAwait(true);
+        }
+    }
+
+    private async Task PushCharacterSyncAsync(WowInstallViewModel install, string guildId)
+    {
+        SavedVariablesSnapshot? snapshot;
+        try
+        {
+            snapshot = StewardSavedVariables.Read(install.FlavourPath);
+        }
+        catch (FormatException)
+        {
+            return;
+        }
+
+        var fingerprint = snapshot?.CharactersFingerprint;
+        var state = _stateStore.Load();
+        if (!CharacterPushGate.ShouldPush(fingerprint, state.CharacterSync, install.FlavourPath))
+        {
+            return;
+        }
+
+        var request = new CharacterSyncRequest(
+            Guid.NewGuid().ToString(),
+            InstalledVersion,
+            [.. snapshot!.Characters.Select(ToSyncEntry)]);
+
+        try
+        {
+            var result = await _gigagrugClient.PostCharacterSyncAsync(guildId, request, CancellationToken.None).ConfigureAwait(true);
+            state = _stateStore.Load();
+            state.CharacterSync[install.FlavourPath] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, result.Accepted);
+            _stateStore.Save(state);
+            SetCharacterSyncRow(install, result.Accepted, result.Rejected, null);
+        }
+        catch (SessionExpiredException)
+        {
+            SignOutTo(GateFailure.SessionExpired);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            SetCharacterSyncRow(install, null, [], ex.Message);
+        }
+    }
+
+    private static CharacterSyncEntry ToSyncEntry(CharacterObservation observation) => new(
+        observation.CharacterGuid,
+        observation.Name,
+        observation.Realm,
+        observation.Guild,
+        observation.Level,
+        observation.ClassId,
+        observation.RaceId,
+        observation.RankIndex,
+        observation.LastOnline?.ToUnixTimeSeconds(),
+        observation.LinkedUserId,
+        observation.LinkKnown,
+        observation.ObservedAt?.ToUnixTimeSeconds());
+
+    private void SetCharacterSyncRow(WowInstallViewModel install, int? accepted, IReadOnlyList<CharacterSyncRejection> rejected, string? error)
+    {
+        var pushedAt = accepted is null
+            ? _stateStore.Load().CharacterSync.GetValueOrDefault(install.FlavourPath)?.PushedAt
+            : DateTimeOffset.Now;
+
+        var existing = CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath);
+        var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, pushedAt, accepted, error, rejected);
+        if (existing is null)
+        {
+            CharacterSyncRows.Add(row);
+        }
+        else
+        {
+            CharacterSyncRows[CharacterSyncRows.IndexOf(existing)] = row;
+        }
+    }
+
     private void RefreshClients()
     {
         foreach (var install in Installs)
@@ -1018,6 +1112,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         RebuildAddonChannels();
         SyncRestedXpRows();
+        SyncCharacterSyncRows();
+    }
+
+    private void SyncCharacterSyncRows()
+    {
+        if (!HasSyncFeature)
+        {
+            CharacterSyncRows.Clear();
+            return;
+        }
+
+        var known = new HashSet<string>(Installs.Select(install => install.FlavourPath), StringComparer.OrdinalIgnoreCase);
+        foreach (var gone in CharacterSyncRows.Where(row => !known.Contains(row.FlavourPath)).ToList())
+        {
+            CharacterSyncRows.Remove(gone);
+        }
+
+        var state = _stateStore.Load();
+        foreach (var install in Installs)
+        {
+            if (CharacterSyncRows.Any(row => row.FlavourPath == install.FlavourPath))
+            {
+                continue;
+            }
+
+            var last = state.CharacterSync.GetValueOrDefault(install.FlavourPath);
+            CharacterSyncRows.Add(new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, last?.Accepted, null, []));
+        }
     }
 
     private void RebuildAddonChannels()
@@ -1140,6 +1262,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         viewModel.RowsChanged += OnInstallRowsChanged;
         Installs.Add(viewModel);
         SyncGuideInstalls();
+        SyncCharacterSyncRows();
         return viewModel;
     }
 
@@ -1211,6 +1334,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (result == AuthCheckResult.Authorized)
             {
                 await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
+                await PushCharacterSyncAsync().ConfigureAwait(true);
                 if (!App.IsPackaged || DateTimeOffset.Now - _lastStoreCheck >= StoreCheckInterval)
                 {
                     await CheckAppUpdateAsync().ConfigureAwait(true);
@@ -1255,7 +1379,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             var me = await _gigagrugClient.GetMeAsync(cancellationToken).ConfigureAwait(true);
             var features = GigagrugClient.EffectiveFeatures(me);
-            if (features.Count == 0)
+            if (!GigagrugClient.IsAuthorizing(features))
             {
                 SignOutTo(GateFailure.NotAuthorized);
                 return AuthCheckResult.NotAuthorized;

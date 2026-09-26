@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace Steward.Core;
 
 public static class StewardSavedVariables
@@ -51,6 +54,8 @@ public static class StewardSavedVariables
         var roster = new List<RosterMember>();
         var loot = new List<(string Id, DateTimeOffset Rank, LootEvent Item)>();
         var attendance = new List<(string Id, DateTimeOffset Rank, AttendanceRecord Item)>();
+        var characters = new List<CharacterObservation>();
+        var characterFingerprintSource = new StringBuilder();
         var skipped = 0;
 
         foreach (var (path, lastWriteTime, text) in files)
@@ -71,6 +76,8 @@ public static class StewardSavedVariables
             if (account is not null)
             {
                 roster.AddRange(MapAll(account.GetTable("roster"), MapRoster, ref skipped));
+                characters.AddRange(MapCharacters(account.GetTable("characters"), ref skipped));
+                characterFingerprintSource.Append(text);
             }
 
             loot.AddRange(MapAll(root.GetTable("loot"), MapLoot, ref skipped).Select(r => (r.Id, rank, r)));
@@ -83,8 +90,13 @@ public static class StewardSavedVariables
             roster,
             Dedupe(loot),
             Dedupe(attendance),
-            skipped);
+            skipped,
+            characters,
+            characterFingerprintSource.Length == 0 ? null : Fingerprint(characterFingerprintSource.ToString()));
     }
+
+    private static string Fingerprint(string source) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source)));
 
     private static void AddIfExists(List<string> files, string scopePath)
     {
@@ -176,6 +188,51 @@ public static class StewardSavedVariables
             .ToList() ?? [];
 
         return new AttendanceRecord(id, at.Value, instance, present);
+    }
+
+    private static List<CharacterObservation> MapCharacters(LuaValue? table, ref int skipped)
+    {
+        var mapped = new List<CharacterObservation>();
+        foreach (var entry in table?.Table ?? [])
+        {
+            var record = entry.Key is { Kind: LuaKind.Text } key && entry.Value.Kind is LuaKind.Table
+                ? MapCharacter(key.Text!, entry.Value)
+                : null;
+            if (record is null)
+            {
+                skipped++;
+            }
+            else
+            {
+                mapped.Add(record);
+            }
+        }
+
+        return mapped;
+    }
+
+    private static CharacterObservation? MapCharacter(string guid, LuaValue value)
+    {
+        var name = value.GetString("name");
+        var realm = value.GetString("realm");
+        if (string.IsNullOrEmpty(guid) || name is null || realm is null)
+        {
+            return null;
+        }
+
+        return new CharacterObservation(
+            guid,
+            name,
+            realm,
+            value.GetString("guild") ?? string.Empty,
+            ToInt(value.GetNumber("level")),
+            ToInt(value.GetNumber("classID")),
+            ToInt(value.GetNumber("raceID")),
+            ToInt(value.GetNumber("rankIndex")),
+            ToTimestamp(value.GetNumber("lastOnline")),
+            value.GetString("linkedUserId"),
+            value.Get("linkKnown") is { Kind: LuaKind.Boolean, Boolean: true },
+            ToTimestamp(value.GetNumber("observedAt")));
     }
 
     private static int ToInt(double? value) => value is null ? 0 : (int)value.Value;

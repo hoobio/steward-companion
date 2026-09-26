@@ -67,6 +67,9 @@ public sealed class AppStateStore
             GuildRosterSync = (state.GuildRosterSync ?? [])
                 .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
+            CharacterSync = (state.CharacterSync ?? [])
+                .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
         };
     }
 
@@ -80,6 +83,7 @@ public sealed class AppStateStore
         RestedXpGuideChoices = MergeGuideChoices(state),
         RestedXpGuidesGeneration = new Dictionary<string, long>(state.RestedXpGuidesGeneration ?? [], StringComparer.OrdinalIgnoreCase),
         GuildRosterSync = new Dictionary<string, string>(state.GuildRosterSync ?? [], StringComparer.OrdinalIgnoreCase),
+        CharacterSync = new Dictionary<string, CharacterPushRecord>(state.CharacterSync ?? [], StringComparer.OrdinalIgnoreCase),
         LegacyRestedXpGuideChoice = null,
     };
 

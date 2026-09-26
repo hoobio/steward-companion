@@ -142,7 +142,8 @@ public sealed record AppState(
     [property: JsonPropertyName("guild_roster_sync")] Dictionary<string, string> GuildRosterSync = null!,
     [property: JsonPropertyName("guild_id")] string? GuildId = null,
     [property: JsonPropertyName("close_to_tray")] bool CloseToTray = false,
-    [property: JsonPropertyName("auto_update")] string AutoUpdate = "out-of-game")
+    [property: JsonPropertyName("auto_update")] string AutoUpdate = "out-of-game",
+    [property: JsonPropertyName("character_sync")] Dictionary<string, CharacterPushRecord> CharacterSync = null!)
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -157,6 +158,8 @@ public sealed record AppState(
 [JsonSerializable(typeof(AdminMe))]
 [JsonSerializable(typeof(AdminUser))]
 [JsonSerializable(typeof(AppState))]
+[JsonSerializable(typeof(CharacterSyncRequest))]
+[JsonSerializable(typeof(CharacterSyncResponse))]
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]
 [JsonSerializable(typeof(DiscordMembersResponse))]

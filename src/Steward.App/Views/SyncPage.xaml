@@ -206,6 +206,47 @@
             </Grid>
         </DataTemplate>
 
+        <DataTemplate x:Key="CharacterSyncRowTemplate" x:DataType="vm:CharacterSyncRowViewModel">
+            <Grid
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                Padding="{StaticResource CardRowPadding}"
+                MinHeight="{StaticResource CardRowMinHeight}"
+                ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind DisplayName}" FontSize="13.5" FontWeight="SemiBold" />
+                    <TextBlock
+                        Text="{x:Bind LastPushText}"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock
+                        Text="{x:Bind Error}"
+                        TextWrapping="Wrap"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Visibility="{x:Bind ErrorVisibility}" />
+                    <TextBlock
+                        Text="{x:Bind RejectedSummary}"
+                        TextWrapping="Wrap"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Visibility="{x:Bind RejectedVisibility}" />
+                </StackPanel>
+
+                <TextBlock
+                    Grid.Column="1"
+                    Text="{x:Bind AcceptedText}"
+                    VerticalAlignment="Center"
+                    FontSize="12.5"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Visibility="{x:Bind AcceptedVisibility}" />
+            </Grid>
+        </DataTemplate>
+
         <DataTemplate x:Key="SyncInstallCardTemplate" x:DataType="vm:SyncInstallViewModel">
             <Expander
                 IsExpanded="True"
@@ -558,6 +599,23 @@
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
             </ItemsControl>
+
+            <StackPanel
+                Spacing="10"
+                Visibility="{x:Bind ViewModel.Main.CharacterSyncVisibility, Mode=OneWay}">
+                <TextBlock Text="Characters" FontSize="18" FontWeight="SemiBold" />
+                <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                    <ItemsControl
+                        ItemsSource="{x:Bind ViewModel.Main.CharacterSyncRows}"
+                        ItemTemplate="{StaticResource CharacterSyncRowTemplate}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="1" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </Border>
+            </StackPanel>
 
             <controls:SettingsCard
                 Padding="{StaticResource CardRowPadding}"

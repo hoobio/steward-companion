@@ -53,6 +53,8 @@ internal static class HostBuilderExtensions
 
         builder.Services.AddSingleton<CookieContainer>();
         builder.Services.AddHttpClient("Gigagrug")
+            // gigagrug's _same_site check accepts Sec-Fetch-Site: none, a value browsers never let a page set.
+            .ConfigureHttpClient(c => c.DefaultRequestHeaders.Add("Sec-Fetch-Site", "none"))
             .ConfigurePrimaryHttpMessageHandler(sp => new SocketsHttpHandler
             {
                 CookieContainer = sp.GetRequiredService<CookieContainer>(),
