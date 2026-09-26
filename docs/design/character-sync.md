@@ -4,7 +4,7 @@ WoW characters observed by the Steward addon flow addon -> SavedVariables -> Ste
 
 ## Feature flag
 
-`sync` is a grantable flag in gigagrug's `desktop_flags.FLAGS`, never in `OFFICER_FEATURES`, granted per user through the existing flag-targets admin UI. It is only grantable to a user who holds a guild seat or is a global admin: `PUT /desktop-flags/sync` answers 400 for any other user target and for any role target, the flags page disables the control for those users, and `sync` is only ever returned to a user who is currently an officer or global admin, so a demotion drops it without the targets changing. `handle_me` returns officers the sorted union of `OFFICER_FEATURES` and `features_for_user(user_id)`, so a grant to an officer or global admin takes effect; `test_me_features_for_officers_include_every_flag` changes with it.
+`sync` is a flag in gigagrug's `desktop_flags.FLAGS` and in `OFFICER_FEATURES`, so every guild seat holder and global admin holds it automatically, the same as `addons` and `guides`, and the flags page shows it ticked and disabled for them. It is also grantable to anyone else through a role or user target, for a later guildie self-sync that is not built. A non-officer holding `sync` gets it in `/api/admin/me`'s `features` but an empty `guilds`, and 403 on every `/api/admin/{guild_id}/` route, since they hold no seat; an officer of one guild gets 403 on another guild's routes.
 
 gigagrug enforces it with one helper, `require_feature(request, guild_id, "sync")`: the existing guild-seat `_authorise` (401 unauthenticated, 403 forbidden) plus 403 `{"error":"forbidden"}` when the flag is absent. Every endpoint below uses it except `POST roster`.
 
