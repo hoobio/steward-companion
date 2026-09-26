@@ -297,39 +297,47 @@ jobs:
       && needs.release-please.outputs.release_created == 'true'
       && needs.build-msix.result == 'success'
       && needs.release.result == 'success'
+      && vars.AZURE_CLIENT_ID != ''
     runs-on: windows-latest
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
     env:
       STORE_PRODUCT_ID: 9PBKMZFKZHKX
-      HAS_STORE_CREDENTIALS: ${{ secrets.AZURE_TENANT_ID != '' && secrets.SELLER_ID != '' && secrets.AZURE_AD_CLIENT_ID != '' && secrets.AZURE_AD_CLIENT_SECRET != '' }}
+      KEY_VAULT: hbicfgkvtaus01
     steps:
       - uses: actions/checkout@v7
-        if: env.HAS_STORE_CREDENTIALS == 'true'
 
       - name: Download msixupload
-        if: env.HAS_STORE_CREDENTIALS == 'true'
         uses: actions/download-artifact@v8
         with:
           name: msixupload-x64
           path: package
 
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
       - name: Setup Microsoft Store CLI
-        if: env.HAS_STORE_CREDENTIALS == 'true'
         uses: microsoft/microsoft-store-apppublisher@v1.4
 
-      - name: Configure Store credentials
-        if: env.HAS_STORE_CREDENTIALS == 'true'
+      - name: Configure Store credentials from Key Vault
         shell: pwsh
-        env:
-          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          SELLER_ID: ${{ secrets.SELLER_ID }}
-          CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
         run: |
-          msstore reconfigure --tenantId $env:TENANT_ID --sellerId $env:SELLER_ID --clientId $env:CLIENT_ID --clientSecret $env:CLIENT_SECRET
+          $store = @{}
+          foreach ($name in 'tenant-id', 'client-id', 'client-secret', 'seller-id') {
+            $value = az keyvault secret show --vault-name $env:KEY_VAULT --name "msstore-$name" --query value -o tsv
+            if ($LASTEXITCODE -ne 0 -or -not $value) { throw "Key Vault secret msstore-$name could not be read" }
+            Write-Host "::add-mask::$value"
+            $store[$name] = $value
+          }
+          msstore reconfigure --tenantId $store['tenant-id'] --sellerId $store['seller-id'] --clientId $store['client-id'] --clientSecret $store['client-secret']
           if ($LASTEXITCODE -ne 0) { throw "msstore reconfigure failed ($LASTEXITCODE)" }
 
       - name: Publish package + release notes to Store
-        if: env.HAS_STORE_CREDENTIALS == 'true'
         shell: pwsh
         env:
           PRODUCT_ID: ${{ env.STORE_PRODUCT_ID }}
