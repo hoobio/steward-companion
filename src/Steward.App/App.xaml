@@ -216,7 +216,7 @@
             <Thickness x:Key="PageGutter">26,7,26,26</Thickness>
             <Thickness x:Key="PageTitleMargin">0,-2,0,0</Thickness>
             <Thickness x:Key="CardRowPadding">16,10</Thickness>
-            <Thickness x:Key="SettingsExpanderItemPadding">16,8,44,8</Thickness>
+            <Thickness x:Key="SettingsExpanderItemPadding">16,8,16,8</Thickness>
             <x:Double x:Key="CardRowMinHeight">52</x:Double>
             <CornerRadius x:Key="GroupTopCornerRadius">8,8,0,0</CornerRadius>
             <CornerRadius x:Key="GroupMiddleCornerRadius">0</CornerRadius>
