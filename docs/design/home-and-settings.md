@@ -140,9 +140,9 @@ The page header stays visible above it.
 
 ### Not authorised
 
-Steward is an officer tool. gigagrug answers 403 on every `/api/admin/` route to a user with no seat and no global admin, leaving only `/api/admin/me`, so a member past the gate would see an app with no data in it.
+Access is gated on `/api/admin/me`'s `user.features` array (`addons`, `guides`, `steward`), not on officer role: a guild member can hold any subset of the three by Discord role or user id, and an officer gets all three by default.
 
-The app never gets there. `/api/admin/me` comes back with a role outside `global`/`admin`, the stored session is cleared and the window stays on the gate, with a critical `InfoBar` above the sign-in button: "That Discord account has no officer role." No link, no instruction. The same check runs on the background pass, so an officer demoted mid-session returns to the gate.
+A user with no feature at all never gets past the gate. `/api/admin/me` comes back with an empty (or, on an older server with no `features` field, non-officer) feature set, the stored session is cleared and the window stays on the gate, with a critical `InfoBar` above the sign-in button: "This Discord user has no Steward access. Reach out to an Officer or to Hoobi." No link, no instruction. The same check runs on the background pass, so a user who loses every feature mid-session returns to the gate.
 
 ### Admin, updates available
 
