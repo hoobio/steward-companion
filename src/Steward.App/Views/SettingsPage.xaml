@@ -178,6 +178,22 @@
                 </controls:SettingsCard>
 
                 <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Auto-update addons"
+                    Description="{x:Bind ViewModel.AutoUpdateDescription, Mode=OneWay}">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE777;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <controls:Segmented
+                        SelectionMode="Single"
+                        SelectedIndex="{x:Bind ViewModel.AutoUpdateIndex, Mode=TwoWay}">
+                        <controls:SegmentedItem Content="Always" />
+                        <controls:SegmentedItem Content="Out-of-game" />
+                        <controls:SegmentedItem Content="Never" />
+                    </controls:Segmented>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard
                     CornerRadius="{StaticResource GroupBottomCornerRadius}"
                     Header="Start with Windows"
                     Description="{x:Bind ViewModel.StartWithWindowsDescription, Mode=OneWay}"

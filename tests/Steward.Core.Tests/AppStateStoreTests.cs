@@ -237,6 +237,30 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_AutoUpdate_DefaultsToOutOfGame_AndRoundTrips()
+    {
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+
+        Assert.Equal("out-of-game", store.Load().AutoUpdate);
+
+        store.Save(store.Load() with { AutoUpdate = "always" });
+
+        Assert.Equal("always", store.Load().AutoUpdate);
+    }
+
+    [Theory]
+    [InlineData("always", AutoUpdateMode.Always)]
+    [InlineData("out-of-game", AutoUpdateMode.OutOfGame)]
+    [InlineData("never", AutoUpdateMode.Never)]
+    [InlineData("bogus", AutoUpdateMode.OutOfGame)]
+    [InlineData(null, AutoUpdateMode.OutOfGame)]
+    public void ParseAutoUpdate_UnknownOrMissingValue_FallsBackToOutOfGame(string? value, AutoUpdateMode expected)
+    {
+        Assert.Equal(expected, AppStateStore.ParseAutoUpdate(value));
+    }
+
+    [Fact]
     public void Load_GuildId_DefaultsToNull_AndRoundTrips()
     {
         File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");

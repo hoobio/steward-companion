@@ -18,6 +18,13 @@ public sealed class AppStateStore
 
     public static string Key(string flavourPath, string addonId) => $"{flavourPath}|{addonId}";
 
+    public static AutoUpdateMode ParseAutoUpdate(string? value) => value switch
+    {
+        "always" => AutoUpdateMode.Always,
+        "never" => AutoUpdateMode.Never,
+        _ => AutoUpdateMode.OutOfGame,
+    };
+
     public AppState Load()
     {
         if (!File.Exists(_path))

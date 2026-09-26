@@ -115,6 +115,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         MinimizeToTray = state.MinimizeToTray;
         CloseToTray = state.CloseToTray;
         AppChannelIndex = state.AppChannel == "pre-release" ? 1 : 0;
+        AutoUpdateIndex = AppStateStore.ParseAutoUpdate(state.AutoUpdate) switch
+        {
+            AutoUpdateMode.Always => 0,
+            AutoUpdateMode.Never => 2,
+            _ => 1,
+        };
         StartWithWindows = !App.IsPackaged && StartupRegistration.IsEnabled();
         _isLoadingState = false;
 
@@ -215,6 +221,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial int AppChannelIndex { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AutoUpdateDescription))]
+    public partial int AutoUpdateIndex { get; set; }
+
+    public string AutoUpdateDescription => AutoUpdateIndex switch
+    {
+        0 => "Updates install as soon as they're available, even while the game is running",
+        2 => "Nothing installs automatically; use the row button or Update all",
+        _ => "Updates wait until the game client isn't running",
+    };
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StoreListingVisibility), nameof(StoreSwitchVisibility))]
@@ -976,11 +993,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        var mode = AppStateStore.ParseAutoUpdate(_stateStore.Load().AutoUpdate);
+        if (mode == AutoUpdateMode.Never)
+        {
+            return;
+        }
+
         _isAutoApplying = true;
         try
         {
             foreach (var install in Installs.ToList())
             {
+                if (mode == AutoUpdateMode.OutOfGame && install.IsClientRunning)
+                {
+                    continue;
+                }
+
                 foreach (var row in install.AddonRows.ToList())
                 {
                     if (row.CanAutoApply)
@@ -1091,6 +1119,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ = CheckAndConfirmAppUpdateAsync();
     }
 
+    partial void OnAutoUpdateIndexChanged(int value)
+    {
+        if (_isLoadingState)
+        {
+            return;
+        }
+
+        var auto = value switch
+        {
+            0 => "always",
+            2 => "never",
+            _ => "out-of-game",
+        };
+        _stateStore.Save(_stateStore.Load() with { AutoUpdate = auto });
+    }
+
     partial void OnStartWithWindowsChanged(bool value)
     {
         if (_isLoadingState)
@@ -1174,6 +1218,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         RestedXp.Confirm(install.FlavourPath);
         _ = NotifySavedVariablesChangedAsync();
+        _ = AutoApplyAsync();
     }
 
     private Task NotifySavedVariablesChangedAsync() => SavedVariablesChanged?.Invoke() ?? Task.CompletedTask;

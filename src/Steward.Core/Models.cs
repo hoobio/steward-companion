@@ -123,6 +123,13 @@ public sealed record RestedXpGuideRecord(
     [property: JsonPropertyName("timestamp")] long Timestamp,
     [property: JsonPropertyName("written_at")] DateTimeOffset WrittenAt);
 
+public enum AutoUpdateMode
+{
+    Always,
+    OutOfGame,
+    Never,
+}
+
 public sealed record WowInstall(
     string Root,
     string Flavour,
@@ -152,7 +159,8 @@ public sealed record AppState(
     [property: JsonPropertyName("restedxp_guides_generation")] Dictionary<string, long> RestedXpGuidesGeneration = null!,
     [property: JsonPropertyName("guild_roster_sync")] Dictionary<string, string> GuildRosterSync = null!,
     [property: JsonPropertyName("guild_id")] string? GuildId = null,
-    [property: JsonPropertyName("close_to_tray")] bool CloseToTray = false)
+    [property: JsonPropertyName("close_to_tray")] bool CloseToTray = false,
+    [property: JsonPropertyName("auto_update")] string AutoUpdate = "out-of-game")
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
