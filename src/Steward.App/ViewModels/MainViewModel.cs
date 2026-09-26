@@ -725,8 +725,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void OpenStoreListing() =>
-        Process.Start(new ProcessStartInfo(_appUpdater.StoreListingUri.OriginalString) { UseShellExecute = true })?.Dispose();
+    private void OpenStoreListing() => OpenUri(_appUpdater.StoreListingUri);
+
+    private static void OpenUri(Uri uri) =>
+        Process.Start(new ProcessStartInfo(uri.OriginalString) { UseShellExecute = true })?.Dispose();
 
     [RelayCommand]
     private void SwitchToStore()
@@ -810,7 +812,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (AppUpdate is not null)
         {
-            OpenStoreListing();
+            OpenUri(_appUpdater.StoreUpdatesUri);
         }
     }
 

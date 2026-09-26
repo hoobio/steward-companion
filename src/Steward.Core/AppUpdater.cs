@@ -7,6 +7,8 @@ public sealed class AppUpdater(string storeProductId)
 {
     public Uri StoreListingUri { get; } = new($"ms-windows-store://pdp/?productid={storeProductId}");
 
+    public Uri StoreUpdatesUri { get; } = new("ms-windows-store://downloadsandupdates");
+
     private static string EscapeSingleQuoted(string value) => value.Replace("'", "''");
 
     public static void SwitchToStoreAfterExit(string upgradeCode, string logPath, string appUserModelId) =>
