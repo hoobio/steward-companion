@@ -94,6 +94,8 @@ Because the two packages carry different identities, Windows virtualises each on
 
 Commits go straight to `main` in the one working tree at `D:\steward-companion` and are pushed there; this repo uses no feature branches, no worktrees and no pull requests for its own work, and a subagent edits `main` in place. Conventional-commit subjects feed release-please, which opens the release PR itself.
 
+Every push to `main` that touches a path outside `build.yaml`'s `paths-ignore` list submits a Store pre-release flight build to testers, and it deletes the flight submission still in certification and restarts certification from zero, which takes hours. A change is therefore built, tested and, when visible, UI-verified locally before it is pushed; pushes are batched and made only when the change is worth a tester build, and small follow-ups are committed locally and pushed together.
+
 Every push to `main` that touches anything outside the `paths-ignore` list submits a Store pre-release flight build to testers: it deletes whatever flight submission is still in certification and restarts certification from zero, which runs to hours. Pushes are batched and made only when the change is worth putting in front of a tester, so a change is built, tested and, where it is visible, UI-verified locally first, small follow-ups are committed locally and pushed together, and unfinished work stays unpushed.
 
 ## Releases
