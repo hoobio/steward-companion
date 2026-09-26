@@ -243,6 +243,128 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void Read_MapsProfessions()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["professions"] = {
+            ["Player-4395-0A1B2C3D"] = {
+                ["observedAt"] = 1758260000,
+                ["skills"] = {
+                { ["name"] = "Alchemy", ["rank"] = 285, ["maxRank"] = 300, ["secondary"] = false },
+                { ["name"] = "Cooking", ["rank"] = 150, ["maxRank"] = 225, ["secondary"] = true },
+                },
+                ["recipes"] = {
+                ["Alchemy"] = {
+                    ["scannedAt"] = 1758260000,
+                    ["list"] = {
+                    { ["recipeId"] = 11460, ["name"] = "Major Healing Potion", ["header"] = "Potions", ["difficulty"] = "optimal", ["itemId"] = 13446,
+                      ["tools"] = "", ["reagents"] = { { ["itemId"] = 13464, ["name"] = "Golden Sansam", ["count"] = 2 } } },
+                    },
+                },
+                },
+            },
+            },
+            }
+            """));
+
+        Assert.Equal(0, snapshot.Skipped);
+        var professions = snapshot.Professions["Player-4395-0A1B2C3D"];
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000), DateTimeOffset.FromUnixTimeSeconds(professions.ObservedAt!.Value));
+
+        var alchemy = professions.Skills!.Single(s => s.Name == "Alchemy");
+        Assert.Equal(285, alchemy.Rank);
+        Assert.Equal(300, alchemy.MaxRank);
+        Assert.False(alchemy.Secondary);
+        Assert.True(professions.Skills!.Single(s => s.Name == "Cooking").Secondary);
+
+        var recipes = professions.Recipes!["Alchemy"];
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000).ToUnixTimeSeconds(), recipes.ScannedAt);
+        var recipe = Assert.Single(recipes.List!);
+        Assert.Equal(11460, recipe.RecipeId);
+        Assert.Equal("Major Healing Potion", recipe.Name);
+        Assert.Equal("Potions", recipe.Header);
+        Assert.Equal("optimal", recipe.Difficulty);
+        Assert.Equal(13446, recipe.ItemId);
+        Assert.Equal(string.Empty, recipe.Tools);
+        var reagent = Assert.Single(recipe.Reagents!);
+        Assert.Equal(13464, reagent.ItemId);
+        Assert.Equal("Golden Sansam", reagent.Name);
+        Assert.Equal(2, reagent.Count);
+    }
+
+    [Fact]
+    public void Read_MapsASparseProfessionsTable()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["professions"] = {
+            ["Player-4395-0A1B2C3D"] = {},
+            },
+            }
+            """));
+
+        Assert.Equal(0, snapshot.Skipped);
+        var professions = snapshot.Professions["Player-4395-0A1B2C3D"];
+        Assert.Null(professions.ObservedAt);
+        Assert.Null(professions.Skills);
+        Assert.Null(professions.Recipes);
+    }
+
+    [Fact]
+    public void Read_SkipsMalformedProfessionEntries()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["professions"] = {
+            { ["observedAt"] = 1758260000 }, -- [1] no guid key
+            ["Player-4395-0A1B2C3D"] = {
+                ["skills"] = {
+                { ["rank"] = 285 }, -- missing name
+                },
+                ["recipes"] = {
+                ["Alchemy"] = {
+                    ["list"] = {
+                    { ["header"] = "Potions" }, -- missing name
+                    },
+                },
+                },
+            },
+            },
+            }
+            """));
+
+        Assert.Equal(3, snapshot.Skipped);
+        var professions = snapshot.Professions["Player-4395-0A1B2C3D"];
+        Assert.Empty(professions.Skills!);
+        Assert.Empty(professions.Recipes!["Alchemy"].List!);
+    }
+
+    [Fact]
+    public void Read_KeepsTheHighestObservedAtProfessionsAcrossFiles()
+    {
+        var older = """
+            StewardDB = {
+            ["professions"] = {
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758200000, ["skills"] = { { ["name"] = "Cooking", ["rank"] = 1 } } },
+            },
+            }
+            """;
+        var newer = """
+            StewardDB = {
+            ["professions"] = {
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["skills"] = { { ["name"] = "Alchemy", ["rank"] = 285 } } },
+            },
+            }
+            """;
+
+        var snapshot = ReadFiles(("account-a.lua", older), ("account-b.lua", newer));
+
+        var professions = Assert.Single(snapshot.Professions).Value;
+        Assert.Equal("Alchemy", Assert.Single(professions.Skills!).Name);
+    }
+
+    [Fact]
     public void Read_ReturnsNull_WhenNoFileExists()
     {
         Assert.Null(StewardSavedVariables.Read(_root));

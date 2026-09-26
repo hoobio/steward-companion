@@ -976,7 +976,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var request = new CharacterSyncRequest(
             batchId,
             InstalledVersion,
-            [.. snapshot!.Characters.Select(ToSyncEntry)]);
+            [.. snapshot!.Characters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot.Professions))]);
 
         try
         {
@@ -1014,20 +1014,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _stateStore.Save(state);
         return batchId;
     }
-
-    private static CharacterSyncEntry ToSyncEntry(CharacterObservation observation) => new(
-        observation.CharacterGuid,
-        observation.Name,
-        observation.Realm,
-        observation.Guild,
-        observation.Level,
-        observation.ClassId,
-        observation.RaceId,
-        observation.RankIndex,
-        observation.LastOnline?.ToUnixTimeSeconds(),
-        observation.LinkedUserId,
-        observation.LinkKnown,
-        observation.ObservedAt?.ToUnixTimeSeconds());
 
     private void SetCharacterSyncRow(WowInstallViewModel install, string key, int? accepted, IReadOnlyList<CharacterSyncRejection> rejected, string? error)
     {

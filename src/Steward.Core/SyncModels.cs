@@ -84,7 +84,8 @@ public sealed record SavedVariablesSnapshot(
     IReadOnlyList<AttendanceRecord> Attendance,
     int Skipped,
     IReadOnlyList<CharacterObservation> Characters,
-    string? CharactersFingerprint);
+    string? CharactersFingerprint,
+    IReadOnlyDictionary<string, CharacterProfessions> Professions);
 
 public sealed record CharacterObservation(
     string CharacterGuid,
@@ -112,7 +113,37 @@ public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("lastOnline")] long? LastOnline,
     [property: JsonPropertyName("linkedUserId")] string? LinkedUserId,
     [property: JsonPropertyName("linkKnown")] bool LinkKnown,
-    [property: JsonPropertyName("observedAt")] long? ObservedAt);
+    [property: JsonPropertyName("observedAt")] long? ObservedAt,
+    [property: JsonPropertyName("professions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CharacterProfessions? Professions = null);
+
+public sealed record CharacterProfessions(
+    [property: JsonPropertyName("observedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ObservedAt,
+    [property: JsonPropertyName("skills"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionSkill>? Skills,
+    [property: JsonPropertyName("recipes"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, ProfessionRecipes>? Recipes);
+
+public sealed record ProfessionSkill(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("rank"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Rank,
+    [property: JsonPropertyName("maxRank"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxRank,
+    [property: JsonPropertyName("secondary"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Secondary);
+
+public sealed record ProfessionRecipes(
+    [property: JsonPropertyName("scannedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ScannedAt,
+    [property: JsonPropertyName("list"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionRecipe>? List);
+
+public sealed record ProfessionRecipe(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("recipeId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RecipeId,
+    [property: JsonPropertyName("header"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Header,
+    [property: JsonPropertyName("difficulty"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Difficulty,
+    [property: JsonPropertyName("itemId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? ItemId,
+    [property: JsonPropertyName("tools"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Tools,
+    [property: JsonPropertyName("reagents"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionReagent>? Reagents);
+
+public sealed record ProfessionReagent(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("itemId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? ItemId,
+    [property: JsonPropertyName("count"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Count);
 
 public sealed record CharacterSyncRequest(
     [property: JsonPropertyName("batchId")] string BatchId,
@@ -136,6 +167,24 @@ public sealed record CharacterPushRecord(
 public sealed record CharacterSyncBatch(
     [property: JsonPropertyName("fingerprint")] string Fingerprint,
     [property: JsonPropertyName("batch_id")] string BatchId);
+
+public static class CharacterSyncMapping
+{
+    public static CharacterSyncEntry ToEntry(CharacterObservation observation, IReadOnlyDictionary<string, CharacterProfessions> professions) => new(
+        observation.CharacterGuid,
+        observation.Name,
+        observation.Realm,
+        observation.Guild,
+        observation.Level,
+        observation.ClassId,
+        observation.RaceId,
+        observation.RankIndex,
+        observation.LastOnline?.ToUnixTimeSeconds(),
+        observation.LinkedUserId,
+        observation.LinkKnown,
+        observation.ObservedAt?.ToUnixTimeSeconds(),
+        professions.GetValueOrDefault(observation.CharacterGuid));
+}
 
 public static class CharacterPushGate
 {
