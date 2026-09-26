@@ -1,5 +1,5 @@
 using System.Security.Cryptography;
-using System.Text;
+using System.Text.Json;
 
 namespace Steward.Core;
 
@@ -57,7 +57,7 @@ public static class StewardSavedVariables
         var characters = new List<(string Id, DateTimeOffset Rank, CharacterObservation Item)>();
         var professions = new List<(string Id, DateTimeOffset Rank, CharacterProfessions Item)>();
         var catalogue = new List<(string Id, DateTimeOffset Rank, ProfessionCatalogue Item)>();
-        var characterFingerprintSource = new StringBuilder();
+        var hasAccount = false;
         var skipped = 0;
 
         foreach (var (path, lastWriteTime, text) in files)
@@ -84,13 +84,16 @@ public static class StewardSavedVariables
                     .Select(p => (p.Guid, p.Professions.ObservedAt is { } observedAt ? DateTimeOffset.FromUnixTimeSeconds(observedAt) : DateTimeOffset.MinValue, p.Professions)));
                 catalogue.AddRange(MapCatalogueByProfession(account.GetTable("catalogue"), ref skipped)
                     .Select(c => (c.Profession, c.Catalogue.ScannedAt is { } scannedAt ? DateTimeOffset.FromUnixTimeSeconds(scannedAt) : DateTimeOffset.MinValue, c.Catalogue)));
-                characterFingerprintSource.Append(text);
+                hasAccount = true;
             }
 
             loot.AddRange(MapAll(root.GetTable("loot"), MapLoot, ref skipped).Select(r => (r.Id, rank, r)));
             attendance.AddRange(MapAll(root.GetTable("attendance"), MapAttendance, ref skipped).Select(r => (r.Id, rank, r)));
         }
 
+        var dedupedCharacters = Dedupe(characters);
+        var dedupedProfessions = DedupeByKey(professions);
+        var dedupedCatalogue = DedupeByKey(catalogue);
         return new SavedVariablesSnapshot(
             descriptors,
             descriptors.Select(f => f.ExportedAt).Max(),
@@ -98,17 +101,40 @@ public static class StewardSavedVariables
             Dedupe(loot),
             Dedupe(attendance),
             skipped,
-            Dedupe(characters),
-            characterFingerprintSource.Length == 0 ? null : Fingerprint(characterFingerprintSource.ToString()),
-            DedupeByKey(professions),
-            DedupeByKey(catalogue));
+            dedupedCharacters,
+            hasAccount ? CharactersFingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue) : null,
+            dedupedProfessions,
+            dedupedCatalogue);
     }
 
     private static Dictionary<string, T> DedupeByKey<T>(List<(string Id, DateTimeOffset Rank, T Item)> records) =>
         records.GroupBy(r => r.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.MaxBy(r => r.Rank).Item, StringComparer.Ordinal);
 
-    private static string Fingerprint(string source) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source)));
+    // observedAt and scannedAt are restamped on every roster rebuild, so they are left out or every /reload would push unchanged data.
+    private static string CharactersFingerprint(
+        IReadOnlyList<CharacterObservation> characters,
+        IReadOnlyDictionary<string, CharacterProfessions> professions,
+        IReadOnlyDictionary<string, ProfessionCatalogue> catalogue)
+    {
+        var canonicalProfessions = professions.ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value with
+            {
+                ObservedAt = null,
+                Recipes = entry.Value.Recipes is null ? null : Sorted(entry.Value.Recipes, recipes => recipes with { ScannedAt = null }),
+            },
+            StringComparer.Ordinal);
+        var canonical = new CharacterSyncRequest(
+            string.Empty,
+            string.Empty,
+            [.. characters.OrderBy(c => c.CharacterGuid, StringComparer.Ordinal)
+                .Select(c => CharacterSyncMapping.ToEntry(c with { ObservedAt = null }, canonicalProfessions))],
+            Sorted(catalogue, entry => entry with { ScannedAt = null }));
+        return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonical, CompanionJsonContext.Default.CharacterSyncRequest)));
+    }
+
+    private static SortedDictionary<string, T> Sorted<T>(IReadOnlyDictionary<string, T> source, Func<T, T> canonicalise) =>
+        new(source.ToDictionary(entry => entry.Key, entry => canonicalise(entry.Value), StringComparer.Ordinal), StringComparer.Ordinal);
 
     private static void AddIfExists(List<string> files, string scopePath)
     {

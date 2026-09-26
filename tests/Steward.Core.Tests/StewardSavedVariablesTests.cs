@@ -187,6 +187,39 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal(0, snapshot.Skipped);
     }
 
+    private static string? FingerprintOf(int observedAt, int level = 60, int recipeId = 11460) =>
+        ReadFiles(("account.lua", $$"""
+            StewardDB = {
+            ["characters"] = {
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["level"] = {{level}}, ["observedAt"] = {{observedAt}} },
+            },
+            ["professions"] = {
+            ["Player-4395-0A1B2C3D"] = {
+                ["observedAt"] = {{observedAt}},
+                ["recipes"] = { ["Alchemy"] = { ["scannedAt"] = {{observedAt}}, ["list"] = { { ["recipeId"] = {{recipeId}}, ["name"] = "Potion" } } } },
+            },
+            },
+            ["catalogue"] = {
+            ["Alchemy"] = { ["scannedAt"] = {{observedAt}}, ["list"] = { { ["recipeId"] = {{recipeId}}, ["name"] = "Potion" } } },
+            },
+            }
+            """)).CharactersFingerprint;
+
+    [Fact]
+    public void CharactersFingerprint_IgnoresObservedAtAndScannedAt()
+    {
+        Assert.Equal(FingerprintOf(1758260000), FingerprintOf(1758269999));
+    }
+
+    [Fact]
+    public void CharactersFingerprint_ChangesWithLevelOrRecipe()
+    {
+        var baseline = FingerprintOf(1758260000);
+
+        Assert.NotEqual(baseline, FingerprintOf(1758260000, level: 59));
+        Assert.NotEqual(baseline, FingerprintOf(1758260000, recipeId: 11461));
+    }
+
     [Fact]
     public void Read_DedupesCharactersByGuid_KeepingTheHighestObservedAt()
     {
