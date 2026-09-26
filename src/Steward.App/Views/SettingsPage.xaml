@@ -19,11 +19,6 @@
                         VerticalAlignment="Center"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                         Visibility="{x:Bind NoReleasesVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="{x:Bind SelectedChannelText, Mode=OneWay}"
-                        VerticalAlignment="Center"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind ReadOnlyVisibility, Mode=OneWay}" />
                     <controls:Segmented
                         SelectionMode="Single"
                         SelectedIndex="{x:Bind SelectedIndex, Mode=TwoWay}"

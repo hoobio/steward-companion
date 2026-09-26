@@ -1041,7 +1041,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (_status.TryGetValue(channel.AddonId, out var status))
             {
-                channel.Apply(status, IsGlobalAdmin, IsAuthorized);
+                channel.Apply(status, IsGlobalAdmin);
             }
         }
     }

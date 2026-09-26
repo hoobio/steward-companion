@@ -77,15 +77,9 @@ public sealed partial class AddonChannelViewModel : ObservableObject
     public partial Visibility PickerVisibility { get; set; } = Visibility.Collapsed;
 
     [ObservableProperty]
-    public partial Visibility ReadOnlyVisibility { get; set; } = Visibility.Collapsed;
-
-    [ObservableProperty]
     public partial Visibility NoReleasesVisibility { get; set; } = Visibility.Visible;
 
-    [ObservableProperty]
-    public partial string SelectedChannelText { get; set; } = "No releases yet";
-
-    public void Apply(AddonChannelStatus status, bool isGlobalAdmin, bool isAuthorized)
+    public void Apply(AddonChannelStatus status, bool isGlobalAdmin)
     {
         ArgumentNullException.ThrowIfNull(status);
 
@@ -107,7 +101,6 @@ public sealed partial class AddonChannelViewModel : ObservableObject
             Option3Visibility = channels.Count > 2 && isGlobalAdmin ? Visibility.Visible : Visibility.Collapsed;
 
             SelectedIndex = status.Channel is null ? -1 : IndexOf(status.Channel);
-            SelectedChannelText = status.Channel ?? "No releases yet";
             Description = status.Channel is null
                 ? "No releases yet"
                 : $"{status.Channel}, {status.Release?.Version}";
@@ -117,8 +110,7 @@ public sealed partial class AddonChannelViewModel : ObservableObject
             var choices = (Option1Enabled ? 1 : 0)
                 + (Option2Visibility == Visibility.Visible && Option2Enabled ? 1 : 0)
                 + (Option3Visibility == Visibility.Visible && Option3Enabled ? 1 : 0);
-            PickerVisibility = resolved && isAuthorized && choices > 1 ? Visibility.Visible : Visibility.Collapsed;
-            ReadOnlyVisibility = resolved && !isAuthorized ? Visibility.Visible : Visibility.Collapsed;
+            PickerVisibility = resolved && choices > 1 ? Visibility.Visible : Visibility.Collapsed;
         }
         finally
         {
