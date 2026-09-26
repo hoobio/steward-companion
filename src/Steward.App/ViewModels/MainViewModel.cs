@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -13,6 +16,9 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
+using Windows.ApplicationModel;
+using Windows.Management.Deployment;
+using Windows.Services.Store;
 using Windows.Storage.Pickers;
 
 namespace Steward.App.ViewModels;
@@ -31,6 +37,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
 
     private static readonly TimeSpan GuideCheckInterval = TimeSpan.FromHours(3);
+
+    private static readonly TimeSpan StoreCheckInterval = TimeSpan.FromHours(1);
+
+    private const string StartupTaskId = "StewardStartup";
 
     private static readonly string[] SummaryNames =
     [
@@ -68,6 +78,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string? _guildId;
     private DateTimeOffset _lastPass;
     private DateTimeOffset _lastGuideCheck;
+    private DateTimeOffset _lastStoreCheck;
     private bool _isChecking;
     private bool _isAutoApplying;
     private bool _isLoadingState;
@@ -107,7 +118,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         MinimizeToTray = state.MinimizeToTray;
         CloseToTray = state.CloseToTray;
         AppChannelIndex = state.AppChannel == "pre-release" ? 1 : 0;
-        StartWithWindows = StartupRegistration.IsEnabled();
+        StartWithWindows = !App.IsPackaged && StartupRegistration.IsEnabled();
         _isLoadingState = false;
 
         RestedXp = new RestedXpViewModel(restedXpService);
@@ -198,7 +209,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool StartWithWindows { get; set; }
 
     [ObservableProperty]
+    public partial bool CanStartWithWindows { get; set; } = App.IsPackaged || App.IsGitHubRelease;
+
+    [ObservableProperty]
+    public partial string StartWithWindowsDescription { get; set; } = App.IsPackaged || App.IsGitHubRelease
+        ? "Starts Steward in the tray when you sign in to Windows"
+        : "Only available in a released build";
+
+    [ObservableProperty]
     public partial int AppChannelIndex { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StoreListingVisibility), nameof(StoreSwitchVisibility))]
+    public partial bool? IsStoreAppInstalled { get; set; }
 
     [ObservableProperty]
     public partial bool ShowHiddenAddons { get; set; }
@@ -243,11 +266,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility AppUpdateVisibility => When(AppUpdate is not null);
 
-    public string AppUpdateTitle => $"Steward {AppUpdate?.Version.TrimStart('v')} is available";
+    public string AppUpdateTitle => App.IsPackaged
+        ? "A Steward update is available in the Microsoft Store"
+        : $"Steward {AppUpdate?.Version.TrimStart('v')} is available";
 
-    public string AppUpdateActionLabel => IsInstallingAppUpdate ? $"Downloading {AppUpdateProgress:P0}" : "Install and restart";
+    public string AppUpdateActionLabel => App.IsPackaged ? "Open the Store"
+        : IsInstallingAppUpdate ? $"Downloading {AppUpdateProgress:P0}" : "Install and restart";
 
-    public Uri? AppUpdateChangelogUri => AppUpdate is null ? null : new Uri($"https://github.com/hoobio/steward-companion/releases/tag/{AppUpdate.Version}");
+    public Uri? AppUpdateChangelogUri => AppUpdate is null ? null
+        : new Uri(App.IsPackaged ? "https://github.com/hoobio/steward-companion/releases/latest" : $"https://github.com/hoobio/steward-companion/releases/tag/{AppUpdate.Version}");
+
+    public Visibility StoreListingVisibility => When(IsStoreAppInstalled == false);
+
+    public Visibility StoreSwitchVisibility => When(IsStoreAppInstalled == true);
 
     public string AboutActionLabel => IsCheckingAppUpdate ? "Checking" : AppUpdate is null ? "Check for a new version" : "Install update";
 
@@ -360,12 +391,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public static string WindowTitle => App.IsGitHubRelease ? "Steward" : "Steward (Development)";
 
-    public bool CanStartWithWindows { get; } = App.IsGitHubRelease;
-
-    public string StartWithWindowsDescription { get; } = App.IsGitHubRelease
-        ? "Starts Steward in the tray when you sign in to Windows"
-        : "Only available in a released build";
-
     public string InstallsDescription => $"{InstallCount} found, read from .flavor.info and .build.info";
 
     public string DataFolder { get; } = Path.Combine(
@@ -375,7 +400,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string StatePath => Path.Combine(DataFolder, "state.json");
 
     public string AboutDescription =>
-        $"{VersionLabel}, installed to {DataFolder}{(AppUpdate is null ? "" : $", {AppUpdate.Version.TrimStart('v')} available")}{(IsLatestConfirmed && AppUpdate is null ? ", up to date" : "")}";
+        $"{VersionLabel}, installed to {DataFolder}{(AppUpdate is null ? "" : App.IsPackaged ? ", an update is available" : $", {AppUpdate.Version.TrimStart('v')} available")}{(IsLatestConfirmed && AppUpdate is null ? ", up to date" : "")}";
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
@@ -425,6 +450,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task InitializeAsync()
     {
+        if (App.IsPackaged)
+        {
+            await SetStartupTaskAsync(enable: null).ConfigureAwait(true);
+        }
+
         IsSignedIn = _sessionService.TryRestoreSession();
         if (!IsSignedIn)
         {
@@ -648,22 +678,87 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            AppUpdate = await _appUpdater
-                .CheckAsync(typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0), InstalledVersion, AppChannel, cancellationToken)
-                .ConfigureAwait(true);
+            AppUpdate = App.IsPackaged
+                ? await CheckStoreUpdateAsync().ConfigureAwait(true)
+                : await _appUpdater
+                    .CheckAsync(typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0), InstalledVersion, AppChannel, cancellationToken)
+                    .ConfigureAwait(true);
             if (AppUpdate is not null)
             {
                 IsLatestConfirmed = false;
+            }
+
+            if (!App.IsPackaged)
+            {
+                IsStoreAppInstalled = new PackageManager().FindPackagesForUser(string.Empty, App.PackageFamilyName).Any();
             }
         }
         catch (GitHubRateLimitedException ex)
         {
             StatusMessage = ex.Message;
         }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException or COMException)
         {
             StatusMessage = $"Could not check for a Steward update: {ex.Message}";
         }
+    }
+
+    private async Task<AddonRelease?> CheckStoreUpdateAsync()
+    {
+        _lastStoreCheck = DateTimeOffset.Now;
+        var context = StoreContext.GetDefault();
+        WinRT.Interop.InitializeWithWindow.Initialize(context, OwnerWindowHandle);
+        var updates = await context.GetAppAndOptionalStorePackageUpdatesAsync();
+        return updates.Count == 0 ? null : new AddonRelease(string.Empty, _appUpdater.StoreListingUri.OriginalString, string.Empty, 0, DateTimeOffset.Now);
+    }
+
+    [RelayCommand]
+    private void OpenStoreListing() =>
+        Process.Start(new ProcessStartInfo(_appUpdater.StoreListingUri.OriginalString) { UseShellExecute = true })?.Dispose();
+
+    [RelayCommand]
+    private void SwitchToStore()
+    {
+        try
+        {
+            AppUpdater.SwitchToStoreAfterExit(App.MsiUpgradeCode, Path.Combine(DataFolder, "update.log"), $"{App.PackageFamilyName}!App");
+            QuitRequested?.Invoke();
+        }
+        catch (Win32Exception ex)
+        {
+            StatusMessage = $"Could not switch to the Microsoft Store version: {ex.Message}";
+        }
+    }
+
+    private async Task SetStartupTaskAsync(bool? enable)
+    {
+        try
+        {
+            var task = await StartupTask.GetAsync(StartupTaskId);
+            var state = enable switch
+            {
+                true => await task.RequestEnableAsync(),
+                false => DisableStartupTask(task),
+                null => task.State,
+            };
+            _isLoadingState = true;
+            StartWithWindows = state is StartupTaskState.Enabled or StartupTaskState.EnabledByPolicy;
+            _isLoadingState = false;
+            CanStartWithWindows = state is StartupTaskState.Enabled or StartupTaskState.Disabled;
+            StartWithWindowsDescription = CanStartWithWindows
+                ? "Starts Steward in the tray when you sign in to Windows"
+                : "Turned off in Windows Settings, under Apps > Startup";
+        }
+        catch (COMException ex)
+        {
+            StatusMessage = $"Could not read the Start with Windows setting: {ex.Message}";
+        }
+    }
+
+    private static StartupTaskState DisableStartupTask(StartupTask task)
+    {
+        task.Disable();
+        return task.State;
     }
 
     [RelayCommand]
@@ -700,6 +795,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (AppUpdate is not { } release)
         {
+            return;
+        }
+
+        if (App.IsPackaged)
+        {
+            OpenStoreListing();
             return;
         }
 
@@ -922,7 +1023,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnStartWithWindowsChanged(bool value)
     {
-        if (_isLoadingState || !App.IsGitHubRelease)
+        if (_isLoadingState)
+        {
+            return;
+        }
+
+        if (App.IsPackaged)
+        {
+            _ = SetStartupTaskAsync(value);
+            return;
+        }
+
+        if (!App.IsGitHubRelease)
         {
             return;
         }
@@ -1041,7 +1153,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (result == AuthCheckResult.Authorized)
             {
                 await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
-                await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
+                if (!App.IsPackaged || DateTimeOffset.Now - _lastStoreCheck >= StoreCheckInterval)
+                {
+                    await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
+                }
             }
 
             await RestedXp.RefreshSessionAsync().ConfigureAwait(true);

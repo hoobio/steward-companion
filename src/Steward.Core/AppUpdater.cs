@@ -4,8 +4,10 @@ using System.Text;
 
 namespace Steward.Core;
 
-public sealed class AppUpdater(HttpClient httpClient, string manifestBaseUrl)
+public sealed class AppUpdater(HttpClient httpClient, string manifestBaseUrl, string storeProductId)
 {
+    public Uri StoreListingUri { get; } = new($"ms-windows-store://pdp/?productid={storeProductId}");
+
     public async Task<AddonRelease?> CheckAsync(Version current, string installedVersion, string channel, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(current);
@@ -84,12 +86,27 @@ public sealed class AppUpdater(HttpClient httpClient, string manifestBaseUrl)
         return msiPath;
     }
 
-    public static void InstallAfterExit(string msiPath, string logPath)
+    public static void InstallAfterExit(string msiPath, string logPath) => RunAfterExit($"""
+        Start-Process msiexec.exe -ArgumentList '/i', '"{msiPath}"', '/qn', '/l*v', '"{logPath}"' -Wait
+        Remove-Item -LiteralPath '{msiPath}' -ErrorAction SilentlyContinue
+        """);
+
+    public static void SwitchToStoreAfterExit(string upgradeCode, string logPath, string appUserModelId) =>
+        RunAfterExit(SwitchToStoreScript(upgradeCode, logPath, appUserModelId));
+
+    public static string SwitchToStoreScript(string upgradeCode, string logPath, string appUserModelId) => $$"""
+        foreach ($productCode in (New-Object -ComObject WindowsInstaller.Installer).RelatedProducts('{{upgradeCode}}')) {
+            Start-Process msiexec.exe -ArgumentList '/x', $productCode, '/qn', '/l*v', '"{{logPath}}"' -Wait
+        }
+        Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'Steward' -ErrorAction SilentlyContinue
+        Start-Process explorer.exe -ArgumentList 'shell:AppsFolder\{{appUserModelId}}'
+        """;
+
+    private static void RunAfterExit(string body)
     {
         var script = $"""
             Wait-Process -Id {Environment.ProcessId} -ErrorAction SilentlyContinue
-            Start-Process msiexec.exe -ArgumentList '/i', '"{msiPath}"', '/qn', '/l*v', '"{logPath}"' -Wait
-            Remove-Item -LiteralPath '{msiPath}' -ErrorAction SilentlyContinue
+            {body}
             """;
         var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
         Process.Start(new ProcessStartInfo("powershell.exe", $"-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand {encoded}")

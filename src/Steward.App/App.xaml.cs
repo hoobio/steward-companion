@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 using Steward.App.Hosting;
 using Steward.App.Services;
@@ -18,6 +19,14 @@ public partial class App : Application
     public static readonly bool IsGitHubRelease = typeof(App).Assembly
         .GetCustomAttributes<AssemblyMetadataAttribute>()
         .Any(attribute => attribute.Key == "GitHubRelease" && attribute.Value == "true");
+
+    public const string PackageFamilyName = "Hoobi.Steward_thayxpy3eqg0g";
+
+    public const string MsiUpgradeCode = "{CCD0BF88-7A8E-4F74-9DB7-9B9272B3D503}";
+
+    private const int AppModelErrorNoPackage = 15700;
+
+    public static readonly bool IsPackaged = ResolveIsPackaged();
 
     private IHost? _host;
     private MainWindow? _window;
@@ -55,4 +64,13 @@ public partial class App : Application
         }
         _ = _window.ViewModel.InitializeCommand.ExecuteAsync(null);
     }
+
+    private static bool ResolveIsPackaged()
+    {
+        var length = 0;
+        return GetCurrentPackageFullName(ref length, nint.Zero) != AppModelErrorNoPackage;
+    }
+
+    [DllImport("kernel32.dll")]
+    private static extern int GetCurrentPackageFullName(ref int packageFullNameLength, nint packageFullName);
 }

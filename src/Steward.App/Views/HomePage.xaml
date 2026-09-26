@@ -357,6 +357,50 @@
                     </Grid>
                 </Border>
 
+                <Border
+                    CornerRadius="8"
+                    Padding="12,8"
+                    Background="{ThemeResource InfoBarInformationalSeverityBackgroundBrush}"
+                    Visibility="{x:Bind ViewModel.StoreListingVisibility, Mode=OneWay}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE719;" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock Grid.Column="1" Text="Steward is on the Microsoft Store" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <Button
+                            Grid.Column="2"
+                            Height="32"
+                            Content="Open the Store"
+                            Style="{StaticResource AccentButtonStyle}"
+                            Command="{x:Bind ViewModel.OpenStoreListingCommand}" />
+                    </Grid>
+                </Border>
+
+                <Border
+                    CornerRadius="8"
+                    Padding="12,8"
+                    Background="{ThemeResource InfoBarInformationalSeverityBackgroundBrush}"
+                    Visibility="{x:Bind ViewModel.StoreSwitchVisibility, Mode=OneWay}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE719;" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock Grid.Column="1" Text="The Microsoft Store version is installed" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <Button
+                            Grid.Column="2"
+                            Height="32"
+                            Content="Switch"
+                            Style="{StaticResource AccentButtonStyle}"
+                            Command="{x:Bind ViewModel.SwitchToStoreCommand}" />
+                    </Grid>
+                </Border>
+
                 <InfoBar
                     Severity="Error"
                     IsClosable="False"

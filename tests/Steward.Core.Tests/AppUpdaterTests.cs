@@ -37,7 +37,19 @@ public sealed class AppUpdaterTests
             manifests["latest-pre-release.json"] = preRelease;
         }
 
-        return new AppUpdater(new HttpClient(new ManifestHandler(manifests)), BaseUrl);
+        return new AppUpdater(new HttpClient(new ManifestHandler(manifests)), BaseUrl, "9PBKMZFKZHKX");
+    }
+
+    [Fact]
+    public void SwitchToStoreScript_UninstallsRelatedProductsBeforeLaunchingTheStoreApp()
+    {
+        var script = AppUpdater.SwitchToStoreScript("{CCD0BF88-7A8E-4F74-9DB7-9B9272B3D503}", @"C:\Logs\update.log", "Hoobi.Steward_thayxpy3eqg0g!App");
+
+        var uninstall = script.IndexOf("RelatedProducts('{CCD0BF88-7A8E-4F74-9DB7-9B9272B3D503}')", StringComparison.Ordinal);
+        var removeRun = script.IndexOf("Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name 'Steward'", StringComparison.Ordinal);
+        var launch = script.IndexOf(@"Start-Process explorer.exe -ArgumentList 'shell:AppsFolder\Hoobi.Steward_thayxpy3eqg0g!App'", StringComparison.Ordinal);
+        Assert.True(uninstall >= 0 && uninstall < removeRun && removeRun < launch, script);
+        Assert.Contains(@"'/x', $productCode, '/qn', '/l*v', '""C:\Logs\update.log""' -Wait", script, StringComparison.Ordinal);
     }
 
     [Fact]

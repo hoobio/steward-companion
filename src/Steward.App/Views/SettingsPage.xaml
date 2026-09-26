@@ -180,8 +180,8 @@
                 <controls:SettingsCard
                     CornerRadius="{StaticResource GroupBottomCornerRadius}"
                     Header="Start with Windows"
-                    Description="{x:Bind ViewModel.StartWithWindowsDescription}"
-                    IsEnabled="{x:Bind ViewModel.CanStartWithWindows}">
+                    Description="{x:Bind ViewModel.StartWithWindowsDescription, Mode=OneWay}"
+                    IsEnabled="{x:Bind ViewModel.CanStartWithWindows, Mode=OneWay}">
                     <controls:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE7E8;" />
                     </controls:SettingsCard.HeaderIcon>
@@ -193,6 +193,7 @@
 
             <StackPanel Spacing="1">
                 <controls:SettingsCard
+                    x:Name="ChannelCard"
                     CornerRadius="{StaticResource GroupTopCornerRadius}"
                     Header="Update channel"
                     Description="Pre-release builds come from every push to main, release builds from a merged release PR">
@@ -208,6 +209,7 @@
                 </controls:SettingsCard>
 
                 <controls:SettingsCard
+                    x:Name="AboutCard"
                     CornerRadius="{StaticResource GroupMiddleCornerRadius}"
                     Header="Steward"
                     Description="{x:Bind ViewModel.AboutDescription, Mode=OneWay}">
