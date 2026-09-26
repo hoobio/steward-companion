@@ -327,7 +327,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return string.Empty;
             }
 
-            var line = $"{first.DisplayName} {first.InstalledVersion ?? "not installed"} → {first.AvailableVersion}";
+            var line = $"{first.DisplayName} {first.InstalledVersionShort ?? "not installed"} → {first.AvailableVersionShort}";
             return UpdateCount > 1 ? $"{line}, and {UpdateCount - 1} more" : line;
         }
     }

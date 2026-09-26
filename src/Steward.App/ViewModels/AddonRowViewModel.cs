@@ -36,6 +36,8 @@ public sealed partial class AddonRowViewModel : ObservableObject
         nameof(ActionStyle),
         nameof(UpdatingLine),
         nameof(SubtitleText),
+        nameof(InstalledVersionShort),
+        nameof(AvailableVersionShort),
         nameof(VersionPairVisibility),
         nameof(NoReleasesVisibility),
         nameof(UpdatingVisibility),
@@ -93,7 +95,13 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     public string DisplayName => _addon.DisplayName;
 
-    public string SubtitleText => InstalledVersion ?? "Not installed";
+    public string SubtitleText => ShortVersion(InstalledVersion) ?? "Not installed";
+
+    public string? InstalledVersionShort => ShortVersion(InstalledVersion);
+
+    public string? AvailableVersionShort => ShortVersion(AvailableVersion);
+
+    private static string? ShortVersion(string? version) => version?.Replace("-pre-release.", "-", StringComparison.Ordinal);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HairlineThickness))]

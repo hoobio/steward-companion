@@ -121,10 +121,10 @@
                     Spacing="6"
                     VerticalAlignment="Center">
                     <TextBlock
-                        Text="{x:Bind InstalledVersion, Mode=OneWay}"
+                        Text="{x:Bind InstalledVersionShort, Mode=OneWay}"
                         FontFamily="Cascadia Mono"
                         FontSize="12.5"
-                        MaxWidth="90"
+                        MaxWidth="130"
                         TextWrapping="NoWrap"
                         TextTrimming="CharacterEllipsis"
                         ToolTipService.ToolTip="{x:Bind InstalledVersion, Mode=OneWay}"
@@ -137,10 +137,10 @@
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                         Visibility="{x:Bind VersionPairVisibility, Mode=OneWay}" />
                     <TextBlock
-                        Text="{x:Bind AvailableVersion, Mode=OneWay}"
+                        Text="{x:Bind AvailableVersionShort, Mode=OneWay}"
                         FontFamily="Cascadia Mono"
                         FontSize="12.5"
-                        MaxWidth="90"
+                        MaxWidth="130"
                         TextWrapping="NoWrap"
                         TextTrimming="CharacterEllipsis"
                         ToolTipService.ToolTip="{x:Bind AvailableVersion, Mode=OneWay}"
