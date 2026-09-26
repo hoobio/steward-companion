@@ -32,9 +32,14 @@ StewardDB = {
       ["linkKnown"] = true, ["observedAt"] = 1758260000,
     },
   },
+  ["guildRanks"] = {
+    ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758260000,
+    ["ranks"] = { [1] = "Guild Master", [2] = "Officer", [3] = "Member" },
+  },
 }
 ```
 
+- `guildRanks.ranks` is the rank name by index, from `GuildControlGetRankName` over `1..GuildControlGetNumRanks()`, the same index space as `rankIndex`; written alongside `characters` on every rebuild, only when non-empty.
 - `observedAt` and `lastOnline` use `GetServerTime()`, the realm clock every officer shares, not `time()`.
 - `linkedUserId` is `Match.For`'s result, extended to exact-match Discord members (nick or name to id), so a note of `xariahz` links a Discord member with no roster row. Nil when unlinked.
 - `linkKnown` is `C_GuildInfo.CanViewOfficerNote()`: a player who cannot read officer notes reports links as unknown, never as unlinked.
