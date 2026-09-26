@@ -2,7 +2,7 @@
 
 How the paid RestedXP guides reach the RXPGuides addon today, and the contract Steward can use to keep them current until RestedXP ship their own desktop app. Everything below was read from the production Angular bundles on `login.restedxp.com`, `account.restedxp.com` and `download.restedxp.com`, from live calls made under a signed-in session on 20 Sep 2026, and from the RXPGuides addon source on GitHub. Nothing is documented publicly; treat every path as subject to change without notice.
 
-The free addon (`RestedXP/RXPGuides` on GitHub) is already managed by Steward. `download.restedxp.com` does nothing more than fetch `/repos/RestedXP/RXPGuides/releases/latest` and link the last `.zip` asset, so that page adds nothing.
+The free addon (`RestedXP/RXPGuides` on GitHub) is already managed by Steward, through gigagrug's own mirror of its GitHub releases rather than a direct GitHub API call. `download.restedxp.com` does nothing more than fetch `/repos/RestedXP/RXPGuides/releases/latest` and link the last `.zip` asset, so that page adds nothing.
 
 ## Hosts
 

@@ -14,7 +14,7 @@ Steward runs as a local desktop application that manages a set of World of Warcr
 
 - It signs you in through Discord via gigagrug's own desktop OAuth flow, opening your default browser.
 - It reads and writes files inside your World of Warcraft installation folders (addon files, SavedVariables) to install, update, and sync addons.
-- It downloads addon releases from `addon.hoobi.io`, GitHub, and (for RestedXP guides, if you sign in to that service) `rxpgcr.restedxp.com`.
+- It downloads addon releases from `addon.hoobi.io` (Steward, HoobiScripts), `api.hoobi.io` (gigagrug's mirror of RestedXP's release manifest), `github.com` (the RestedXP zip itself, and its own update zip on the GitHub-distributed MSI build), and (for RestedXP guides, if you sign in to that service) `rxpgcr.restedxp.com`.
 - It reads addon owner avatars from `github.com`.
 - It checks `addon.hoobi.io` for its own updates on the GitHub-distributed MSI build, and the Microsoft Store's own update service on the Microsoft Store build.
 
@@ -32,10 +32,9 @@ The gigagrug session token and the RestedXP session are both encrypted with Wind
 
 Steward talks to:
 
-- `api.hoobi.io` (gigagrug): Discord sign-in, and reading your guild's roster, Discord member list, and admin role.
-- `addon.hoobi.io`: addon release manifests and zips, and Steward's own update manifest (GitHub-distributed MSI build only).
-- `api.github.com`: release listings for GitHub-sourced addons (currently RestedXP's RXPGuides).
-- `github.com`: addon owner avatar images shown in the app.
+- `api.hoobi.io` (gigagrug): Discord sign-in, reading your guild's roster, Discord member list, and admin role, and RestedXP's release manifest and icon.
+- `addon.hoobi.io`: addon release manifests and zips for Steward and HoobiScripts, and Steward's own update manifest (GitHub-distributed MSI build only).
+- `github.com`: the RestedXP zip, addon owner avatar images shown in the app, and (GitHub-distributed MSI build only) Steward's own update zip.
 - `rxpgcr.restedxp.com` and RestedXP's Keycloak realm: only if you sign in to RestedXP for levelling guides, to download guide content you have purchased.
 - The Microsoft Store's own update service, on the Microsoft Store build only, to check for and install app updates.
 
