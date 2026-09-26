@@ -125,9 +125,10 @@
                                             HorizontalAlignment="Left"
                                             CornerRadius="4"
                                             Padding="6,2"
-                                            Background="{ThemeResource AccentFillColorSecondaryBrush}">
+                                            Background="{ThemeResource AccentFillColorDefaultBrush}">
                                             <TextBlock
                                                 Text="{x:Bind ViewModel.RoleLabel, Mode=OneWay}"
+                                                Foreground="{ThemeResource AccentButtonForeground}"
                                                 Style="{StaticResource CaptionTextBlockStyle}" />
                                         </Border>
                                     </Grid>
@@ -196,7 +197,7 @@
                     CornerRadius="8"
                     HorizontalAlignment="Center"
                     Visibility="{x:Bind ViewModel.NotAuthorizedVisibility, Mode=OneWay}"
-                    Message="That Discord account has no officer role." />
+                    Message="This Discord user has no Steward access. Reach out to an Officer or to Hoobi." />
                 <InfoBar
                     IsOpen="True"
                     IsClosable="False"
@@ -282,7 +283,12 @@
                         <FontIcon Glyph="&#xE7FC;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="SyncItem" Content="Sync" Tag="sync" IsEnabled="{x:Bind ViewModel.IsApiReachable, Mode=OneWay}">
+                <NavigationViewItem
+                    x:Name="SyncItem"
+                    Content="Sync"
+                    Tag="sync"
+                    IsEnabled="{x:Bind ViewModel.IsApiReachable, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.SyncVisibility, Mode=OneWay}">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE895;" />
                     </NavigationViewItem.Icon>

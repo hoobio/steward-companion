@@ -80,6 +80,14 @@ public sealed partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(MainViewModel.SyncVisibility)
+            && ViewModel.SyncVisibility == Visibility.Collapsed
+            && RootFrame.CurrentSourcePageType == typeof(SyncPage))
+        {
+            Nav.SelectedItem = AddonsItem;
+            return;
+        }
+
         if (e.PropertyName is not nameof(MainViewModel.GuidesVisibility)
             || ViewModel.GuidesVisibility == Visibility.Visible
             || RootFrame.CurrentSourcePageType != typeof(GuidesPage)
