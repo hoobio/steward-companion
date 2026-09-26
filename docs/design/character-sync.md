@@ -113,6 +113,10 @@ The addon writes `StewardDB.professions[guid]` for the logged-in character, in t
 - The app sends a character's `professions` object (same shape, camelCase) on that character's record in the sync batch.
 - gigagrug stores it as `professions_json` on the observation, validated for shape and bounds (rank at most maxRank, maxRank at most 375, at most 1000 recipes per profession, counts 1-100). The current professions are the latest non-voided observation carrying `professions_json`, independent of the latest roster observation, as links are.
 
+## Other members' professions
+
+Verified in game on 26 Sep 2026: the client has no server-side guild professions. `C_TradeSkillUI.IsGuildTradeSkillsEnabled()` is `false`, the guild roster has no Professions view, and `C_GuildInfo.QueryGuildMembersForRecipe(186, 2657)` followed by `GetGuildRecipeInfoPostQuery()` answers `0 0 0`. A character's professions are known only from its own client, so guild-wide coverage waits for raider self-push. Profession links use `|cffffd000|Htrade:<guid>:<profession spell id>:<skill line id>|h[<name>]|h|r` (First Aid `3273:129`); a link printed locally for the player's own character opens, one for another character did not in the one test made (profession unverified), so whether the server serves other or offline characters is still open.
+
 ## Recipe catalogue
 
 Verified in game on 26 Sep 2026: once a profession's window has opened, `C_TradeSkillUI.GetAllRecipeIDs()` lists every recipe of that profession, learned or not (32 for First Aid); `IsPlayerSpell(recipeId)` answers `true` for a learned recipe after a `/reload` with no window opened; recipe ids are Forever's own (`1230117` First Aid Kit), and Forever moves recipes between professions (Minor Healing Potion is First Aid), so no Classic data applies. Known recipes are therefore detected without a window against a catalogue the guild builds itself.
