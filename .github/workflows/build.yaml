@@ -303,6 +303,8 @@ jobs:
     env:
       STORE_PRODUCT_ID: 9PBKMZFKZHKX
     steps:
+      - uses: actions/checkout@v7
+
       - name: Download msixupload
         uses: actions/download-artifact@v8
         with:
@@ -321,12 +323,14 @@ jobs:
             --clientId     '${{ secrets.AZURE_AD_CLIENT_ID }}' `
             --clientSecret '${{ secrets.AZURE_AD_CLIENT_SECRET }}'
 
-      - name: Publish package to Store
+      - name: Publish package + release notes to Store
         shell: pwsh
         env:
           PRODUCT_ID: ${{ env.STORE_PRODUCT_ID }}
+          VERSION: ${{ needs.build-msix.outputs.version }}
         run: |
           $ErrorActionPreference = 'Stop'
+          . "$env:GITHUB_WORKSPACE\scripts\Get-StoreWhatsNew.ps1"
           $package = (Get-ChildItem package -Filter *.msixupload | Select-Object -First 1).FullName
           if (-not $package) { throw 'No .msixupload artifact found' }
 
@@ -337,6 +341,22 @@ jobs:
           # Clone the live submission, upload the package, hold the commit.
           msstore publish $package -id $env:PRODUCT_ID --noCommit
           if ($LASTEXITCODE -ne 0) { throw "msstore publish failed ($LASTEXITCODE)" }
+
+          $whatsNew = Get-StoreWhatsNew -ChangelogPath "$env:GITHUB_WORKSPACE\CHANGELOG.md" -Version $env:VERSION
+          if ($whatsNew) {
+            $out = msstore submission get $env:PRODUCT_ID | Out-String
+            $s = $out.IndexOf('{'); $e = $out.LastIndexOf('}')
+            if ($s -lt 0 -or $e -le $s) { throw 'Could not parse submission JSON from msstore output' }
+            $sub = $out.Substring($s, $e - $s + 1) | ConvertFrom-Json
+
+            foreach ($listing in $sub.Listings.PSObject.Properties) {
+              $listing.Value.BaseListing.ReleaseNotes = $whatsNew
+            }
+
+            $sub | ConvertTo-Json -Depth 100 | Set-Content -Path patched.json -Encoding utf8
+            msstore submission updateMetadata $env:PRODUCT_ID (Get-Content -Raw patched.json)
+            if ($LASTEXITCODE -ne 0) { throw "updateMetadata failed ($LASTEXITCODE)" }
+          }
 
           msstore submission publish $env:PRODUCT_ID
           if ($LASTEXITCODE -ne 0) { throw "submission publish failed ($LASTEXITCODE)" }
