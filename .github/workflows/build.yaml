@@ -19,6 +19,7 @@ env:
   SOLUTION_PATH: Steward.slnx
   PROJECT_PATH: src/Steward.App/Steward.App.csproj
   WIX_SOURCE_PATH: installer/Steward.wxs
+  APPXMANIFEST_PATH: src/Steward.App/Package.appxmanifest
 
 jobs:
   release-please:
@@ -158,6 +159,79 @@ jobs:
           path: ${{ github.workspace }}\staging\msi-x64\Steward-${{ steps.version.outputs.version }}-x64.msi
           if-no-files-found: error
 
+  build-msix:
+    name: Build MSIX
+    # Store submission is release-only, but the msixupload is built on every push to main so a
+    # release can attach it without an extra build; store-submit is what actually gates on a release.
+    needs: [release-please]
+    if: always() && github.event_name == 'push' && needs.release-please.result != 'failure'
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+      - name: Read version
+        id: version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_CREATED: ${{ needs.release-please.outputs.release_created }}
+        run: |
+          $ver = (Get-Content version.txt -Raw).Trim()
+          if ($env:RELEASE_CREATED -ne 'true') {
+            $title = gh pr list --head release-please--branches--main --state open --json title --jq '.[0].title // empty'
+            if ($title -match 'release (\d+\.\d+\.\d+)') { $ver = $Matches[1] }
+          }
+          "version=$ver" | Out-File -Append $env:GITHUB_OUTPUT
+
+      - name: Stamp Package.appxmanifest version
+        uses: hoobio/pipeline-tools/pipeline/github/step/stamp-msix-version@v2.3.1
+        with:
+          manifest-path: ${{ env.APPXMANIFEST_PATH }}
+          version: ${{ steps.version.outputs.version }}
+
+      - name: Build MSIX
+        uses: hoobio/pipeline-tools/pipeline/github/step/build-msix-dotnet@v2.3.1
+        env:
+          GitHubRelease: 'true'
+        with:
+          project-path: ${{ env.PROJECT_PATH }}
+          platform: x64
+          output-dir: ${{ github.workspace }}\AppPackages
+
+      # build-msix-dotnet's `dotnet publish` produces a bare .msix; the Store rejects that and
+      # needs an app package upload file, built here by the documented manual method (zip the
+      # .msix, rename to .msixupload) rather than a second publish in StoreUpload mode.
+      - name: Package msixupload
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          STAGE_DIR: ${{ github.workspace }}\staging\msix-x64
+        run: |
+          $msix = Get-ChildItem -Path "${{ github.workspace }}\AppPackages" -Recurse -Filter *.msix -ErrorAction Stop | Select-Object -First 1
+          if (-not $msix) { throw "No MSIX produced by dotnet publish" }
+          New-Item -ItemType Directory -Path $env:STAGE_DIR -Force | Out-Null
+          $zip = Join-Path $env:STAGE_DIR "Steward-$env:VERSION-x64.zip"
+          Compress-Archive -Path $msix.FullName -DestinationPath $zip -Force
+          $upload = Join-Path $env:STAGE_DIR "Steward-$env:VERSION-x64.msixupload"
+          Move-Item -Path $zip -Destination $upload -Force
+          Write-Host "Produced $upload"
+
+      - name: Upload msixupload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: msixupload-x64
+          path: ${{ github.workspace }}\staging\msix-x64\Steward-${{ steps.version.outputs.version }}-x64.msixupload
+          if-no-files-found: error
+
   release:
     name: Publish Release
     needs: [release-please, lint-and-test, build-msi]
@@ -214,6 +288,59 @@ jobs:
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           github-token: ${{ github.token }}
+
+  store-submit:
+    name: Publish to Microsoft Store
+    # Real releases only: the Store never sees a pre-release. msstore recreates the pending
+    # submission from the live one, uploads the package, then commits it.
+    needs: [release-please, build-msix, release]
+    if: >-
+      always()
+      && needs.release-please.outputs.release_created == 'true'
+      && needs.build-msix.result == 'success'
+      && needs.release.result == 'success'
+    runs-on: windows-latest
+    env:
+      STORE_PRODUCT_ID: 9PBKMZFKZHKX
+    steps:
+      - name: Download msixupload
+        uses: actions/download-artifact@v8
+        with:
+          name: msixupload-x64
+          path: package
+
+      - name: Setup Microsoft Store CLI
+        uses: microsoft/microsoft-store-apppublisher@v1.4
+
+      - name: Configure Store credentials
+        shell: pwsh
+        run: |
+          msstore reconfigure `
+            --tenantId     '${{ secrets.AZURE_TENANT_ID }}' `
+            --sellerId     '${{ secrets.SELLER_ID }}' `
+            --clientId     '${{ secrets.AZURE_AD_CLIENT_ID }}' `
+            --clientSecret '${{ secrets.AZURE_AD_CLIENT_SECRET }}'
+
+      - name: Publish package to Store
+        shell: pwsh
+        env:
+          PRODUCT_ID: ${{ env.STORE_PRODUCT_ID }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = (Get-ChildItem package -Filter *.msixupload | Select-Object -First 1).FullName
+          if (-not $package) { throw 'No .msixupload artifact found' }
+
+          # Clear any leftover pending draft so publish starts from the live submission.
+          msstore submission delete $env:PRODUCT_ID --no-confirm 2>$null
+          $global:LASTEXITCODE = 0
+
+          # Clone the live submission, upload the package, hold the commit.
+          msstore publish $package -id $env:PRODUCT_ID --noCommit
+          if ($LASTEXITCODE -ne 0) { throw "msstore publish failed ($LASTEXITCODE)" }
+
+          msstore submission publish $env:PRODUCT_ID
+          if ($LASTEXITCODE -ne 0) { throw "submission publish failed ($LASTEXITCODE)" }
+          Write-Host "Submitted $package to the Store (product $env:PRODUCT_ID)."
 
   pre-release:
     name: Publish Pre-release
