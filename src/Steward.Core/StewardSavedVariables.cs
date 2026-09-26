@@ -299,16 +299,25 @@ public static class StewardSavedVariables
         }
 
         var ranks = new Dictionary<int, string>();
+        var position = 0;
         foreach (var entry in table.GetTable("ranks")?.Table ?? [])
         {
-            if (entry.Key is { Kind: LuaKind.Number } key && entry.Value.Kind is LuaKind.Text)
+            // the client dumps a sequential table as positional items ("Guild Master", -- [1]), with no [n] key
+            var index = entry.Key is null ? ++position : entry.Key is { Kind: LuaKind.Number } key ? (int)key.Number : (int?)null;
+            if (index is { } rank && entry.Value.Kind is LuaKind.Text)
             {
-                ranks[(int)key.Number] = entry.Value.Text!;
+                ranks[rank] = entry.Value.Text!;
             }
             else
             {
                 skipped++;
             }
+        }
+
+        if (ranks.Count == 0)
+        {
+            skipped++;
+            return null;
         }
 
         return new GuildRanks(realm, guild, ToTimestamp(table.GetNumber("observedAt")), ranks);

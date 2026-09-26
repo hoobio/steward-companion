@@ -496,6 +496,43 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void Read_MapsPositionalGuildRanksTheWayTheClientWritesThem()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["guildRanks"] = {
+                ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758260000,
+                ["ranks"] = {
+                "Guild Master", -- [1]
+                "Officer", -- [2]
+                [4] = "Member",
+                },
+            },
+            }
+            """));
+
+        Assert.Equal(0, snapshot.Skipped);
+        var ranks = snapshot.GuildRanks!.Ranks;
+        Assert.Equal(3, ranks.Count);
+        Assert.Equal("Guild Master", ranks[1]);
+        Assert.Equal("Officer", ranks[2]);
+        Assert.Equal("Member", ranks[4]);
+    }
+
+    [Fact]
+    public void Read_DropsGuildRanksWithNoRanks()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["ranks"] = {} },
+            }
+            """));
+
+        Assert.Null(snapshot.GuildRanks);
+        Assert.Equal(1, snapshot.Skipped);
+    }
+
+    [Fact]
     public void Read_SkipsMalformedGuildRanksEntries()
     {
         var snapshot = ReadFiles(("account.lua", """
