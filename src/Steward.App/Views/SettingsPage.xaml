@@ -9,7 +9,7 @@
 
     <Page.Resources>
         <DataTemplate x:Key="ChannelCardTemplate" x:DataType="vm:AddonChannelViewModel">
-            <controls:SettingsCard Header="{x:Bind Name}" Description="{x:Bind Description, Mode=OneWay}">
+            <controls:SettingsCard Header="{x:Bind Name}" Description="{x:Bind Description, Mode=OneWay}" Padding="{StaticResource SettingsExpanderItemPadding}">
                 <controls:SettingsCard.HeaderIcon>
                     <ImageIcon Source="{x:Bind Icon}" />
                 </controls:SettingsCard.HeaderIcon>
@@ -43,7 +43,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="InstallCardTemplate" x:DataType="vm:WowInstallViewModel">
-            <controls:SettingsCard Header="{x:Bind DisplayName}" Description="{x:Bind FlavourPath}">
+            <controls:SettingsCard Header="{x:Bind DisplayName}" Description="{x:Bind FlavourPath}" Padding="{StaticResource SettingsExpanderItemPadding}">
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE8B7;" />
                 </controls:SettingsCard.HeaderIcon>
