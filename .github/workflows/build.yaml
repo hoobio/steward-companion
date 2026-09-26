@@ -297,36 +297,39 @@ jobs:
       && needs.release-please.outputs.release_created == 'true'
       && needs.build-msix.result == 'success'
       && needs.release.result == 'success'
-      && secrets.AZURE_TENANT_ID != ''
-      && secrets.SELLER_ID != ''
-      && secrets.AZURE_AD_CLIENT_ID != ''
-      && secrets.AZURE_AD_CLIENT_SECRET != ''
     runs-on: windows-latest
     env:
       STORE_PRODUCT_ID: 9PBKMZFKZHKX
+      HAS_STORE_CREDENTIALS: ${{ secrets.AZURE_TENANT_ID != '' && secrets.SELLER_ID != '' && secrets.AZURE_AD_CLIENT_ID != '' && secrets.AZURE_AD_CLIENT_SECRET != '' }}
     steps:
       - uses: actions/checkout@v7
+        if: env.HAS_STORE_CREDENTIALS == 'true'
 
       - name: Download msixupload
+        if: env.HAS_STORE_CREDENTIALS == 'true'
         uses: actions/download-artifact@v8
         with:
           name: msixupload-x64
           path: package
 
       - name: Setup Microsoft Store CLI
+        if: env.HAS_STORE_CREDENTIALS == 'true'
         uses: microsoft/microsoft-store-apppublisher@v1.4
 
       - name: Configure Store credentials
+        if: env.HAS_STORE_CREDENTIALS == 'true'
         shell: pwsh
+        env:
+          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          SELLER_ID: ${{ secrets.SELLER_ID }}
+          CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
         run: |
-          msstore reconfigure `
-            --tenantId     '${{ secrets.AZURE_TENANT_ID }}' `
-            --sellerId     '${{ secrets.SELLER_ID }}' `
-            --clientId     '${{ secrets.AZURE_AD_CLIENT_ID }}' `
-            --clientSecret '${{ secrets.AZURE_AD_CLIENT_SECRET }}'
+          msstore reconfigure --tenantId $env:TENANT_ID --sellerId $env:SELLER_ID --clientId $env:CLIENT_ID --clientSecret $env:CLIENT_SECRET
           if ($LASTEXITCODE -ne 0) { throw "msstore reconfigure failed ($LASTEXITCODE)" }
 
       - name: Publish package + release notes to Store
+        if: env.HAS_STORE_CREDENTIALS == 'true'
         shell: pwsh
         env:
           PRODUCT_ID: ${{ env.STORE_PRODUCT_ID }}
