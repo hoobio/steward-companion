@@ -262,10 +262,14 @@ jobs:
           foreach ($listing in $sub.Listings.PSObject.Properties) {
             $listing.Value.BaseListing | Add-Member -NotePropertyName ReleaseNotes -NotePropertyValue $whatsNew -Force
           }
+          $delivery = $sub.PackageDeliveryOptions ?? [pscustomobject]@{}
+          $delivery | Add-Member IsMandatoryUpdate $true -Force
+          $delivery | Add-Member MandatoryUpdateEffectiveDate ([DateTime]::UtcNow.ToString('o')) -Force
+          $sub | Add-Member PackageDeliveryOptions $delivery -Force
 
           $sub | ConvertTo-Json -Depth 100 | Set-Content -Path patched.json -Encoding utf8
-          msstore submission updateMetadata $env:PRODUCT_ID (Get-Content -Raw patched.json)
-          if ($LASTEXITCODE -ne 0) { throw "updateMetadata failed ($LASTEXITCODE)" }
+          msstore submission update $env:PRODUCT_ID (Get-Content -Raw patched.json)
+          if ($LASTEXITCODE -ne 0) { throw "submission update failed ($LASTEXITCODE)" }
 
           msstore submission publish $env:PRODUCT_ID
           if ($LASTEXITCODE -ne 0) { throw "submission publish failed ($LASTEXITCODE)" }
@@ -333,6 +337,19 @@ jobs:
 
           msstore publish $package -id $env:PRODUCT_ID --flightId $env:FLIGHT_ID --noCommit
           if ($LASTEXITCODE -ne 0) { throw "msstore publish failed ($LASTEXITCODE)" }
+
+          $out = msstore flights submission get $env:PRODUCT_ID $env:FLIGHT_ID | Out-String
+          if ($LASTEXITCODE -ne 0) { throw "flights submission get failed ($LASTEXITCODE)" }
+          $s = $out.IndexOf('{'); $e = $out.LastIndexOf('}')
+          if ($s -lt 0 -or $e -le $s) { throw 'Could not parse flight submission JSON from msstore output' }
+          $sub = $out.Substring($s, $e - $s + 1) | ConvertFrom-Json
+          $delivery = $sub.PackageDeliveryOptions ?? [pscustomobject]@{}
+          $delivery | Add-Member IsMandatoryUpdate $true -Force
+          $delivery | Add-Member MandatoryUpdateEffectiveDate ([DateTime]::UtcNow.ToString('o')) -Force
+          $sub | Add-Member PackageDeliveryOptions $delivery -Force
+          $sub | ConvertTo-Json -Depth 100 | Set-Content -Path patched.json -Encoding utf8
+          msstore flights submission update $env:PRODUCT_ID $env:FLIGHT_ID (Get-Content -Raw patched.json)
+          if ($LASTEXITCODE -ne 0) { throw "flights submission update failed ($LASTEXITCODE)" }
 
           msstore flights submission publish $env:PRODUCT_ID $env:FLIGHT_ID
           if ($LASTEXITCODE -ne 0) { throw "flights submission publish failed ($LASTEXITCODE)" }
