@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.12.0](https://github.com/hoobio/steward-companion/compare/v0.11.0...v0.12.0) (2026-09-26)
+
+
+### Features
+
+* ✨ answer Hoobi addon version pings from the generated StewardGuides addon ([773a8f9](https://github.com/hoobio/steward-companion/commit/773a8f91ca1627f9b3a7ca43bf2a5e36365404c5))
+* ✨ drop the develop addon channel, migrate stored selections to pre-release ([0d1f738](https://github.com/hoobio/steward-companion/commit/0d1f738ca2d62e1d44e23936e9b71dc2191172bb))
+* ✨ label Store pre-release builds as Steward (Pre-release) ([079b4f8](https://github.com/hoobio/steward-companion/commit/079b4f845d212836fe157f2c638ab87799a04694))
+* ✨ map addon-observed professions into the character sync push ([421999a](https://github.com/hoobio/steward-companion/commit/421999a1651facc9f944b1b71738dcba5e221e8c))
+* ✨ push characters on startup, Refresh and Sync now, with a per-install Send now ([1133e5f](https://github.com/hoobio/steward-companion/commit/1133e5fdb85a6a56ae81c4b6921a6da9c8dfe0f6))
+* ✨ push observed characters to gigagrug's character sync endpoint ([4a9362a](https://github.com/hoobio/steward-companion/commit/4a9362a0d3a227fccffa8642670f9974a02bfa10))
+* ✨ show the character push in each install's Roster row, and force it from Sync now ([f192f53](https://github.com/hoobio/steward-companion/commit/f192f53d464a33e24552fa49e817158e6a92fec8))
+* ✨ sync each roster member's linked main character ([69987c1](https://github.com/hoobio/steward-companion/commit/69987c13c3eee35028ffd034978747524e33248b))
+* ✨ sync the addon's guild rank list to gigagrug ([0887998](https://github.com/hoobio/steward-companion/commit/0887998735a028ca9ade3f7b637519955c3b6036))
+* ✨ sync the addon's recipe catalogue alongside characters ([58529be](https://github.com/hoobio/steward-companion/commit/58529bec6453f76504b635259ce986be47fbd82b))
+
+
+### Bug Fixes
+
+* 🐛 fingerprint canonical character data without observedAt and scannedAt ([f39dd1a](https://github.com/hoobio/steward-companion/commit/f39dd1ac3436067bbfd24d9637e2a030bd638c22))
+* 🐛 harden character sync against overflowing timestamps and gate Sync now on the sync feature ([52f8724](https://github.com/hoobio/steward-companion/commit/52f8724daf1fe9b0e023645b02946500a253879e))
+* 🐛 harden the character sync push against retries, 401s and stale data ([db47cb6](https://github.com/hoobio/steward-companion/commit/db47cb6efe7a7dea366cfda9292fe161ca0f4708))
+* 🐛 keep character sync records out of the shared state.json so an older build cannot drop them ([80cb3b5](https://github.com/hoobio/steward-companion/commit/80cb3b5729c1db6ca2149aa3f3a47a99aa835640))
+* 🐛 keep the fallback recipe catalogue per user and guild, and stop rebuilding unchanged character rows ([5178622](https://github.com/hoobio/steward-companion/commit/51786228f61ccf156cbad627f92737601fd8fd8e))
+* 🐛 key the Sync page on real character exports, not mock roster/loot/attendance ([cf79f53](https://github.com/hoobio/steward-companion/commit/cf79f53b70a82d9229f426ba480cad8b6238c74e))
+* 🐛 open the Store's updates page when an update is available ([15a2d97](https://github.com/hoobio/steward-companion/commit/15a2d97c5c091f11fb0def9bb3c54b4f3c8eb981))
+* 🐛 read the guild rank list the client saves as positional entries ([9a46142](https://github.com/hoobio/steward-companion/commit/9a461427aa2185ae60c35212680e5b64105743fd))
+* 🐛 restore the Sync page's dataset icons ([718afd5](https://github.com/hoobio/steward-companion/commit/718afd5ac2e5fbd18d96919f8490aa479992a384))
+* 🐛 shorten pre-release versions to &lt;version&gt;-&lt;sha&gt; so they fit the addon row ([10b440b](https://github.com/hoobio/steward-companion/commit/10b440b88fb1816130b46e203eb423ef811c077a))
+* 🐛 strip mock data from the Sync page and cut duplicate send buttons ([4477851](https://github.com/hoobio/steward-companion/commit/44778515baacc29d8d1ed629d5bff73474197ce4))
+
+
+### Performance Improvements
+
+* ⚡ gzip-compress the character sync request body ([75daa98](https://github.com/hoobio/steward-companion/commit/75daa98448fb0bd4cd34ab8b178af9dae1a62673))
+
 ## [0.11.0](https://github.com/hoobio/steward-companion/compare/v0.10.0...v0.11.0) (2026-09-26)
 
 
