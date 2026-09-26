@@ -101,8 +101,8 @@
                             VerticalAlignment="Center"
                             CornerRadius="4"
                             Padding="6,2"
-                            Background="{ThemeResource AccentFillColorTertiaryBrush}">
-                            <TextBlock Text="{x:Bind ViewModel.RoleLabel, Mode=OneWay}" FontSize="12" />
+                            Background="{ThemeResource AccentFillColorDefaultBrush}">
+                            <TextBlock Text="{x:Bind ViewModel.RoleLabel, Mode=OneWay}" Foreground="{ThemeResource AccentButtonForeground}" FontSize="12" />
                         </Border>
                         <Button
                             Content="Sign out"

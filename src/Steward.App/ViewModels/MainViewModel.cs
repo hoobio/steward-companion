@@ -110,11 +110,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _addons = addons;
         _supportedProducts = supportedProducts;
 
-        foreach (var addon in addons)
-        {
-            AddonChannels.Add(new AddonChannelViewModel(addon, stateStore, OnChannelChanged));
-        }
-
         var state = stateStore.Load();
         _isLoadingState = true;
         MinimizeToTray = state.MinimizeToTray;
@@ -123,7 +118,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         StartWithWindows = !App.IsPackaged && StartupRegistration.IsEnabled();
         _isLoadingState = false;
 
-        RestedXp = new RestedXpViewModel(restedXpService);
+        RestedXp = new RestedXpViewModel(restedXpService, () => HasGuidesFeature);
         RestedXp.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(RestedXpViewModel.IsSignedIn))
@@ -288,12 +283,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["release", "pre-release"];
 
-    private bool HasGuidesFeature => _features.Contains(GigagrugClient.GuidesFeature);
+    public bool HasGuidesFeature => _features.Contains(GigagrugClient.GuidesFeature);
 
     private bool HasStewardFeature => _features.Contains(GigagrugClient.StewardFeature);
 
     private IReadOnlyList<ManagedAddon> VisibleAddons() =>
-        [.. _addons.Where(addon => _features.Contains(addon.Feature))];
+        [.. _addons.Where(addon => addon.Features.Any(_features.Contains))];
 
     public int InstallCount => Installs.Count;
 
@@ -525,11 +520,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void SignOut()
     {
         _sessionService.ClearSession();
-        _recheckTimer?.Stop();
-        DisposeInstalls();
-        _status.Clear();
-        _releases.Clear();
-        _features.Clear();
+        ResetInstalls();
         _guildId = null;
         SetGuilds([], null);
         UserName = null;
@@ -1027,6 +1018,48 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void ReconcileFeatureGating()
+    {
+        var visible = VisibleAddons();
+        var visibleIds = visible.Select(addon => addon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in _status.Keys.Where(id => !visibleIds.Contains(id)).ToList())
+        {
+            _status.Remove(id);
+        }
+
+        foreach (var id in _releases.Keys.Where(id => !visibleIds.Contains(id)).ToList())
+        {
+            _releases.Remove(id);
+        }
+
+        foreach (var install in Installs)
+        {
+            install.SyncAddons(visible);
+        }
+
+        RebuildAddonChannels();
+        SyncRestedXpRows();
+    }
+
+    private void RebuildAddonChannels()
+    {
+        var visibleIds = VisibleAddons().Select(addon => addon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var gone in AddonChannels.Where(channel => !visibleIds.Contains(channel.AddonId)).ToList())
+        {
+            AddonChannels.Remove(gone);
+        }
+
+        foreach (var addon in VisibleAddons())
+        {
+            if (!AddonChannels.Any(channel => string.Equals(channel.AddonId, addon.Id, StringComparison.OrdinalIgnoreCase)))
+            {
+                AddonChannels.Add(new AddonChannelViewModel(addon, _stateStore, OnChannelChanged));
+            }
+        }
+
+        ApplyChannelStatus();
+    }
+
     partial void OnMinimizeToTrayChanged(bool value)
     {
         if (_isLoadingState)
@@ -1110,6 +1143,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _addonUpdater,
             _stateStore,
             EnsureAuthorizedForActionAsync,
+            _features.Contains,
             () => NavigateToSettings?.Invoke(),
             RemoveInstall,
             OnClientExited,
@@ -1242,8 +1276,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return AuthCheckResult.NotAuthorized;
             }
 
+            var previousFeatures = new HashSet<string>(_features, StringComparer.Ordinal);
             _features.Clear();
             _features.UnionWith(features);
+            if (!previousFeatures.SetEquals(_features))
+            {
+                ReconcileFeatureGating();
+            }
 
             UserName = me.User.Name;
             UserHandle = me.User.Username is { Length: > 0 } u ? $"@{u}" : null;
@@ -1278,7 +1317,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void SignOutTo(GateFailure failure)
     {
         _sessionService.ClearSession();
-        _features.Clear();
+        ResetInstalls();
         IsAuthorized = false;
         IsGlobalAdmin = false;
         UserName = null;
@@ -1290,8 +1329,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         StatusMessage = null;
         IsSignedIn = false;
         Failure = failure;
-        _recheckTimer?.Stop();
         PropagateAuthorized();
+    }
+
+    private void ResetInstalls()
+    {
+        _recheckTimer?.Stop();
+        DisposeInstalls();
+        _status.Clear();
+        _releases.Clear();
+        _features.Clear();
     }
 
     private void PropagateAuthorized()

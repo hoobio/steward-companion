@@ -224,4 +224,18 @@ public sealed class AddonManifestTests
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => updater.GetLatestAsync(GitHubAddon, "release", CancellationToken.None));
     }
+
+    [Fact]
+    public void Features_NotConfigured_DefaultsToAddonsOnly()
+    {
+        Assert.Equal(["addons"], Addon.Features);
+    }
+
+    [Fact]
+    public void Features_Configured_UsesThemVerbatim()
+    {
+        var addon = new ManagedAddon("restedxp", "RXPGuides", GitHubRepo: "RestedXP/RXPGuides", Features: ["addons", "guides"]);
+
+        Assert.Equal(["addons", "guides"], addon.Features);
+    }
 }

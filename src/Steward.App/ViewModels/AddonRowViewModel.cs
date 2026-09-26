@@ -95,7 +95,9 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     public string SubtitleText => InstalledVersion ?? "Not installed";
 
-    public bool IsFirst { get; init; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HairlineThickness))]
+    public partial bool IsFirst { get; set; }
 
     public Thickness HairlineThickness => IsFirst ? default : new Thickness(0, 1, 0, 0);
 

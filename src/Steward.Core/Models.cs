@@ -3,8 +3,10 @@ using System.Text.Json.Serialization;
 
 namespace Steward.Core;
 
-public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? GitHubRepo = null, string? Name = null, string Feature = GigagrugClient.AddonsFeature)
+public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? GitHubRepo = null, string? Name = null, IReadOnlyList<string>? Features = null)
 {
+    public IReadOnlyList<string> Features { get; init; } = Features ?? [GigagrugClient.AddonsFeature];
+
     public bool IsGitHub => GitHubRepo is not null;
 
     public string DisplayName => Name ?? FolderName;

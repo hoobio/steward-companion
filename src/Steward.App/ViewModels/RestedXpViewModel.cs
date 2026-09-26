@@ -300,12 +300,14 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan PreviewDelay = TimeSpan.FromSeconds(2);
 
     private readonly RestedXpService _service;
+    private readonly Func<bool> _hasGuidesFeature;
     private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
     private readonly Dictionary<string, GuidesFileWatcher> _watchers = new(StringComparer.OrdinalIgnoreCase);
 
-    public RestedXpViewModel(RestedXpService service)
+    public RestedXpViewModel(RestedXpService service, Func<bool> hasGuidesFeature)
     {
         _service = service;
+        _hasGuidesFeature = hasGuidesFeature;
         IsSignedIn = service.TryRestore();
         SignedInAs = service.Username;
         BattleTag = service.BattleTag;
@@ -423,6 +425,17 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
 
     private void SyncWatchers()
     {
+        if (!_hasGuidesFeature())
+        {
+            foreach (var watcher in _watchers.Values)
+            {
+                watcher.Dispose();
+            }
+
+            _watchers.Clear();
+            return;
+        }
+
         foreach (var gone in _watchers.Keys.Where(path => !Guides.Any(g => string.Equals(g.FlavourPath, path, StringComparison.OrdinalIgnoreCase))).ToList())
         {
             _watchers[gone].Dispose();
@@ -444,7 +457,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
 
     public async Task RefreshSessionAsync()
     {
-        if (IsPreview)
+        if (IsPreview || !_hasGuidesFeature())
         {
             return;
         }
@@ -465,7 +478,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
 
     public async Task CheckAsync()
     {
-        if (IsPreview || !_service.IsSignedIn)
+        if (IsPreview || !_service.IsSignedIn || !_hasGuidesFeature())
         {
             return;
         }
@@ -680,7 +693,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
 
     private void Confirm(RestedXpInstallViewModel card)
     {
-        if (IsPreview)
+        if (IsPreview || !_hasGuidesFeature())
         {
             return;
         }

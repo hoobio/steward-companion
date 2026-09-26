@@ -26,6 +26,12 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     private readonly Action<WowInstallViewModel> _remove;
     private readonly Action<WowInstallViewModel> _clientExited;
+    private readonly AddonUpdater _updater;
+    private readonly AppStateStore _stateStore;
+    private readonly Func<CancellationToken, Task<bool>> _ensureAuthorized;
+    private readonly Func<string, bool> _hasFeature;
+    private readonly Action _changeChannelRequested;
+    private readonly Func<WowInstall, Task> _afterStewardInstalled;
 
     private CancellationTokenSource? _watchCts;
 
@@ -35,6 +41,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         AddonUpdater updater,
         AppStateStore stateStore,
         Func<CancellationToken, Task<bool>> ensureAuthorized,
+        Func<string, bool> hasFeature,
         Action changeChannelRequested,
         Action<WowInstallViewModel> remove,
         Action<WowInstallViewModel> clientExited,
@@ -45,22 +52,14 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         Install = install;
         _remove = remove;
         _clientExited = clientExited;
-        foreach (var addon in addons)
-        {
-            var row = new AddonRowViewModel(
-                install,
-                addon,
-                updater,
-                stateStore,
-                ensureAuthorized,
-                changeChannelRequested,
-                afterStewardInstalled)
-            {
-                IsFirst = AddonRows.Count == 0,
-            };
-            row.PropertyChanged += OnRowPropertyChanged;
-            AddonRows.Add(row);
-        }
+        _updater = updater;
+        _stateStore = stateStore;
+        _ensureAuthorized = ensureAuthorized;
+        _hasFeature = hasFeature;
+        _changeChannelRequested = changeChannelRequested;
+        _afterStewardInstalled = afterStewardInstalled;
+
+        SyncAddons(addons);
     }
 
     public event EventHandler? RowsChanged;
@@ -171,6 +170,55 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(UpdateCount));
         OnPropertyChanged(nameof(CountPillText));
         OnPropertyChanged(nameof(CountPillBrush));
+    }
+
+    public void SyncAddons(IReadOnlyList<ManagedAddon> addons)
+    {
+        ArgumentNullException.ThrowIfNull(addons);
+
+        var wantedIds = addons.Select(addon => addon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var gone in AddonRows.Where(row => !wantedIds.Contains(row.AddonId)).ToList())
+        {
+            gone.PropertyChanged -= OnRowPropertyChanged;
+            AddonRows.Remove(gone);
+        }
+
+        for (var index = 0; index < addons.Count; index++)
+        {
+            var addon = addons[index];
+            var existing = AddonRows.FirstOrDefault(row => string.Equals(row.AddonId, addon.Id, StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                var row = CreateRow(addon);
+                row.PropertyChanged += OnRowPropertyChanged;
+                AddonRows.Insert(Math.Min(index, AddonRows.Count), row);
+            }
+            else if (AddonRows.IndexOf(existing) != index)
+            {
+                AddonRows.Move(AddonRows.IndexOf(existing), index);
+            }
+        }
+
+        for (var i = 0; i < AddonRows.Count; i++)
+        {
+            AddonRows[i].IsFirst = i == 0;
+        }
+
+        Recompute();
+        RowsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private AddonRowViewModel CreateRow(ManagedAddon addon)
+    {
+        var features = addon.Features;
+        return new AddonRowViewModel(
+            Install,
+            addon,
+            _updater,
+            _stateStore,
+            async ct => features.Any(_hasFeature) && await _ensureAuthorized(ct).ConfigureAwait(true),
+            _changeChannelRequested,
+            _afterStewardInstalled);
     }
 
     [RelayCommand]

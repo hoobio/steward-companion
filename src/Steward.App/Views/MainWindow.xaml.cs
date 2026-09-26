@@ -91,7 +91,7 @@ public sealed partial class MainWindow : Window
         if (e.PropertyName is not nameof(MainViewModel.GuidesVisibility)
             || ViewModel.GuidesVisibility == Visibility.Visible
             || RootFrame.CurrentSourcePageType != typeof(GuidesPage)
-            || ViewModel.RestedXp.IsSessionExpired)
+            || (ViewModel.RestedXp.IsSessionExpired && ViewModel.HasGuidesFeature))
         {
             return;
         }
