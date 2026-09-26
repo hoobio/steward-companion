@@ -17,9 +17,26 @@
                 MinHeight="{StaticResource CardRowMinHeight}"
                 ColumnSpacing="12"
                 Visibility="{x:Bind RowVisibility, Mode=OneWay}">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup>
+                        <VisualState x:Name="NarrowRow">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="0" />
+                            </VisualState.StateTriggers>
+                            <VisualState.Setters>
+                                <Setter Target="VersionPairPanel.Visibility" Value="Collapsed" />
+                            </VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="WideRow">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="820" />
+                            </VisualState.StateTriggers>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="30" />
-                    <ColumnDefinition Width="*" MinWidth="220" />
+                    <ColumnDefinition Width="*" MinWidth="60" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -47,7 +64,8 @@
                         FontSize="13.5"
                         FontWeight="SemiBold"
                         TextWrapping="NoWrap"
-                        TextTrimming="CharacterEllipsis" />
+                        TextTrimming="CharacterEllipsis"
+                        ToolTipService.ToolTip="{x:Bind DisplayName}" />
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon
                             Glyph="{x:Bind StatusGlyph, Mode=OneWay}"
@@ -97,6 +115,7 @@
                 </StackPanel>
 
                 <StackPanel
+                    x:Name="VersionPairPanel"
                     Grid.Column="2"
                     Orientation="Horizontal"
                     Spacing="6"
@@ -105,6 +124,10 @@
                         Text="{x:Bind InstalledVersion, Mode=OneWay}"
                         FontFamily="Cascadia Mono"
                         FontSize="12.5"
+                        MaxWidth="90"
+                        TextWrapping="NoWrap"
+                        TextTrimming="CharacterEllipsis"
+                        ToolTipService.ToolTip="{x:Bind InstalledVersion, Mode=OneWay}"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                         Visibility="{x:Bind VersionPairVisibility, Mode=OneWay}" />
                     <TextBlock
@@ -117,6 +140,10 @@
                         Text="{x:Bind AvailableVersion, Mode=OneWay}"
                         FontFamily="Cascadia Mono"
                         FontSize="12.5"
+                        MaxWidth="90"
+                        TextWrapping="NoWrap"
+                        TextTrimming="CharacterEllipsis"
+                        ToolTipService.ToolTip="{x:Bind AvailableVersion, Mode=OneWay}"
                         Foreground="{StaticResource AvailableVersionBrush}"
                         Visibility="{x:Bind VersionPairVisibility, Mode=OneWay}" />
                     <TextBlock
