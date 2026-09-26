@@ -7,7 +7,6 @@ using Steward.App.Services;
 using Steward.Core;
 
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Media;
 
 namespace Steward.App.ViewModels;
 
@@ -15,13 +14,7 @@ public sealed partial class SyncViewModel : ObservableObject
 {
     private static readonly string[] SummaryNames =
     [
-        nameof(ChangesToSend),
         nameof(HasWaiting),
-        nameof(BannerBrush),
-        nameof(BannerGlyph),
-        nameof(BannerTitle),
-        nameof(BannerDetail),
-        nameof(BannerVisibility),
         nameof(CardsVisibility),
         nameof(AddonMissingVisibility),
         nameof(NeverExportedVisibility),
@@ -35,18 +28,18 @@ public sealed partial class SyncViewModel : ObservableObject
 
     private readonly MainViewModel _main;
     private readonly IGuildSyncApi _api;
-    private readonly InMemoryGuildSyncApi? _fake;
 
-    private SyncScenario? _demonstrated;
-    private DateTimeOffset? _lastSyncedAt;
     private bool _isReloading;
 
     public SyncViewModel(MainViewModel main, IGuildSyncApi api)
     {
         _main = main;
         _api = api;
-        _fake = api as InMemoryGuildSyncApi;
-        _main.CharacterSyncRows.CollectionChanged += (_, _) => SyncCharacterPushRows();
+        _main.CharacterSyncRows.CollectionChanged += (_, _) =>
+        {
+            SyncCharacterPushRows();
+            Recompute();
+        };
         _main.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.HasSyncFeature))
@@ -72,40 +65,9 @@ public sealed partial class SyncViewModel : ObservableObject
 
     public IEnumerable<SyncDatasetViewModel> Datasets => Installs.SelectMany(install => install.Datasets);
 
-    public int ChangesToSend => Datasets
-        .Where(dataset => dataset.State == SyncDatasetState.WaitingToSend)
-        .Sum(dataset => dataset.NewCount);
-
-    public bool HasWaiting => Datasets.Any(dataset => dataset.State == SyncDatasetState.WaitingToSend);
-
-    public bool IsAnyDatasetBusy => Datasets.Any(dataset => dataset.IsSending);
-
-    public Brush BannerBrush => (Brush)Application.Current.Resources[
-        ChangesToSend > 0 ? "InfoTintBrush" : "SuccessTintBrush"];
-
-    public string BannerGlyph => ChangesToSend > 0 ? "" : "";
-
-    public string BannerTitle => ChangesToSend > 0
-        ? $"{ChangesToSend} change{(ChangesToSend == 1 ? "" : "s")} to send"
-        : "Everything is in sync";
-
-    public string BannerDetail
-    {
-        get
-        {
-            var waiting = Datasets
-                .Where(dataset => dataset.State == SyncDatasetState.WaitingToSend)
-                .Select(dataset => dataset.Name.ToLowerInvariant())
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-
-            return waiting.Count == 0
-                ? $"{Datasets.Sum(dataset => dataset.LocalCount)} records across {Installs.Count} installs"
-                : string.Join(", ", waiting);
-        }
-    }
-
-    public Visibility BannerVisibility => When(Installs.Count > 0 && CardsVisibility == Visibility.Visible);
+    public bool HasWaiting => Datasets
+        .Where(dataset => !dataset.IsComingSoon)
+        .Any(dataset => dataset.State == SyncDatasetState.WaitingToSend);
 
     public Visibility CardsVisibility =>
         When(AddonMissingVisibility == Visibility.Collapsed && NeverExportedVisibility == Visibility.Collapsed);
@@ -130,7 +92,14 @@ public sealed partial class SyncViewModel : ObservableObject
         }
     }
 
-    public string LastSyncedText => $"Last synced {Relative(_lastSyncedAt)}";
+    public string LastSyncedText
+    {
+        get
+        {
+            var latest = _main.CharacterSyncRows.Max(row => row.PushedAt);
+            return latest is null ? string.Empty : $"Last synced {Relative(latest)}";
+        }
+    }
 
     public string GeneratedFilePath => _main.Installs.Count == 0
         ? "No World of Warcraft install found"
@@ -181,7 +150,6 @@ public sealed partial class SyncViewModel : ObservableObject
                 }
             }
 
-            _lastSyncedAt = server?.LastSyncedAt;
             var fresh = _main.Installs.Select(install => Build(install, server)).ToList();
             if (fresh.Select(view => view.FlavourPath).SequenceEqual(Installs.Select(view => view.FlavourPath)))
             {
@@ -201,7 +169,6 @@ public sealed partial class SyncViewModel : ObservableObject
 
             SyncCharacterPushRows();
             Recompute();
-            await DemonstrateAsync().ConfigureAwait(true);
         }
         finally
         {
@@ -247,13 +214,6 @@ public sealed partial class SyncViewModel : ObservableObject
             readError = ex.Message;
         }
 
-        var isSample = false;
-        if (_fake is not null && Total(snapshot) == 0)
-        {
-            snapshot = InMemoryGuildSyncApi.LocalSample;
-            isSample = true;
-        }
-
         var isStale = SavedVariablesFreshness.Judge(snapshot, install.Client) == Freshness.Stale;
         var exportedAt = Relative(SavedVariablesFreshness.LastWrite(snapshot));
 
@@ -263,7 +223,6 @@ public sealed partial class SyncViewModel : ObservableObject
             FlavourPath = install.FlavourPath,
             ClientVersion = install.ClientVersion,
             IsClientRunning = install.IsClientRunning,
-            IsSample = isSample,
             AddonMissing = addonMissing,
             ReadError = readError,
         };
@@ -272,7 +231,7 @@ public sealed partial class SyncViewModel : ObservableObject
             InMemoryGuildSyncApi.RosterDataset,
             "Roster",
             "members",
-            "",
+            "",
             snapshot?.Roster.Count ?? 0,
             server,
             snapshot,
@@ -283,24 +242,26 @@ public sealed partial class SyncViewModel : ObservableObject
             InMemoryGuildSyncApi.LootDataset,
             "Loot",
             "loot events",
-            "",
+            "",
             snapshot?.Loot.Count ?? 0,
             server,
             snapshot,
             exportedAt,
             isStale,
-            isFirst: false));
+            isFirst: false,
+            isComingSoon: true));
         view.Datasets.Add(Dataset(
             InMemoryGuildSyncApi.AttendanceDataset,
             "Attendance",
             "raids",
-            "",
+            "",
             snapshot?.Attendance.Count ?? 0,
             server,
             snapshot,
             exportedAt,
             isStale,
-            isFirst: false));
+            isFirst: false,
+            isComingSoon: true));
 
         return view;
     }
@@ -315,7 +276,8 @@ public sealed partial class SyncViewModel : ObservableObject
         SavedVariablesSnapshot? snapshot,
         string exportedAt,
         bool isStale,
-        bool isFirst)
+        bool isFirst,
+        bool isComingSoon = false)
     {
         var dataset = new SyncDatasetViewModel
         {
@@ -329,6 +291,7 @@ public sealed partial class SyncViewModel : ObservableObject
             ExportedAtText = exportedAt,
             IsStale = isStale,
             IsFirst = isFirst,
+            IsComingSoon = isComingSoon,
             Payload = PayloadFor(key, snapshot),
             Send = SendAsync,
         };
@@ -354,9 +317,6 @@ public sealed partial class SyncViewModel : ObservableObject
         { Files.Count: 1 } => Path.GetFileName(snapshot.Files[0].Path),
         _ => $"{snapshot.Files.Count} files",
     };
-
-    private static int Total(SavedVariablesSnapshot? snapshot) =>
-        (snapshot?.Roster.Count ?? 0) + (snapshot?.Loot.Count ?? 0) + (snapshot?.Attendance.Count ?? 0);
 
     private static string Relative(DateTimeOffset? moment)
     {
@@ -401,26 +361,6 @@ public sealed partial class SyncViewModel : ObservableObject
         {
             dataset.IsSending = false;
             Recompute();
-        }
-    }
-
-    private async Task DemonstrateAsync()
-    {
-        if (_fake is null
-            || _demonstrated == _fake.Scenario
-            || _fake.Scenario is not (SyncScenario.Slow or SyncScenario.DatasetFailure))
-        {
-            _demonstrated = _fake?.Scenario;
-            return;
-        }
-
-        _demonstrated = _fake.Scenario;
-        foreach (var dataset in Datasets.ToList())
-        {
-            if (dataset.State == SyncDatasetState.WaitingToSend)
-            {
-                await SendAsync(dataset).ConfigureAwait(true);
-            }
         }
     }
 

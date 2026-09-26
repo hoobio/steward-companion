@@ -193,16 +193,19 @@
                     Foreground="{x:Bind ExportedAtBrush, Mode=OneWay}"
                     Visibility="{x:Bind ExportedAtVisibility, Mode=OneWay}" />
 
-                <Button
+                <Border
                     Grid.Column="5"
-                    Height="32"
-                    Content="Send now"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
-                    Command="{x:Bind CharacterSync.SendNow, Mode=OneWay}"
-                    CommandParameter="{x:Bind CharacterSync.FlavourPath, Mode=OneWay, FallbackValue=''}"
-                    ToolTipService.ToolTip="Push this install's characters again"
-                    Visibility="{x:Bind CharacterSyncVisibility, Mode=OneWay}" />
+                    CornerRadius="4"
+                    Padding="8,2"
+                    Background="{ThemeResource ChipBrush}"
+                    Visibility="{x:Bind ComingSoonVisibility, Mode=OneWay}">
+                    <TextBlock
+                        Text="Soon"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Border>
 
                 <StackPanel
                     Grid.Column="5"
@@ -265,7 +268,6 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
@@ -304,20 +306,6 @@
                             Background="{ThemeResource CautionTintBrush}"
                             Visibility="{x:Bind RunningPillVisibility, Mode=OneWay}">
                             <TextBlock Text="Running" FontSize="12" />
-                        </Border>
-
-                        <Border
-                            Grid.Column="3"
-                            VerticalAlignment="Center"
-                            CornerRadius="4"
-                            Padding="8,2"
-                            Background="{ThemeResource ChipBrush}"
-                            ToolTipService.ToolTip="Sample records, not your guild's data"
-                            Visibility="{x:Bind SamplePillVisibility, Mode=OneWay}">
-                            <TextBlock
-                                Text="Sample"
-                                FontSize="12"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </Border>
                     </Grid>
                 </Expander.Header>
@@ -545,45 +533,6 @@
                             TextWrapping="Wrap"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
-                </Grid>
-            </Border>
-
-            <Border
-                CornerRadius="8"
-                Padding="16"
-                Background="{x:Bind ViewModel.BannerBrush, Mode=OneWay}"
-                Visibility="{x:Bind ViewModel.BannerVisibility, Mode=OneWay}">
-                <Grid ColumnSpacing="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <FontIcon
-                        Grid.Column="0"
-                        VerticalAlignment="Center"
-                        FontSize="20"
-                        Glyph="{x:Bind ViewModel.BannerGlyph, Mode=OneWay}" />
-
-                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                        <TextBlock
-                            Text="{x:Bind ViewModel.BannerTitle, Mode=OneWay}"
-                            FontSize="19"
-                            FontWeight="SemiBold" />
-                        <TextBlock
-                            Text="{x:Bind ViewModel.BannerDetail, Mode=OneWay}"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-
-                    <Button
-                        Grid.Column="2"
-                        Height="32"
-                        Content="Sync now"
-                        Style="{StaticResource AccentButtonStyle}"
-                        VerticalAlignment="Center"
-                        IsEnabled="False"
-                        ToolTipService.ToolTip="Available once the guild API ships" />
                 </Grid>
             </Border>
 

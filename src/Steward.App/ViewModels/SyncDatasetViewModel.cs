@@ -65,6 +65,8 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
 
     public required bool IsFirst { get; init; }
 
+    public bool IsComingSoon { get; init; }
+
     public required SyncPayload Payload { get; set; }
 
     public required Func<SyncDatasetViewModel, Task> Send { get; init; }
@@ -89,7 +91,9 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
 
     public Visibility CharacterSyncVisibility => When(CharacterSync is not null);
 
-    public Visibility PlaceholderVisibility => When(CharacterSync is null);
+    public Visibility PlaceholderVisibility => When(CharacterSync is null && !IsComingSoon);
+
+    public Visibility ComingSoonVisibility => When(IsComingSoon);
 
     public Thickness HairlineThickness => IsFirst ? default : new Thickness(0, 1, 0, 0);
 
@@ -116,7 +120,8 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     public Visibility RecordsVisibility =>
         When(State is SyncDatasetState.WaitingToSend or SyncDatasetState.InSync or SyncDatasetState.Failed);
 
-    public Visibility NewVisibility => When(CharacterSync is null && State == SyncDatasetState.WaitingToSend);
+    public Visibility NewVisibility =>
+        When(CharacterSync is null && !IsComingSoon && State == SyncDatasetState.WaitingToSend);
 
     public Visibility NothingYetVisibility => When(State == SyncDatasetState.NothingYet);
 
@@ -131,7 +136,7 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     public Visibility SendVisibility =>
         When(IsAdmin && !IsBlocked && State == SyncDatasetState.WaitingToSend);
 
-    public Visibility ExportedAtVisibility => When(State != SyncDatasetState.NothingYet);
+    public Visibility ExportedAtVisibility => When(!IsComingSoon && State != SyncDatasetState.NothingYet);
 
     public Brush ExportedAtBrush => (Brush)Application.Current.Resources[
         IsStale ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];

@@ -962,22 +962,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    [RelayCommand]
-    private async Task SendCharacterSyncNowAsync(string flavourPath)
-    {
-        if (!HasSyncFeature || !await EnsureAuthorizedForActionAsync(CancellationToken.None).ConfigureAwait(true))
-        {
-            return;
-        }
-
-        if (HasSyncFeature
-            && _guildId is { } guildId
-            && Installs.FirstOrDefault(i => string.Equals(i.FlavourPath, flavourPath, StringComparison.OrdinalIgnoreCase)) is { } install)
-        {
-            await PushCharacterSyncAsync(install, guildId, force: true).ConfigureAwait(true);
-        }
-    }
-
     private async Task<bool> PushCharacterSyncAsync(WowInstallViewModel install, string guildId, bool force)
     {
         var key = AppStateStore.CharacterSyncKey(guildId, install.FlavourPath);
@@ -1066,7 +1050,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             : DateTimeOffset.Now;
 
         var existing = CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath);
-        var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, pushedAt, accepted, error, rejected) { SendNow = SendCharacterSyncNowCommand };
+        var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, pushedAt, accepted, error, rejected);
         if (existing is null)
         {
             CharacterSyncRows.Add(row);
@@ -1198,7 +1182,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 continue;
             }
 
-            var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, accepted, last?.Error, []) { SendNow = SendCharacterSyncNowCommand };
+            var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, accepted, last?.Error, []);
             if (existing is null)
             {
                 CharacterSyncRows.Add(row);

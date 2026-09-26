@@ -20,10 +20,6 @@ public sealed partial class SyncInstallViewModel : ObservableObject
     public partial bool IsClientRunning { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SamplePillVisibility))]
-    public partial bool IsSample { get; set; }
-
-    [ObservableProperty]
     public partial bool AddonMissing { get; set; }
 
     [ObservableProperty]
@@ -34,15 +30,12 @@ public sealed partial class SyncInstallViewModel : ObservableObject
 
     public Visibility RunningPillVisibility => When(IsClientRunning);
 
-    public Visibility SamplePillVisibility => When(IsSample);
-
     public Visibility ReadErrorVisibility => When(ReadError is not null);
 
     public void CopyFrom(SyncInstallViewModel fresh)
     {
         ClientVersion = fresh.ClientVersion;
         IsClientRunning = fresh.IsClientRunning;
-        IsSample = fresh.IsSample;
         AddonMissing = fresh.AddonMissing;
         ReadError = fresh.ReadError;
         for (var i = 0; i < Datasets.Count; i++)
