@@ -5,7 +5,7 @@ public sealed record AddonChannelStatus(
     string? Channel,
     string? Notice)
 {
-    public static readonly IReadOnlyList<string> Ordered = ["release", "pre-release", "develop"];
+    public static readonly IReadOnlyList<string> Ordered = ["release", "pre-release"];
 
     public static readonly IReadOnlyList<string> DefaultPreference = Ordered;
 

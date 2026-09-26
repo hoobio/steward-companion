@@ -63,17 +63,17 @@ public sealed class AddonManifestTests
     public async Task GetLatestAsync_PopulatedChannel_DeserialisesTheRelease()
     {
         const string body = """
-        {"version":"0.5.0-develop.e73f4bf","channel":"develop","zip":"HoobiScripts-0.5.0-develop.e73f4bf.zip",
+        {"version":"0.5.0-pre-release.e73f4bf","channel":"pre-release","zip":"HoobiScripts-0.5.0-pre-release.e73f4bf.zip",
          "sha256":"fad9149904b658d1f066f4f41c9301f8f18070249c44b5a3480bb558aefd0983","size":26222,
          "released":"2026-09-19T12:12:01+10:00"}
         """;
         var (updater, _) = UpdaterFor(HttpStatusCode.OK, body);
 
-        var release = await updater.GetLatestAsync(Addon, "develop", CancellationToken.None);
+        var release = await updater.GetLatestAsync(Addon, "pre-release", CancellationToken.None);
 
         Assert.NotNull(release);
-        Assert.Equal("0.5.0-develop.e73f4bf", release.Version);
-        Assert.Equal("HoobiScripts-0.5.0-develop.e73f4bf.zip", release.Zip);
+        Assert.Equal("0.5.0-pre-release.e73f4bf", release.Version);
+        Assert.Equal("HoobiScripts-0.5.0-pre-release.e73f4bf.zip", release.Zip);
         Assert.Equal("fad9149904b658d1f066f4f41c9301f8f18070249c44b5a3480bb558aefd0983", release.Sha256);
         Assert.Equal(26222, release.Size);
         Assert.Equal(2026, release.Released.Year);
@@ -111,11 +111,11 @@ public sealed class AddonManifestTests
                 ? (HttpStatusCode.OK, "null")
                 : (HttpStatusCode.NotFound, "not found"));
 
-        var releases = await updater.ProbeChannelsAsync(Addon, ["release", "pre-release", "develop"], CancellationToken.None);
+        var releases = await updater.ProbeChannelsAsync(Addon, ["release", "pre-release", "beta"], CancellationToken.None);
 
         Assert.NotNull(releases["release"]);
         Assert.Null(releases["pre-release"]);
-        Assert.Null(releases["develop"]);
+        Assert.Null(releases["beta"]);
     }
 
     [Fact]

@@ -20,13 +20,24 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
-    public void Load_MigratesAStoredDevelopmentChannel_ToDevelop()
+    public void Load_MigratesAStoredDevelopmentChannel_ToPreRelease()
     {
         File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"development","steward":"release"},"installs":{}}""");
 
         var state = new AppStateStore(["hoobiscripts", "steward"], StatePath).Load();
 
-        Assert.Equal("develop", state.Channels["hoobiscripts"]);
+        Assert.Equal("pre-release", state.Channels["hoobiscripts"]);
+        Assert.Equal("release", state.Channels["steward"]);
+    }
+
+    [Fact]
+    public void Load_MigratesAStoredDevelopChannel_ToPreRelease()
+    {
+        File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"develop","steward":"release"},"installs":{}}""");
+
+        var state = new AppStateStore(["hoobiscripts", "steward"], StatePath).Load();
+
+        Assert.Equal("pre-release", state.Channels["hoobiscripts"]);
         Assert.Equal("release", state.Channels["steward"]);
     }
 

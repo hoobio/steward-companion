@@ -36,7 +36,7 @@ public sealed class AppStateStore
         {
             var state = JsonSerializer.Deserialize(File.ReadAllText(_path), CompanionJsonContext.Default.AppState)
                 ?? new AppState([], []);
-            return MigrateDevelopmentChannel(SeedLegacyChannel(Normalise(state), _addonIds));
+            return MigrateDevelopChannel(SeedLegacyChannel(Normalise(state), _addonIds));
         }
         catch (JsonException)
         {
@@ -110,9 +110,9 @@ public sealed class AppStateStore
         return state with { Channels = channels, LegacyChannel = null };
     }
 
-    internal static AppState MigrateDevelopmentChannel(AppState state)
+    internal static AppState MigrateDevelopChannel(AppState state)
     {
-        if (!state.Channels.Values.Any(c => string.Equals(c, "development", StringComparison.OrdinalIgnoreCase)))
+        if (!state.Channels.Values.Any(IsRemovedDevelopChannel))
         {
             return state;
         }
@@ -120,14 +120,18 @@ public sealed class AppStateStore
         var channels = new Dictionary<string, string>(state.Channels, StringComparer.OrdinalIgnoreCase);
         foreach (var addonId in channels.Keys.ToList())
         {
-            if (string.Equals(channels[addonId], "development", StringComparison.OrdinalIgnoreCase))
+            if (IsRemovedDevelopChannel(channels[addonId]))
             {
-                channels[addonId] = "develop";
+                channels[addonId] = "pre-release";
             }
         }
 
         return state with { Channels = channels };
     }
+
+    private static bool IsRemovedDevelopChannel(string channel) =>
+        string.Equals(channel, "develop", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(channel, "development", StringComparison.OrdinalIgnoreCase);
 
     public void Save(AppState state)
     {

@@ -146,7 +146,7 @@ The general rule from HoobiScripts' `AGENTS.md` holds: a familiar bare global is
 
 | Repo | Branch | Release |
 | --- | --- | --- |
-| `hoobio/Steward` | push to `develop` only | develop channel publishes on every push. No pre-release, no release. |
+| `hoobio/Steward` | push to `develop` only | the `develop` channel is gone; a push to `develop` alone publishes nothing. No pre-release, no release. |
 | `hoobio/steward-companion` | push to `main` only | no release cut: leave the release-please PR unmerged. |
 | `hoobio/gigagrug` | push direct to `main` if a change is needed | assume none is needed |
 
