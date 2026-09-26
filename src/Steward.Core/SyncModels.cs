@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 namespace Steward.Core;
@@ -86,7 +87,14 @@ public sealed record SavedVariablesSnapshot(
     IReadOnlyList<CharacterObservation> Characters,
     string? CharactersFingerprint,
     IReadOnlyDictionary<string, CharacterProfessions> Professions,
-    IReadOnlyDictionary<string, ProfessionCatalogue> Catalogue);
+    IReadOnlyDictionary<string, ProfessionCatalogue> Catalogue,
+    GuildRanks? GuildRanks = null);
+
+public sealed record GuildRanks(
+    string Realm,
+    string Guild,
+    DateTimeOffset? ObservedAt,
+    IReadOnlyDictionary<int, string> Ranks);
 
 public sealed record CharacterObservation(
     string CharacterGuid,
@@ -150,7 +158,14 @@ public sealed record CharacterSyncRequest(
     [property: JsonPropertyName("batchId")] string BatchId,
     [property: JsonPropertyName("appVersion")] string AppVersion,
     [property: JsonPropertyName("characters")] IReadOnlyList<CharacterSyncEntry> Characters,
-    [property: JsonPropertyName("catalogue"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, ProfessionCatalogue>? Catalogue = null);
+    [property: JsonPropertyName("catalogue"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, ProfessionCatalogue>? Catalogue = null,
+    [property: JsonPropertyName("guildRanks"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GuildRanksSync? GuildRanks = null);
+
+public sealed record GuildRanksSync(
+    [property: JsonPropertyName("realm")] string Realm,
+    [property: JsonPropertyName("guild")] string Guild,
+    [property: JsonPropertyName("observedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ObservedAt,
+    [property: JsonPropertyName("ranks")] IReadOnlyDictionary<string, string> Ranks);
 
 public sealed record ProfessionCatalogue(
     [property: JsonPropertyName("scannedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ScannedAt,
@@ -201,6 +216,12 @@ public static class CharacterSyncMapping
         observation.LinkKnown,
         observation.ObservedAt?.ToUnixTimeSeconds(),
         professions.GetValueOrDefault(observation.CharacterGuid));
+
+    public static GuildRanksSync ToSync(GuildRanks ranks) => new(
+        ranks.Realm,
+        ranks.Guild,
+        ranks.ObservedAt?.ToUnixTimeSeconds(),
+        ranks.Ranks.ToDictionary(entry => entry.Key.ToString(CultureInfo.InvariantCulture), entry => entry.Value, StringComparer.Ordinal));
 }
 
 public static class CharacterPushGate

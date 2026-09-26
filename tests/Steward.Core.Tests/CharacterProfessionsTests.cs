@@ -114,4 +114,48 @@ public sealed class CharacterProfessionsTests
 
         Assert.Null(entry.Professions);
     }
+
+    [Fact]
+    public void ToSync_MapsGuildRanks_WithStringKeys()
+    {
+        var ranks = new GuildRanks(
+            "Nightslayer", "Gigagrug", DateTimeOffset.FromUnixTimeSeconds(1758260000),
+            new Dictionary<int, string> { [1] = "Guild Master", [2] = "Officer" });
+
+        var sync = CharacterSyncMapping.ToSync(ranks);
+
+        Assert.Equal("Nightslayer", sync.Realm);
+        Assert.Equal("Gigagrug", sync.Guild);
+        Assert.Equal(1758260000, sync.ObservedAt);
+        Assert.Equal("Guild Master", sync.Ranks["1"]);
+        Assert.Equal("Officer", sync.Ranks["2"]);
+    }
+
+    [Fact]
+    public void CharacterSyncRequest_OmitsGuildRanks_WhenAbsent()
+    {
+        var request = new CharacterSyncRequest("batch-1", "1.0.0", []);
+
+        var json = JsonSerializer.Serialize(request, CompanionJsonContext.Default.CharacterSyncRequest);
+
+        Assert.DoesNotContain("guildRanks", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CharacterSyncRequest_SerialisesGuildRanks_WithCamelCaseStringKeys()
+    {
+        var ranks = new GuildRanks(
+            "Nightslayer", "Gigagrug", DateTimeOffset.FromUnixTimeSeconds(1758260000),
+            new Dictionary<int, string> { [1] = "Guild Master" });
+        var request = new CharacterSyncRequest("batch-1", "1.0.0", [], null, CharacterSyncMapping.ToSync(ranks));
+
+        var json = JsonSerializer.Serialize(request, CompanionJsonContext.Default.CharacterSyncRequest);
+        using var doc = JsonDocument.Parse(json);
+        var guildRanks = doc.RootElement.GetProperty("guildRanks");
+
+        Assert.Equal("Nightslayer", guildRanks.GetProperty("realm").GetString());
+        Assert.Equal("Gigagrug", guildRanks.GetProperty("guild").GetString());
+        Assert.Equal(1758260000, guildRanks.GetProperty("observedAt").GetInt64());
+        Assert.Equal("Guild Master", guildRanks.GetProperty("ranks").GetProperty("1").GetString());
+    }
 }

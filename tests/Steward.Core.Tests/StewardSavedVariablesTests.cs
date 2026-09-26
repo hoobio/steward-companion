@@ -474,6 +474,103 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void Read_MapsGuildRanks()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["guildRanks"] = {
+                ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758260000,
+                ["ranks"] = { [1] = "Guild Master", [2] = "Officer", [3] = "Member" },
+            },
+            }
+            """));
+
+        Assert.Equal(0, snapshot.Skipped);
+        var ranks = snapshot.GuildRanks!;
+        Assert.Equal("Nightslayer", ranks.Realm);
+        Assert.Equal("Gigagrug", ranks.Guild);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000), ranks.ObservedAt);
+        Assert.Equal("Guild Master", ranks.Ranks[1]);
+        Assert.Equal("Officer", ranks.Ranks[2]);
+        Assert.Equal("Member", ranks.Ranks[3]);
+    }
+
+    [Fact]
+    public void Read_SkipsMalformedGuildRanksEntries()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["guildRanks"] = {
+                ["guild"] = "Gigagrug",
+                ["ranks"] = { [1] = "Guild Master" },
+            },
+            }
+            """));
+
+        Assert.Null(snapshot.GuildRanks);
+        Assert.Equal(1, snapshot.Skipped);
+    }
+
+    [Fact]
+    public void Read_SkipsMalformedRankEntries()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["guildRanks"] = {
+                ["realm"] = "Nightslayer", ["guild"] = "Gigagrug",
+                ["ranks"] = { [1] = "Guild Master", ["notARank"] = "Officer" },
+            },
+            }
+            """));
+
+        var ranks = snapshot.GuildRanks!;
+        Assert.Equal(1, snapshot.Skipped);
+        Assert.Single(ranks.Ranks);
+        Assert.Equal("Guild Master", ranks.Ranks[1]);
+    }
+
+    [Fact]
+    public void Read_KeepsTheNewestObservedAtGuildRanksAcrossFiles()
+    {
+        var older = """
+            StewardDB = {
+            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758200000, ["ranks"] = { [1] = "Old Name" } },
+            }
+            """;
+        var newer = """
+            StewardDB = {
+            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758260000, ["ranks"] = { [1] = "Guild Master" } },
+            }
+            """;
+
+        var snapshot = ReadFiles(("account-a.lua", older), ("account-b.lua", newer));
+
+        Assert.Equal("Guild Master", snapshot.GuildRanks!.Ranks[1]);
+    }
+
+    private static string? FingerprintWithRanks(int observedAt, string rank1Name) =>
+        ReadFiles(("account.lua", $$"""
+            StewardDB = {
+            ["characters"] = {
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["level"] = 60, ["observedAt"] = {{observedAt}} },
+            },
+            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = {{observedAt}}, ["ranks"] = { [1] = "{{rank1Name}}" } },
+            }
+            """)).CharactersFingerprint;
+
+    [Fact]
+    public void CharactersFingerprint_IgnoresGuildRanksObservedAt()
+    {
+        Assert.Equal(FingerprintWithRanks(1758260000, "Guild Master"), FingerprintWithRanks(1758269999, "Guild Master"));
+    }
+
+    [Fact]
+    public void CharactersFingerprint_ChangesWithARankRename()
+    {
+        Assert.NotEqual(FingerprintWithRanks(1758260000, "Guild Master"), FingerprintWithRanks(1758260000, "Guildmaster"));
+    }
+
+    [Fact]
     public void Read_ReturnsNull_WhenNoFileExists()
     {
         Assert.Null(StewardSavedVariables.Read(_root));

@@ -57,6 +57,7 @@ public static class StewardSavedVariables
         var characters = new List<(string Id, DateTimeOffset Rank, CharacterObservation Item)>();
         var professions = new List<(string Id, DateTimeOffset Rank, CharacterProfessions Item)>();
         var catalogue = new List<(string Id, DateTimeOffset Rank, ProfessionCatalogue Item)>();
+        GuildRanks? guildRanks = null;
         var hasAccount = false;
         var skipped = 0;
 
@@ -84,6 +85,12 @@ public static class StewardSavedVariables
                     .Select(p => (p.Guid, p.Professions.ObservedAt is { } observedAt ? DateTimeOffset.FromUnixTimeSeconds(observedAt) : DateTimeOffset.MinValue, p.Professions)));
                 catalogue.AddRange(MapCatalogueByProfession(account.GetTable("catalogue"), ref skipped)
                     .Select(c => (c.Profession, c.Catalogue.ScannedAt is { } scannedAt ? DateTimeOffset.FromUnixTimeSeconds(scannedAt) : DateTimeOffset.MinValue, c.Catalogue)));
+                if (MapGuildRanks(account.GetTable("guildRanks"), ref skipped) is { } ranks
+                    && (guildRanks is null || ranks.ObservedAt is null || guildRanks.ObservedAt is null || ranks.ObservedAt > guildRanks.ObservedAt))
+                {
+                    guildRanks = ranks;
+                }
+
                 hasAccount = true;
             }
 
@@ -102,9 +109,10 @@ public static class StewardSavedVariables
             Dedupe(attendance),
             skipped,
             dedupedCharacters,
-            hasAccount ? CharactersFingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue) : null,
+            hasAccount ? CharactersFingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue, guildRanks) : null,
             dedupedProfessions,
-            dedupedCatalogue);
+            dedupedCatalogue,
+            guildRanks);
     }
 
     private static Dictionary<string, T> DedupeByKey<T>(List<(string Id, DateTimeOffset Rank, T Item)> records) =>
@@ -114,7 +122,8 @@ public static class StewardSavedVariables
     private static string CharactersFingerprint(
         IReadOnlyList<CharacterObservation> characters,
         IReadOnlyDictionary<string, CharacterProfessions> professions,
-        IReadOnlyDictionary<string, ProfessionCatalogue> catalogue)
+        IReadOnlyDictionary<string, ProfessionCatalogue> catalogue,
+        GuildRanks? guildRanks)
     {
         var canonicalProfessions = professions.ToDictionary(
             entry => entry.Key,
@@ -129,7 +138,8 @@ public static class StewardSavedVariables
             string.Empty,
             [.. characters.OrderBy(c => c.CharacterGuid, StringComparer.Ordinal)
                 .Select(c => CharacterSyncMapping.ToEntry(c with { ObservedAt = null }, canonicalProfessions))],
-            Sorted(catalogue, entry => entry with { ScannedAt = null }));
+            Sorted(catalogue, entry => entry with { ScannedAt = null }),
+            guildRanks is null ? null : CharacterSyncMapping.ToSync(guildRanks) with { ObservedAt = null });
         return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonical, CompanionJsonContext.Default.CharacterSyncRequest)));
     }
 
@@ -271,6 +281,37 @@ public static class StewardSavedVariables
             value.GetString("linkedUserId"),
             value.Get("linkKnown") is { Kind: LuaKind.Boolean, Boolean: true },
             ToTimestamp(value.GetNumber("observedAt")));
+    }
+
+    private static GuildRanks? MapGuildRanks(LuaValue? table, ref int skipped)
+    {
+        if (table is null)
+        {
+            return null;
+        }
+
+        var realm = table.GetString("realm");
+        var guild = table.GetString("guild");
+        if (realm is null || guild is null)
+        {
+            skipped++;
+            return null;
+        }
+
+        var ranks = new Dictionary<int, string>();
+        foreach (var entry in table.GetTable("ranks")?.Table ?? [])
+        {
+            if (entry.Key is { Kind: LuaKind.Number } key && entry.Value.Kind is LuaKind.Text)
+            {
+                ranks[(int)key.Number] = entry.Value.Text!;
+            }
+            else
+            {
+                skipped++;
+            }
+        }
+
+        return new GuildRanks(realm, guild, ToTimestamp(table.GetNumber("observedAt")), ranks);
     }
 
     private static List<(string Guid, CharacterProfessions Professions)> MapProfessionsByGuid(LuaValue? table, ref int skipped)

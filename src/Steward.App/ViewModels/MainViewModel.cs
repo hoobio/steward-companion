@@ -1004,7 +1004,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             batchId,
             InstalledVersion,
             [.. snapshot!.Characters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot.Professions))],
-            snapshot.Catalogue.Count == 0 ? null : snapshot.Catalogue);
+            snapshot.Catalogue.Count == 0 ? null : snapshot.Catalogue,
+            snapshot.GuildRanks is null ? null : CharacterSyncMapping.ToSync(snapshot.GuildRanks));
 
         try
         {
