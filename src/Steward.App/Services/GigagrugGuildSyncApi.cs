@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Steward.Core;
 
 namespace Steward.App.Services;
@@ -26,7 +27,26 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore st
         var (members, statuses, origins) = await client.GetGuildRosterAsync(guildId, ct).ConfigureAwait(false);
         var discord = await client.GetDiscordMembersAsync(guildId, ct).ConfigureAwait(false);
         var icon = await images.LoadAsync(guild?.IconUrl, ct).ConfigureAwait(false);
+        var catalogue = await TryGetCatalogueAsync(me, guildId, ct).ConfigureAwait(false);
 
-        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins };
+        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue };
+    }
+
+    private async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> TryGetCatalogueAsync(AdminMe me, string guildId, CancellationToken ct)
+    {
+        if (!GigagrugClient.EffectiveFeatures(me).Contains(GigagrugClient.SyncFeature))
+        {
+            return new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
+        }
+
+        try
+        {
+            return await client.GetRecipeCatalogueAsync(guildId, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or SessionExpiredException)
+        {
+            // a catalogue fetch failure (404 included) never blocks the roster write; the row stays as it was.
+            return new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
+        }
     }
 }

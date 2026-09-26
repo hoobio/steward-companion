@@ -106,6 +106,12 @@ public static class StewardSyncFile
         entries.Add(new(LuaValue.FromString("statuses"), LuaValue.Array(payload.Statuses.Select(LuaValue.FromString))));
         entries.Add(new(LuaValue.FromString("origins"), LuaValue.Array(payload.Origins.Select(OriginToLua))));
 
+        if (payload.Catalogue.Count > 0)
+        {
+            entries.Add(new(LuaValue.FromString("catalogue"), LuaValue.FromTable(
+                [.. payload.Catalogue.Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(CatalogueRecipeToLua)))) ])));
+        }
+
         return LuaValue.FromTable(entries);
     }
 
@@ -167,6 +173,21 @@ public static class StewardSyncFile
         new LuaEntry(LuaValue.FromString("id"), LuaValue.FromString(member.Id)),
         new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(member.Name)),
         new LuaEntry(LuaValue.FromString("nick"), OrNil(member.Nick)));
+
+    private static LuaValue CatalogueRecipeToLua(CatalogueRecipe recipe) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("recipeId"), OrNilNumber(recipe.RecipeId)),
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(recipe.Name)),
+        new LuaEntry(LuaValue.FromString("header"), OrNil(recipe.Header)),
+        new LuaEntry(LuaValue.FromString("itemId"), OrNilNumber(recipe.ItemId)),
+        new LuaEntry(LuaValue.FromString("tools"), OrNil(recipe.Tools)),
+        new LuaEntry(LuaValue.FromString("reagents"), LuaValue.Array((recipe.Reagents ?? []).Select(ReagentToLua))));
+
+    private static LuaValue ReagentToLua(ProfessionReagent reagent) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("itemId"), OrNilNumber(reagent.ItemId)),
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(reagent.Name)),
+        new LuaEntry(LuaValue.FromString("count"), OrNilNumber(reagent.Count)));
+
+    private static LuaValue OrNilNumber(int? value) => value is null ? LuaValue.Nil : LuaValue.FromNumber(value.Value);
 
     private static LuaValue OrNil(string? value) => value is null ? LuaValue.Nil : LuaValue.FromString(value);
 

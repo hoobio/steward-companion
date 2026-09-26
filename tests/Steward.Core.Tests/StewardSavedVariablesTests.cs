@@ -365,6 +365,82 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void Read_MapsTheCatalogue()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["catalogue"] = {
+            ["Alchemy"] = {
+                ["scannedAt"] = 1758260000,
+                ["list"] = {
+                { ["recipeId"] = 11460, ["name"] = "Major Healing Potion", ["header"] = "Potions", ["itemId"] = 13446,
+                  ["tools"] = "", ["reagents"] = { { ["itemId"] = 13464, ["name"] = "Golden Sansam", ["count"] = 2 } } },
+                },
+            },
+            },
+            }
+            """));
+
+        Assert.Equal(0, snapshot.Skipped);
+        var alchemy = snapshot.Catalogue["Alchemy"];
+        Assert.Equal(1758260000, alchemy.ScannedAt);
+        var recipe = Assert.Single(alchemy.List!);
+        Assert.Equal(11460, recipe.RecipeId);
+        Assert.Equal("Major Healing Potion", recipe.Name);
+        Assert.Equal("Potions", recipe.Header);
+        Assert.Equal(13446, recipe.ItemId);
+        Assert.Equal(string.Empty, recipe.Tools);
+        var reagent = Assert.Single(recipe.Reagents!);
+        Assert.Equal(13464, reagent.ItemId);
+        Assert.Equal("Golden Sansam", reagent.Name);
+        Assert.Equal(2, reagent.Count);
+    }
+
+    [Fact]
+    public void Read_SkipsMalformedCatalogueEntries()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["catalogue"] = {
+            { ["scannedAt"] = 1758260000 }, -- no profession key
+            ["Alchemy"] = {
+                ["list"] = {
+                { ["header"] = "Potions" }, -- missing name
+                },
+            },
+            },
+            }
+            """));
+
+        Assert.Equal(2, snapshot.Skipped);
+        Assert.Empty(snapshot.Catalogue["Alchemy"].List!);
+    }
+
+    [Fact]
+    public void Read_KeepsTheNewestScannedAtCatalogueAcrossFiles()
+    {
+        var older = """
+            StewardDB = {
+            ["catalogue"] = {
+            ["Alchemy"] = { ["scannedAt"] = 1758200000, ["list"] = { { ["name"] = "Minor Healing Potion" } } },
+            },
+            }
+            """;
+        var newer = """
+            StewardDB = {
+            ["catalogue"] = {
+            ["Alchemy"] = { ["scannedAt"] = 1758260000, ["list"] = { { ["name"] = "Major Healing Potion" } } },
+            },
+            }
+            """;
+
+        var snapshot = ReadFiles(("account-a.lua", older), ("account-b.lua", newer));
+
+        var catalogue = Assert.Single(snapshot.Catalogue).Value;
+        Assert.Equal("Major Healing Potion", Assert.Single(catalogue.List!).Name);
+    }
+
+    [Fact]
     public void Read_ReturnsNull_WhenNoFileExists()
     {
         Assert.Null(StewardSavedVariables.Read(_root));

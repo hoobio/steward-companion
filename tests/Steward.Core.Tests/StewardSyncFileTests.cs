@@ -164,6 +164,47 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
+    public void Render_OmitsTheCatalogueKey_WhenThePayloadCarriesNone()
+    {
+        var rendered = StewardSyncFile.Render(SamplePayload());
+
+        Assert.DoesNotContain("catalogue", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Render_ProducesTheCatalogueTable()
+    {
+        var payload = SamplePayload() with
+        {
+            Catalogue = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>
+            {
+                ["Alchemy"] =
+                [
+                    new CatalogueRecipe("Major Healing Potion", 11460, "Potions", 13446, string.Empty,
+                        [new ProfessionReagent("Golden Sansam", 13464, 2)]),
+                ],
+            },
+        };
+        var rendered = StewardSyncFile.Render(payload);
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"];
+
+        var recipe = Assert.Single(table.GetTable("catalogue")!.GetTable("Alchemy")!.Items);
+        Assert.Equal(11460d, recipe.GetNumber("recipeId"));
+        Assert.Equal("Major Healing Potion", recipe.GetString("name"));
+        Assert.Equal("Potions", recipe.GetString("header"));
+        Assert.Equal(13446d, recipe.GetNumber("itemId"));
+        Assert.Equal(string.Empty, recipe.GetString("tools"));
+
+        var reagent = Assert.Single(recipe.GetTable("reagents")!.Items);
+        Assert.Equal(13464d, reagent.GetNumber("itemId"));
+        Assert.Equal("Golden Sansam", reagent.GetString("name"));
+        Assert.Equal(2d, reagent.GetNumber("count"));
+    }
+
+    [Fact]
     public void Write_CreatesTheSyncFile_WhenTheAddonIsInstalled()
     {
         var addOnsPath = InstallAddon();

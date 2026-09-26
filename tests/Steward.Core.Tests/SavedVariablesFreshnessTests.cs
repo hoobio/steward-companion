@@ -9,7 +9,7 @@ public sealed class SavedVariablesFreshnessTests
         var files = fileWriteTimes
             .Select(time => new SavedVariablesFile("account.lua", time, exportedAt, null))
             .ToList();
-        return new SavedVariablesSnapshot(files, exportedAt, [], [], [], 0, [], null, new Dictionary<string, CharacterProfessions>());
+        return new SavedVariablesSnapshot(files, exportedAt, [], [], [], 0, [], null, new Dictionary<string, CharacterProfessions>(), new Dictionary<string, ProfessionCatalogue>());
     }
 
     [Fact]
@@ -21,7 +21,7 @@ public sealed class SavedVariablesFreshnessTests
     [Fact]
     public void Judge_ReturnsNoData_WhenSnapshotHasNoFiles()
     {
-        var snapshot = new SavedVariablesSnapshot([], null, [], [], [], 0, [], null, new Dictionary<string, CharacterProfessions>());
+        var snapshot = new SavedVariablesSnapshot([], null, [], [], [], 0, [], null, new Dictionary<string, CharacterProfessions>(), new Dictionary<string, ProfessionCatalogue>());
 
         Assert.Equal(Freshness.NoData, SavedVariablesFreshness.Judge(snapshot, null));
     }
@@ -87,7 +87,8 @@ public sealed class SavedVariablesFreshnessTests
             0,
             [],
             null,
-            new Dictionary<string, CharacterProfessions>());
+            new Dictionary<string, CharacterProfessions>(),
+            new Dictionary<string, ProfessionCatalogue>());
 
         Assert.Equal(newest, SavedVariablesFreshness.LastWrite(snapshot));
     }
@@ -95,7 +96,7 @@ public sealed class SavedVariablesFreshnessTests
     [Fact]
     public void LastWrite_ReturnsNull_WhenNoFiles()
     {
-        var snapshot = new SavedVariablesSnapshot([], null, [], [], [], 0, [], null, new Dictionary<string, CharacterProfessions>());
+        var snapshot = new SavedVariablesSnapshot([], null, [], [], [], 0, [], null, new Dictionary<string, CharacterProfessions>(), new Dictionary<string, ProfessionCatalogue>());
 
         Assert.Null(SavedVariablesFreshness.LastWrite(snapshot));
     }

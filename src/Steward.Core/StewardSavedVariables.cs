@@ -56,6 +56,7 @@ public static class StewardSavedVariables
         var attendance = new List<(string Id, DateTimeOffset Rank, AttendanceRecord Item)>();
         var characters = new List<(string Id, DateTimeOffset Rank, CharacterObservation Item)>();
         var professions = new List<(string Id, DateTimeOffset Rank, CharacterProfessions Item)>();
+        var catalogue = new List<(string Id, DateTimeOffset Rank, ProfessionCatalogue Item)>();
         var characterFingerprintSource = new StringBuilder();
         var skipped = 0;
 
@@ -81,6 +82,8 @@ public static class StewardSavedVariables
                     .Select(c => (c.CharacterGuid, c.ObservedAt ?? DateTimeOffset.MinValue, c)));
                 professions.AddRange(MapProfessionsByGuid(account.GetTable("professions"), ref skipped)
                     .Select(p => (p.Guid, p.Professions.ObservedAt is { } observedAt ? DateTimeOffset.FromUnixTimeSeconds(observedAt) : DateTimeOffset.MinValue, p.Professions)));
+                catalogue.AddRange(MapCatalogueByProfession(account.GetTable("catalogue"), ref skipped)
+                    .Select(c => (c.Profession, c.Catalogue.ScannedAt is { } scannedAt ? DateTimeOffset.FromUnixTimeSeconds(scannedAt) : DateTimeOffset.MinValue, c.Catalogue)));
                 characterFingerprintSource.Append(text);
             }
 
@@ -97,7 +100,8 @@ public static class StewardSavedVariables
             skipped,
             Dedupe(characters),
             characterFingerprintSource.Length == 0 ? null : Fingerprint(characterFingerprintSource.ToString()),
-            DedupeByKey(professions));
+            DedupeByKey(professions),
+            DedupeByKey(catalogue));
     }
 
     private static Dictionary<string, T> DedupeByKey<T>(List<(string Id, DateTimeOffset Rank, T Item)> records) =>
@@ -407,6 +411,69 @@ public static class StewardSavedVariables
         }
 
         return new ProfessionReagent(name, ToNullableInt(value.GetNumber("itemId")), ToNullableInt(value.GetNumber("count")));
+    }
+
+    private static List<(string Profession, ProfessionCatalogue Catalogue)> MapCatalogueByProfession(LuaValue? table, ref int skipped)
+    {
+        var mapped = new List<(string, ProfessionCatalogue)>();
+        foreach (var entry in table?.Table ?? [])
+        {
+            if (entry.Key is { Kind: LuaKind.Text } key && entry.Value.Kind is LuaKind.Table)
+            {
+                mapped.Add((key.Text!, MapCatalogue(entry.Value, ref skipped)));
+            }
+            else
+            {
+                skipped++;
+            }
+        }
+
+        return mapped;
+    }
+
+    private static ProfessionCatalogue MapCatalogue(LuaValue value, ref int skipped) => new(
+        ToNullableLong(value.GetNumber("scannedAt")),
+        MapCatalogueRecipeList(value.GetTable("list"), ref skipped));
+
+    private static List<CatalogueRecipe>? MapCatalogueRecipeList(LuaValue? table, ref int skipped)
+    {
+        if (table is null)
+        {
+            return null;
+        }
+
+        var mapped = new List<CatalogueRecipe>();
+        foreach (var entry in table.Items)
+        {
+            var recipe = entry.Kind is LuaKind.Table ? MapCatalogueRecipe(entry, ref skipped) : null;
+            if (recipe is null)
+            {
+                skipped++;
+            }
+            else
+            {
+                mapped.Add(recipe);
+            }
+        }
+
+        return mapped;
+    }
+
+    private static CatalogueRecipe? MapCatalogueRecipe(LuaValue value, ref int skipped)
+    {
+        var name = value.GetString("name");
+        if (name is null)
+        {
+            return null;
+        }
+
+        return new CatalogueRecipe(
+            name,
+            ToNullableInt(value.GetNumber("recipeId")),
+            value.GetString("header"),
+            ToNullableInt(value.GetNumber("itemId")),
+            value.GetString("tools"),
+            MapReagents(value.GetTable("reagents"), ref skipped));
     }
 
     private static int? ToNullableInt(double? value) => value is null ? null : (int)value.Value;

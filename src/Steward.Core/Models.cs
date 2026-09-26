@@ -174,4 +174,5 @@ public sealed record AppState(
 [JsonSerializable(typeof(RestedXpSession))]
 [JsonSerializable(typeof(RestedXpTokenResponse))]
 [JsonSerializable(typeof(RestedXpTimestamps))]
+[JsonSerializable(typeof(RecipeCatalogueResponse))]
 public sealed partial class CompanionJsonContext : JsonSerializerContext;

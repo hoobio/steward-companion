@@ -85,7 +85,8 @@ public sealed record SavedVariablesSnapshot(
     int Skipped,
     IReadOnlyList<CharacterObservation> Characters,
     string? CharactersFingerprint,
-    IReadOnlyDictionary<string, CharacterProfessions> Professions);
+    IReadOnlyDictionary<string, CharacterProfessions> Professions,
+    IReadOnlyDictionary<string, ProfessionCatalogue> Catalogue);
 
 public sealed record CharacterObservation(
     string CharacterGuid,
@@ -148,7 +149,23 @@ public sealed record ProfessionReagent(
 public sealed record CharacterSyncRequest(
     [property: JsonPropertyName("batchId")] string BatchId,
     [property: JsonPropertyName("appVersion")] string AppVersion,
-    [property: JsonPropertyName("characters")] IReadOnlyList<CharacterSyncEntry> Characters);
+    [property: JsonPropertyName("characters")] IReadOnlyList<CharacterSyncEntry> Characters,
+    [property: JsonPropertyName("catalogue"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, ProfessionCatalogue>? Catalogue = null);
+
+public sealed record ProfessionCatalogue(
+    [property: JsonPropertyName("scannedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ScannedAt,
+    [property: JsonPropertyName("list"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<CatalogueRecipe>? List);
+
+public sealed record CatalogueRecipe(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("recipeId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RecipeId,
+    [property: JsonPropertyName("header"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Header,
+    [property: JsonPropertyName("itemId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? ItemId,
+    [property: JsonPropertyName("tools"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Tools,
+    [property: JsonPropertyName("reagents"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionReagent>? Reagents);
+
+public sealed record RecipeCatalogueResponse(
+    [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> Catalogue);
 
 public sealed record CharacterSyncRejection(
     [property: JsonPropertyName("guid")] string CharacterGuid,
@@ -216,6 +233,8 @@ public sealed record SyncPayload(
     public AvatarImage? Avatar { get; init; }
 
     public IReadOnlyList<OriginDef> Origins { get; init; } = [];
+
+    public IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> Catalogue { get; init; } = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
 }
 
 public sealed record SyncServerState(

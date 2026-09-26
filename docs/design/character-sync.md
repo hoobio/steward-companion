@@ -75,6 +75,48 @@ A roster row is only visible with a `name` (`roster.py:284-288`), and `roster_se
 
 The SPA roster build line shows `<name> (<level>)` of the person's current character in the selected scope whose class matches the primary sign-up class, else the highest level, ties to the latest `last_online`.
 
+## Professions
+
+The logged-in character's own professions and known recipes, readable only from that character's client, so a push covers the characters of the account that pushes.
+
+The addon writes `StewardDB.professions[guid]` for the logged-in character, in the account file beside `characters`:
+
+```lua
+["professions"] = {
+  ["Player-4395-0A1B2C3D"] = {
+    ["observedAt"] = 1758260000,
+    ["skills"] = {
+      { ["name"] = "Alchemy", ["rank"] = 285, ["maxRank"] = 300, ["secondary"] = false },
+      { ["name"] = "Cooking", ["rank"] = 150, ["maxRank"] = 225, ["secondary"] = true },
+    },
+    ["recipes"] = {
+      ["Alchemy"] = {
+        ["scannedAt"] = 1758260000,
+        ["list"] = {
+          { ["name"] = "Major Healing Potion", ["header"] = "Potions", ["difficulty"] = "optimal", ["itemId"] = 13446,
+            ["tools"] = "", ["reagents"] = { { ["itemId"] = 13464, ["name"] = "Golden Sansam", ["count"] = 2 } } },
+        },
+      },
+    },
+  },
+}
+```
+
+- The Forever client has no Classic tradeskill globals (`GetTradeSkillInfo` and the rest are absent from `D:\wow-ui-source` at `bd2470a`); professions run on the retail-style `C_TradeSkillUI`, whose recipe data arrives from the server only when a profession's window opens (`TRADE_SKILL_SHOW`, `TRADE_SKILL_LIST_UPDATE`). A recipe list is therefore captured the first time each profession's window opens and refreshed on every later opening; an addon cannot open the window itself (`OpenTradeSkill` is `AllowedWhenUntainted`).
+- `skills` is read without a window, on login and whenever skill ranks change, from whatever the client's API offers for the character's professions and secondary skills; `secondary` marks a secondary skill.
+- `recipes[profession]` is replaced whole on each capture and holds learned recipes only, each also carrying its `recipeId` (spell id). A profession never opened has no entry. `difficulty` is the recipe's relative difficulty: `optimal`, `medium`, `easy` or `trivial`. Every field comes from APIs verified present in `D:\wow-ui-source`; a field the client cannot supply is omitted rather than guessed.
+- The app sends a character's `professions` object (same shape, camelCase) on that character's record in the sync batch.
+- gigagrug stores it as `professions_json` on the observation, validated for shape and bounds (rank at most maxRank, maxRank at most 375, at most 1000 recipes per profession, counts 1-100). The current professions are the latest non-voided observation carrying `professions_json`, independent of the latest roster observation, as links are.
+
+## Recipe catalogue
+
+Verified in game on 26 Sep 2026: once a profession's window has opened, `C_TradeSkillUI.GetAllRecipeIDs()` lists every recipe of that profession, learned or not (32 for First Aid); `IsPlayerSpell(recipeId)` answers `true` for a learned recipe after a `/reload` with no window opened; recipe ids are Forever's own (`1230117` First Aid Kit), and Forever moves recipes between professions (Minor Healing Potion is First Aid), so no Classic data applies. Known recipes are therefore detected without a window against a catalogue the guild builds itself.
+
+- The addon writes `StewardDB.catalogue[profession] = { ["scannedAt"], ["list"] = { recipe, ... } }` whenever a profession's window data arrives: every recipe `GetAllRecipeIDs` returns, learned or not, in the recipe shape above minus `difficulty`.
+- The app sends each install's catalogue as a top-level `catalogue` object on the sync batch. gigagrug keeps one row per `(guild_id, profession, recipe_id)`, replaced by a newer `scannedAt`, and serves it at `GET /api/admin/{guild_id}/recipes/catalogue` (flag-gated) as `{catalogue: {<profession>: [recipe, ...]}}`.
+- The app writes that catalogue into `StewardSync.lua` as `["catalogue"]`, only while `sync` is held.
+- At login the addon unions the synced and local catalogues and, for each profession the character has (`GetProfessions`), lists as known every recipe where `IsPlayerSpell(recipeId)` is true, writing `professions[guid].recipes[profession]` with `difficulty` omitted. A window capture of the same profession replaces it with the richer list, `difficulty` included.
+
 ## Merge rules
 
 - The newest `observed_at` wins per character; absence from a push never deletes.

@@ -158,6 +158,31 @@ public sealed class GigagrugClient
     public static bool IsAuthorizing(IReadOnlySet<string> features) =>
         AllFeatures.Any(features.Contains);
 
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> GetRecipeCatalogueAsync(
+        string guildId, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .GetAsync($"{_baseUrl}/api/admin/{guildId}/recipes/catalogue", cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"GET /api/admin/{guildId}/recipes/catalogue returned {(int)response.StatusCode} {response.StatusCode}");
+        }
+
+        var body = await response.Content
+            .ReadFromJsonAsync(CompanionJsonContext.Default.RecipeCatalogueResponse, cancellationToken)
+            .ConfigureAwait(false);
+
+        return body?.Catalogue ?? new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
+    }
+
     public async Task<CharacterSyncResponse> PostCharacterSyncAsync(
         string guildId, CharacterSyncRequest batch, CancellationToken cancellationToken)
     {

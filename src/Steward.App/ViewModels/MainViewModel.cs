@@ -976,7 +976,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var request = new CharacterSyncRequest(
             batchId,
             InstalledVersion,
-            [.. snapshot!.Characters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot.Professions))]);
+            [.. snapshot!.Characters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot.Professions))],
+            snapshot.Catalogue.Count == 0 ? null : snapshot.Catalogue);
 
         try
         {

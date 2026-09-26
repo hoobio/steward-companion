@@ -149,7 +149,7 @@ public sealed class InMemoryGuildSyncApi : IGuildSyncApi
             new(SampleCharacterFile, SampleExportedAt, SampleExportedAt, "Hoobi"),
         };
 
-        return new SavedVariablesSnapshot(files, SampleExportedAt, roster, loot, attendance, 0, [], null, new Dictionary<string, CharacterProfessions>());
+        return new SavedVariablesSnapshot(files, SampleExportedAt, roster, loot, attendance, 0, [], null, new Dictionary<string, CharacterProfessions>(), new Dictionary<string, ProfessionCatalogue>());
     }
 
     private int ServerCount(string dataset, int localCount) =>
