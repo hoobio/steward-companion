@@ -400,7 +400,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string StatePath => Path.Combine(DataFolder, "state.json");
 
     public string AboutDescription =>
-        $"{VersionLabel}, installed to {DataFolder}{(AppUpdate is null ? "" : App.IsPackaged ? ", an update is available" : $", {AppUpdate.Version.TrimStart('v')} available")}{(IsLatestConfirmed && AppUpdate is null ? ", up to date" : "")}";
+        $"{VersionLabel}, installed to {App.DisplayDataFolder(DataFolder)}{(AppUpdate is null ? "" : App.IsPackaged ? ", an update is available" : $", {AppUpdate.Version.TrimStart('v')} available")}{(IsLatestConfirmed && AppUpdate is null ? ", up to date" : "")}";
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
@@ -531,6 +531,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsBusy = true;
         try
         {
+            UpdateStoreAppInstalledState();
+
             if (await RecheckAuthorizationAsync(cancellationToken).ConfigureAwait(true)
                 is AuthCheckResult.SessionExpired or AuthCheckResult.NotAuthorized)
             {
@@ -656,6 +658,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsBusy = true;
         try
         {
+            UpdateStoreAppInstalledState();
+
             if (await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true)
                 is AuthCheckResult.SessionExpired or AuthCheckResult.NotAuthorized)
             {
@@ -687,11 +691,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 IsLatestConfirmed = false;
             }
-
-            if (!App.IsPackaged)
-            {
-                IsStoreAppInstalled = new PackageManager().FindPackagesForUser(string.Empty, App.PackageFamilyName).Any();
-            }
         }
         catch (GitHubRateLimitedException ex)
         {
@@ -703,13 +702,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void UpdateStoreAppInstalledState()
+    {
+        if (!App.IsPackaged)
+        {
+            IsStoreAppInstalled = new PackageManager().FindPackagesForUser(string.Empty, App.PackageFamilyName).Any();
+        }
+    }
+
     private async Task<AddonRelease?> CheckStoreUpdateAsync()
     {
         _lastStoreCheck = DateTimeOffset.Now;
-        var context = StoreContext.GetDefault();
-        WinRT.Interop.InitializeWithWindow.Initialize(context, OwnerWindowHandle);
-        var updates = await context.GetAppAndOptionalStorePackageUpdatesAsync();
-        return updates.Count == 0 ? null : new AddonRelease(string.Empty, _appUpdater.StoreListingUri.OriginalString, string.Empty, 0, DateTimeOffset.Now);
+        try
+        {
+            var context = StoreContext.GetDefault();
+            WinRT.Interop.InitializeWithWindow.Initialize(context, OwnerWindowHandle);
+            var updates = await context.GetAppAndOptionalStorePackageUpdatesAsync();
+            return updates.Count == 0 ? null : new AddonRelease(string.Empty, _appUpdater.StoreListingUri.OriginalString, string.Empty, 0, DateTimeOffset.Now);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Could not check the Microsoft Store for an update: {ex.Message}";
+            return null;
+        }
     }
 
     [RelayCommand]
@@ -745,9 +760,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             StartWithWindows = state is StartupTaskState.Enabled or StartupTaskState.EnabledByPolicy;
             _isLoadingState = false;
             CanStartWithWindows = state is StartupTaskState.Enabled or StartupTaskState.Disabled;
-            StartWithWindowsDescription = CanStartWithWindows
-                ? "Starts Steward in the tray when you sign in to Windows"
-                : "Turned off in Windows Settings, under Apps > Startup";
+            StartWithWindowsDescription = state switch
+            {
+                StartupTaskState.EnabledByPolicy => "Turned on by your organisation's policy",
+                StartupTaskState.DisabledByPolicy => "Turned off by your organisation's policy",
+                StartupTaskState.DisabledByUser => "Turned off in Windows Settings > Apps > Startup",
+                _ => "Starts Steward in the tray when you sign in to Windows",
+            };
         }
         catch (COMException ex)
         {
@@ -1149,6 +1168,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isChecking = true;
         try
         {
+            UpdateStoreAppInstalledState();
+
             var result = await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
             if (result == AuthCheckResult.Authorized)
             {

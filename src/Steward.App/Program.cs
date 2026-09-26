@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Threading;
 
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -10,6 +11,12 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        using var instanceLock = new Mutex(initiallyOwned: true, "Local\\Steward.App", out var createdNew);
+        if (!createdNew)
+        {
+            return 0;
+        }
+
         ComWrappersSupport.InitializeComWrappers();
 
         Application.Start(_ =>

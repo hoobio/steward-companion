@@ -161,8 +161,6 @@ jobs:
 
   build-msix:
     name: Build MSIX
-    # Store submission is release-only, but the msixupload is built on every push to main so a
-    # release can attach it without an extra build; store-submit is what actually gates on a release.
     needs: [release-please]
     if: always() && github.event_name == 'push' && needs.release-please.result != 'failure'
     runs-on: windows-latest
@@ -181,15 +179,8 @@ jobs:
       - name: Read version
         id: version
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_CREATED: ${{ needs.release-please.outputs.release_created }}
         run: |
           $ver = (Get-Content version.txt -Raw).Trim()
-          if ($env:RELEASE_CREATED -ne 'true') {
-            $title = gh pr list --head release-please--branches--main --state open --json title --jq '.[0].title // empty'
-            if ($title -match 'release (\d+\.\d+\.\d+)') { $ver = $Matches[1] }
-          }
           "version=$ver" | Out-File -Append $env:GITHUB_OUTPUT
 
       - name: Stamp Package.appxmanifest version
@@ -199,6 +190,8 @@ jobs:
           version: ${{ steps.version.outputs.version }}
 
       - name: Build MSIX
+        id: build-msix
+        continue-on-error: true
         uses: hoobio/pipeline-tools/pipeline/github/step/build-msix-dotnet@v2.3.1
         env:
           GitHubRelease: 'true'
@@ -207,9 +200,16 @@ jobs:
           platform: x64
           output-dir: ${{ github.workspace }}\AppPackages
 
-      # build-msix-dotnet's `dotnet publish` produces a bare .msix; the Store rejects that and
-      # needs an app package upload file, built here by the documented manual method (zip the
-      # .msix, rename to .msixupload) rather than a second publish in StoreUpload mode.
+      - name: Build MSIX (retry)
+        if: steps.build-msix.outcome == 'failure'
+        uses: hoobio/pipeline-tools/pipeline/github/step/build-msix-dotnet@v2.3.1
+        env:
+          GitHubRelease: 'true'
+        with:
+          project-path: ${{ env.PROJECT_PATH }}
+          platform: x64
+          output-dir: ${{ github.workspace }}\AppPackages
+
       - name: Package msixupload
         shell: pwsh
         env:
@@ -291,14 +291,16 @@ jobs:
 
   store-submit:
     name: Publish to Microsoft Store
-    # Real releases only: the Store never sees a pre-release. msstore recreates the pending
-    # submission from the live one, uploads the package, then commits it.
     needs: [release-please, build-msix, release]
     if: >-
       always()
       && needs.release-please.outputs.release_created == 'true'
       && needs.build-msix.result == 'success'
       && needs.release.result == 'success'
+      && secrets.AZURE_TENANT_ID != ''
+      && secrets.SELLER_ID != ''
+      && secrets.AZURE_AD_CLIENT_ID != ''
+      && secrets.AZURE_AD_CLIENT_SECRET != ''
     runs-on: windows-latest
     env:
       STORE_PRODUCT_ID: 9PBKMZFKZHKX
@@ -322,6 +324,7 @@ jobs:
             --sellerId     '${{ secrets.SELLER_ID }}' `
             --clientId     '${{ secrets.AZURE_AD_CLIENT_ID }}' `
             --clientSecret '${{ secrets.AZURE_AD_CLIENT_SECRET }}'
+          if ($LASTEXITCODE -ne 0) { throw "msstore reconfigure failed ($LASTEXITCODE)" }
 
       - name: Publish package + release notes to Store
         shell: pwsh
@@ -334,29 +337,27 @@ jobs:
           $package = (Get-ChildItem package -Filter *.msixupload | Select-Object -First 1).FullName
           if (-not $package) { throw 'No .msixupload artifact found' }
 
-          # Clear any leftover pending draft so publish starts from the live submission.
           msstore submission delete $env:PRODUCT_ID --no-confirm 2>$null
           $global:LASTEXITCODE = 0
 
-          # Clone the live submission, upload the package, hold the commit.
           msstore publish $package -id $env:PRODUCT_ID --noCommit
           if ($LASTEXITCODE -ne 0) { throw "msstore publish failed ($LASTEXITCODE)" }
 
           $whatsNew = Get-StoreWhatsNew -ChangelogPath "$env:GITHUB_WORKSPACE\CHANGELOG.md" -Version $env:VERSION
-          if ($whatsNew) {
-            $out = msstore submission get $env:PRODUCT_ID | Out-String
-            $s = $out.IndexOf('{'); $e = $out.LastIndexOf('}')
-            if ($s -lt 0 -or $e -le $s) { throw 'Could not parse submission JSON from msstore output' }
-            $sub = $out.Substring($s, $e - $s + 1) | ConvertFrom-Json
 
-            foreach ($listing in $sub.Listings.PSObject.Properties) {
-              $listing.Value.BaseListing.ReleaseNotes = $whatsNew
-            }
+          $out = msstore submission get $env:PRODUCT_ID | Out-String
+          if ($LASTEXITCODE -ne 0) { throw "submission get failed ($LASTEXITCODE)" }
+          $s = $out.IndexOf('{'); $e = $out.LastIndexOf('}')
+          if ($s -lt 0 -or $e -le $s) { throw 'Could not parse submission JSON from msstore output' }
+          $sub = $out.Substring($s, $e - $s + 1) | ConvertFrom-Json
 
-            $sub | ConvertTo-Json -Depth 100 | Set-Content -Path patched.json -Encoding utf8
-            msstore submission updateMetadata $env:PRODUCT_ID (Get-Content -Raw patched.json)
-            if ($LASTEXITCODE -ne 0) { throw "updateMetadata failed ($LASTEXITCODE)" }
+          foreach ($listing in $sub.Listings.PSObject.Properties) {
+            $listing.Value.BaseListing | Add-Member -NotePropertyName ReleaseNotes -NotePropertyValue $whatsNew -Force
           }
+
+          $sub | ConvertTo-Json -Depth 100 | Set-Content -Path patched.json -Encoding utf8
+          msstore submission updateMetadata $env:PRODUCT_ID (Get-Content -Raw patched.json)
+          if ($LASTEXITCODE -ne 0) { throw "updateMetadata failed ($LASTEXITCODE)" }
 
           msstore submission publish $env:PRODUCT_ID
           if ($LASTEXITCODE -ne 0) { throw "submission publish failed ($LASTEXITCODE)" }

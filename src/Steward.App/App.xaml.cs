@@ -28,6 +28,17 @@ public partial class App : Application
 
     public static readonly bool IsPackaged = ResolveIsPackaged();
 
+    public static string DisplayDataFolder(string realDataFolder)
+    {
+        if (!IsPackaged)
+        {
+            return realDataFolder;
+        }
+
+        var virtualised = Path.Combine(Windows.Storage.ApplicationData.Current.LocalCacheFolder.Path, "Local", "Steward");
+        return Directory.Exists(virtualised) ? virtualised : realDataFolder;
+    }
+
     private IHost? _host;
     private MainWindow? _window;
 

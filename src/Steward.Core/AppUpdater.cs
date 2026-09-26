@@ -86,21 +86,38 @@ public sealed class AppUpdater(HttpClient httpClient, string manifestBaseUrl, st
         return msiPath;
     }
 
-    public static void InstallAfterExit(string msiPath, string logPath) => RunAfterExit($"""
-        Start-Process msiexec.exe -ArgumentList '/i', '"{msiPath}"', '/qn', '/l*v', '"{logPath}"' -Wait
-        Remove-Item -LiteralPath '{msiPath}' -ErrorAction SilentlyContinue
-        """);
+    private static string EscapeSingleQuoted(string value) => value.Replace("'", "''");
+
+    public static void InstallAfterExit(string msiPath, string logPath) => RunAfterExit(InstallScript(msiPath, logPath));
+
+    public static string InstallScript(string msiPath, string logPath)
+    {
+        var escapedMsiPath = EscapeSingleQuoted(msiPath);
+        var escapedLogPath = EscapeSingleQuoted(logPath);
+        return $$"""
+            $exitCode = (Start-Process msiexec.exe -ArgumentList '/i', '"{{escapedMsiPath}}"', '/qn', '/l*v', '"{{escapedLogPath}}"' -PassThru -Wait).ExitCode
+            if ($exitCode -ne 0 -and $exitCode -ne 3010) { exit $exitCode }
+            Remove-Item -LiteralPath '{{escapedMsiPath}}' -ErrorAction SilentlyContinue
+            """;
+    }
 
     public static void SwitchToStoreAfterExit(string upgradeCode, string logPath, string appUserModelId) =>
         RunAfterExit(SwitchToStoreScript(upgradeCode, logPath, appUserModelId));
 
-    public static string SwitchToStoreScript(string upgradeCode, string logPath, string appUserModelId) => $$"""
-        foreach ($productCode in (New-Object -ComObject WindowsInstaller.Installer).RelatedProducts('{{upgradeCode}}')) {
-            Start-Process msiexec.exe -ArgumentList '/x', $productCode, '/qn', '/l*v', '"{{logPath}}"' -Wait
-        }
-        Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'Steward' -ErrorAction SilentlyContinue
-        Start-Process explorer.exe -ArgumentList 'shell:AppsFolder\{{appUserModelId}}'
-        """;
+    public static string SwitchToStoreScript(string upgradeCode, string logPath, string appUserModelId)
+    {
+        var escapedUpgradeCode = EscapeSingleQuoted(upgradeCode);
+        var escapedLogPath = EscapeSingleQuoted(logPath);
+        var escapedAppUserModelId = EscapeSingleQuoted(appUserModelId);
+        return $$"""
+            foreach ($productCode in (New-Object -ComObject WindowsInstaller.Installer).RelatedProducts('{{escapedUpgradeCode}}')) {
+                $exitCode = (Start-Process msiexec.exe -ArgumentList '/x', $productCode, '/qn', '/l*v', '"{{escapedLogPath}}"' -PassThru -Wait).ExitCode
+                if ($exitCode -ne 0 -and $exitCode -ne 3010) { exit $exitCode }
+            }
+            Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'Steward' -ErrorAction SilentlyContinue
+            Start-Process explorer.exe -ArgumentList 'shell:AppsFolder\{{escapedAppUserModelId}}'
+            """;
+    }
 
     private static void RunAfterExit(string body)
     {

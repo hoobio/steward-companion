@@ -48,7 +48,7 @@ public sealed partial class SettingsPage : Page
         if (ViewModel is { } viewModel)
         {
             Directory.CreateDirectory(viewModel.DataFolder);
-            Open(viewModel.DataFolder);
+            Open(App.DisplayDataFolder(viewModel.DataFolder));
         }
     }
 }
