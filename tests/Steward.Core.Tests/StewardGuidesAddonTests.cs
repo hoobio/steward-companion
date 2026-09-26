@@ -67,6 +67,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
         Assert.Contains("StewardGuidesDB.status[hash] = message", lua, StringComparison.Ordinal);
         Assert.Contains("local _, tag = BNGetInfo()", lua, StringComparison.Ordinal);
         Assert.Contains("bought on \" .. guide.tag .. \", you are \" .. playerTag .. \"; not imported", lua, StringComparison.Ordinal);
+        Assert.Contains("C_ChatInfo.SendAddonMessage(\"HoobiVersion\", addonName .. \"=\"", lua, StringComparison.Ordinal);
     }
 
     [Theory]

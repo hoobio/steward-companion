@@ -153,6 +153,15 @@ public static partial class StewardGuidesAddon
             end)
         end)
 
+        local addonName = ...
+        C_ChatInfo.RegisterAddonMessagePrefix("HoobiVersion")
+        local versionFrame = CreateFrame("Frame")
+        versionFrame:RegisterEvent("CHAT_MSG_ADDON")
+        versionFrame:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
+            if prefix ~= "HoobiVersion" or text ~= "ping" then return end
+            C_ChatInfo.SendAddonMessage("HoobiVersion", addonName .. "=" .. (C_AddOns.GetAddOnMetadata(addonName, "Version") or "?"), "WHISPER", sender)
+        end)
+
         """;
 
     public static string Toc(string interfaceNumbers) => string.Join('\n',
