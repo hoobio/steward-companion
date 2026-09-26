@@ -114,7 +114,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isLoadingState = true;
         MinimizeToTray = state.MinimizeToTray;
         CloseToTray = state.CloseToTray;
-        AppChannelIndex = state.AppChannel == "pre-release" ? 1 : 0;
         AutoUpdateIndex = AppStateStore.ParseAutoUpdate(state.AutoUpdate) switch
         {
             AutoUpdateMode.Always => 0,
@@ -220,9 +219,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         : "Only available in a released build";
 
     [ObservableProperty]
-    public partial int AppChannelIndex { get; set; }
-
-    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AutoUpdateDescription))]
     public partial int AutoUpdateIndex { get; set; }
 
@@ -257,18 +253,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial Uri? AvatarUri { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AppUpdateVisibility), nameof(AppUpdateTitle), nameof(AppUpdateChangelogUri), nameof(AboutDescription), nameof(AboutActionLabel))]
+    [NotifyPropertyChangedFor(nameof(AppUpdateVisibility), nameof(AppUpdateChangelogUri), nameof(AboutDescription), nameof(AboutActionLabel))]
     [NotifyCanExecuteChangedFor(nameof(InstallAppUpdateCommand))]
     public partial AddonRelease? AppUpdate { get; set; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AppUpdateActionLabel))]
-    [NotifyCanExecuteChangedFor(nameof(InstallAppUpdateCommand))]
-    public partial bool IsInstallingAppUpdate { get; set; }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AppUpdateActionLabel))]
-    public partial double AppUpdateProgress { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AboutDescription), nameof(AboutActionLabel))]
@@ -280,23 +267,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility AppUpdateVisibility => When(AppUpdate is not null);
 
-    public string AppUpdateTitle => App.IsPackaged
-        ? "A Steward update is available in the Microsoft Store"
-        : $"Steward {AppUpdate?.Version.TrimStart('v')} is available";
+#pragma warning disable CA1822 // x:Bind resolves these through a ViewModel instance
+    public string AppUpdateTitle => "A Steward update is available in the Microsoft Store";
 
-    public string AppUpdateActionLabel => App.IsPackaged ? "Open the Store"
-        : IsInstallingAppUpdate ? $"Downloading {AppUpdateProgress:P0}" : "Install and restart";
+    public string AppUpdateActionLabel => "Open the Store";
+#pragma warning restore CA1822
 
     public Uri? AppUpdateChangelogUri => AppUpdate is null ? null
-        : new Uri(App.IsPackaged ? "https://github.com/hoobio/steward-companion/releases/latest" : $"https://github.com/hoobio/steward-companion/releases/tag/{AppUpdate.Version}");
+        : new Uri("https://github.com/hoobio/steward-companion/releases/latest");
 
     public Visibility StoreListingVisibility => When(IsStoreAppInstalled == false);
 
     public Visibility StoreSwitchVisibility => When(IsStoreAppInstalled == true);
 
     public string AboutActionLabel => IsCheckingAppUpdate ? "Checking" : AppUpdate is null ? "Check for a new version" : "Install update";
-
-    private string AppChannel => AppChannelIndex == 1 ? "pre-release" : "release";
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["release", "pre-release"];
 
@@ -423,7 +407,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string StatePath => Path.Combine(DataFolder, "state.json");
 
     public string AboutDescription =>
-        $"{VersionLabel}, installed to {App.DisplayDataFolder(DataFolder)}{(AppUpdate is null ? "" : App.IsPackaged ? ", an update is available" : $", {AppUpdate.Version.TrimStart('v')} available")}{(IsLatestConfirmed && AppUpdate is null ? ", up to date" : "")}";
+        $"{VersionLabel}, installed to {App.DisplayDataFolder(DataFolder)}{(AppUpdate is null ? "" : ", an update is available")}{(IsLatestConfirmed && AppUpdate is null ? ", up to date" : "")}";
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
@@ -577,7 +561,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
-            await CheckAppUpdateAsync(cancellationToken).ConfigureAwait(true);
+            await CheckAppUpdateAsync().ConfigureAwait(true);
             await CheckGuidesAsync().ConfigureAwait(true);
 
             StartRecheckTimer();
@@ -693,7 +677,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
-            await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
+            await CheckAppUpdateAsync().ConfigureAwait(true);
             await CheckGuidesAsync().ConfigureAwait(true);
         }
         finally
@@ -703,23 +687,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task CheckAppUpdateAsync(CancellationToken cancellationToken)
+    private async Task CheckAppUpdateAsync()
     {
-        try
+        AppUpdate = App.IsPackaged && App.IsGitHubRelease
+            ? await CheckStoreUpdateAsync().ConfigureAwait(true)
+            : null;
+        if (AppUpdate is not null)
         {
-            AppUpdate = App.IsPackaged
-                ? App.IsGitHubRelease ? await CheckStoreUpdateAsync().ConfigureAwait(true) : null
-                : await _appUpdater
-                    .CheckAsync(typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0), InstalledVersion, AppChannel, cancellationToken)
-                    .ConfigureAwait(true);
-            if (AppUpdate is not null)
-            {
-                IsLatestConfirmed = false;
-            }
-        }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException or COMException)
-        {
-            StatusMessage = $"Could not check for a Steward update: {ex.Message}";
+            IsLatestConfirmed = false;
         }
     }
 
@@ -806,7 +781,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (AppUpdate is not null)
         {
-            await InstallAppUpdateAsync().ConfigureAwait(true);
+            InstallAppUpdate();
             return;
         }
 
@@ -818,7 +793,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsCheckingAppUpdate = true;
         try
         {
-            await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
+            await CheckAppUpdateAsync().ConfigureAwait(true);
             IsLatestConfirmed = AppUpdate is null;
         }
         finally
@@ -827,35 +802,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private bool CanInstallAppUpdate => AppUpdate is not null && !IsInstallingAppUpdate;
+    private bool CanInstallAppUpdate => AppUpdate is not null;
 
     [RelayCommand(CanExecute = nameof(CanInstallAppUpdate))]
-    private async Task InstallAppUpdateAsync()
+    private void InstallAppUpdate()
     {
-        if (AppUpdate is not { } release)
-        {
-            return;
-        }
-
-        if (App.IsPackaged)
+        if (AppUpdate is not null)
         {
             OpenStoreListing();
-            return;
-        }
-
-        IsInstallingAppUpdate = true;
-        AppUpdateProgress = 0;
-        try
-        {
-            var msiPath = await _appUpdater.DownloadAsync(release, new Progress<double>(value => AppUpdateProgress = value), CancellationToken.None)
-                .ConfigureAwait(true);
-            AppUpdater.InstallAfterExit(msiPath, Path.Combine(DataFolder, "update.log"));
-            QuitRequested?.Invoke();
-        }
-        catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException)
-        {
-            StatusMessage = $"Update failed: {ex.Message}";
-            IsInstallingAppUpdate = false;
         }
     }
 
@@ -1102,17 +1056,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _stateStore.Save(_stateStore.Load() with { CloseToTray = value });
     }
 
-    partial void OnAppChannelIndexChanged(int value)
-    {
-        if (_isLoadingState)
-        {
-            return;
-        }
-
-        _stateStore.Save(_stateStore.Load() with { AppChannel = AppChannel });
-        _ = CheckAndConfirmAppUpdateAsync();
-    }
-
     partial void OnAutoUpdateIndexChanged(int value)
     {
         if (_isLoadingState)
@@ -1267,7 +1210,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
                 if (!App.IsPackaged || DateTimeOffset.Now - _lastStoreCheck >= StoreCheckInterval)
                 {
-                    await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
+                    await CheckAppUpdateAsync().ConfigureAwait(true);
                 }
             }
 

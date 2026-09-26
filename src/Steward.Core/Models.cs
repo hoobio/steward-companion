@@ -135,7 +135,6 @@ public sealed record AppState(
     [property: JsonPropertyName("added_installs")] List<string> AddedInstalls = null!,
     [property: JsonPropertyName("keep_in_tray")] bool MinimizeToTray = true,
     [property: JsonPropertyName("hidden_addons")] List<string> HiddenAddons = null!,
-    [property: JsonPropertyName("app_channel")] string AppChannel = "release",
     [property: JsonPropertyName("restedxp_session")] string? EncryptedRestedXpSession = null,
     [property: JsonPropertyName("restedxp_guides")] Dictionary<string, RestedXpGuideRecord> RestedXpGuides = null!,
     [property: JsonPropertyName("restedxp_guide_choices")] Dictionary<string, List<string>> RestedXpGuideChoices = null!,

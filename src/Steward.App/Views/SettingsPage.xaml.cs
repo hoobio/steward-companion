@@ -13,11 +13,6 @@ public sealed partial class SettingsPage : Page
     public SettingsPage()
     {
         InitializeComponent();
-        if (App.IsPackaged)
-        {
-            ChannelCard.Visibility = Visibility.Collapsed;
-            AboutCard.CornerRadius = (CornerRadius)Application.Current.Resources["GroupTopCornerRadius"];
-        }
     }
 
     public MainViewModel? ViewModel { get; private set; }

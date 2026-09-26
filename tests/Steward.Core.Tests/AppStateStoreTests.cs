@@ -224,19 +224,6 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
-    public void Load_AppChannel_DefaultsToRelease_AndRoundTrips()
-    {
-        File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
-        var store = new AppStateStore(["hoobiscripts"], StatePath);
-
-        Assert.Equal("release", store.Load().AppChannel);
-
-        store.Save(store.Load() with { AppChannel = "pre-release" });
-
-        Assert.Equal("pre-release", store.Load().AppChannel);
-    }
-
-    [Fact]
     public void Load_AutoUpdate_DefaultsToOutOfGame_AndRoundTrips()
     {
         File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
