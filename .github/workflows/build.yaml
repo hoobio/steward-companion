@@ -3,8 +3,10 @@ name: Build & Release
 on:
   push:
     branches: [main]
+    paths-ignore: ["**.md", "docs/**", "tools/**", ".githooks/**", "scripts/Install-DevBuild.ps1"]
   pull_request:
     branches: [main]
+    paths-ignore: ["**.md", "docs/**", "tools/**", ".githooks/**", "scripts/Install-DevBuild.ps1"]
   workflow_dispatch:
 
 permissions:
