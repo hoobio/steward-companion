@@ -140,7 +140,7 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
-    public async Task InstallAsync_GitHubAddon_DownloadsTheAbsoluteZipUrl()
+    public async Task InstallAsync_AbsoluteZipUrl_DownloadsItAsIs()
     {
         var zipPath = CreateZip(a => WriteEntry(a, "RXPGuides/RXPGuides.toc", "## Version: v1.0.0"));
         var zipBytes = await File.ReadAllBytesAsync(zipPath, TestContext.Current.CancellationToken);
@@ -149,7 +149,7 @@ public sealed class AddonUpdaterTests : IDisposable
 
         var handler = new ZipBytesStubHandler(zipUri, zipBytes);
         var updater = new AddonUpdater(new HttpClient(handler));
-        var addon = new ManagedAddon("restedxp", "RXPGuides", GitHubRepo: "RestedXP/RXPGuides");
+        var addon = new ManagedAddon("restedxp", "RXPGuides", "https://addon.example/restedxp/");
         var release = new AddonRelease("v1.0.0", zipUri.ToString(), sha256, zipBytes.Length, DateTimeOffset.UtcNow);
         var addOnsPath = Path.Combine(_tempDir, "AddOns");
         Directory.CreateDirectory(addOnsPath);

@@ -78,8 +78,10 @@ public sealed class AddonChannelStatusTests
         Assert.True(status.Has("develop"));
     }
 
+    private static readonly IReadOnlyList<string> TwoChannels = ["release", "pre-release"];
+
     [Fact]
-    public void Resolve_GitHubAddon_PrefersRelease()
+    public void Resolve_TwoChannelAddon_PrefersRelease()
     {
         var releaseOnly = new AddonRelease("v1.0.0", "z", "s", 1, DateTimeOffset.UtcNow.AddDays(-1));
         var prerelease = new AddonRelease("v1.1.0-rc1", "z", "s", 1, DateTimeOffset.UtcNow);
@@ -89,7 +91,7 @@ public sealed class AddonChannelStatusTests
             ["pre-release"] = prerelease,
         };
 
-        var status = AddonChannelStatus.Resolve(null, releases, AddonChannelStatus.GitHubChannels, AddonChannelStatus.GitHubChannels);
+        var status = AddonChannelStatus.Resolve(null, releases, TwoChannels, TwoChannels);
 
         Assert.Equal("release", status.Channel);
     }
@@ -105,7 +107,7 @@ public sealed class AddonChannelStatusTests
             ["pre-release"] = older,
         };
 
-        var status = AddonChannelStatus.Resolve("pre-release", releases, AddonChannelStatus.GitHubChannels, AddonChannelStatus.GitHubChannels);
+        var status = AddonChannelStatus.Resolve("pre-release", releases, TwoChannels, TwoChannels);
 
         Assert.Equal("pre-release", status.Channel);
         Assert.Contains("release has a newer build", status.Notice);
@@ -122,7 +124,7 @@ public sealed class AddonChannelStatusTests
             ["pre-release"] = newer,
         };
 
-        var status = AddonChannelStatus.Resolve("pre-release", releases, AddonChannelStatus.GitHubChannels, AddonChannelStatus.GitHubChannels);
+        var status = AddonChannelStatus.Resolve("pre-release", releases, TwoChannels, TwoChannels);
 
         Assert.Equal("pre-release", status.Channel);
         Assert.Null(status.Notice);

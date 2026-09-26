@@ -9,8 +9,6 @@ public sealed record AddonChannelStatus(
 
     public static readonly IReadOnlyList<string> DefaultPreference = Ordered;
 
-    public static readonly IReadOnlyList<string> GitHubChannels = ["release", "pre-release"];
-
     public AddonRelease? Release => Channel is null ? null : Releases.GetValueOrDefault(Channel);
 
     public bool Has(string channel) => Releases.GetValueOrDefault(channel) is not null;

@@ -692,7 +692,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            GitHubReleases.ResetCache();
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
             await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
             await CheckGuidesAsync().ConfigureAwait(true);
@@ -717,10 +716,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 IsLatestConfirmed = false;
             }
-        }
-        catch (GitHubRateLimitedException ex)
-        {
-            StatusMessage = ex.Message;
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException or COMException)
         {
@@ -823,7 +818,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsCheckingAppUpdate = true;
         try
         {
-            GitHubReleases.ResetCache();
             await CheckAppUpdateAsync(CancellationToken.None).ConfigureAwait(true);
             IsLatestConfirmed = AppUpdate is null;
         }
@@ -873,13 +867,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var state = _stateStore.Load();
             foreach (var addon in VisibleAddons())
             {
-                var releases = await _addonUpdater.ProbeChannelsAsync(addon, addon.IsGitHub ? addon.Channels : VisibleChannels, cancellationToken)
+                var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken)
                     .ConfigureAwait(true);
                 _releases[addon.Id] = releases;
                 _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases, addon.Channels, addon.DefaultPreference);
             }
         }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException or GitHubRateLimitedException)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
         {
             StatusMessage = ex.Message;
             succeeded = false;
@@ -900,7 +894,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await AutoApplyAsync().ConfigureAwait(true);
         }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException or GitHubRateLimitedException)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
         {
             StatusMessage = ex.Message;
         }

@@ -12,17 +12,8 @@ public sealed class AddonUpdater
 
     public AddonUpdater(HttpClient httpClient) => _httpClient = httpClient;
 
-    public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken)
-    {
-        if (addon.GitHubRepo is { } repo)
-        {
-            return addon.Channels.Contains(channel, StringComparer.OrdinalIgnoreCase)
-                ? await GitHubReleases.GetLatestAsync(_httpClient, repo, ".zip", channel, cancellationToken).ConfigureAwait(false)
-                : null;
-        }
-
-        return await FetchManifestAsync(_httpClient, ManifestUri(addon, channel), cancellationToken).ConfigureAwait(false);
-    }
+    public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken) =>
+        await FetchManifestAsync(_httpClient, ManifestUri(addon, channel), cancellationToken).ConfigureAwait(false);
 
     public static async Task<AddonRelease?> FetchManifestAsync(HttpClient httpClient, Uri manifestUri, CancellationToken cancellationToken)
     {

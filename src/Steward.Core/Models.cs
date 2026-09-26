@@ -3,21 +3,17 @@ using System.Text.Json.Serialization;
 
 namespace Steward.Core;
 
-public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? GitHubRepo = null, string? Name = null, IReadOnlyList<string>? Features = null)
+public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? Name = null, IReadOnlyList<string>? Features = null)
 {
     public IReadOnlyList<string> Features { get; init; } = Features ?? [GigagrugClient.AddonsFeature];
 
-    public bool IsGitHub => GitHubRepo is not null;
-
     public string DisplayName => Name ?? FolderName;
 
-    public IReadOnlyList<string> Channels => IsGitHub ? AddonChannelStatus.GitHubChannels : AddonChannelStatus.Ordered;
+    public IReadOnlyList<string> Channels { get; } = AddonChannelStatus.Ordered;
 
-    public IReadOnlyList<string> DefaultPreference => IsGitHub ? AddonChannelStatus.GitHubChannels : AddonChannelStatus.DefaultPreference;
+    public IReadOnlyList<string> DefaultPreference { get; } = AddonChannelStatus.DefaultPreference;
 
-    public Uri IconUri => GitHubRepo is { } repo
-        ? new Uri($"https://github.com/{repo[..repo.IndexOf('/', StringComparison.Ordinal)]}.png?size=64")
-        : new Uri(new Uri(ManifestBaseUrl ?? throw new InvalidOperationException($"{Id} has neither ManifestBaseUrl nor GitHubRepo")), "icon.png");
+    public Uri IconUri => new(new Uri(ManifestBaseUrl ?? throw new InvalidOperationException($"{Id} has no ManifestBaseUrl")), "icon.png");
 }
 
 public sealed record AddonRelease(
@@ -26,19 +22,6 @@ public sealed record AddonRelease(
     [property: JsonPropertyName("sha256")] string Sha256,
     [property: JsonPropertyName("size")] long Size,
     [property: JsonPropertyName("released")] DateTimeOffset Released);
-
-public sealed record GitHubRelease(
-    [property: JsonPropertyName("tag_name")] string TagName,
-    [property: JsonPropertyName("published_at")] DateTimeOffset PublishedAt,
-    [property: JsonPropertyName("prerelease")] bool Prerelease,
-    [property: JsonPropertyName("draft")] bool Draft,
-    [property: JsonPropertyName("assets")] GitHubAsset[] Assets);
-
-public sealed record GitHubAsset(
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("size")] long Size,
-    [property: JsonPropertyName("digest")] string? Digest,
-    [property: JsonPropertyName("browser_download_url")] string BrowserDownloadUrl);
 
 public sealed record AdminUser(
     [property: JsonPropertyName("id")] string Id,
@@ -178,8 +161,6 @@ public sealed record AppState(
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]
 [JsonSerializable(typeof(DiscordMembersResponse))]
-[JsonSerializable(typeof(GitHubRelease))]
-[JsonSerializable(typeof(GitHubRelease[]))]
 [JsonSerializable(typeof(GuildRosterResponse))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(RestedXpCachedGuide))]
