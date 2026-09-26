@@ -245,7 +245,7 @@ jobs:
           $package = (Get-ChildItem package -Filter *.msixupload | Select-Object -First 1).FullName
           if (-not $package) { throw 'No .msixupload artifact found' }
 
-          msstore submission delete $env:PRODUCT_ID --no-confirm 2>$null
+          msstore submission delete $env:PRODUCT_ID --no-confirm
           $global:LASTEXITCODE = 0
 
           msstore publish $package -id $env:PRODUCT_ID --noCommit
@@ -328,7 +328,7 @@ jobs:
           $package = (Get-ChildItem package -Filter *.msixupload | Select-Object -First 1).FullName
           if (-not $package) { throw 'No .msixupload artifact found' }
 
-          msstore flights submission delete $env:PRODUCT_ID $env:FLIGHT_ID --no-confirm 2>$null
+          msstore flights submission delete $env:PRODUCT_ID $env:FLIGHT_ID --no-confirm
           $global:LASTEXITCODE = 0
 
           msstore publish $package -id $env:PRODUCT_ID --flightId $env:FLIGHT_ID --noCommit
