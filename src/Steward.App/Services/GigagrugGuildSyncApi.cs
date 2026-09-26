@@ -4,21 +4,11 @@ using Steward.Core;
 
 namespace Steward.App.Services;
 
-public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore stateStore, DiscordImage images) : IGuildSyncApi
+public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore stateStore, DiscordImage images)
 {
     private static readonly IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> NoCatalogue = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
 
     private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> _lastCatalogue = new();
-
-    public Task<SyncServerState> GetStateAsync(CancellationToken ct) =>
-        throw new NotSupportedException(
-            "GigagrugGuildSyncApi only pulls the guild roster and Discord member list; it has no push-direction sync state to read.");
-
-    public Task<SyncPushResult> PushAsync(string dataset, SyncPayload payload, IProgress<double>? progress, CancellationToken ct) =>
-        throw new NotSupportedException(
-            "GigagrugGuildSyncApi is pull-only: gigagrug -> app -> game. Nothing is pushed.");
-
-    public Task<SyncPayload> PullAsync(CancellationToken ct) => PullAsync(guildId: null, ct);
 
     public async Task<SyncPayload> PullAsync(string? guildId, CancellationToken ct)
     {

@@ -108,6 +108,72 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void HasExportedData_IsFalseForRosterLootAttendanceOnly()
+    {
+        var snapshot = ReadFiles(("account.lua", AccountFile));
+
+        Assert.False(snapshot.HasExportedData);
+    }
+
+    [Fact]
+    public void HasExportedData_IsTrueWhenCharactersArePresent()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["characters"] = {
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer" },
+            },
+            }
+            """));
+
+        Assert.True(snapshot.HasExportedData);
+    }
+
+    [Fact]
+    public void ExportState_IsNoFile_WhenNoAccountGlobalWasFound()
+    {
+        var snapshot = ReadFiles(("character.lua", CharacterFile));
+
+        Assert.Equal(SyncExportState.NoFile, snapshot.ExportState);
+    }
+
+    [Fact]
+    public void ExportState_IsOldFormat_WhenAccountHasOnlyRosterLootAttendance()
+    {
+        var snapshot = ReadFiles(("account.lua", AccountFile));
+
+        Assert.Equal(SyncExportState.OldFormat, snapshot.ExportState);
+    }
+
+    [Fact]
+    public void ExportState_IsGuildless_WhenNoCharactersAndNoGuildRanks()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["professions"] = {
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["skills"] = { { ["name"] = "Cooking" }, } },
+            },
+            }
+            """));
+
+        Assert.Equal(SyncExportState.Guildless, snapshot.ExportState);
+    }
+
+    [Fact]
+    public void ExportState_IsReady_WhenCharactersArePresent()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["characters"] = {
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer" },
+            },
+            }
+            """));
+
+        Assert.Equal(SyncExportState.Ready, snapshot.ExportState);
+    }
+
+    [Fact]
     public void Read_SkipsAndCountsRecordsMissingRequiredFields()
     {
         var snapshot = ReadFiles(("account.lua", """

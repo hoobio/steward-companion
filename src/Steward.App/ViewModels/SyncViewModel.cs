@@ -3,7 +3,6 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-using Steward.App.Services;
 using Steward.Core;
 
 using Microsoft.UI.Xaml;
@@ -12,9 +11,17 @@ namespace Steward.App.ViewModels;
 
 public sealed partial class SyncViewModel : ObservableObject
 {
+    private const string RosterDatasetKey = "roster";
+    private const string LootDatasetKey = "loot";
+    private const string AttendanceDatasetKey = "attendance";
+
+    private const string GuildlessNote = "Log in to a character in a guild.";
+    private const string NoSyncFeatureNote = "Your account can't push characters (missing the sync feature).";
+
     private static readonly string[] SummaryNames =
     [
         nameof(HasWaiting),
+        nameof(NoInstallVisibility),
         nameof(CardsVisibility),
         nameof(AddonMissingVisibility),
         nameof(NeverExportedVisibility),
@@ -27,14 +34,12 @@ public sealed partial class SyncViewModel : ObservableObject
     ];
 
     private readonly MainViewModel _main;
-    private readonly IGuildSyncApi _api;
 
     private bool _isReloading;
 
-    public SyncViewModel(MainViewModel main, IGuildSyncApi api)
+    public SyncViewModel(MainViewModel main)
     {
         _main = main;
-        _api = api;
         _main.CharacterSyncRows.CollectionChanged += (_, _) =>
         {
             SyncCharacterPushRows();
@@ -63,14 +68,17 @@ public sealed partial class SyncViewModel : ObservableObject
     [ObservableProperty]
     public partial string? GeneratedFileError { get; set; }
 
-    public IEnumerable<SyncDatasetViewModel> Datasets => Installs.SelectMany(install => install.Datasets);
+    public bool HasWaiting => _main.HasSyncFeature && Installs.Any(install =>
+        install.ExportState == SyncExportState.Ready
+        && install.Datasets.FirstOrDefault(dataset => dataset.Key == RosterDatasetKey) is { } roster
+        && (roster.CharacterSync is null || roster.CharacterSync.Error is not null));
 
-    public bool HasWaiting => Datasets
-        .Where(dataset => !dataset.IsComingSoon)
-        .Any(dataset => dataset.State == SyncDatasetState.WaitingToSend);
+    public Visibility NoInstallVisibility => When(_main.Installs.Count == 0);
 
-    public Visibility CardsVisibility =>
-        When(AddonMissingVisibility == Visibility.Collapsed && NeverExportedVisibility == Visibility.Collapsed);
+    public Visibility CardsVisibility => When(
+        NoInstallVisibility == Visibility.Collapsed
+        && AddonMissingVisibility == Visibility.Collapsed
+        && NeverExportedVisibility == Visibility.Collapsed);
 
     public Visibility AddonMissingVisibility =>
         When(Installs.Count > 0 && Installs.All(install => install.AddonMissing));
@@ -78,7 +86,7 @@ public sealed partial class SyncViewModel : ObservableObject
     public Visibility NeverExportedVisibility => When(
         Installs.Count > 0
         && !Installs.All(install => install.AddonMissing)
-        && Datasets.All(dataset => dataset.LocalCount == 0));
+        && Installs.All(install => install.ReadError is null && install.ExportState == SyncExportState.NoFile));
 
     public Visibility ClientRunningBannerVisibility => When(Installs.Any(install => install.IsClientRunning));
 
@@ -86,7 +94,9 @@ public sealed partial class SyncViewModel : ObservableObject
     {
         get
         {
-            var exported = Datasets.Select(dataset => dataset.ExportedAtText).FirstOrDefault() ?? "earlier";
+            var exported = Installs.SelectMany(install => install.Datasets)
+                .Select(dataset => dataset.ExportedAtText)
+                .FirstOrDefault() ?? "earlier";
             return $"This data was exported {exported}, before your current session. "
                 + "Log out or /reload in game to export again.";
         }
@@ -126,31 +136,19 @@ public sealed partial class SyncViewModel : ObservableObject
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
-    public async Task ReloadAsync()
+    public Task ReloadAsync()
     {
         if (_isReloading)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         _isReloading = true;
         try
         {
-            SyncServerState? server = null;
             IsUnreachable = !_main.IsApiReachable;
-            if (!IsUnreachable)
-            {
-                try
-                {
-                    server = await _api.GetStateAsync(CancellationToken.None).ConfigureAwait(true);
-                }
-                catch (HttpRequestException)
-                {
-                    IsUnreachable = true;
-                }
-            }
 
-            var fresh = _main.Installs.Select(install => Build(install, server)).ToList();
+            var fresh = _main.Installs.Select(Build).ToList();
             if (fresh.Select(view => view.FlavourPath).SequenceEqual(Installs.Select(view => view.FlavourPath)))
             {
                 for (var i = 0; i < fresh.Count; i++)
@@ -169,6 +167,7 @@ public sealed partial class SyncViewModel : ObservableObject
 
             SyncCharacterPushRows();
             Recompute();
+            return Task.CompletedTask;
         }
         finally
         {
@@ -180,15 +179,23 @@ public sealed partial class SyncViewModel : ObservableObject
     {
         foreach (var install in Installs)
         {
-            var roster = install.Datasets.FirstOrDefault(dataset => dataset.Key == InMemoryGuildSyncApi.RosterDataset);
+            var roster = install.Datasets.FirstOrDefault(dataset => dataset.Key == RosterDatasetKey);
             if (roster is null)
             {
+                continue;
+            }
+
+            if (install.ExportState == SyncExportState.Guildless)
+            {
+                roster.CharacterSync = null;
+                roster.Note = GuildlessNote;
                 continue;
             }
 
             roster.CharacterSync = _main.HasSyncFeature
                 ? _main.CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath)
                 : null;
+            roster.Note = roster.CharacterSync is null ? NoSyncFeatureNote : null;
         }
     }
 
@@ -198,7 +205,7 @@ public sealed partial class SyncViewModel : ObservableObject
         Recompute();
     }
 
-    private SyncInstallViewModel Build(WowInstallViewModel install, SyncServerState? server)
+    private SyncInstallViewModel Build(WowInstallViewModel install)
     {
         var addonMissing = !Directory.Exists(
             Path.Combine(install.AddOnsPath, StewardSavedVariables.AddonName));
@@ -216,6 +223,7 @@ public sealed partial class SyncViewModel : ObservableObject
 
         var isStale = SavedVariablesFreshness.Judge(snapshot, install.Client) == Freshness.Stale;
         var exportedAt = Relative(SavedVariablesFreshness.LastWrite(snapshot));
+        var sourceFile = SourceFile(snapshot);
 
         var view = new SyncInstallViewModel
         {
@@ -224,40 +232,38 @@ public sealed partial class SyncViewModel : ObservableObject
             ClientVersion = install.ClientVersion,
             IsClientRunning = install.IsClientRunning,
             AddonMissing = addonMissing,
+            ExportState = snapshot?.ExportState ?? SyncExportState.NoFile,
             ReadError = readError,
         };
 
         view.Datasets.Add(Dataset(
-            InMemoryGuildSyncApi.RosterDataset,
+            RosterDatasetKey,
             "Roster",
-            "members",
+            "characters",
             "",
-            snapshot?.Roster.Count ?? 0,
-            server,
-            snapshot,
+            snapshot?.Characters.Count ?? 0,
+            sourceFile,
             exportedAt,
             isStale,
             isFirst: true));
         view.Datasets.Add(Dataset(
-            InMemoryGuildSyncApi.LootDataset,
+            LootDatasetKey,
             "Loot",
             "loot events",
             "",
             snapshot?.Loot.Count ?? 0,
-            server,
-            snapshot,
+            sourceFile,
             exportedAt,
             isStale,
             isFirst: false,
             isComingSoon: true));
         view.Datasets.Add(Dataset(
-            InMemoryGuildSyncApi.AttendanceDataset,
+            AttendanceDatasetKey,
             "Attendance",
             "raids",
             "",
             snapshot?.Attendance.Count ?? 0,
-            server,
-            snapshot,
+            sourceFile,
             exportedAt,
             isStale,
             isFirst: false,
@@ -266,50 +272,29 @@ public sealed partial class SyncViewModel : ObservableObject
         return view;
     }
 
-    private SyncDatasetViewModel Dataset(
+    private static SyncDatasetViewModel Dataset(
         string key,
         string name,
         string unit,
         string glyph,
         int localCount,
-        SyncServerState? server,
-        SavedVariablesSnapshot? snapshot,
+        string sourceFile,
         string exportedAt,
         bool isStale,
         bool isFirst,
-        bool isComingSoon = false)
+        bool isComingSoon = false) => new()
     {
-        var dataset = new SyncDatasetViewModel
-        {
-            Key = key,
-            Name = name,
-            Unit = unit,
-            Glyph = glyph,
-            SourceFile = SourceFile(snapshot),
-            LocalCount = localCount,
-            ServerCount = server?.RecordCounts.GetValueOrDefault(key) ?? localCount,
-            ExportedAtText = exportedAt,
-            IsStale = isStale,
-            IsFirst = isFirst,
-            IsComingSoon = isComingSoon,
-            Payload = PayloadFor(key, snapshot),
-            Send = SendAsync,
-        };
-
-        dataset.IsAdmin = _main.IsAuthorized;
-        dataset.IsBlocked = IsUnreachable;
-        return dataset;
-    }
-
-    private static SyncPayload PayloadFor(string key, SavedVariablesSnapshot? snapshot) => new(
-        DateTimeOffset.Now,
-        snapshot?.ExportedAt,
-        key == InMemoryGuildSyncApi.RosterDataset ? snapshot?.Roster ?? [] : [],
-        key == InMemoryGuildSyncApi.LootDataset ? snapshot?.Loot ?? [] : [],
-        key == InMemoryGuildSyncApi.AttendanceDataset ? snapshot?.Attendance ?? [] : [],
-        [],
-        [],
-        []);
+        Key = key,
+        Name = name,
+        Unit = unit,
+        Glyph = glyph,
+        SourceFile = sourceFile,
+        LocalCount = localCount,
+        ExportedAtText = exportedAt,
+        IsStale = isStale,
+        IsFirst = isFirst,
+        IsComingSoon = isComingSoon,
+    };
 
     private static string SourceFile(SavedVariablesSnapshot? snapshot) => snapshot switch
     {
@@ -335,33 +320,6 @@ public sealed partial class SyncViewModel : ObservableObject
                 $"{(int)elapsed.TotalHours} hour{((int)elapsed.TotalHours == 1 ? "" : "s")} ago",
             _ => $"{(int)elapsed.TotalDays} day{((int)elapsed.TotalDays == 1 ? "" : "s")} ago",
         };
-    }
-
-    private async Task SendAsync(SyncDatasetViewModel dataset)
-    {
-        dataset.Error = null;
-        dataset.Progress = 0;
-        dataset.IsSending = true;
-        try
-        {
-            var progress = new Progress<double>(value => dataset.Progress = value);
-            var result = await _api.PushAsync(dataset.Key, dataset.Payload, progress, CancellationToken.None)
-                .ConfigureAwait(true);
-            if (!result.Accepted)
-            {
-                dataset.Error = result.Error;
-            }
-        }
-        catch (HttpRequestException ex)
-        {
-            dataset.Error = ex.Message;
-            IsUnreachable = true;
-        }
-        finally
-        {
-            dataset.IsSending = false;
-            Recompute();
-        }
     }
 
     [RelayCommand]

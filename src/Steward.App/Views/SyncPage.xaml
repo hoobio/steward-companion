@@ -8,8 +8,6 @@
     xmlns:vm="using:Steward.App.ViewModels">
 
     <Page.Resources>
-        <SolidColorBrush x:Key="NewCountBrush" Color="{ThemeResource SystemAccentColorLight1}" />
-
         <DataTemplate x:Key="GuildOptionTemplate" x:DataType="vm:GuildOptionViewModel">
             <Button
                 Height="40"
@@ -73,9 +71,9 @@
                     <ColumnDefinition Width="30" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" MinWidth="96" />
-                    <ColumnDefinition Width="Auto" MinWidth="52" />
-                    <ColumnDefinition Width="Auto" MinWidth="92" />
+                    <ColumnDefinition Width="Auto" MinWidth="80" />
                     <ColumnDefinition Width="Auto" MinWidth="88" />
+                    <ColumnDefinition Width="Auto" MinWidth="60" />
                 </Grid.ColumnDefinitions>
 
                 <Border
@@ -115,28 +113,12 @@
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                         Visibility="{x:Bind CharacterSync.RejectedVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
-                    <ProgressBar
-                        Height="3"
-                        Maximum="1"
-                        Margin="0,4,0,0"
-                        Value="{x:Bind Progress, Mode=OneWay}"
-                        Visibility="{x:Bind SendingVisibility, Mode=OneWay}" />
-                    <StackPanel
-                        Orientation="Horizontal"
-                        Spacing="8"
-                        Visibility="{x:Bind FailedVisibility, Mode=OneWay}">
-                        <TextBlock
-                            Text="{x:Bind Error, Mode=OneWay}"
-                            VerticalAlignment="Center"
-                            TextWrapping="Wrap"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-                        <Button
-                            Height="32"
-                            Content="Retry"
-                            IsEnabled="False"
-                            ToolTipService.ToolTip="Available once the guild API ships" />
-                    </StackPanel>
+                    <TextBlock
+                        Text="{x:Bind Note, Mode=OneWay}"
+                        TextWrapping="Wrap"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Visibility="{x:Bind NoteVisibility, Mode=OneWay}" />
                 </StackPanel>
 
                 <TextBlock
@@ -148,41 +130,14 @@
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Visibility="{x:Bind CharacterSync.AcceptedVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
 
-                <Grid Grid.Column="2" VerticalAlignment="Center" Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}">
-                    <TextBlock
-                        Text="{x:Bind RecordsText, Mode=OneWay}"
-                        FontSize="12.5"
-                        TextAlignment="Right"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind RecordsVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="Nothing yet"
-                        FontSize="12.5"
-                        TextAlignment="Right"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Visibility="{x:Bind NothingYetVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="{x:Bind SendingText, Mode=OneWay}"
-                        FontSize="12.5"
-                        TextAlignment="Right"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind SendingVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="{x:Bind PullPendingText, Mode=OneWay}"
-                        FontSize="12.5"
-                        TextAlignment="Right"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind PullPendingVisibility, Mode=OneWay}" />
-                </Grid>
-
                 <TextBlock
                     Grid.Column="3"
                     VerticalAlignment="Center"
-                    Text="{x:Bind NewText, Mode=OneWay}"
+                    Text="{x:Bind RecordsText, Mode=OneWay}"
                     FontSize="12.5"
                     TextAlignment="Right"
-                    Foreground="{StaticResource NewCountBrush}"
-                    Visibility="{x:Bind NewVisibility, Mode=OneWay}" />
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Visibility="{x:Bind RecordsVisibility, Mode=OneWay}" />
 
                 <TextBlock
                     Grid.Column="4"
@@ -206,44 +161,6 @@
                         FontSize="12"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </Border>
-
-                <StackPanel
-                    Grid.Column="5"
-                    Orientation="Horizontal"
-                    Spacing="8"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}">
-                    <Button
-                        Height="32"
-                        Content="Send"
-                        Style="{StaticResource AccentButtonStyle}"
-                        IsEnabled="False"
-                        ToolTipService.ToolTip="Available once the guild API ships"
-                        Visibility="{x:Bind SendVisibility, Mode=OneWay}" />
-                    <Button
-                        Height="32"
-                        Content="Sending"
-                        IsEnabled="False"
-                        Visibility="{x:Bind SendingVisibility, Mode=OneWay}" />
-                    <Button
-                        Height="32"
-                        Content="Update in game"
-                        IsEnabled="False"
-                        ToolTipService.ToolTip="Available once the guild API ships"
-                        Visibility="{x:Bind PullPendingVisibility, Mode=OneWay}" />
-                    <StackPanel
-                        Orientation="Horizontal"
-                        Spacing="4"
-                        VerticalAlignment="Center"
-                        Visibility="{x:Bind InSyncVisibility, Mode=OneWay}">
-                        <FontIcon
-                            Glyph="&#xE73E;"
-                            FontSize="14"
-                            Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-                        <TextBlock Text="In sync" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                </StackPanel>
             </Grid>
         </DataTemplate>
 
@@ -309,9 +226,19 @@
                         </Border>
                     </Grid>
                 </Expander.Header>
-                <ItemsControl
-                    ItemsSource="{x:Bind Datasets}"
-                    ItemTemplate="{StaticResource SyncDatasetTemplate}" />
+                <StackPanel>
+                    <StackPanel Padding="16,8" Spacing="4" Visibility="{x:Bind OldFormatVisibility, Mode=OneWay}">
+                        <TextBlock Text="Update the Steward addon" FontWeight="SemiBold" />
+                        <TextBlock
+                            Text="This install's Steward.lua is from an older addon version that does not export characters, professions or the recipe catalogue."
+                            TextWrapping="Wrap"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <ItemsControl
+                        ItemsSource="{x:Bind Datasets}"
+                        ItemTemplate="{StaticResource SyncDatasetTemplate}"
+                        Visibility="{x:Bind DatasetsVisibility, Mode=OneWay}" />
+                </StackPanel>
             </Expander>
         </DataTemplate>
     </Page.Resources>
@@ -460,6 +387,30 @@
                 CornerRadius="8"
                 IsOpen="{x:Bind ViewModel.UnreachableIsOpen, Mode=OneWay}"
                 Message="Could not reach api.hoobi.io. Check your connection." />
+
+            <StackPanel
+                HorizontalAlignment="Center"
+                MaxWidth="460"
+                Spacing="12"
+                Padding="0,24"
+                Visibility="{x:Bind ViewModel.NoInstallVisibility, Mode=OneWay}">
+                <FontIcon
+                    Glyph="&#xE74C;"
+                    FontSize="44"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                <TextBlock
+                    Text="No World of Warcraft install found"
+                    FontSize="20"
+                    FontWeight="SemiBold"
+                    HorizontalAlignment="Center"
+                    TextAlignment="Center" />
+                <TextBlock
+                    TextWrapping="Wrap"
+                    HorizontalAlignment="Center"
+                    TextAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="Steward could not find a World of Warcraft: Forever install on this machine." />
+            </StackPanel>
 
             <StackPanel
                 HorizontalAlignment="Center"

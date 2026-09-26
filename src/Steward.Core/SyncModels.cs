@@ -95,7 +95,27 @@ public sealed record SavedVariablesSnapshot(
     string? CharactersFingerprint,
     IReadOnlyDictionary<string, CharacterProfessions> Professions,
     IReadOnlyDictionary<string, ProfessionCatalogue> Catalogue,
-    GuildRanks? GuildRanks = null);
+    GuildRanks? GuildRanks = null,
+    bool HasAccountData = false)
+{
+    public bool HasExportedData => Characters.Count > 0 || Professions.Count > 0 || Catalogue.Count > 0 || GuildRanks is not null;
+
+    public SyncExportState ExportState => true switch
+    {
+        _ when !HasAccountData => SyncExportState.NoFile,
+        _ when !HasExportedData => SyncExportState.OldFormat,
+        _ when Characters.Count == 0 && GuildRanks is null => SyncExportState.Guildless,
+        _ => SyncExportState.Ready,
+    };
+}
+
+public enum SyncExportState
+{
+    NoFile,
+    OldFormat,
+    Guildless,
+    Ready,
+}
 
 public sealed record GuildRanks(
     string Realm,
@@ -265,9 +285,3 @@ public sealed record SyncPayload(
     public IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> Catalogue { get; init; } = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
 }
 
-public sealed record SyncServerState(
-    IReadOnlyDictionary<string, int> RecordCounts,
-    string Cursor,
-    DateTimeOffset? LastSyncedAt);
-
-public sealed record SyncPushResult(bool Accepted, int Taken, string? Error);

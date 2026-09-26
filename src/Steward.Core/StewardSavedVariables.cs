@@ -112,7 +112,8 @@ public static class StewardSavedVariables
             hasAccount ? CharactersFingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue, guildRanks) : null,
             dedupedProfessions,
             dedupedCatalogue,
-            guildRanks);
+            guildRanks,
+            hasAccount);
     }
 
     private static Dictionary<string, T> DedupeByKey<T>(List<(string Id, DateTimeOffset Rank, T Item)> records) =>

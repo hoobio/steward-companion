@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -97,7 +98,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AppStateStore stateStore,
         IReadOnlyList<ManagedAddon> addons,
         IReadOnlyDictionary<string, string> supportedProducts,
-        IGuildSyncApi syncApi,
         RestedXpService restedXpService)
     {
         ArgumentNullException.ThrowIfNull(addons);
@@ -135,7 +135,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
         };
 
-        Sync = new SyncViewModel(this, syncApi)
+        Sync = new SyncViewModel(this)
         {
             StateChanged = () => OnPropertyChanged(nameof(SyncBadgeVisibility)),
         };
@@ -1021,14 +1021,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (GigagrugRequestException ex)
         {
+            var message = ex.StatusCode == HttpStatusCode.Forbidden
+                ? "Your account can't sync this guild."
+                : ex.Body ?? ex.Message;
             state = _stateStore.Load();
-            state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, 0, ex.Body ?? ex.Message);
+            state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, 0, message);
             _stateStore.Save(state);
-            SetCharacterSyncRow(install, key, null, [], ex.Message);
+            SetCharacterSyncRow(install, key, null, [], message);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            SetCharacterSyncRow(install, key, null, [], ex.Message);
+            SetCharacterSyncRow(install, key, null, [], "gigagrug unreachable, retrying");
         }
 
         return false;
