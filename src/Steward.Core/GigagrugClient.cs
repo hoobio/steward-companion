@@ -127,9 +127,21 @@ public sealed class GigagrugClient
             ?? throw new HttpRequestException("POST /api/auth/desktop/exchange returned an empty body");
     }
 
+    public const string AddonsFeature = "addons";
+    public const string GuidesFeature = "guides";
+    public const string StewardFeature = "steward";
+
+    private static readonly IReadOnlySet<string> AllFeatures = new HashSet<string>(
+        [AddonsFeature, GuidesFeature, StewardFeature], StringComparer.Ordinal);
+
     public static bool IsAdmin(AdminMe me) =>
         me.User.Role is "global" or "admin";
 
     public static bool IsGlobalAdmin(AdminMe me) =>
         me.User.Role is "global";
+
+    public static IReadOnlySet<string> EffectiveFeatures(AdminMe me) =>
+        me.User.Features is { } features
+            ? new HashSet<string>(features, StringComparer.Ordinal)
+            : IsAdmin(me) ? AllFeatures : new HashSet<string>(StringComparer.Ordinal);
 }

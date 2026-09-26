@@ -59,6 +59,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(InstallsDescription),
         nameof(HiddenToggleVisibility),
         nameof(GuidesVisibility),
+        nameof(SyncVisibility),
     ];
 
     private readonly ISessionService _sessionService;
@@ -72,6 +73,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly Dictionary<string, AddonChannelStatus> _status = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyDictionary<string, AddonRelease?>> _releases =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _features = new(StringComparer.Ordinal);
 
     private DispatcherQueueTimer? _recheckTimer;
     private CancellationTokenSource? _signInCts;
@@ -286,6 +288,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["release", "pre-release"];
 
+    private bool HasGuidesFeature => _features.Contains(GigagrugClient.GuidesFeature);
+
+    private bool HasStewardFeature => _features.Contains(GigagrugClient.StewardFeature);
+
+    private IReadOnlyList<ManagedAddon> VisibleAddons() =>
+        [.. _addons.Where(addon => _features.Contains(addon.Feature))];
+
     public int InstallCount => Installs.Count;
 
     public int AddonCount => Installs.Sum(install => install.AddonRows.Count(row => !row.IsHidden));
@@ -344,9 +353,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Visibility SyncBadgeVisibility => When(Sync.HasWaiting);
 
     public Visibility GuidesVisibility => When(IsGuidesPreview
-        || (RestedXp.IsSignedIn && Installs.Any(install => install.AddonRows.Any(row =>
+        || (HasGuidesFeature && RestedXp.IsSignedIn && Installs.Any(install => install.AddonRows.Any(row =>
             string.Equals(row.AddonId, RestedXpViewModel.AddonId, StringComparison.OrdinalIgnoreCase)
             && row.State is not (AddonRowState.Missing or AddonRowState.NoReleases)))));
+
+    public Visibility SyncVisibility => When(HasStewardFeature);
 
     public Visibility TimeoutVisibility => When(Failure == GateFailure.Timeout);
 
@@ -438,11 +449,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             row.RestedXpSignInRequested = () => ShowRestedXpSignIn?.Invoke();
             row.NeedsRestedXpSignIn = !RestedXp.IsSignedIn;
+            row.HasGuidesFeature = HasGuidesFeature;
         }
     }
 
     private async Task CheckGuidesAsync()
     {
+        if (!HasGuidesFeature)
+        {
+            return;
+        }
+
         _lastGuideCheck = DateTimeOffset.Now;
         await RestedXp.CheckAsync().ConfigureAwait(true);
     }
@@ -512,6 +529,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DisposeInstalls();
         _status.Clear();
         _releases.Clear();
+        _features.Clear();
         _guildId = null;
         SetGuilds([], null);
         UserName = null;
@@ -845,7 +863,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var state = _stateStore.Load();
-            foreach (var addon in _addons)
+            foreach (var addon in VisibleAddons())
             {
                 var releases = await _addonUpdater.ProbeChannelsAsync(addon, addon.IsGitHub ? addon.Channels : VisibleChannels, cancellationToken)
                     .ConfigureAwait(true);
@@ -925,7 +943,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task<string?> SyncRosterAsync()
     {
-        if (!IsSignedIn || !IsApiReachable || _guildId is not { } guildId)
+        if (!IsSignedIn || !IsApiReachable || !HasStewardFeature || _guildId is not { } guildId)
         {
             return null;
         }
@@ -1088,7 +1106,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         var viewModel = new WowInstallViewModel(
             install,
-            _addons,
+            VisibleAddons(),
             _addonUpdater,
             _stateStore,
             EnsureAuthorizedForActionAsync,
@@ -1217,17 +1235,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var me = await _gigagrugClient.GetMeAsync(cancellationToken).ConfigureAwait(true);
-            if (!GigagrugClient.IsAdmin(me))
+            var features = GigagrugClient.EffectiveFeatures(me);
+            if (features.Count == 0)
             {
                 SignOutTo(GateFailure.NotAuthorized);
                 return AuthCheckResult.NotAuthorized;
             }
 
+            _features.Clear();
+            _features.UnionWith(features);
+
             UserName = me.User.Name;
             UserHandle = me.User.Username is { Length: > 0 } u ? $"@{u}" : null;
             Role = me.User.Role;
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
-            IsAuthorized = GigagrugClient.IsAdmin(me);
+            IsAuthorized = true;
             var guild = me.ResolveGuild(_stateStore.Load().GuildId);
             _guildId = guild?.Id;
             SetGuilds(me.Guilds, guild);
@@ -1238,7 +1260,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsGlobalAdmin = GigagrugClient.IsGlobalAdmin(me);
 
             PropagateAuthorized();
-            return IsAuthorized ? AuthCheckResult.Authorized : AuthCheckResult.NotAuthorized;
+            return AuthCheckResult.Authorized;
         }
         catch (SessionExpiredException)
         {
@@ -1256,6 +1278,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void SignOutTo(GateFailure failure)
     {
         _sessionService.ClearSession();
+        _features.Clear();
         IsAuthorized = false;
         IsGlobalAdmin = false;
         UserName = null;

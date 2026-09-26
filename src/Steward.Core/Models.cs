@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Steward.Core;
 
-public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? GitHubRepo = null, string? Name = null)
+public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? GitHubRepo = null, string? Name = null, string Feature = GigagrugClient.AddonsFeature)
 {
     public bool IsGitHub => GitHubRepo is not null;
 
@@ -43,7 +43,8 @@ public sealed record AdminUser(
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("username")] string? Username,
     [property: JsonPropertyName("avatar_url")] string? AvatarUrl,
-    [property: JsonPropertyName("role")] string? Role);
+    [property: JsonPropertyName("role")] string? Role,
+    [property: JsonPropertyName("features")] IReadOnlyList<string>? Features = null);
 
 public sealed record AdminGuild(
     [property: JsonPropertyName("id")] string Id,

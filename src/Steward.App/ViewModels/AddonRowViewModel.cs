@@ -138,9 +138,13 @@ public sealed partial class AddonRowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(RestedXpSignInVisibility))]
     public partial bool NeedsRestedXpSignIn { get; set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RestedXpSignInVisibility))]
+    public partial bool HasGuidesFeature { get; set; } = true;
+
     public Action? RestedXpSignInRequested { get; set; }
 
-    public Visibility RestedXpSignInVisibility => When(NeedsRestedXpSignIn && IsInstalled && !IsHidden);
+    public Visibility RestedXpSignInVisibility => When(NeedsRestedXpSignIn && IsInstalled && !IsHidden && HasGuidesFeature);
 
     public bool IsClientRunning { get; set; }
 
