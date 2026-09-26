@@ -28,15 +28,14 @@ function Get-StoreWhatsNew {
     if ($items.Count -eq 0) { return 'Minor improvements and fixes.' }
 
     $kept = [System.Collections.Generic.List[string]]::new()
-    $len = 0
-    foreach ($item in $items) {
-        $bulleted = "- $item"
-        $add = $bulleted.Length + $(if ($kept.Count -eq 0) { 0 } else { 1 })
-        if ($len + $add -gt $Limit) { break }
-        $kept.Add($bulleted)
-        $len += $add
+    foreach ($item in $items) { $kept.Add("- $item") }
+    $notes = $kept -join "`n"
+    while ($notes.Length -gt $Limit) {
+        $kept.RemoveAt($kept.Count - 1)
+        $dropped = $items.Count - $kept.Count
+        $notes = (@($kept) + "- and $dropped more $(if ($dropped -eq 1) { 'change' } else { 'changes' })") -join "`n"
     }
-    return ($kept -join "`n")
+    return $notes
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
@@ -59,6 +58,24 @@ if ($MyInvocation.InvocationName -ne '.') {
     }
     finally {
         Remove-Item -LiteralPath $scopedChangelog -ErrorAction SilentlyContinue
+    }
+
+    $longChangelog = New-TemporaryFile
+    Set-Content -Path $longChangelog -Encoding utf8 -Value @(
+        '## [1.2.5](https://example.com) (2026-09-26)'
+        ''
+        '### Features'
+        ''
+        '* first change ([abc1234](https://example.com))'
+        '* second change ([abc1234](https://example.com))'
+        '* third change ([abc1234](https://example.com))'
+    )
+    try {
+        $truncatedResult = Get-StoreWhatsNew -ChangelogPath $longChangelog -Version '1.2.5' -Limit 40
+        if ($truncatedResult -ne "- first change`n- and 2 more changes") { throw "self-check failed: truncation gave '$truncatedResult'" }
+    }
+    finally {
+        Remove-Item -LiteralPath $longChangelog -ErrorAction SilentlyContinue
     }
 
     $emptyChangelog = New-TemporaryFile
