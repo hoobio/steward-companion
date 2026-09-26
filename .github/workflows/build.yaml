@@ -20,7 +20,6 @@ env:
   DOTNET_SDK_VERSION: "10.0.203"
   SOLUTION_PATH: Steward.slnx
   PROJECT_PATH: src/Steward.App/Steward.App.csproj
-  WIX_SOURCE_PATH: installer/Steward.wxs
   APPXMANIFEST_PATH: src/Steward.App/Package.appxmanifest
 
 jobs:
@@ -58,108 +57,6 @@ jobs:
 
       - name: Test
         run: dotnet test --project tests/Steward.Core.Tests/Steward.Core.Tests.csproj -c Release
-
-  build-msi:
-    name: Build MSI
-    needs: [release-please]
-    if: always() && github.event_name != 'pull_request' && needs.release-please.result != 'failure'
-    runs-on: windows-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      msi_version: ${{ steps.version.outputs.msi_version }}
-    permissions:
-      contents: read
-      pull-requests: read
-    env:
-      HAS_SIGNING_CERT: ${{ secrets.SIGNING_CERTIFICATE != '' && vars.SIGNING_CERT_THUMBPRINT != '' }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
-
-      - name: Read version
-        id: version
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_CREATED: ${{ needs.release-please.outputs.release_created }}
-        run: |
-          $msi = (Get-Content version.txt -Raw).Trim()
-          if ($env:RELEASE_CREATED -ne 'true') {
-            $title = gh pr list --head release-please--branches--main --state open --json title --jq '.[0].title // empty'
-            if ($title -match 'release (\d+\.\d+\.\d+)') { $msi = $Matches[1] }
-          }
-          $ver = if ($env:RELEASE_CREATED -eq 'true') { $msi } else { "$msi-pre-release.$($env:GITHUB_RUN_NUMBER).$($env:GITHUB_SHA.Substring(0, 7))" }
-          "msi_version=$msi" | Out-File -Append $env:GITHUB_OUTPUT
-          "version=$ver" | Out-File -Append $env:GITHUB_OUTPUT
-
-      - name: Publish unpackaged self-contained build
-        shell: pwsh
-        env:
-          PUBLISH_DIR: ${{ github.workspace }}\publish\x64
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          New-Item -ItemType Directory -Path $env:PUBLISH_DIR -Force | Out-Null
-          # NuGet's restore can fail with a bare MSB4181 and no cause (NuGet/Home#13460), so the publish gets three attempts.
-          $attempt = 0
-          do {
-            $attempt++
-            dotnet publish $env:PROJECT_PATH `
-              -c Release `
-              -p:Platform=x64 `
-              -p:RuntimeIdentifier=win-x64 `
-              -p:WindowsPackageType=None `
-              -p:WindowsAppSDKSelfContained=true `
-              -p:SelfContained=true `
-              -p:GitHubRelease=true `
-              -p:Version=$env:VERSION `
-              -o $env:PUBLISH_DIR
-            if ($LASTEXITCODE -eq 0) { break }
-            Write-Host "dotnet publish failed (exit $LASTEXITCODE), attempt $attempt of 3"
-          } while ($attempt -lt 3)
-          if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)" }
-          if (-not (Test-Path "$env:PUBLISH_DIR\Steward.App.exe")) {
-            throw "Expected Steward.App.exe in publish output"
-          }
-
-      - name: Build MSI
-        uses: hoobio/pipeline-tools/pipeline/github/step/build-msi-wix@v2.3.2
-        with:
-          wix-source-path: ${{ env.WIX_SOURCE_PATH }}
-          version: ${{ steps.version.outputs.msi_version }}
-          platform: x64
-          payload-dir: ${{ github.workspace }}\publish\x64
-          output-dir: ${{ github.workspace }}\staging\msi-x64
-          extensions: WixToolset.UI.wixext/5.0.2,WixToolset.Util.wixext/5.0.2
-
-      - name: Sign MSI
-        if: env.HAS_SIGNING_CERT == 'true'
-        uses: hoobio/pipeline-tools/pipeline/github/step/sign-msi@v2.3.2
-        with:
-          pfx-base64: ${{ secrets.SIGNING_CERTIFICATE }}
-          pfx-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
-          thumbprint: ${{ vars.SIGNING_CERT_THUMBPRINT }}
-          packages-path: ${{ github.workspace }}\staging\msi-x64
-
-      - name: Skip-sign notice
-        if: env.HAS_SIGNING_CERT != 'true'
-        shell: bash
-        run: echo "::warning::SIGNING_CERTIFICATE / SIGNING_CERT_THUMBPRINT not set; MSI produced unsigned."
-
-      - name: Rename MSI to the full version
-        if: steps.version.outputs.version != steps.version.outputs.msi_version
-        shell: pwsh
-        working-directory: ${{ github.workspace }}\staging\msi-x64
-        run: Rename-Item "Steward-${{ steps.version.outputs.msi_version }}-x64.msi" "Steward-${{ steps.version.outputs.version }}-x64.msi"
-
-      - name: Upload MSI artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: msi-x64
-          path: ${{ github.workspace }}\staging\msi-x64\Steward-${{ steps.version.outputs.version }}-x64.msi
-          if-no-files-found: error
 
   build-msix:
     name: Build MSIX
@@ -236,51 +133,37 @@ jobs:
 
   release:
     name: Publish Release
-    needs: [release-please, lint-and-test, build-msi]
+    needs: [release-please, lint-and-test]
     if: >-
       always()
       && needs.release-please.outputs.release_created == 'true'
       && needs.lint-and-test.result == 'success'
-      && needs.build-msi.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
 
-      - name: Download MSI
-        uses: actions/download-artifact@v8
-        with:
-          name: msi-x64
-          path: release
-
-      - name: Attach MSI to the draft release
-        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@v2.3.2
-        with:
-          tag: ${{ needs.release-please.outputs.tag_name }}
-          file-path: release/Steward-${{ needs.build-msi.outputs.version }}-x64.msi
-          github-token: ${{ github.token }}
-
       - name: Stack release notes back to the last minor
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
-          VERSION: ${{ needs.build-msi.outputs.version }}
         run: |
+          $version = $env:TAG.TrimStart('v')
           $notes = [System.Collections.Generic.List[string]]::new()
           $started = $false
           $stop = $false
           foreach ($line in Get-Content CHANGELOG.md) {
             if ($line -match '^## \[?(\d+)\.(\d+)\.(\d+)') {
-              $version = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
-              if (-not $started) { $started = $version -eq $env:VERSION }
+              $lineVersion = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
+              if (-not $started) { $started = $lineVersion -eq $version }
               elseif ($stop) { break }
               if ($started -and $Matches[3] -eq '0') { $stop = $true }
             }
             if ($started) { $notes.Add($line) }
           }
-          if ($notes.Count -eq 0) { throw "No CHANGELOG.md section for $env:VERSION" }
+          if ($notes.Count -eq 0) { throw "No CHANGELOG.md section for $version" }
           Set-Content -Path notes.md -Value $notes
           gh release edit $env:TAG --notes-file notes.md
           if ($LASTEXITCODE -ne 0) { throw "gh release edit failed (exit $LASTEXITCODE)" }
@@ -375,60 +258,3 @@ jobs:
           msstore submission publish $env:PRODUCT_ID
           if ($LASTEXITCODE -ne 0) { throw "submission publish failed ($LASTEXITCODE)" }
           Write-Host "Submitted $package to the Store (product $env:PRODUCT_ID)."
-
-  pre-release:
-    name: Publish Pre-release
-    needs: [release-please, lint-and-test, build-msi]
-    if: >-
-      always()
-      && github.ref == 'refs/heads/main'
-      && github.event_name != 'pull_request'
-      && needs.release-please.outputs.release_created != 'true'
-      && needs.lint-and-test.result == 'success'
-      && needs.build-msi.result == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download MSI
-        uses: actions/download-artifact@v8
-        with:
-          name: msi-x64
-          path: release
-
-      - name: Create the pre-release and keep the latest five
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          VERSION: ${{ needs.build-msi.outputs.version }}
-        run: |
-          set -euo pipefail
-          tag="v$VERSION"
-          previous="$(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')"
-          gh release create "$tag" --prerelease --target "$GITHUB_SHA" --title "$tag" --generate-notes ${previous:+--notes-start-tag "$previous"} "release/Steward-$VERSION-x64.msi"
-          gh release list --limit 100 --json tagName,isPrerelease,createdAt --jq '[.[] | select(.isPrerelease)] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' \
-            | xargs -r -n1 gh release delete --cleanup-tag --yes
-
-  dispatch:
-    name: Notify addons
-    needs: [release, pre-release]
-    # Ordering only: whichever of the two published, the manifests the app polls are rebuilt from the release list.
-    if: always() && (needs.release.result == 'success' || needs.pre-release.result == 'success')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      # Requires the release-please GitHub App to also be installed on hoobio/addons.
-      - uses: actions/create-github-app-token@v3
-        id: app-token
-        with:
-          client-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
-          owner: hoobio
-          repositories: addons
-
-      - name: Dispatch addon-released
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: gh api repos/hoobio/addons/dispatches -f event_type=addon-released
