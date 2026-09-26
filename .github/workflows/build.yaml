@@ -78,9 +78,19 @@ jobs:
       - name: Read version
         id: version
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_CREATED: ${{ needs.release-please.outputs.release_created }}
         run: |
-          $ver = (Get-Content version.txt -Raw).Trim()
-          "version=$ver" | Out-File -Append $env:GITHUB_OUTPUT
+          $fallback = (Get-Content version.txt -Raw).Trim()
+          if ($env:RELEASE_CREATED -eq 'true') {
+            "version=$fallback" | Out-File -Append $env:GITHUB_OUTPUT
+            return
+          }
+          $majorMinor = $fallback -replace '^(\d+\.\d+)\.\d+$', '$1'
+          $title = gh pr list --head release-please--branches--main --state open --json title --jq '.[0].title // empty'
+          if ($title -match 'release (\d+)\.(\d+)\.\d+') { $majorMinor = "$($Matches[1]).$($Matches[2])" }
+          "version=$majorMinor.$($env:GITHUB_RUN_NUMBER).0" | Out-File -Append $env:GITHUB_OUTPUT
 
       - name: Stamp Package.appxmanifest version
         uses: hoobio/pipeline-tools/pipeline/github/step/stamp-msix-version@v2.3.2
@@ -258,3 +268,70 @@ jobs:
           msstore submission publish $env:PRODUCT_ID
           if ($LASTEXITCODE -ne 0) { throw "submission publish failed ($LASTEXITCODE)" }
           Write-Host "Submitted $package to the Store (product $env:PRODUCT_ID)."
+
+  store-flight:
+    name: Submit to Store pre-release flight
+    needs: [release-please, build-msix]
+    if: >-
+      always()
+      && github.event_name == 'push'
+      && needs.release-please.outputs.release_created != 'true'
+      && needs.build-msix.result == 'success'
+      && vars.STORE_FLIGHT_ID != ''
+      && vars.AZURE_CLIENT_ID != ''
+    runs-on: windows-latest
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+    env:
+      STORE_PRODUCT_ID: 9PBKMZFKZHKX
+      KEY_VAULT: hbicfgkvtaus01
+    steps:
+      - name: Download msixupload
+        uses: actions/download-artifact@v8
+        with:
+          name: msixupload-x64
+          path: package
+
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Setup Microsoft Store CLI
+        uses: microsoft/microsoft-store-apppublisher@v1.4
+
+      - name: Configure Store credentials from Key Vault
+        shell: pwsh
+        run: |
+          $store = @{}
+          foreach ($name in 'tenant-id', 'client-id', 'client-secret', 'seller-id') {
+            $value = az keyvault secret show --vault-name $env:KEY_VAULT --name "msstore-$name" --query value -o tsv
+            if ($LASTEXITCODE -ne 0 -or -not $value) { throw "Key Vault secret msstore-$name could not be read" }
+            Write-Host "::add-mask::$value"
+            $store[$name] = $value
+          }
+          msstore reconfigure --tenantId $store['tenant-id'] --sellerId $store['seller-id'] --clientId $store['client-id'] --clientSecret $store['client-secret']
+          if ($LASTEXITCODE -ne 0) { throw "msstore reconfigure failed ($LASTEXITCODE)" }
+
+      - name: Publish package to the Store flight
+        shell: pwsh
+        env:
+          PRODUCT_ID: ${{ env.STORE_PRODUCT_ID }}
+          FLIGHT_ID: ${{ vars.STORE_FLIGHT_ID }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = (Get-ChildItem package -Filter *.msixupload | Select-Object -First 1).FullName
+          if (-not $package) { throw 'No .msixupload artifact found' }
+
+          msstore flights submission delete $env:PRODUCT_ID $env:FLIGHT_ID --no-confirm 2>$null
+          $global:LASTEXITCODE = 0
+
+          msstore publish $package -id $env:PRODUCT_ID --flightId $env:FLIGHT_ID --noCommit
+          if ($LASTEXITCODE -ne 0) { throw "msstore publish failed ($LASTEXITCODE)" }
+
+          msstore flights submission publish $env:PRODUCT_ID $env:FLIGHT_ID
+          if ($LASTEXITCODE -ne 0) { throw "flights submission publish failed ($LASTEXITCODE)" }
+          Write-Host "Submitted $package to Store flight $env:FLIGHT_ID (product $env:PRODUCT_ID)."
