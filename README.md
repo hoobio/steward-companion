@@ -8,7 +8,7 @@ Steward checks each managed addon's release channel when it starts and every 5 m
 
 ## Install
 
-Download the latest MSI from the [Releases](https://github.com/hoobio/steward-companion/releases) page and run it. It installs per-user (no admin prompt) to `%LocalAppData%\Steward`, with a Start Menu shortcut.
+Install Steward from the [Microsoft Store](https://apps.microsoft.com/detail/9PBKMZFKZHKX).
 
 ## Sign-in
 
