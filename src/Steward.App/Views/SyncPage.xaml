@@ -215,6 +215,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
@@ -244,6 +245,14 @@
                     FontSize="12.5"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Visibility="{x:Bind AcceptedVisibility}" />
+
+                <Button
+                    Grid.Column="2"
+                    Content="Send now"
+                    VerticalAlignment="Center"
+                    Command="{x:Bind SendNow}"
+                    CommandParameter="{x:Bind FlavourPath}"
+                    ToolTipService.ToolTip="Push this install's characters again" />
             </Grid>
         </DataTemplate>
 
@@ -463,8 +472,8 @@
                         Height="32"
                         Content="Sync now"
                         Style="{StaticResource AccentButtonStyle}"
-                        IsEnabled="False"
-                        ToolTipService.ToolTip="Available once the guild API ships" />
+                        Command="{x:Bind ViewModel.SyncNowCommand}"
+                        ToolTipService.ToolTip="Push characters to the guild now" />
                 </StackPanel>
             </Grid>
 

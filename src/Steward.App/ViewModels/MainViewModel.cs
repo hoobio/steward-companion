@@ -569,6 +569,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
+            await PushCharacterSyncAsync().ConfigureAwait(true);
             await CheckAppUpdateAsync().ConfigureAwait(true);
             await CheckGuidesAsync().ConfigureAwait(true);
 
@@ -685,6 +686,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
+            await PushCharacterSyncAsync().ConfigureAwait(true);
             await CheckAppUpdateAsync().ConfigureAwait(true);
             await CheckGuidesAsync().ConfigureAwait(true);
         }
@@ -934,7 +936,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return null;
     }
 
-    private async Task PushCharacterSyncAsync()
+    public async Task PushCharacterSyncAsync()
     {
         if (!HasSyncFeature || _guildId is not { } guildId)
         {
@@ -943,33 +945,58 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         foreach (var install in Installs.ToList())
         {
-            var sessionExpired = await PushCharacterSyncAsync(install, guildId).ConfigureAwait(true);
-            if (sessionExpired)
+            if (await PushCharacterSyncAsync(install, guildId, force: false).ConfigureAwait(true))
             {
-                // SignOutTo already tore down Installs; keep iterating the snapshot would push against a dead session.
                 return;
             }
         }
     }
 
-    private async Task<bool> PushCharacterSyncAsync(WowInstallViewModel install, string guildId)
+    [RelayCommand]
+    private async Task SendCharacterSyncNowAsync(string flavourPath)
     {
+        if (HasSyncFeature
+            && _guildId is { } guildId
+            && Installs.FirstOrDefault(i => string.Equals(i.FlavourPath, flavourPath, StringComparison.OrdinalIgnoreCase)) is { } install)
+        {
+            await PushCharacterSyncAsync(install, guildId, force: true).ConfigureAwait(true);
+        }
+    }
+
+    private async Task<bool> PushCharacterSyncAsync(WowInstallViewModel install, string guildId, bool force)
+    {
+        var key = AppStateStore.CharacterSyncKey(guildId, install.FlavourPath);
         SavedVariablesSnapshot? snapshot;
         try
         {
             snapshot = await Task.Run(() => StewardSavedVariables.Read(install.FlavourPath)).ConfigureAwait(true);
         }
-        catch (Exception ex) when (ex is FormatException or IOException)
+        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
         {
+            SetCharacterSyncRow(install, key, null, [], $"Could not read the Steward saved variables: {ex.Message}");
             return false;
         }
 
         var fingerprint = snapshot?.CharactersFingerprint;
-        var key = AppStateStore.CharacterSyncKey(guildId, install.FlavourPath);
         var state = _stateStore.Load();
-        if (!CharacterPushGate.ShouldPush(fingerprint, state.CharacterSync, key) || !HasSyncFeature)
+        if (fingerprint is null)
+        {
+            if (force)
+            {
+                SetCharacterSyncRow(install, key, null, [], "No Steward saved variables with characters found for this install.");
+            }
+
+            return false;
+        }
+
+        if ((!force && !CharacterPushGate.ShouldPush(fingerprint, state.CharacterSync, key)) || !HasSyncFeature)
         {
             return false;
+        }
+
+        if (force)
+        {
+            state.CharacterSyncBatches.Remove(key);
         }
 
         var batchId = ResolveBatchId(state, key, fingerprint!);
@@ -1023,7 +1050,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             : DateTimeOffset.Now;
 
         var existing = CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath);
-        var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, pushedAt, accepted, error, rejected);
+        var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, pushedAt, accepted, error, rejected) { SendNow = SendCharacterSyncNowCommand };
         if (existing is null)
         {
             CharacterSyncRows.Add(row);
@@ -1154,7 +1181,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ? state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(guildId, install.FlavourPath))
                 : null;
             var accepted = last?.Error is null ? last?.Accepted : null;
-            CharacterSyncRows.Add(new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, accepted, last?.Error, []));
+            CharacterSyncRows.Add(new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, accepted, last?.Error, []) { SendNow = SendCharacterSyncNowCommand });
         }
     }
 

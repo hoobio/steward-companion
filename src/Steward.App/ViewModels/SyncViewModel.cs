@@ -398,6 +398,7 @@ public sealed partial class SyncViewModel : ObservableObject
     [RelayCommand]
     private async Task SyncNowAsync()
     {
+        await _main.PushCharacterSyncAsync().ConfigureAwait(true);
         foreach (var dataset in Datasets.ToList())
         {
             if (dataset.State == SyncDatasetState.WaitingToSend)

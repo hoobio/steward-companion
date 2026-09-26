@@ -1,3 +1,5 @@
+using System.Windows.Input;
+
 using Steward.Core;
 
 using Microsoft.UI.Xaml;
@@ -12,6 +14,8 @@ public sealed record CharacterSyncRowViewModel(
     string? Error,
     IReadOnlyList<CharacterSyncRejection> Rejected)
 {
+    public ICommand? SendNow { get; init; }
+
     public string LastPushText => PushedAt is null ? "Not pushed yet" : $"Pushed {Relative(PushedAt.Value)}";
 
     public string AcceptedText => Accepted is { } accepted ? $"{accepted} accepted" : string.Empty;
