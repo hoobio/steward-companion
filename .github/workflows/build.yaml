@@ -104,6 +104,7 @@ jobs:
         uses: hoobio/pipeline-tools/pipeline/github/step/build-msix-dotnet@v2.3.2
         env:
           GitHubRelease: 'true'
+          StorePreRelease: ${{ needs.release-please.outputs.release_created == 'true' && 'false' || 'true' }}
         with:
           project-path: ${{ env.PROJECT_PATH }}
           platform: x64
@@ -114,6 +115,7 @@ jobs:
         uses: hoobio/pipeline-tools/pipeline/github/step/build-msix-dotnet@v2.3.2
         env:
           GitHubRelease: 'true'
+          StorePreRelease: ${{ needs.release-please.outputs.release_created == 'true' && 'false' || 'true' }}
         with:
           project-path: ${{ env.PROJECT_PATH }}
           platform: x64

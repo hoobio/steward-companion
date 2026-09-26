@@ -20,6 +20,10 @@ public partial class App : Application
         .GetCustomAttributes<AssemblyMetadataAttribute>()
         .Any(attribute => attribute.Key == "GitHubRelease" && attribute.Value == "true");
 
+    public static readonly bool IsPreRelease = typeof(App).Assembly
+        .GetCustomAttributes<AssemblyMetadataAttribute>()
+        .Any(attribute => attribute.Key == "StorePreRelease" && attribute.Value == "true");
+
     public const string PackageFamilyName = "Hoobi.Steward_thayxpy3eqg0g";
 
     public const string MsiUpgradeCode = "{CCD0BF88-7A8E-4F74-9DB7-9B9272B3D503}";

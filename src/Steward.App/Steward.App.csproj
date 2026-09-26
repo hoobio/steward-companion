@@ -15,6 +15,7 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <ApplicationIcon>Assets\Steward.ico</ApplicationIcon>
     <GitHubRelease Condition="'$(GitHubRelease)' == ''">false</GitHubRelease>
+    <StorePreRelease Condition="'$(StorePreRelease)' == ''">false</StorePreRelease>
   </PropertyGroup>
 
   <ItemGroup>
@@ -35,6 +36,7 @@
 
   <ItemGroup>
     <AssemblyMetadata Include="GitHubRelease" Value="$(GitHubRelease)" />
+    <AssemblyMetadata Include="StorePreRelease" Value="$(StorePreRelease)" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">

@@ -393,10 +393,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ? informational.Split('+', 2)[0]
             : typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
-    public string VersionLabel { get; } =
-        $"Steward {InstalledVersion}{(App.IsGitHubRelease ? "" : " (Development)")}";
+    public string VersionLabel { get; } = $"Steward {InstalledVersion}{BuildSuffix}";
 
-    public static string WindowTitle => App.IsGitHubRelease ? "Steward" : "Steward (Development)";
+    public static string WindowTitle => $"Steward{BuildSuffix}";
+
+    private static string BuildSuffix => !App.IsGitHubRelease ? " (Development)" : App.IsPreRelease ? " (Pre-release)" : "";
 
     public string InstallsDescription => $"{InstallCount} found, read from .flavor.info and .build.info";
 
