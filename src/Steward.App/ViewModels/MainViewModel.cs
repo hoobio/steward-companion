@@ -79,6 +79,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DispatcherQueueTimer? _recheckTimer;
     private CancellationTokenSource? _signInCts;
     private string? _guildId;
+    private string? _characterRowsGuildId;
     private DateTimeOffset _lastPass;
     private DateTimeOffset _lastGuideCheck;
     private DateTimeOffset _lastStoreCheck;
@@ -1191,8 +1192,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ? state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(guildId, install.FlavourPath))
                 : null;
             var accepted = last?.Error is null ? last?.Accepted : null;
-            var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, accepted, last?.Error, []) { SendNow = SendCharacterSyncNowCommand };
             var existing = CharacterSyncRows.FirstOrDefault(r => r.FlavourPath == install.FlavourPath);
+            if (existing is not null && _characterRowsGuildId == _guildId)
+            {
+                continue;
+            }
+
+            var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, accepted, last?.Error, []) { SendNow = SendCharacterSyncNowCommand };
             if (existing is null)
             {
                 CharacterSyncRows.Add(row);
@@ -1202,6 +1208,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 CharacterSyncRows[CharacterSyncRows.IndexOf(existing)] = row;
             }
         }
+
+        _characterRowsGuildId = _guildId;
     }
 
     private void RebuildAddonChannels()

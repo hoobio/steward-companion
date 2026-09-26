@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Steward.Core;
 
@@ -5,7 +6,9 @@ namespace Steward.App.Services;
 
 public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore stateStore, DiscordImage images) : IGuildSyncApi
 {
-    private IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> _lastCatalogue = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
+    private static readonly IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> NoCatalogue = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
+
+    private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> _lastCatalogue = new();
 
     public Task<SyncServerState> GetStateAsync(CancellationToken ct) =>
         throw new NotSupportedException(
@@ -38,18 +41,20 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore st
     {
         if (!GigagrugClient.EffectiveFeatures(me).Contains(GigagrugClient.SyncFeature))
         {
-            return new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
+            return NoCatalogue;
         }
 
+        var key = $"{me.User.Id}|{guildId}";
         try
         {
-            _lastCatalogue = await client.GetRecipeCatalogueAsync(guildId, ct).ConfigureAwait(false);
+            var catalogue = await client.GetRecipeCatalogueAsync(guildId, ct).ConfigureAwait(false);
+            _lastCatalogue[key] = catalogue;
+            return catalogue;
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or SessionExpiredException or TaskCanceledException)
         {
-            // a catalogue fetch failure (404 or a timeout included) never blocks the roster write; the last successfully fetched catalogue is kept instead.
+            // a failed fetch (404 or timeout included) never blocks the roster write; that user's last catalogue for this guild is written instead.
+            return _lastCatalogue.GetValueOrDefault(key) ?? NoCatalogue;
         }
-
-        return _lastCatalogue;
     }
 }
