@@ -45,6 +45,14 @@ public sealed partial class SyncViewModel : ObservableObject
         _main = main;
         _api = api;
         _fake = api as InMemoryGuildSyncApi;
+        _main.CharacterSyncRows.CollectionChanged += (_, _) => SyncCharacterPushRows();
+        _main.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.HasSyncFeature))
+            {
+                SyncCharacterPushRows();
+            }
+        };
     }
 
     public MainViewModel Main => _main;
@@ -187,12 +195,29 @@ public sealed partial class SyncViewModel : ObservableObject
                 }
             }
 
+            SyncCharacterPushRows();
             Recompute();
             await DemonstrateAsync().ConfigureAwait(true);
         }
         finally
         {
             _isReloading = false;
+        }
+    }
+
+    private void SyncCharacterPushRows()
+    {
+        foreach (var install in Installs)
+        {
+            var roster = install.Datasets.FirstOrDefault(dataset => dataset.Key == InMemoryGuildSyncApi.RosterDataset);
+            if (roster is null)
+            {
+                continue;
+            }
+
+            roster.CharacterSync = _main.HasSyncFeature
+                ? _main.CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath)
+                : null;
         }
     }
 
@@ -398,7 +423,7 @@ public sealed partial class SyncViewModel : ObservableObject
     [RelayCommand]
     private async Task SyncNowAsync()
     {
-        await _main.PushCharacterSyncAsync().ConfigureAwait(true);
+        await _main.PushCharacterSyncAsync(force: true).ConfigureAwait(true);
         foreach (var dataset in Datasets.ToList())
         {
             if (dataset.State == SyncDatasetState.WaitingToSend)

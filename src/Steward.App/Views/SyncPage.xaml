@@ -98,6 +98,23 @@
                         FontFamily="Cascadia Mono"
                         FontSize="11.5"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    <TextBlock
+                        Text="{x:Bind CharacterSync.LastPushText, Mode=OneWay, FallbackValue=''}"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Visibility="{x:Bind CharacterSyncVisibility, Mode=OneWay}" />
+                    <TextBlock
+                        Text="{x:Bind CharacterSync.Error, Mode=OneWay, FallbackValue=''}"
+                        TextWrapping="Wrap"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Visibility="{x:Bind CharacterSync.ErrorVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
+                    <TextBlock
+                        Text="{x:Bind CharacterSync.RejectedSummary, Mode=OneWay, FallbackValue=''}"
+                        TextWrapping="Wrap"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Visibility="{x:Bind CharacterSync.RejectedVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
                     <ProgressBar
                         Height="3"
                         Maximum="1"
@@ -122,7 +139,16 @@
                     </StackPanel>
                 </StackPanel>
 
-                <Grid Grid.Column="2" VerticalAlignment="Center">
+                <TextBlock
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Text="{x:Bind CharacterSync.AcceptedText, Mode=OneWay, FallbackValue=''}"
+                    FontSize="12.5"
+                    TextAlignment="Right"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Visibility="{x:Bind CharacterSync.AcceptedVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
+
+                <Grid Grid.Column="2" VerticalAlignment="Center" Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}">
                     <TextBlock
                         Text="{x:Bind RecordsText, Mode=OneWay}"
                         FontSize="12.5"
@@ -167,12 +193,24 @@
                     Foreground="{x:Bind ExportedAtBrush, Mode=OneWay}"
                     Visibility="{x:Bind ExportedAtVisibility, Mode=OneWay}" />
 
+                <Button
+                    Grid.Column="5"
+                    Height="32"
+                    Content="Send now"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Command="{x:Bind CharacterSync.SendNow, Mode=OneWay}"
+                    CommandParameter="{x:Bind CharacterSync.FlavourPath, Mode=OneWay, FallbackValue=''}"
+                    ToolTipService.ToolTip="Push this install's characters again"
+                    Visibility="{x:Bind CharacterSyncVisibility, Mode=OneWay}" />
+
                 <StackPanel
                     Grid.Column="5"
                     Orientation="Horizontal"
                     Spacing="8"
                     HorizontalAlignment="Right"
-                    VerticalAlignment="Center">
+                    VerticalAlignment="Center"
+                    Visibility="{x:Bind PlaceholderVisibility, Mode=OneWay}">
                     <Button
                         Height="32"
                         Content="Send"
@@ -203,56 +241,6 @@
                         <TextBlock Text="In sync" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                 </StackPanel>
-            </Grid>
-        </DataTemplate>
-
-        <DataTemplate x:Key="CharacterSyncRowTemplate" x:DataType="vm:CharacterSyncRowViewModel">
-            <Grid
-                Background="{ThemeResource LayerFillColorDefaultBrush}"
-                Padding="{StaticResource CardRowPadding}"
-                MinHeight="{StaticResource CardRowMinHeight}"
-                ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind DisplayName}" FontSize="13.5" FontWeight="SemiBold" />
-                    <TextBlock
-                        Text="{x:Bind LastPushText}"
-                        FontSize="12"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock
-                        Text="{x:Bind Error}"
-                        TextWrapping="Wrap"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                        Visibility="{x:Bind ErrorVisibility}" />
-                    <TextBlock
-                        Text="{x:Bind RejectedSummary}"
-                        TextWrapping="Wrap"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                        Visibility="{x:Bind RejectedVisibility}" />
-                </StackPanel>
-
-                <TextBlock
-                    Grid.Column="1"
-                    Text="{x:Bind AcceptedText}"
-                    VerticalAlignment="Center"
-                    FontSize="12.5"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Visibility="{x:Bind AcceptedVisibility}" />
-
-                <Button
-                    Grid.Column="2"
-                    Content="Send now"
-                    VerticalAlignment="Center"
-                    Command="{x:Bind SendNow}"
-                    CommandParameter="{x:Bind FlavourPath}"
-                    ToolTipService.ToolTip="Push this install's characters again" />
             </Grid>
         </DataTemplate>
 
@@ -608,23 +596,6 @@
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
             </ItemsControl>
-
-            <StackPanel
-                Spacing="10"
-                Visibility="{x:Bind ViewModel.Main.CharacterSyncVisibility, Mode=OneWay}">
-                <TextBlock Text="Characters" FontSize="18" FontWeight="SemiBold" />
-                <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
-                    <ItemsControl
-                        ItemsSource="{x:Bind ViewModel.Main.CharacterSyncRows}"
-                        ItemTemplate="{StaticResource CharacterSyncRowTemplate}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Spacing="1" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                    </ItemsControl>
-                </Border>
-            </StackPanel>
 
             <controls:SettingsCard
                 Padding="{StaticResource CardRowPadding}"

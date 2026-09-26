@@ -38,6 +38,13 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
         nameof(ExportedAtVisibility),
     ];
 
+    private static readonly string[] CharacterSyncDerivedNames =
+    [
+        nameof(CharacterSyncVisibility),
+        nameof(PlaceholderVisibility),
+        nameof(NewVisibility),
+    ];
+
     public required string Key { get; init; }
 
     public required string Name { get; init; }
@@ -77,6 +84,13 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     [ObservableProperty]
     public partial string? Error { get; set; }
 
+    [ObservableProperty]
+    public partial CharacterSyncRowViewModel? CharacterSync { get; set; }
+
+    public Visibility CharacterSyncVisibility => When(CharacterSync is not null);
+
+    public Visibility PlaceholderVisibility => When(CharacterSync is null);
+
     public Thickness HairlineThickness => IsFirst ? default : new Thickness(0, 1, 0, 0);
 
     public int NewCount => Math.Max(0, LocalCount - ServerCount);
@@ -102,7 +116,7 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     public Visibility RecordsVisibility =>
         When(State is SyncDatasetState.WaitingToSend or SyncDatasetState.InSync or SyncDatasetState.Failed);
 
-    public Visibility NewVisibility => When(State == SyncDatasetState.WaitingToSend);
+    public Visibility NewVisibility => When(CharacterSync is null && State == SyncDatasetState.WaitingToSend);
 
     public Visibility NothingYetVisibility => When(State == SyncDatasetState.NothingYet);
 
@@ -145,6 +159,14 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     partial void OnIsSendingChanged(bool value) => NotifyDerived();
 
     partial void OnErrorChanged(string? value) => NotifyDerived();
+
+    partial void OnCharacterSyncChanged(CharacterSyncRowViewModel? value)
+    {
+        foreach (var name in CharacterSyncDerivedNames)
+        {
+            OnPropertyChanged(name);
+        }
+    }
 
     private void NotifyDerived()
     {

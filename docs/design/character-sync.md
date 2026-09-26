@@ -50,7 +50,7 @@ StewardDB = {
 
 - `StewardSavedVariables` maps `StewardDB.characters` to `CharacterObservation` records through the existing `LuaSavedVariables` parser, skipping and counting malformed records like the other datasets.
 - The background pass, while `sync` is held, pushes the whole `characters` table for an install whenever its `StewardDB` file changed since the last successful push (file fingerprint per install in `state.json`), as one batch with a client-generated `batchId`. No per-character ack: the server discards unchanged observations, and a full push lets a voided batch heal on the next one.
-- `GigagrugClient.PostCharacterSyncAsync(guildId, batch)`; the Sync page shows the last push's time, accepted count and rejected records.
+- `GigagrugClient.PostCharacterSyncAsync(guildId, batch)`; the Sync page shows the last push's time, accepted count and rejected records in each install's Roster row, with its own `Send now` button. `Sync now` at the top of the page forces the push for every install even when the fingerprint matches the last attempt, unlike the background pass.
 
 ## gigagrug
 

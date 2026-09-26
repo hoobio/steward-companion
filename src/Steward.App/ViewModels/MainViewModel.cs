@@ -60,7 +60,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(HiddenToggleVisibility),
         nameof(GuidesVisibility),
         nameof(SyncVisibility),
-        nameof(CharacterSyncVisibility),
+        nameof(HasSyncFeature),
     ];
 
     private readonly ISessionService _sessionService;
@@ -357,8 +357,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             && row.State is not (AddonRowState.Missing or AddonRowState.NoReleases)))));
 
     public Visibility SyncVisibility => When(HasStewardFeature);
-
-    public Visibility CharacterSyncVisibility => When(HasSyncFeature);
 
     public ObservableCollection<CharacterSyncRowViewModel> CharacterSyncRows { get; } = [];
 
@@ -936,7 +934,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return null;
     }
 
-    public async Task PushCharacterSyncAsync()
+    public async Task PushCharacterSyncAsync(bool force = false)
     {
         if (!HasSyncFeature || _guildId is not { } guildId)
         {
@@ -945,7 +943,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         foreach (var install in Installs.ToList())
         {
-            if (await PushCharacterSyncAsync(install, guildId, force: false).ConfigureAwait(true))
+            if (await PushCharacterSyncAsync(install, guildId, force).ConfigureAwait(true))
             {
                 return;
             }
