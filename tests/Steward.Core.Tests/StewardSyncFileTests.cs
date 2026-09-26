@@ -129,11 +129,39 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Equal(["EU"], member.GetTable("origin")!.Items.Select(i => i.Text));
         Assert.Equal("WARRIOR", member.GetTable("primary")!.GetString("class"));
         Assert.Null(member.GetTable("secondary"));
+        Assert.Null(member.GetTable("main"));
 
         var discord = Assert.Single(table.GetTable("discord")!.Items);
         Assert.Equal("222", discord.GetString("id"));
         Assert.Equal("Grug", discord.GetString("name"));
         Assert.Null(discord.GetString("nick"));
+    }
+
+    [Fact]
+    public void Render_ProducesTheMainTable_WhenTheMemberCarriesOne()
+    {
+        var payload = SamplePayloadWithGuildData() with
+        {
+            Members =
+            [
+                new GuildRosterMember(
+                    "111", "Hoobi", null, "hoobi#0001", "Raider", ["EU"], ["core"], null,
+                    "Reliable", false, 12, 1758200000,
+                    new GuildBuild("WARRIOR", "Fury", "Melee"), null,
+                    new GuildMain("Player-4619-00B33CCD", "Hoobi Furry", 60, 1)),
+            ],
+        };
+        var rendered = StewardSyncFile.Render(payload);
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"];
+
+        var main = Assert.Single(table.GetTable("members")!.Items).GetTable("main")!;
+        Assert.Equal("Player-4619-00B33CCD", main.GetString("guid"));
+        Assert.Equal("Hoobi Furry", main.GetString("name"));
+        Assert.Equal(60d, main.GetNumber("level"));
+        Assert.Equal(1d, main.GetNumber("classID"));
     }
 
     [Fact]

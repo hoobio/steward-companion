@@ -8,6 +8,12 @@ public sealed record GuildBuild(
     [property: JsonPropertyName("spec")] string Spec,
     [property: JsonPropertyName("role")] string Role);
 
+public sealed record GuildMain(
+    [property: JsonPropertyName("guid")] string CharacterGuid,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("level")] int Level,
+    [property: JsonPropertyName("class_id")] int ClassId);
+
 public sealed record GuildRosterMember(
     [property: JsonPropertyName("user_id")] string UserId,
     [property: JsonPropertyName("name")] string Name,
@@ -22,7 +28,8 @@ public sealed record GuildRosterMember(
     [property: JsonPropertyName("signups")] int Signups,
     [property: JsonPropertyName("last_signup_at")] long LastSignupAt,
     [property: JsonPropertyName("primary")] GuildBuild? Primary,
-    [property: JsonPropertyName("secondary")] GuildBuild? Secondary);
+    [property: JsonPropertyName("secondary")] GuildBuild? Secondary,
+    [property: JsonPropertyName("main")] GuildMain? Main = null);
 
 public sealed record DiscordMember(
     [property: JsonPropertyName("id")] string Id,

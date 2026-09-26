@@ -63,10 +63,33 @@ public sealed class GigagrugClientTests
         Assert.Equal("Good raider", member.Notes);
         Assert.Equal("WARRIOR", member.Primary?.Class);
         Assert.Null(member.Secondary);
+        Assert.Null(member.Main);
         Assert.Equal(["Officer", "Raider"], statuses);
         var origin = Assert.Single(origins);
         Assert.Equal("EU", origin.Name);
         Assert.Equal("#1d7fd6", origin.Color);
+    }
+
+    [Fact]
+    public async Task GetGuildRosterAsync_Success_DeserialisesTheMain_WhenPresent()
+    {
+        const string body =
+            """
+            {"members":[{"user_id":"1","name":"Grug","display_name":null,"discord_tag":null,
+            "status":null,"origin":[],"flags":[],"rating":null,"notes":null,
+            "notes_warning":false,"signups":0,"last_signup_at":0,
+            "primary":null,"secondary":null,
+            "main":{"guid":"Player-4619-00B33CCD","name":"Hoobi Furry","level":60,"class_id":1}}]}
+            """;
+        var (client, _) = ClientFor(HttpStatusCode.OK, body);
+
+        var (members, _, _) = await client.GetGuildRosterAsync("1", CancellationToken.None);
+
+        var main = Assert.Single(members).Main;
+        Assert.Equal("Player-4619-00B33CCD", main?.CharacterGuid);
+        Assert.Equal("Hoobi Furry", main?.Name);
+        Assert.Equal(60, main?.Level);
+        Assert.Equal(1, main?.ClassId);
     }
 
     [Fact]
