@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.11.0](https://github.com/hoobio/steward-companion/compare/v0.10.0...v0.11.0) (2026-09-26)
+
+
+### Features
+
+* ✨ add an Auto-update addons setting ([17656aa](https://github.com/hoobio/steward-companion/commit/17656aa1e4958bf4589fb0f247e4a10c902a017a))
+* ✨ check the Store when packaged and offer the MSI-to-Store switch ([bf72bd8](https://github.com/hoobio/steward-companion/commit/bf72bd8ce243b7dd4b4ec439e15d431f27412499))
+* ✨ fill the Store listing's What's new field from the release changelog ([f3b1cdb](https://github.com/hoobio/steward-companion/commit/f3b1cdb013490000c9dcbefe51ade9a8d4c380c8))
+* ✨ gate addons, guides and sync on gigagrug's per-user features ([db52c5e](https://github.com/hoobio/steward-companion/commit/db52c5e8258612ab701e72ec460e1842b094a2a8))
+* 💄 style the sign-in callback page with the house design system ([17b832d](https://github.com/hoobio/steward-companion/commit/17b832d88ef8cc55be62590d787f1edfe2682968))
+* 📦 package Steward as a Store-signed MSIX and submit releases via CI ([4f0df95](https://github.com/hoobio/steward-companion/commit/4f0df95f57982d02fadd278b75830c43501d3aaa))
+
+
+### Bug Fixes
+
+* 🐛 build the dev package from a clean export of HEAD ([3947258](https://github.com/hoobio/steward-companion/commit/3947258a5b1d6e9d09f133823811fd9880fe4eaa))
+* 🐛 fix Store-submission review defects (versioning, secrets gating, exit codes, single instance) ([e5da730](https://github.com/hoobio/steward-companion/commit/e5da730de8ef41adc065a602fc9499bba5ee2cd3))
+* 🐛 gate the Store steps on a job env flag since secrets are not allowed in a job if ([d3995d0](https://github.com/hoobio/steward-companion/commit/d3995d0e122f5412bdd959d7bf09d6c6024d127f))
+* 🐛 hide the RestedXP sign-in until the guides feature is confirmed ([0c9c96a](https://github.com/hoobio/steward-companion/commit/0c9c96a92185e2d48644f9c02f048665bdc1803b))
+* 🐛 let any addon holder pick its release channel ([4a5a153](https://github.com/hoobio/steward-companion/commit/4a5a153ffbfbe7a7b0dfea1cf173f0b06d38abcd))
+* 🐛 load the tray icon through ms-appx in the Store build ([ecbd14a](https://github.com/hoobio/steward-companion/commit/ecbd14ac7cb356fc508ac655db02363f38391635))
+* 🐛 reconcile addon rows and gates on feature change ([ad4c311](https://github.com/hoobio/steward-companion/commit/ad4c31191ae56a2baf490eff416a21c7146331fb))
+* 🐛 spin and disable the refresh buttons while a refresh runs ([1fff294](https://github.com/hoobio/steward-companion/commit/1fff294fb6212fcf4bf388c57457b34c6dfc39d9))
+* 🐛 update the sync cards in place so a refresh stops replaying their open animation ([3def7df](https://github.com/hoobio/steward-companion/commit/3def7dfa48e4ca9cef341993d579c4d3fb1bd75e))
+* 💄 align settings expander rows with their header icon ([707dd7f](https://github.com/hoobio/steward-companion/commit/707dd7fe7c3c51700c9c92b84a61aad2abde76fe))
+* 💄 hide Sync behind the steward feature and contrast the role pill ([d694239](https://github.com/hoobio/steward-companion/commit/d6942393543008622a9aa829fde8dacb0379f627))
+* 💄 keep addon row buttons visible at narrow window widths ([6cc2842](https://github.com/hoobio/steward-companion/commit/6cc28423009d31253ed3e4ec454a416734607efb))
+* 💄 set the expander row padding on the cards themselves ([7d9f242](https://github.com/hoobio/steward-companion/commit/7d9f2426fbba23381943167c96f2502785abfa18))
+* 💄 tighten the settings expander row's right edge and widen the install row gap ([66c1f4e](https://github.com/hoobio/steward-companion/commit/66c1f4ef98f7578353cc94dda8e67c06a336918e))
+* 💄 title the guides page RestedXP Guides ([2359562](https://github.com/hoobio/steward-companion/commit/23595621bc9785f195f5884c77a5b443183ee480))
+
 ## [0.10.0](https://github.com/hoobio/steward-companion/compare/v0.9.0...v0.10.0) (2026-09-24)
 
 
