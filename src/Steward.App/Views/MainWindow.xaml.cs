@@ -48,8 +48,8 @@ public sealed partial class MainWindow : Window
 
         AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(980 * scale), (int)(720 * scale)));
 
-        // An unpackaged app cannot resolve ms-appx:/// for the tray icon, so it loads from disk.
-        TrayIcon.IconSource = new BitmapImage(new Uri(App.IconPath));
+        // A packaged app cannot load a BitmapImage from a file path under WindowsApps, and an unpackaged one has no ms-appx root.
+        TrayIcon.IconSource = new BitmapImage(new Uri(App.IsPackaged ? "ms-appx:///Assets/Steward.ico" : App.IconPath));
         // x:Bind in a Window evaluates only once its content loads, which a --tray launch never does.
         TrayIcon.LeftClickCommand = TrayIcon.DoubleClickCommand = new RelayCommand(ShowFromTray);
         TrayIcon.ForceCreate();
