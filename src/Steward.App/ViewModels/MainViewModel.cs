@@ -701,7 +701,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             AppUpdate = App.IsPackaged
-                ? await CheckStoreUpdateAsync().ConfigureAwait(true)
+                ? App.IsGitHubRelease ? await CheckStoreUpdateAsync().ConfigureAwait(true) : null
                 : await _appUpdater
                     .CheckAsync(typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0), InstalledVersion, AppChannel, cancellationToken)
                     .ConfigureAwait(true);

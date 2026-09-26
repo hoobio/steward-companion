@@ -78,6 +78,18 @@ The Start with Windows toggle shows distinct, disabled text for each locked `Sta
 
 The Store is the app's only release channel going forward. The MSI stays in place only for the one release that bridges existing installs across; a later change removes the MSI path once that release has shipped.
 
+## Development install
+
+Every `git push` from this clone builds the working tree and registers it as a second, side-by-side packaged app, so a developer always has a running build of `main` without touching the Store install. `scripts/Install-DevBuild.ps1` stamps a dev identity into a copy of `Package.appxmanifest` in place, `Hoobi.Steward.Dev` publisher `CN=Hoobi Dev`, both `DisplayName` elements reading "Steward (Development)", and the version from `version.txt`, then restores the checked-in manifest once the build finishes so git status stays clean. It builds a Release x64 MSIX the same way `build-msix` does in `build.yaml`, extracts the produced `.msix` (a zip container) to `%LocalAppData%\Steward.Dev\app`, and registers that loose layout with `Add-AppxPackage -Register`, which Developer Mode accepts unsigned. The Start menu entry is "Steward (Development)"; the package family name is `Hoobi.Steward.Dev_<publisher-hash>`, distinct from the Store's `Hoobi.Steward_thayxpy3eqg0g`.
+
+The dev package runs side by side with the Store package, both able to be open at once. The single-instance mutex is `Local\Steward.App` when `App.IsGitHubRelease` (the Store and MSI builds, which both publish with `GitHubRelease=true`) and `Local\Steward.App.Dev` otherwise, so a dev build never contests the Store build's mutex and vice versa. The Store update check (`CheckStoreUpdateAsync`, via `StoreContext`) only runs when `App.IsGitHubRelease`, since a dev identity is never in the Store; a packaged non-GitHubRelease build reports no update rather than surfacing a Store error. The MSI-to-Store migration banner (`UpdateStoreAppInstalledState`) only ever ran for an unpackaged build, so it was already inert for a packaged dev build without any change here.
+
+The manifest's `StewardStartup` `StartupTask` is scoped per package identity, so enabling Start with Windows for the dev package cannot collide with the Store package's own toggle: each autostarts independently with `--tray` if the user turns it on for that package.
+
+Because the two packages carry different identities, Windows virtualises each one's writes to `%LocalAppData%\Steward` into its own per-package storage; the dev package does not see the Store package's `state.json` or session, and starts signed out on a machine that is signed in on the Store build. `App.DisplayDataFolder` reflects this: it points at the dev package's own virtualised folder, not the Store package's.
+
+`.githooks/pre-push` triggers the build: a POSIX `sh` script that starts `scripts/Install-DevBuild.ps1` fully detached and hidden, then exits 0 immediately, so a slow or failing dev build never blocks or fails a push. Run `git config core.hooksPath .githooks` once per clone to pick it up; `.gitattributes` forces it to LF regardless of the checkout's `autocrlf` setting. Everything the script does is logged to `%LocalAppData%\Steward.Dev\install.log`.
+
 ## Git workflow
 
 Commits go straight to `main` in the one working tree at `D:\steward-companion` and are pushed there; this repo uses no feature branches, no worktrees and no pull requests for its own work, and a subagent edits `main` in place. Conventional-commit subjects feed release-please, which opens the release PR itself.

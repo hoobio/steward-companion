@@ -11,7 +11,8 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        using var instanceLock = new Mutex(initiallyOwned: true, "Local\\Steward.App", out var createdNew);
+        var mutexName = App.IsGitHubRelease ? "Local\\Steward.App" : "Local\\Steward.App.Dev";
+        using var instanceLock = new Mutex(initiallyOwned: true, mutexName, out var createdNew);
         if (!createdNew)
         {
             return 0;

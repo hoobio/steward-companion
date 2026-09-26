@@ -1,0 +1,3 @@
+#!/bin/sh
+pwsh -NoProfile -Command "Start-Process pwsh -WindowStyle Hidden -ArgumentList '-NoProfile','-File','scripts/Install-DevBuild.ps1'" >/dev/null 2>&1
+exit 0
