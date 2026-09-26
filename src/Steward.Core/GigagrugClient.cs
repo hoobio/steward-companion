@@ -1,5 +1,8 @@
+using System.IO.Compression;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace Steward.Core;
 
@@ -186,12 +189,19 @@ public sealed class GigagrugClient
     public async Task<CharacterSyncResponse> PostCharacterSyncAsync(
         string guildId, CharacterSyncRequest batch, CancellationToken cancellationToken)
     {
+        var json = JsonSerializer.SerializeToUtf8Bytes(batch, CompanionJsonContext.Default.CharacterSyncRequest);
+        using var compressed = new MemoryStream();
+        await using (var gzip = new GZipStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
+        {
+            await gzip.WriteAsync(json, cancellationToken).ConfigureAwait(false);
+        }
+
+        using var content = new ByteArrayContent(compressed.ToArray());
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        content.Headers.ContentEncoding.Add("gzip");
+
         using var response = await _httpClient
-            .PostAsJsonAsync(
-                $"{_baseUrl}/api/admin/{guildId}/characters/sync",
-                batch,
-                CompanionJsonContext.Default.CharacterSyncRequest,
-                cancellationToken)
+            .PostAsync($"{_baseUrl}/api/admin/{guildId}/characters/sync", content, cancellationToken)
             .ConfigureAwait(false);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)

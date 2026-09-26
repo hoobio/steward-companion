@@ -1,5 +1,7 @@
+using System.IO.Compression;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 
 namespace Steward.Core.Tests;
 
@@ -9,14 +11,22 @@ public sealed class GigagrugClientTests
     {
         public string? RequestUrl { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        public HttpRequestMessage? Request { get; private set; }
+
+        public byte[]? RequestContent { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestUrl = request.RequestUri?.ToString();
-            return Task.FromResult(new HttpResponseMessage(status)
+            Request = request;
+            RequestContent = request.Content is null
+                ? null
+                : await request.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+            return new HttpResponseMessage(status)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json"),
-            });
+            };
         }
     }
 
@@ -120,5 +130,30 @@ public sealed class GigagrugClientTests
         var exception = await Assert.ThrowsAsync<HttpRequestException>(
             () => client.GetDiscordMembersAsync("1", CancellationToken.None));
         Assert.Contains("500", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PostCharacterSyncAsync_SendsAGzipCompressedBody()
+    {
+        var (client, handler) = ClientFor(HttpStatusCode.OK, """{"accepted":1,"rejected":[]}""");
+        var request = new CharacterSyncRequest(
+            "batch-1",
+            "1.0.0",
+            [new CharacterSyncEntry("guid-1", "Hoobi", "Nightslayer", "Grug's Guild", 60, 1, 1, 0, null, null, false, null)]);
+
+        await client.PostCharacterSyncAsync("1", request, TestContext.Current.CancellationToken);
+
+        Assert.Equal("gzip", Assert.Single(handler.Request!.Content!.Headers.ContentEncoding));
+        Assert.Equal("application/json", handler.Request.Content.Headers.ContentType?.MediaType);
+
+        await using var gzip = new GZipStream(new MemoryStream(handler.RequestContent!), CompressionMode.Decompress);
+        using var decompressed = new MemoryStream();
+        await gzip.CopyToAsync(decompressed, TestContext.Current.CancellationToken);
+        var deserialised = JsonSerializer.Deserialize(
+            decompressed.ToArray(), CompanionJsonContext.Default.CharacterSyncRequest);
+
+        Assert.Equal(request.BatchId, deserialised?.BatchId);
+        Assert.Equal(request.AppVersion, deserialised?.AppVersion);
+        Assert.Equal(request.Characters, deserialised?.Characters);
     }
 }
