@@ -67,6 +67,20 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void CharacterPushRecord_SurvivesAnOlderBuildRewritingStateJson()
+    {
+        var store = new AppStateStore(["steward"], StatePath);
+        var state = store.Load();
+        state.CharacterSync["guild|C:\\wow"] = new CharacterPushRecord("fp", DateTimeOffset.UnixEpoch, 3);
+        store.Save(state);
+        Assert.DoesNotContain("character_sync", File.ReadAllText(StatePath));
+
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{},"guild_id":"guild"}""");
+
+        Assert.False(CharacterPushGate.ShouldPush("fp", store.Load().CharacterSync, "guild|C:\\wow"));
+    }
+
+    [Fact]
     public void Load_NoFile_ReturnsEmptyChannels()
     {
         var state = new AppStateStore(["hoobiscripts"], StatePath).Load();

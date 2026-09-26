@@ -250,7 +250,6 @@ public sealed class RestedXpService : IDisposable
         var strings = new List<(string Name, string Text, string? Tag)>();
         var serverTimestamps = new Dictionary<string, long>(StringComparer.Ordinal);
 
-        var state = _stateStore.Load();
         var prefix = AppStateStore.Key(install.FlavourPath, string.Empty);
         foreach (var productName in products)
         {
@@ -306,6 +305,7 @@ public sealed class RestedXpService : IDisposable
             return results;
         }
 
+        var state = _stateStore.Load();
         foreach (var staleKey in state.RestedXpGuides.Keys
             .Where(key => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())
         {

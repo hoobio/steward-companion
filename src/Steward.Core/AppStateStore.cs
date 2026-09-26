@@ -27,7 +27,11 @@ public sealed class AppStateStore
         _ => AutoUpdateMode.OutOfGame,
     };
 
-    public AppState Load()
+    private string CharacterSyncPath => Path.Combine(Path.GetDirectoryName(_path)!, "character_sync.json");
+
+    public AppState Load() => Normalise(WithCharacterSync(LoadState()));
+
+    private AppState LoadState()
     {
         if (!File.Exists(_path))
         {
@@ -43,6 +47,25 @@ public sealed class AppStateStore
         catch (JsonException)
         {
             return Normalise(new AppState([], []));
+        }
+    }
+
+    private AppState WithCharacterSync(AppState state)
+    {
+        if (!File.Exists(CharacterSyncPath))
+        {
+            return state;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize(File.ReadAllText(CharacterSyncPath), CompanionJsonContext.Default.CharacterSyncState) is { } sync
+                ? state with { CharacterSync = sync.CharacterSync, CharacterSyncBatches = sync.CharacterSyncBatches }
+                : state;
+        }
+        catch (JsonException)
+        {
+            return state;
         }
     }
 
@@ -145,9 +168,21 @@ public sealed class AppStateStore
 
     public void Save(AppState state)
     {
+        ArgumentNullException.ThrowIfNull(state);
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        var temporaryPath = $"{_path}.tmp";
-        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(state, CompanionJsonContext.Default.AppState));
-        File.Move(temporaryPath, _path, overwrite: true);
+        // Kept out of state.json: an older build sharing that file rewrites it without the keys it does not know.
+        WriteAtomically(CharacterSyncPath, JsonSerializer.Serialize(
+            new CharacterSyncState(state.CharacterSync ?? [], state.CharacterSyncBatches ?? []),
+            CompanionJsonContext.Default.CharacterSyncState));
+        WriteAtomically(_path, JsonSerializer.Serialize(
+            state with { CharacterSync = null!, CharacterSyncBatches = null! },
+            CompanionJsonContext.Default.AppState));
+    }
+
+    private static void WriteAtomically(string path, string contents)
+    {
+        var temporaryPath = $"{path}.tmp";
+        File.WriteAllText(temporaryPath, contents);
+        File.Move(temporaryPath, path, overwrite: true);
     }
 }

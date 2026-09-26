@@ -143,8 +143,8 @@ public sealed record AppState(
     [property: JsonPropertyName("guild_id")] string? GuildId = null,
     [property: JsonPropertyName("close_to_tray")] bool CloseToTray = false,
     [property: JsonPropertyName("auto_update")] string AutoUpdate = "out-of-game",
-    [property: JsonPropertyName("character_sync")] Dictionary<string, CharacterPushRecord> CharacterSync = null!,
-    [property: JsonPropertyName("character_sync_batches")] Dictionary<string, CharacterSyncBatch> CharacterSyncBatches = null!)
+    [property: JsonPropertyName("character_sync"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Dictionary<string, CharacterPushRecord> CharacterSync = null!,
+    [property: JsonPropertyName("character_sync_batches"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Dictionary<string, CharacterSyncBatch> CharacterSyncBatches = null!)
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -155,12 +155,17 @@ public sealed record AppState(
     public Dictionary<string, string>? LegacyRestedXpGuideChoice { get; init; }
 }
 
+public sealed record CharacterSyncState(
+    [property: JsonPropertyName("character_sync")] Dictionary<string, CharacterPushRecord> CharacterSync,
+    [property: JsonPropertyName("character_sync_batches")] Dictionary<string, CharacterSyncBatch> CharacterSyncBatches);
+
 [JsonSerializable(typeof(AddonRelease))]
 [JsonSerializable(typeof(AdminMe))]
 [JsonSerializable(typeof(AdminUser))]
 [JsonSerializable(typeof(AppState))]
 [JsonSerializable(typeof(CharacterSyncRequest))]
 [JsonSerializable(typeof(CharacterSyncResponse))]
+[JsonSerializable(typeof(CharacterSyncState))]
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]
 [JsonSerializable(typeof(DiscordMembersResponse))]
