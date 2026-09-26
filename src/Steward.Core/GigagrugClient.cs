@@ -211,8 +211,8 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
-            // 4xx is the server rejecting this batch outright; retrying it unchanged would never succeed.
-            if ((int)response.StatusCode is >= 400 and < 500)
+            // 429/408 are transient like a 5xx; every other 4xx is the server rejecting this batch outright, so retrying it unchanged would never succeed.
+            if ((int)response.StatusCode is >= 400 and < 500 and not 429 and not 408)
             {
                 var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                 throw new GigagrugRequestException(response.StatusCode, body);

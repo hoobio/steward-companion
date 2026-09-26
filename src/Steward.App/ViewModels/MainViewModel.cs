@@ -904,6 +904,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             option.IsCurrent = option == value;
         }
 
+        SyncCharacterSyncRows();
         _ = SyncRosterAsync();
     }
 
@@ -936,6 +937,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task PushCharacterSyncAsync(bool force = false)
     {
+        if (!HasSyncFeature)
+        {
+            return;
+        }
+
+        if (force && !await EnsureAuthorizedForActionAsync(CancellationToken.None).ConfigureAwait(true))
+        {
+            return;
+        }
+
         if (!HasSyncFeature || _guildId is not { } guildId)
         {
             return;
@@ -953,6 +964,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task SendCharacterSyncNowAsync(string flavourPath)
     {
+        if (!HasSyncFeature || !await EnsureAuthorizedForActionAsync(CancellationToken.None).ConfigureAwait(true))
+        {
+            return;
+        }
+
         if (HasSyncFeature
             && _guildId is { } guildId
             && Installs.FirstOrDefault(i => string.Equals(i.FlavourPath, flavourPath, StringComparison.OrdinalIgnoreCase)) is { } install)
@@ -969,7 +985,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             snapshot = await Task.Run(() => StewardSavedVariables.Read(install.FlavourPath)).ConfigureAwait(true);
         }
-        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
             SetCharacterSyncRow(install, key, null, [], $"Could not read the Steward saved variables: {ex.Message}");
             return false;
@@ -1171,16 +1187,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var state = _stateStore.Load();
         foreach (var install in Installs)
         {
-            if (CharacterSyncRows.Any(row => row.FlavourPath == install.FlavourPath))
-            {
-                continue;
-            }
-
             var last = _guildId is { } guildId
                 ? state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(guildId, install.FlavourPath))
                 : null;
             var accepted = last?.Error is null ? last?.Accepted : null;
-            CharacterSyncRows.Add(new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, accepted, last?.Error, []) { SendNow = SendCharacterSyncNowCommand });
+            var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, accepted, last?.Error, []) { SendNow = SendCharacterSyncNowCommand };
+            var existing = CharacterSyncRows.FirstOrDefault(r => r.FlavourPath == install.FlavourPath);
+            if (existing is null)
+            {
+                CharacterSyncRows.Add(row);
+            }
+            else
+            {
+                CharacterSyncRows[CharacterSyncRows.IndexOf(existing)] = row;
+            }
         }
     }
 
@@ -1427,6 +1447,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return AuthCheckResult.NotAuthorized;
             }
 
+            var guild = me.ResolveGuild(_stateStore.Load().GuildId);
+            _guildId = guild?.Id;
+
             var previousFeatures = new HashSet<string>(_features, StringComparer.Ordinal);
             _features.Clear();
             _features.UnionWith(features);
@@ -1440,8 +1463,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Role = me.User.Role;
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = true;
-            var guild = me.ResolveGuild(_stateStore.Load().GuildId);
-            _guildId = guild?.Id;
             SetGuilds(me.Guilds, guild);
             StatusMessage = null;
             Failure = GateFailure.None;

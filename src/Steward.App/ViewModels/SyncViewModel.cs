@@ -30,6 +30,7 @@ public sealed partial class SyncViewModel : ObservableObject
         nameof(LastSyncedText),
         nameof(GeneratedFilePath),
         nameof(GeneratedFileDescription),
+        nameof(SyncNowVisibility),
     ];
 
     private readonly MainViewModel _main;
@@ -51,6 +52,7 @@ public sealed partial class SyncViewModel : ObservableObject
             if (e.PropertyName == nameof(MainViewModel.HasSyncFeature))
             {
                 SyncCharacterPushRows();
+                Recompute();
             }
         };
     }
@@ -150,6 +152,8 @@ public sealed partial class SyncViewModel : ObservableObject
     }
 
     public bool UnreachableIsOpen => IsUnreachable;
+
+    public Visibility SyncNowVisibility => When(_main.HasSyncFeature);
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
@@ -424,13 +428,7 @@ public sealed partial class SyncViewModel : ObservableObject
     private async Task SyncNowAsync()
     {
         await _main.PushCharacterSyncAsync(force: true).ConfigureAwait(true);
-        foreach (var dataset in Datasets.ToList())
-        {
-            if (dataset.State == SyncDatasetState.WaitingToSend)
-            {
-                await SendAsync(dataset).ConfigureAwait(true);
-            }
-        }
+        await WriteGeneratedFileAsync().ConfigureAwait(true);
     }
 
     [RelayCommand]

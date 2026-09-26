@@ -82,9 +82,9 @@ public static class StewardSavedVariables
                 characters.AddRange(MapCharacters(account.GetTable("characters"), ref skipped)
                     .Select(c => (c.CharacterGuid, c.ObservedAt ?? DateTimeOffset.MinValue, c)));
                 professions.AddRange(MapProfessionsByGuid(account.GetTable("professions"), ref skipped)
-                    .Select(p => (p.Guid, p.Professions.ObservedAt is { } observedAt ? DateTimeOffset.FromUnixTimeSeconds(observedAt) : DateTimeOffset.MinValue, p.Professions)));
+                    .Select(p => (p.Guid, ToTimestamp(p.Professions.ObservedAt) ?? DateTimeOffset.MinValue, p.Professions)));
                 catalogue.AddRange(MapCatalogueByProfession(account.GetTable("catalogue"), ref skipped)
-                    .Select(c => (c.Profession, c.Catalogue.ScannedAt is { } scannedAt ? DateTimeOffset.FromUnixTimeSeconds(scannedAt) : DateTimeOffset.MinValue, c.Catalogue)));
+                    .Select(c => (c.Profession, ToTimestamp(c.Catalogue.ScannedAt) ?? DateTimeOffset.MinValue, c.Catalogue)));
                 if (MapGuildRanks(account.GetTable("guildRanks"), ref skipped) is { } ranks
                     && (guildRanks is null || ranks.ObservedAt is null || guildRanks.ObservedAt is null || ranks.ObservedAt > guildRanks.ObservedAt))
                 {
@@ -558,6 +558,20 @@ public static class StewardSavedVariables
 
     private static int ToInt(double? value) => value is null ? 0 : (int)value.Value;
 
-    private static DateTimeOffset? ToTimestamp(double? value) =>
-        value is null ? null : DateTimeOffset.FromUnixTimeSeconds((long)value.Value);
+    private static DateTimeOffset? ToTimestamp(double? value)
+    {
+        if (value is null || double.IsNaN(value.Value) || double.IsInfinity(value.Value))
+        {
+            return null;
+        }
+
+        try
+        {
+            return DateTimeOffset.FromUnixTimeSeconds((long)value.Value);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return null;
+        }
+    }
 }

@@ -461,6 +461,7 @@
                         Content="Sync now"
                         Style="{StaticResource AccentButtonStyle}"
                         Command="{x:Bind ViewModel.SyncNowCommand}"
+                        Visibility="{x:Bind ViewModel.SyncNowVisibility, Mode=OneWay}"
                         ToolTipService.ToolTip="Push characters to the guild now" />
                 </StackPanel>
             </Grid>

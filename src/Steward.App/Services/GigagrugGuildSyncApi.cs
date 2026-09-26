@@ -5,6 +5,8 @@ namespace Steward.App.Services;
 
 public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore stateStore, DiscordImage images) : IGuildSyncApi
 {
+    private IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> _lastCatalogue = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
+
     public Task<SyncServerState> GetStateAsync(CancellationToken ct) =>
         throw new NotSupportedException(
             "GigagrugGuildSyncApi only pulls the guild roster and Discord member list; it has no push-direction sync state to read.");
@@ -41,12 +43,13 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore st
 
         try
         {
-            return await client.GetRecipeCatalogueAsync(guildId, ct).ConfigureAwait(false);
+            _lastCatalogue = await client.GetRecipeCatalogueAsync(guildId, ct).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or SessionExpiredException)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or SessionExpiredException or TaskCanceledException)
         {
-            // a catalogue fetch failure (404 included) never blocks the roster write; the row stays as it was.
-            return new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
+            // a catalogue fetch failure (404 or a timeout included) never blocks the roster write; the last successfully fetched catalogue is kept instead.
         }
+
+        return _lastCatalogue;
     }
 }

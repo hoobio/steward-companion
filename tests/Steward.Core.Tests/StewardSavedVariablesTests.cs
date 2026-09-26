@@ -608,6 +608,41 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void Read_TreatsAMillisecondScaleExportedAtAsUnparseableRatherThanThrowing()
+    {
+        var snapshot = ReadFiles(("account.lua", """StewardDB = { ["exportedAt"] = 1758260000000, }"""));
+
+        Assert.Null(snapshot.ExportedAt);
+    }
+
+    [Fact]
+    public void Read_TreatsANegativeOutOfRangeExportedAtAsUnparseableRatherThanThrowing()
+    {
+        var snapshot = ReadFiles(("account.lua", """StewardDB = { ["exportedAt"] = -99999999999999, }"""));
+
+        Assert.Null(snapshot.ExportedAt);
+    }
+
+    [Fact]
+    public void Read_DoesNotThrow_WhenAProfessionOrCatalogueTimestampIsOutOfRange()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["professions"] = {
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000000, ["skills"] = { { ["name"] = "Alchemy", ["rank"] = 1 } } },
+            },
+            ["catalogue"] = {
+            ["Alchemy"] = { ["scannedAt"] = -99999999999999, ["list"] = { { ["name"] = "Minor Healing Potion" } } },
+            },
+            }
+            """));
+
+        Assert.Equal(0, snapshot.Skipped);
+        Assert.Single(snapshot.Professions);
+        Assert.Single(snapshot.Catalogue);
+    }
+
+    [Fact]
     public void Read_ReturnsNull_WhenNoFileExists()
     {
         Assert.Null(StewardSavedVariables.Read(_root));
