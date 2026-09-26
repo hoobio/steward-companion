@@ -18,6 +18,8 @@ public sealed class AppStateStore
 
     public static string Key(string flavourPath, string addonId) => $"{flavourPath}|{addonId}";
 
+    public static string CharacterSyncKey(string guildId, string flavourPath) => $"{guildId}|{flavourPath}";
+
     public static AutoUpdateMode ParseAutoUpdate(string? value) => value switch
     {
         "always" => AutoUpdateMode.Always,
@@ -68,7 +70,10 @@ public sealed class AppStateStore
                 .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
             CharacterSync = (state.CharacterSync ?? [])
-                .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
+                .Where(entry => !entry.Key.EndsWith("|" + flavourPath, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
+            CharacterSyncBatches = (state.CharacterSyncBatches ?? [])
+                .Where(entry => !entry.Key.EndsWith("|" + flavourPath, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
         };
     }
@@ -84,6 +89,7 @@ public sealed class AppStateStore
         RestedXpGuidesGeneration = new Dictionary<string, long>(state.RestedXpGuidesGeneration ?? [], StringComparer.OrdinalIgnoreCase),
         GuildRosterSync = new Dictionary<string, string>(state.GuildRosterSync ?? [], StringComparer.OrdinalIgnoreCase),
         CharacterSync = new Dictionary<string, CharacterPushRecord>(state.CharacterSync ?? [], StringComparer.OrdinalIgnoreCase),
+        CharacterSyncBatches = new Dictionary<string, CharacterSyncBatch>(state.CharacterSyncBatches ?? [], StringComparer.OrdinalIgnoreCase),
         LegacyRestedXpGuideChoice = null,
     };
 

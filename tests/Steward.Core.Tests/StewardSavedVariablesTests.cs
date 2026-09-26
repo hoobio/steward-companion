@@ -188,6 +188,31 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void Read_DedupesCharactersByGuid_KeepingTheHighestObservedAt()
+    {
+        var older = """
+            StewardDB = {
+            ["characters"] = {
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["level"] = 55, ["observedAt"] = 1758200000 },
+            },
+            }
+            """;
+        var newer = """
+            StewardDB = {
+            ["characters"] = {
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["level"] = 60, ["observedAt"] = 1758260000 },
+            },
+            }
+            """;
+
+        var snapshot = ReadFiles(("account-a.lua", older), ("account-b.lua", newer));
+
+        var character = Assert.Single(snapshot.Characters);
+        Assert.Equal(60, character.Level);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000), character.ObservedAt);
+    }
+
+    [Fact]
     public void Read_SkipsACharacterWithNoGuidKey()
     {
         var snapshot = ReadFiles(("account.lua", """

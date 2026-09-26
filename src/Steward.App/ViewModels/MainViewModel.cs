@@ -941,33 +941,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        foreach (var install in Installs)
+        foreach (var install in Installs.ToList())
         {
-            await PushCharacterSyncAsync(install, guildId).ConfigureAwait(true);
+            var sessionExpired = await PushCharacterSyncAsync(install, guildId).ConfigureAwait(true);
+            if (sessionExpired)
+            {
+                // SignOutTo already tore down Installs; keep iterating the snapshot would push against a dead session.
+                return;
+            }
         }
     }
 
-    private async Task PushCharacterSyncAsync(WowInstallViewModel install, string guildId)
+    private async Task<bool> PushCharacterSyncAsync(WowInstallViewModel install, string guildId)
     {
         SavedVariablesSnapshot? snapshot;
         try
         {
-            snapshot = StewardSavedVariables.Read(install.FlavourPath);
+            snapshot = await Task.Run(() => StewardSavedVariables.Read(install.FlavourPath)).ConfigureAwait(true);
         }
-        catch (FormatException)
+        catch (Exception ex) when (ex is FormatException or IOException)
         {
-            return;
+            return false;
         }
 
         var fingerprint = snapshot?.CharactersFingerprint;
+        var key = AppStateStore.CharacterSyncKey(guildId, install.FlavourPath);
         var state = _stateStore.Load();
-        if (!CharacterPushGate.ShouldPush(fingerprint, state.CharacterSync, install.FlavourPath))
+        if (!CharacterPushGate.ShouldPush(fingerprint, state.CharacterSync, key) || !HasSyncFeature)
         {
-            return;
+            return false;
         }
 
+        var batchId = ResolveBatchId(state, key, fingerprint!);
         var request = new CharacterSyncRequest(
-            Guid.NewGuid().ToString(),
+            batchId,
             InstalledVersion,
             [.. snapshot!.Characters.Select(ToSyncEntry)]);
 
@@ -975,18 +982,37 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             var result = await _gigagrugClient.PostCharacterSyncAsync(guildId, request, CancellationToken.None).ConfigureAwait(true);
             state = _stateStore.Load();
-            state.CharacterSync[install.FlavourPath] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, result.Accepted);
+            state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, result.Accepted);
             _stateStore.Save(state);
-            SetCharacterSyncRow(install, result.Accepted, result.Rejected, null);
+            SetCharacterSyncRow(install, key, result.Accepted, result.Rejected, null);
         }
         catch (SessionExpiredException)
         {
             SignOutTo(GateFailure.SessionExpired);
+            return true;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (GigagrugRequestException ex)
         {
-            SetCharacterSyncRow(install, null, [], ex.Message);
+            state = _stateStore.Load();
+            state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, 0, ex.Body ?? ex.Message);
+            _stateStore.Save(state);
+            SetCharacterSyncRow(install, key, null, [], ex.Message);
         }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            SetCharacterSyncRow(install, key, null, [], ex.Message);
+        }
+
+        return false;
+    }
+
+    private string ResolveBatchId(AppState state, string key, string fingerprint)
+    {
+        var pending = state.CharacterSyncBatches.GetValueOrDefault(key);
+        var batchId = CharacterPushGate.ResolveBatchId(pending, fingerprint, Guid.NewGuid().ToString());
+        state.CharacterSyncBatches[key] = new CharacterSyncBatch(fingerprint, batchId);
+        _stateStore.Save(state);
+        return batchId;
     }
 
     private static CharacterSyncEntry ToSyncEntry(CharacterObservation observation) => new(
@@ -1003,10 +1029,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         observation.LinkKnown,
         observation.ObservedAt?.ToUnixTimeSeconds());
 
-    private void SetCharacterSyncRow(WowInstallViewModel install, int? accepted, IReadOnlyList<CharacterSyncRejection> rejected, string? error)
+    private void SetCharacterSyncRow(WowInstallViewModel install, string key, int? accepted, IReadOnlyList<CharacterSyncRejection> rejected, string? error)
     {
         var pushedAt = accepted is null
-            ? _stateStore.Load().CharacterSync.GetValueOrDefault(install.FlavourPath)?.PushedAt
+            ? _stateStore.Load().CharacterSync.GetValueOrDefault(key)?.PushedAt
             : DateTimeOffset.Now;
 
         var existing = CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath);
@@ -1137,8 +1163,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 continue;
             }
 
-            var last = state.CharacterSync.GetValueOrDefault(install.FlavourPath);
-            CharacterSyncRows.Add(new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, last?.Accepted, null, []));
+            var last = _guildId is { } guildId
+                ? state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(guildId, install.FlavourPath))
+                : null;
+            var accepted = last?.Error is null ? last?.Accepted : null;
+            CharacterSyncRows.Add(new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, accepted, last?.Error, []));
         }
     }
 

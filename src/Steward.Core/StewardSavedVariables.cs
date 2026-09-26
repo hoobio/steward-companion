@@ -54,7 +54,7 @@ public static class StewardSavedVariables
         var roster = new List<RosterMember>();
         var loot = new List<(string Id, DateTimeOffset Rank, LootEvent Item)>();
         var attendance = new List<(string Id, DateTimeOffset Rank, AttendanceRecord Item)>();
-        var characters = new List<CharacterObservation>();
+        var characters = new List<(string Id, DateTimeOffset Rank, CharacterObservation Item)>();
         var characterFingerprintSource = new StringBuilder();
         var skipped = 0;
 
@@ -76,7 +76,8 @@ public static class StewardSavedVariables
             if (account is not null)
             {
                 roster.AddRange(MapAll(account.GetTable("roster"), MapRoster, ref skipped));
-                characters.AddRange(MapCharacters(account.GetTable("characters"), ref skipped));
+                characters.AddRange(MapCharacters(account.GetTable("characters"), ref skipped)
+                    .Select(c => (c.CharacterGuid, c.ObservedAt ?? DateTimeOffset.MinValue, c)));
                 characterFingerprintSource.Append(text);
             }
 
@@ -91,7 +92,7 @@ public static class StewardSavedVariables
             Dedupe(loot),
             Dedupe(attendance),
             skipped,
-            characters,
+            Dedupe(characters),
             characterFingerprintSource.Length == 0 ? null : Fingerprint(characterFingerprintSource.ToString()));
     }
 

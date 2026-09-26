@@ -143,7 +143,8 @@ public sealed record AppState(
     [property: JsonPropertyName("guild_id")] string? GuildId = null,
     [property: JsonPropertyName("close_to_tray")] bool CloseToTray = false,
     [property: JsonPropertyName("auto_update")] string AutoUpdate = "out-of-game",
-    [property: JsonPropertyName("character_sync")] Dictionary<string, CharacterPushRecord> CharacterSync = null!)
+    [property: JsonPropertyName("character_sync")] Dictionary<string, CharacterPushRecord> CharacterSync = null!,
+    [property: JsonPropertyName("character_sync_batches")] Dictionary<string, CharacterSyncBatch> CharacterSyncBatches = null!)
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

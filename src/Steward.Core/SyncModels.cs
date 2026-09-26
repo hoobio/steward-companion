@@ -130,13 +130,24 @@ public sealed record CharacterSyncResponse(
 public sealed record CharacterPushRecord(
     [property: JsonPropertyName("fingerprint")] string Fingerprint,
     [property: JsonPropertyName("pushed_at")] DateTimeOffset PushedAt,
-    [property: JsonPropertyName("accepted")] int Accepted);
+    [property: JsonPropertyName("accepted")] int Accepted,
+    [property: JsonPropertyName("error")] string? Error = null);
+
+public sealed record CharacterSyncBatch(
+    [property: JsonPropertyName("fingerprint")] string Fingerprint,
+    [property: JsonPropertyName("batch_id")] string BatchId);
 
 public static class CharacterPushGate
 {
-    public static bool ShouldPush(string? fingerprint, IReadOnlyDictionary<string, CharacterPushRecord> lastPushes, string flavourPath) =>
+    public static bool ShouldPush(string? fingerprint, IReadOnlyDictionary<string, CharacterPushRecord> lastPushes, string key) =>
         fingerprint is not null
-        && (!lastPushes.TryGetValue(flavourPath, out var last) || !string.Equals(last.Fingerprint, fingerprint, StringComparison.Ordinal));
+        && (!lastPushes.TryGetValue(key, out var last) || !string.Equals(last.Fingerprint, fingerprint, StringComparison.Ordinal));
+
+    // A retry of the same fingerprint reuses its batchId so the server's idempotent replay applies; a changed fingerprint starts a new one.
+    public static string ResolveBatchId(CharacterSyncBatch? pending, string fingerprint, string newBatchId) =>
+        pending is not null && string.Equals(pending.Fingerprint, fingerprint, StringComparison.Ordinal)
+            ? pending.BatchId
+            : newBatchId;
 }
 
 public sealed record WowClientProcess(int ProcessId, DateTimeOffset StartTime);

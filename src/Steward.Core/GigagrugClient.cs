@@ -5,6 +5,14 @@ namespace Steward.Core;
 
 public sealed class SessionExpiredException() : Exception("The session has expired or been revoked.");
 
+public sealed class GigagrugRequestException(HttpStatusCode statusCode, string? body)
+    : Exception($"request failed with {(int)statusCode} {statusCode}")
+{
+    public HttpStatusCode StatusCode { get; } = statusCode;
+
+    public string? Body { get; } = body;
+}
+
 public sealed class GigagrugClient
 {
     private readonly HttpClient _httpClient;
@@ -168,6 +176,13 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
+            // 4xx is the server rejecting this batch outright; retrying it unchanged would never succeed.
+            if ((int)response.StatusCode is >= 400 and < 500)
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                throw new GigagrugRequestException(response.StatusCode, body);
+            }
+
             throw new HttpRequestException(
                 $"POST /api/admin/{guildId}/characters/sync returned {(int)response.StatusCode} {response.StatusCode}");
         }
