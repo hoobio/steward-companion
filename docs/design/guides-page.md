@@ -16,7 +16,7 @@ The sign-in entry point is on the Addons page, not here: the RestedXP Guides add
 
 Top to bottom:
 
-1. Page header. `Guides` at 26/600, with a `Refresh` button right-aligned on the same row.
+1. Page header. `RestedXP Guides` at 26/600, with a `Refresh` button right-aligned on the same row.
 2. Account strip. A Surface card holding "Signed in as {email} · {BattleTag}" with the BattleTag in mono, and `Sign out` as a hyperlink button. Signed out, it reads "Not signed in" with an accent `Sign in` button. No avatar.
 3. One card per WoW install. Header carries the install title and the path in mono at 11.5px.
 4. A `Keep in game` column header above the rows, once per card.

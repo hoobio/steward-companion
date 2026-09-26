@@ -152,7 +152,7 @@
 
                 <TextBlock
                     Grid.Column="0"
-                    Text="Guides"
+                    Text="RestedXP Guides"
                     FontSize="26"
                     FontWeight="SemiBold"
                     Margin="{StaticResource PageTitleMargin}" />
