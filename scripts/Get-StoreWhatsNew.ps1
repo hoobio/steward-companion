@@ -2,27 +2,47 @@ function Get-StoreWhatsNew {
     param(
         [Parameter(Mandatory)][string]$ChangelogPath,
         [Parameter(Mandatory)][string]$Version,
+        [string]$SinceVersion,
         [int]$Limit = 1500
     )
 
-    $section = $null
-    $inVersion = $false
-    $items = [System.Collections.Generic.List[string]]::new()
+    $versionParsed = [version]$Version
+    $sinceParsed = if ($SinceVersion) { [version]$SinceVersion } else { $null }
+
+    $sections = [ordered]@{}
+    $currentVersion = $null
+    $currentSection = $null
     foreach ($line in Get-Content -Encoding utf8 $ChangelogPath) {
         if ($line -match '^## \[?(\d+\.\d+\.\d+)') {
-            if ($inVersion) { break }
-            $inVersion = $Matches[1] -eq $Version
+            $currentVersion = $Matches[1]
+            $currentSection = $null
+            if (-not $sections.Contains($currentVersion)) {
+                $sections[$currentVersion] = @{
+                    Features    = [System.Collections.Generic.List[string]]::new()
+                    'Bug Fixes' = [System.Collections.Generic.List[string]]::new()
+                }
+            }
             continue
         }
-        if (-not $inVersion) { continue }
-        if ($line -match '^### (.+)') { $section = $Matches[1].Trim(); continue }
-        if ($section -notin @('Features', 'Bug Fixes')) { continue }
+        if (-not $currentVersion) { continue }
+        if ($line -match '^### (.+)') { $currentSection = $Matches[1].Trim(); continue }
+        if ($currentSection -notin @('Features', 'Bug Fixes')) { continue }
         if ($line -notmatch '^\* ') { continue }
 
         $text = $line.Substring(2) -replace '^\*\*[^*]+:\*\*\s*', ''
         $text = $text -replace '^[^\x00-\x7F]+\s*', ''
         $text = ($text -replace '\s*\(\[.*$', '').Trim()
-        if ($text) { $items.Add($text) }
+        if ($text) { $sections[$currentVersion][$currentSection].Add($text) }
+    }
+
+    $items = [System.Collections.Generic.List[string]]::new()
+    foreach ($v in $sections.Keys) {
+        $parsed = [version]$v
+        if ($parsed -gt $versionParsed) { continue }
+        $inRange = if ($SinceVersion) { $parsed -gt $sinceParsed } else { $parsed -eq $versionParsed }
+        if (-not $inRange) { continue }
+        $items.AddRange($sections[$v]['Features'])
+        $items.AddRange($sections[$v]['Bug Fixes'])
     }
 
     if ($items.Count -eq 0) { return 'Minor improvements and fixes.' }
@@ -92,5 +112,40 @@ if ($MyInvocation.InvocationName -ne '.') {
     }
     finally {
         Remove-Item -LiteralPath $emptyChangelog -ErrorAction SilentlyContinue
+    }
+
+    $multiSectionChangelog = New-TemporaryFile
+    Set-Content -Path $multiSectionChangelog -Encoding utf8 -Value @(
+        '## [2.1.0](https://example.com) (2026-09-27)'
+        ''
+        '### Bug Fixes'
+        ''
+        '* fix from the new release ([abc1234](https://example.com))'
+        ''
+        '## [2.0.1](https://example.com) (2026-09-26)'
+        ''
+        '### Features'
+        ''
+        '* feature from the skipped draft ([abc1234](https://example.com))'
+        ''
+        '## [2.0.0](https://example.com) (2026-09-20)'
+        ''
+        '### Features'
+        ''
+        '* headline feature ([abc1234](https://example.com))'
+        ''
+        '## [1.9.0](https://example.com) (2026-09-01)'
+        ''
+        '### Features'
+        ''
+        '* older feature out of range ([abc1234](https://example.com))'
+    )
+    try {
+        $sinceResult = Get-StoreWhatsNew -ChangelogPath $multiSectionChangelog -Version '2.1.0' -SinceVersion '1.9.0'
+        $expected = "- fix from the new release`n- feature from the skipped draft`n- headline feature"
+        if ($sinceResult -ne $expected) { throw "self-check failed: SinceVersion combine gave '$sinceResult'" }
+    }
+    finally {
+        Remove-Item -LiteralPath $multiSectionChangelog -ErrorAction SilentlyContinue
     }
 }

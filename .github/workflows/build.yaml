@@ -221,6 +221,26 @@ jobs:
       - name: Setup Microsoft Store CLI
         uses: microsoft/microsoft-store-apppublisher@v1.4
 
+      - name: Find previous published release
+        id: previous-release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build-msix.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $releases = gh api repos/${{ github.repository }}/releases --paginate | ConvertFrom-Json
+          $current = [version]$env:VERSION
+          $best = $null
+          foreach ($r in $releases) {
+            if ($r.draft -or $r.prerelease) { continue }
+            if ($r.tag_name -notmatch '^v?(\d+\.\d+\.\d+)$') { continue }
+            $v = [version]$Matches[1]
+            if ($v -ge $current) { continue }
+            if (-not $best -or $v -gt $best) { $best = $v }
+          }
+          if ($best) { "since=$best" | Out-File -Append $env:GITHUB_OUTPUT }
+
       - name: Configure Store credentials from Key Vault
         shell: pwsh
         run: |
@@ -239,6 +259,7 @@ jobs:
         env:
           PRODUCT_ID: ${{ env.STORE_PRODUCT_ID }}
           VERSION: ${{ needs.build-msix.outputs.version }}
+          SINCE_VERSION: ${{ steps.previous-release.outputs.since }}
         run: |
           $ErrorActionPreference = 'Stop'
           . "$env:GITHUB_WORKSPACE\scripts\Get-StoreWhatsNew.ps1"
@@ -251,7 +272,9 @@ jobs:
           msstore publish $package -id $env:PRODUCT_ID --noCommit
           if ($LASTEXITCODE -ne 0) { throw "msstore publish failed ($LASTEXITCODE)" }
 
-          $whatsNew = Get-StoreWhatsNew -ChangelogPath "$env:GITHUB_WORKSPACE\CHANGELOG.md" -Version $env:VERSION
+          $whatsNewParams = @{ ChangelogPath = "$env:GITHUB_WORKSPACE\CHANGELOG.md"; Version = $env:VERSION }
+          if ($env:SINCE_VERSION) { $whatsNewParams.SinceVersion = $env:SINCE_VERSION }
+          $whatsNew = Get-StoreWhatsNew @whatsNewParams
 
           $out = msstore submission get $env:PRODUCT_ID | Out-String
           if ($LASTEXITCODE -ne 0) { throw "submission get failed ($LASTEXITCODE)" }
