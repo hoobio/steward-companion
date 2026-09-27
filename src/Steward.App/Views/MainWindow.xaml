@@ -321,23 +321,31 @@
                     Text="Opens your browser. Steward stores the session on this machine and never sees your password." />
             </StackPanel>
 
-            <StackPanel
-                Orientation="Horizontal"
-                Spacing="12"
-                Margin="20,0,0,20"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Bottom">
-                <TextBlock
-                    Text="{x:Bind ViewModel.VersionLabel}"
-                    VerticalAlignment="Center"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            <Grid Margin="20,0,20,20" VerticalAlignment="Bottom">
+                <StackPanel
+                    Orientation="Horizontal"
+                    Spacing="12"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center">
+                    <TextBlock
+                        Text="{x:Bind ViewModel.VersionLabel}"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    <HyperlinkButton
+                        Content="Help"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        NavigateUri="https://github.com/hoobio/steward-companion" />
+                </StackPanel>
                 <HyperlinkButton
-                    Content="Help"
+                    Content="Check for updates"
                     Padding="0"
+                    HorizontalAlignment="Right"
                     VerticalAlignment="Center"
-                    NavigateUri="https://github.com/hoobio/steward-companion" />
-            </StackPanel>
+                    Visibility="{x:Bind ViewModel.CheckForUpdatesVisibility, Mode=OneWay}"
+                    Command="{x:Bind ViewModel.CheckForUpdatesCommand}" />
+            </Grid>
         </Grid>
 
         <NavigationView

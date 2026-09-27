@@ -361,6 +361,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility StoreSwitchVisibility => When(IsStoreAppInstalled == true);
 
+#pragma warning disable CA1822 // x:Bind resolves these through a ViewModel instance
+    public Visibility CheckForUpdatesVisibility => When(App.IsGitHubRelease);
+#pragma warning restore CA1822
+
     public string AboutActionLabel => IsCheckingAppUpdate ? "Checking" : AppUpdate is null ? "Check for a new version" : "Install update";
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["release", "pre-release"];
