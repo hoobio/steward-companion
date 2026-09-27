@@ -83,10 +83,17 @@
                     VerticalAlignment="Center"
                     CornerRadius="6"
                     Background="{ThemeResource ChipBrush}">
-                    <FontIcon
-                        Glyph="{x:Bind Glyph}"
-                        FontSize="14"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Grid>
+                        <FontIcon
+                            Glyph="{x:Bind Glyph}"
+                            FontSize="14"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Visibility="{x:Bind GlyphVisibility, Mode=OneWay}" />
+                        <Image
+                            Source="{x:Bind IconSource, Mode=OneWay}"
+                            Stretch="UniformToFill"
+                            Visibility="{x:Bind IconVisibility, Mode=OneWay}" />
+                    </Grid>
                 </Border>
 
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
@@ -95,7 +102,8 @@
                         Text="{x:Bind SourceFile, Mode=OneWay}"
                         FontFamily="Cascadia Mono"
                         FontSize="11.5"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Visibility="{x:Bind SourceFileVisibility}" />
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon
                             Glyph="&#xE73E;"
@@ -108,7 +116,12 @@
                             Text="{x:Bind CharacterSync.LastPushText, Mode=OneWay, FallbackValue=''}"
                             FontSize="12"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Visibility="{x:Bind CharacterSyncVisibility, Mode=OneWay}" />
+                            Visibility="{x:Bind LastPushVisibility, Mode=OneWay}" />
+                        <TextBlock
+                            Text="{x:Bind StatusText, Mode=OneWay}"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Visibility="{x:Bind StatusVisibility, Mode=OneWay}" />
                     </StackPanel>
                     <TextBlock
                         Text="{x:Bind CharacterSync.Error, Mode=OneWay, FallbackValue=''}"
@@ -198,12 +211,27 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" MaxWidth="200">
+                    <StackPanel
+                        Orientation="Horizontal"
+                        Spacing="6"
+                        HorizontalAlignment="Right"
+                        Visibility="{x:Bind SyncedVisibility}">
+                        <FontIcon
+                            Glyph="&#xE73E;"
+                            FontSize="12"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                        <TextBlock
+                            Text="Synced"
+                            FontSize="12"
+                            Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                    </StackPanel>
                     <TextBlock
-                        Text="Synced"
+                        Text="Changed, sending shortly"
                         FontSize="12"
                         TextAlignment="Right"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind AcceptedVisibility}" />
+                        Visibility="{x:Bind PendingVisibility}" />
                     <TextBlock
                         Text="{x:Bind ReasonText}"
                         FontSize="12"

@@ -1489,7 +1489,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        if ((!force && !CharacterPushGate.ShouldPush(fingerprint, state.CharacterSync, key)) || !HasSyncFeature)
+        var last = state.CharacterSync.GetValueOrDefault(key);
+        var plan = professionsOnly
+            ? ProfessionsPushSelection.Select(characters, snapshot!.Professions, snapshot.Catalogue, last, _lastDirectory?.Characters, _userId, force)
+            : null;
+        var gateOpen = plan is null
+            ? CharacterPushGate.ShouldPush(fingerprint, state.CharacterSync, key)
+            : plan.HasWork && !(last is { Error: not null } && last.Fingerprint == fingerprint);
+        if ((!force && !gateOpen) || !HasSyncFeature)
         {
             return false;
         }
@@ -1499,26 +1506,32 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             state.CharacterSyncBatches.Remove(key);
         }
 
-        var batchId = ResolveBatchId(state, key, fingerprint!);
+        var sentCharacters = plan?.Characters ?? characters;
+        var sentCatalogue = plan is { SendCatalogue: false } || snapshot!.Catalogue.Count == 0 ? null : snapshot.Catalogue;
+        var batchFingerprint = plan is null ? fingerprint! : CharacterSyncMapping.Fingerprint(sentCharacters, snapshot!.Professions, sentCatalogue);
+        var batchId = ResolveBatchId(state, key, batchFingerprint);
         var request = new CharacterSyncRequest(
             batchId,
             InstalledVersion,
-            [.. characters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot!.Professions))],
-            snapshot!.Catalogue.Count == 0 ? null : snapshot.Catalogue,
+            [.. sentCharacters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot!.Professions))],
+            sentCatalogue,
             professionsOnly || snapshot!.GuildRanks is null ? null : CharacterSyncMapping.ToSync(snapshot.GuildRanks));
 
         try
         {
             var result = await _gigagrugClient.PostCharacterSyncAsync(guildId, request, CancellationToken.None).ConfigureAwait(true);
             var rejections = result.Rejected.ToDictionary(r => r.CharacterGuid, r => r.Reason, StringComparer.Ordinal);
-            var outcomes = characters.ToDictionary(
-                c => c.CharacterGuid,
-                c => rejections.TryGetValue(c.CharacterGuid, out var reason)
-                    ? new CharacterPushOutcome(false, reason)
-                    : new CharacterPushOutcome(true),
-                StringComparer.Ordinal);
+            var outcomes = plan is not null
+                ? ProfessionsPushSelection.Merge(last?.Characters, plan, rejections)
+                : characters.ToDictionary(
+                    c => c.CharacterGuid,
+                    c => rejections.TryGetValue(c.CharacterGuid, out var reason)
+                        ? new CharacterPushOutcome(false, reason)
+                        : new CharacterPushOutcome(true),
+                    StringComparer.Ordinal);
+            var catalogueFingerprint = plan is null ? null : plan.SendCatalogue ? plan.CatalogueFingerprint : last?.CatalogueFingerprint;
             state = _stateStore.Load();
-            state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, result.Accepted, Characters: outcomes);
+            state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, result.Accepted, Characters: outcomes, CatalogueFingerprint: catalogueFingerprint);
             _stateStore.Save(state);
             SetCharacterSyncRow(install, key, result.Accepted, result.Rejected, null);
             _lastDirectorySync = DateTimeOffset.Now;
@@ -1535,7 +1548,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ? "Your account can't sync this guild."
                 : ex.Body ?? ex.Message;
             state = _stateStore.Load();
-            state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, 0, message);
+            state.CharacterSync[key] = plan is null
+                ? new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, 0, message)
+                : new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, 0, message, last?.Characters, last?.CatalogueFingerprint);
             _stateStore.Save(state);
             SetCharacterSyncRow(install, key, null, [], message);
         }

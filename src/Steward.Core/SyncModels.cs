@@ -297,14 +297,16 @@ public sealed record CharacterSyncResponse(
 
 public sealed record CharacterPushOutcome(
     [property: JsonPropertyName("accepted")] bool Accepted,
-    [property: JsonPropertyName("reason"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Reason = null);
+    [property: JsonPropertyName("reason"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Reason = null,
+    [property: JsonPropertyName("fingerprint"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fingerprint = null);
 
 public sealed record CharacterPushRecord(
     [property: JsonPropertyName("fingerprint")] string Fingerprint,
     [property: JsonPropertyName("pushed_at")] DateTimeOffset PushedAt,
     [property: JsonPropertyName("accepted")] int Accepted,
     [property: JsonPropertyName("error")] string? Error = null,
-    [property: JsonPropertyName("characters"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, CharacterPushOutcome>? Characters = null);
+    [property: JsonPropertyName("characters"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, CharacterPushOutcome>? Characters = null,
+    [property: JsonPropertyName("catalogue_fingerprint"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? CatalogueFingerprint = null);
 
 public static class CharacterSyncRejectionCopy
 {
@@ -394,14 +396,7 @@ public static class CharacterSyncMapping
         IReadOnlyDictionary<string, ProfessionCatalogue>? catalogue = null,
         GuildRanks? guildRanks = null)
     {
-        var canonicalProfessions = professions.ToDictionary(
-            entry => entry.Key,
-            entry => entry.Value with
-            {
-                ObservedAt = null,
-                Recipes = entry.Value.Recipes is null ? null : Sorted(entry.Value.Recipes, recipes => recipes with { ScannedAt = null }),
-            },
-            StringComparer.Ordinal);
+        var canonicalProfessions = professions.ToDictionary(entry => entry.Key, entry => Canonical(entry.Value), StringComparer.Ordinal);
         var canonical = new CharacterSyncRequest(
             string.Empty,
             string.Empty,
@@ -411,6 +406,18 @@ public static class CharacterSyncMapping
             guildRanks is null ? null : ToSync(guildRanks) with { ObservedAt = null });
         return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonical, CompanionJsonContext.Default.CharacterSyncRequest)));
     }
+
+    public static string ProfessionsFingerprint(CharacterProfessions professions) =>
+        Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(Canonical(professions), CompanionJsonContext.Default.CharacterProfessions)));
+
+    public static string CatalogueFingerprint(IReadOnlyDictionary<string, ProfessionCatalogue> catalogue) =>
+        Fingerprint([], new Dictionary<string, CharacterProfessions>(), catalogue);
+
+    private static CharacterProfessions Canonical(CharacterProfessions professions) => professions with
+    {
+        ObservedAt = null,
+        Recipes = professions.Recipes is null ? null : Sorted(professions.Recipes, recipes => recipes with { ScannedAt = null }),
+    };
 
     private static SortedDictionary<string, T> Sorted<T>(IReadOnlyDictionary<string, T> source, Func<T, T> canonicalise) =>
         new(source.ToDictionary(entry => entry.Key, entry => canonicalise(entry.Value), StringComparer.Ordinal), StringComparer.Ordinal);
@@ -427,6 +434,91 @@ public static class CharacterPushGate
         pending is not null && string.Equals(pending.Fingerprint, fingerprint, StringComparison.Ordinal)
             ? pending.BatchId
             : newBatchId;
+}
+
+public enum ProfessionsCharacterState
+{
+    Synced,
+    Pending,
+    Rejected,
+}
+
+public sealed record ProfessionsPushPlan(
+    IReadOnlyList<CharacterObservation> Characters,
+    IReadOnlyDictionary<string, string> Fingerprints,
+    string? CatalogueFingerprint,
+    bool SendCatalogue)
+{
+    public bool HasWork => Characters.Count > 0 || SendCatalogue;
+}
+
+public static class ProfessionsPushSelection
+{
+    public static ProfessionsPushPlan Select(
+        IReadOnlyList<CharacterObservation> characters,
+        IReadOnlyDictionary<string, CharacterProfessions> professions,
+        IReadOnlyDictionary<string, ProfessionCatalogue> catalogue,
+        CharacterPushRecord? last,
+        IReadOnlyList<DirectoryCharacter>? rosterCharacters,
+        string? myUserId,
+        bool force)
+    {
+        var fingerprints = characters.ToDictionary(
+            c => c.CharacterGuid,
+            c => CharacterSyncMapping.ProfessionsFingerprint(professions[c.CharacterGuid]),
+            StringComparer.Ordinal);
+        var catalogueFingerprint = catalogue.Count == 0 ? null : CharacterSyncMapping.CatalogueFingerprint(catalogue);
+        var selected = characters
+            .Where(c => force || NeedsSend(
+                last?.Characters?.GetValueOrDefault(c.CharacterGuid),
+                fingerprints[c.CharacterGuid],
+                myUserId is not null && rosterCharacters?.Any(r => r.CharacterGuid == c.CharacterGuid && r.LinkedUserId == myUserId) == true))
+            .ToList();
+        var sendCatalogue = catalogueFingerprint is not null
+            && (force || !string.Equals(catalogueFingerprint, last?.CatalogueFingerprint, StringComparison.Ordinal));
+        return new ProfessionsPushPlan(selected, fingerprints, catalogueFingerprint, sendCatalogue);
+    }
+
+    public static IReadOnlyDictionary<string, CharacterPushOutcome> Merge(
+        IReadOnlyDictionary<string, CharacterPushOutcome>? previous,
+        ProfessionsPushPlan plan,
+        IReadOnlyDictionary<string, string> rejections)
+    {
+        var sent = plan.Characters.Select(c => c.CharacterGuid).ToHashSet(StringComparer.Ordinal);
+        var merged = new Dictionary<string, CharacterPushOutcome>(StringComparer.Ordinal);
+        foreach (var (guid, fingerprint) in plan.Fingerprints)
+        {
+            if (sent.Contains(guid))
+            {
+                merged[guid] = rejections.TryGetValue(guid, out var reason)
+                    ? new CharacterPushOutcome(false, reason, fingerprint)
+                    : new CharacterPushOutcome(true, Fingerprint: fingerprint);
+            }
+            else if (previous?.GetValueOrDefault(guid) is { } kept)
+            {
+                merged[guid] = kept;
+            }
+        }
+
+        return merged;
+    }
+
+    public static ProfessionsCharacterState StateOf(CharacterPushOutcome? outcome, string fingerprint) => outcome switch
+    {
+        null => ProfessionsCharacterState.Pending,
+        _ when !string.Equals(outcome.Fingerprint, fingerprint, StringComparison.Ordinal) => ProfessionsCharacterState.Pending,
+        { Accepted: true } => ProfessionsCharacterState.Synced,
+        _ => ProfessionsCharacterState.Rejected,
+    };
+
+    // An officer fixing the roster link is the only change outside the character's own data that can turn a not-linked rejection into an accept.
+    private static bool NeedsSend(CharacterPushOutcome? outcome, string fingerprint, bool linkedToMe) =>
+        StateOf(outcome, fingerprint) switch
+        {
+            ProfessionsCharacterState.Synced => false,
+            ProfessionsCharacterState.Rejected => linkedToMe && outcome!.Reason == CharacterSyncRejectionCopy.NotLinkedReason,
+            _ => true,
+        };
 }
 
 public sealed record WowClientProcess(int ProcessId, DateTimeOffset StartTime);

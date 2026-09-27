@@ -7,6 +7,7 @@ using Steward.Core;
 
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Steward.App.ViewModels;
 
@@ -277,9 +278,13 @@ public sealed partial class SyncViewModel : ObservableObject
         {
             IReadOnlyList<CharacterObservation> covered = snapshot is null ? [] : CharacterSyncMapping.FilterToProfessionsOnly(snapshot);
             var outcomes = _main.GetCharacterOutcomes(install.FlavourPath);
-            view.ProfessionsCharacters = [.. covered.Select(c => ProfessionsCharacter(c, snapshot!.Professions, outcomes))];
+            view.ProfessionsCharacters = [.. covered
+                .Select(c => ProfessionsCharacter(c, snapshot!.Professions, outcomes))
+                .OrderBy(c => c.State)
+                .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase)];
 
-            view.Datasets.Add(Dataset(
+            var unsynced = view.ProfessionsCharacters.Count(c => c.State != ProfessionsCharacterState.Synced);
+            var professions = Dataset(
                 ProfessionsDatasetKey,
                 "Your professions",
                 "characters",
@@ -289,7 +294,13 @@ public sealed partial class SyncViewModel : ObservableObject
                 exportedAt,
                 isStale,
                 isFirst: true,
-                showOutcomeSummary: false));
+                isSynced: covered.Count > 0 && unsynced == 0,
+                showOutcomeSummary: false);
+            professions.IconSource = new BitmapImage(new Uri("ms-appx:///Assets/Professions.png"));
+            professions.StatusText = unsynced == 0
+                ? covered.Count == 0 ? null : "In sync with the guild"
+                : $"{unsynced} character{(unsynced == 1 ? "" : "s")} not synced yet";
+            view.Datasets.Add(professions);
 
             return view;
         }
@@ -337,13 +348,17 @@ public sealed partial class SyncViewModel : ObservableObject
         IReadOnlyDictionary<string, CharacterPushOutcome> outcomes)
     {
         var outcome = outcomes.GetValueOrDefault(character.CharacterGuid);
+        var characterProfessions = professions[character.CharacterGuid];
+        var state = ProfessionsPushSelection.StateOf(outcome, CharacterSyncMapping.ProfessionsFingerprint(characterProfessions));
         return new ProfessionsCharacterViewModel(
             character.Name,
             character.Level,
             WowClasses.NameFor(character.ClassId),
-            ProfessionsSkillSummary.Format(professions.GetValueOrDefault(character.CharacterGuid)?.Skills),
-            outcome?.Accepted,
-            outcome is { Accepted: false, Reason: { } reason } ? _main.DescribeRejection(character.CharacterGuid, reason) : null);
+            ProfessionsSkillSummary.Format(characterProfessions.Skills),
+            state,
+            state == ProfessionsCharacterState.Rejected && outcome?.Reason is { } reason
+                ? _main.DescribeRejection(character.CharacterGuid, reason)
+                : null);
     }
 
     private static SyncDatasetViewModel Dataset(
