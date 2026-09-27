@@ -148,5 +148,5 @@ Agreed direction on 26 Sep 2026, built: raiders push their own characters' profe
 ## Merge rules
 
 - The newest `observed_at` wins per character; absence from a push never deletes.
-- Links come only from observations with `link_known`.
+- Links are pinned per character guid in gigagrug's `character_links`, decided 27 Sep 2026 and built there. The first officer observation with `link_known` and a `linkedUserId` for a guid with no pin pins it to that user; after that no observation moves it, and an officer observation whose `link_known` user differs is recorded as a "guild note disagrees" conflict (the observed user and time) on the officer character page. An unpinned guid is linked to nobody, so every reader (the member routes, the raider professions push, roster mains, the `directory` data this app writes) reads the pin alone. Officers re-map a pin to another live member or roster person, unlink it (which blocks the automatic pin) or reset it (so the next confirmed observation pins again), each with a history row naming the officer. Existing links were pinned once by a migration. Voiding a batch never unpins.
 - Rollback is voiding a batch, redo is unvoiding it, and restore is removing a tombstone; nothing is updated in place.
