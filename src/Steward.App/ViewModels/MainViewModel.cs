@@ -1520,6 +1520,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var result = await _gigagrugClient.PostCharacterSyncAsync(guildId, request, CancellationToken.None).ConfigureAwait(true);
+            // gigagrug answers a replayed batchId with accepted 0 and no rejections, which says nothing about each character.
+            if (plan is not null && result.Replay)
+            {
+                state = _stateStore.Load();
+                state.CharacterSyncBatches.Remove(key);
+                _stateStore.Save(state);
+                return false;
+            }
+
             var rejections = result.Rejected.ToDictionary(r => r.CharacterGuid, r => r.Reason, StringComparer.Ordinal);
             var outcomes = plan is not null
                 ? ProfessionsPushSelection.Merge(last?.Characters, plan, rejections)

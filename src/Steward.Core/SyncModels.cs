@@ -293,7 +293,8 @@ public sealed record CharacterSyncRejection(
 
 public sealed record CharacterSyncResponse(
     [property: JsonPropertyName("accepted")] int Accepted,
-    [property: JsonPropertyName("rejected")] IReadOnlyList<CharacterSyncRejection> Rejected);
+    [property: JsonPropertyName("rejected")] IReadOnlyList<CharacterSyncRejection> Rejected,
+    [property: JsonPropertyName("replay")] bool Replay = false);
 
 public sealed record CharacterPushOutcome(
     [property: JsonPropertyName("accepted")] bool Accepted,
