@@ -34,6 +34,13 @@ public sealed partial class MainWindow : Window
         ViewModel.OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         ViewModel.NavigateToSettings = () => Nav.SelectedItem = Nav.SettingsItem;
         ViewModel.NavigateToAddons = () => Nav.SelectedItem = AddonsItem;
+        ViewModel.NavigateToPageTag = tag => Nav.SelectedItem = tag switch
+        {
+            "sync" => SyncItem,
+            "guides" => GuidesItem,
+            "settings" => Nav.SettingsItem,
+            _ => AddonsItem,
+        };
         ViewModel.ShowRestedXpSignIn = () => _ = ShowRestedXpSignInAsync();
         ViewModel.QuitRequested = QuitCompletely;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;

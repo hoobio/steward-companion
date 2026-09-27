@@ -114,6 +114,7 @@ public sealed class AppStateStore
         CharacterSync = new Dictionary<string, CharacterPushRecord>(state.CharacterSync ?? [], StringComparer.OrdinalIgnoreCase),
         CharacterSyncBatches = new Dictionary<string, CharacterSyncBatch>(state.CharacterSyncBatches ?? [], StringComparer.OrdinalIgnoreCase),
         LegacyRestedXpGuideChoice = null,
+        DismissedBanners = new Dictionary<string, int>(state.DismissedBanners ?? [], StringComparer.Ordinal),
     };
 
     private static Dictionary<string, List<string>> MergeGuideChoices(AppState state)

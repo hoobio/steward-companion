@@ -53,6 +53,28 @@ public sealed class GigagrugClient
         return me ?? throw new HttpRequestException("GET /api/me returned an empty body");
     }
 
+    // Works signed in or out, so a 401 is not a lost session here; the caller keeps its last good banner set on any failure.
+    public async Task<IReadOnlyList<Banner>> GetBannersAsync(CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .GetAsync($"{_baseUrl}/api/banners", cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return [];
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"GET /api/banners returned {(int)response.StatusCode} {response.StatusCode}");
+        }
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        return BannerParsing.Parse(json);
+    }
+
     public async Task<MemberRoster> GetMemberRosterAsync(string guildId, CancellationToken cancellationToken)
     {
         using var response = await _httpClient

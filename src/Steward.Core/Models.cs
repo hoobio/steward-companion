@@ -154,6 +154,10 @@ public sealed record AppState(
     [JsonPropertyName("restedxp_guide_choice")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, string>? LegacyRestedXpGuideChoice { get; init; }
+
+    [JsonPropertyName("dismissed_banners")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, int>? DismissedBanners { get; init; }
 }
 
 public sealed record CharacterSyncState(
@@ -164,6 +168,7 @@ public sealed record CharacterSyncState(
 [JsonSerializable(typeof(AdminMe))]
 [JsonSerializable(typeof(AdminUser))]
 [JsonSerializable(typeof(AppState))]
+[JsonSerializable(typeof(Banner))]
 [JsonSerializable(typeof(CharacterPushRecord))]
 [JsonSerializable(typeof(CharacterSyncRequest))]
 [JsonSerializable(typeof(CharacterSyncResponse))]

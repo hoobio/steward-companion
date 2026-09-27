@@ -69,6 +69,13 @@ public partial class App : Application
             return;
         }
 
+        if (BannersPreview.IsRequested(Environment.GetCommandLineArgs()))
+        {
+            BannersPreview.Apply(_window.ViewModel);
+            _window.Activate();
+            return;
+        }
+
         if (Environment.GetCommandLineArgs().Contains(StartupRegistration.TrayArgument) && _window.ViewModel.MinimizeToTray)
         {
             _window.HideToTray();

@@ -97,6 +97,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastStoreCheck;
     private DateTimeOffset _lastGuildSync;
     private DateTimeOffset _lastDirectorySync;
+    private DateTimeOffset _lastBannersSync;
+    private IReadOnlyList<Banner> _allBanners = [];
     private SyncDirectory? _lastDirectory;
     private IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? _lastMemberCatalogue;
     private SyncPayload? _lastOfficerPayload;
@@ -182,6 +184,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Action? NavigateToSettings { get; set; }
 
     public Action? NavigateToAddons { get; set; }
+
+    public Action<string>? NavigateToPageTag { get; set; }
 
     public Action? ShowRestedXpSignIn { get; set; }
 
@@ -383,6 +387,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<CharacterSyncRowViewModel> CharacterSyncRows { get; } = [];
 
+    public ObservableCollection<BannerViewModel> Banners { get; } = [];
+
     public Visibility TimeoutVisibility => When(Failure == GateFailure.Timeout);
 
     public Visibility SessionExpiredVisibility => When(Failure == GateFailure.SessionExpired);
@@ -420,6 +426,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         typeof(App).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion is { Length: > 0 } informational
             ? informational.Split('+', 2)[0]
             : typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+
+    public static string Channel => !App.IsGitHubRelease ? "dev" : App.IsPackaged ? "store" : "msi";
 
     public string VersionLabel { get; } = $"Steward {InstalledVersion}{BuildSuffix}";
 
@@ -498,6 +506,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await SetStartupTaskAsync(enable: null).ConfigureAwait(true);
         }
+
+        _lastBannersSync = DateTimeOffset.Now;
+        await SyncBannersAsync().ConfigureAwait(true);
 
         IsSignedIn = _sessionService.TryRestoreSession();
         if (!IsSignedIn)
@@ -691,6 +702,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             UpdateStoreAppInstalledState();
+            _lastBannersSync = DateTimeOffset.Now;
+            await SyncBannersAsync().ConfigureAwait(true);
 
             if (await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true)
                 is AuthCheckResult.SessionExpired or AuthCheckResult.NotAuthorized)
@@ -1029,6 +1042,104 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         WriteMe(Installs.Select(install => install.Install), new SyncMe(_userId!, Role, [.. _features]));
+    }
+
+    private async Task SyncBannersAsync()
+    {
+        try
+        {
+            _allBanners = await _gigagrugClient.GetBannersAsync(CancellationToken.None).ConfigureAwait(true);
+        }
+        // Banners work signed in or out and must never fail visibly; a failed or malformed fetch keeps the last good set.
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return;
+        }
+
+        RefreshBanners();
+    }
+
+    public void ApplyBannersPreview(IReadOnlyList<Banner> banners)
+    {
+        _allBanners = banners;
+        RefreshBanners();
+    }
+
+    private void RefreshBanners()
+    {
+        var dismissed = _stateStore.Load().DismissedBanners ?? new Dictionary<string, int>();
+        var active = BannerFilter.Active(_allBanners, InstalledVersion, Channel, dismissed)
+            .OrderByDescending(banner => BannerLevels.Parse(banner.Level));
+        Banners.Clear();
+        foreach (var banner in active)
+        {
+            Banners.Add(BuildBanner(banner));
+        }
+    }
+
+    private void DismissBanner(Banner banner)
+    {
+        var state = _stateStore.Load();
+        var dismissed = new Dictionary<string, int>(state.DismissedBanners ?? [], StringComparer.Ordinal)
+        {
+            [banner.Id] = banner.Revision,
+        };
+        _stateStore.Save(state with { DismissedBanners = dismissed });
+        RefreshBanners();
+    }
+
+    private bool IsPageVisible(string? page) => page switch
+    {
+        "addons" => true,
+        "settings" => true,
+        "sync" => SyncVisibility == Visibility.Visible,
+        "guides" => GuidesVisibility == Visibility.Visible,
+        _ => false,
+    };
+
+    private BannerViewModel BuildBanner(Banner banner)
+    {
+        var dismissCommand = new RelayCommand(() => DismissBanner(banner));
+        var actions = new List<BannerActionViewModel>();
+        foreach (var action in banner.Actions ?? [])
+        {
+            switch (BannerActions.Parse(action.Type))
+            {
+                case BannerActionKind.StoreUpdate:
+                    actions.Add(new BannerActionViewModel { Label = action.Label, Command = new RelayCommand(() => OpenUri(_appUpdater.StoreUpdatesUri)) });
+                    break;
+                case BannerActionKind.OpenUrl when BannerActions.IsAllowedUrl(action.Url):
+                    actions.Add(new BannerActionViewModel { Label = action.Label, Command = new RelayCommand(() => OpenUri(new Uri(action.Url!))) });
+                    break;
+                case BannerActionKind.Navigate when IsPageVisible(action.Page):
+                    var page = action.Page!;
+                    actions.Add(new BannerActionViewModel { Label = action.Label, Command = new RelayCommand(() => NavigateToPageTag?.Invoke(page)) });
+                    break;
+                // A dismiss action is always redundant: the close button already covers it when dismissible, and it is ignored otherwise.
+            }
+        }
+
+        var (background, foreground, glyph) = BannerLevels.Parse(banner.Level) switch
+        {
+            BannerLevel.Success => ("SuccessTintBrush", "SystemFillColorSuccessBrush", ""),
+            BannerLevel.Warning => ("CautionTintBrush", "SystemFillColorCautionBrush", ""),
+            BannerLevel.Error => ("CriticalTintBrush", "SystemFillColorCriticalBrush", ""),
+            _ => ("InfoTintBrush", "AccentTextFillColorPrimaryBrush", ""),
+        };
+
+        return new BannerViewModel
+        {
+            Id = banner.Id,
+            Revision = banner.Revision,
+            Title = banner.Title ?? string.Empty,
+            Message = banner.Message ?? string.Empty,
+            Background = (Brush)Application.Current.Resources[background],
+            IconForeground = (Brush)Application.Current.Resources[foreground],
+            IconGlyph = glyph,
+            IsDismissible = banner.Dismissible,
+            Actions = actions,
+            DismissCommand = dismissCommand,
+        };
     }
 
     private void UpdateEventStream()
@@ -1673,6 +1784,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 {
                     _lastDirectorySync = DateTimeOffset.Now;
                     await SyncDirectoryAsync().ConfigureAwait(true);
+                }
+                if (DateTimeOffset.Now - _lastBannersSync >= GuildSyncFallbackInterval)
+                {
+                    _lastBannersSync = DateTimeOffset.Now;
+                    await SyncBannersAsync().ConfigureAwait(true);
                 }
                 if (!App.IsPackaged || DateTimeOffset.Now - _lastStoreCheck >= StoreCheckInterval)
                 {

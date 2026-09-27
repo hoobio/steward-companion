@@ -476,6 +476,8 @@
                 </StackPanel>
             </Grid>
 
+            <views:BannerList Banners="{x:Bind ViewModel.Main.Banners, Mode=OneWay}" />
+
             <InfoBar
                 Severity="Error"
                 IsClosable="False"

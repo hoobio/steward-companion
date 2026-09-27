@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:views="using:Steward.App.Views"
     xmlns:vm="using:Steward.App.ViewModels"
     SizeChanged="OnSizeChanged">
 
@@ -80,6 +81,8 @@
             HorizontalAlignment="Center"
             Padding="{StaticResource PageGutter}"
             Spacing="4">
+
+            <views:BannerList Banners="{x:Bind ViewModel.Banners, Mode=OneWay}" />
 
             <TextBlock Text="Account" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="0,0,0,4" />
 

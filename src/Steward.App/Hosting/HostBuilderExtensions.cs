@@ -51,8 +51,7 @@ internal static class HostBuilderExtensions
             throw new InvalidOperationException("SupportedProducts is not configured");
         }
 
-        var channel = !App.IsGitHubRelease ? "dev" : App.IsPackaged ? "store" : "msi";
-        var userAgent = $"Steward/{MainViewModel.InstalledVersion} ({channel})";
+        var userAgent = $"Steward/{MainViewModel.InstalledVersion} ({MainViewModel.Channel})";
 
         builder.Services.AddSingleton<CookieContainer>();
         builder.Services.AddHttpClient("Gigagrug")
