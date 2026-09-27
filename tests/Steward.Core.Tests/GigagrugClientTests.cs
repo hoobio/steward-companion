@@ -180,15 +180,23 @@ public sealed class GigagrugClientTests
         Assert.Equal(request.Characters, deserialised?.Characters);
     }
 
-    [Theory]
-    [InlineData(HttpStatusCode.TooManyRequests)]
-    [InlineData(HttpStatusCode.RequestTimeout)]
-    public async Task PostCharacterSyncAsync_TransientStatus_ThrowsHttpRequestExceptionRatherThanRecordingAPermanentFailure(HttpStatusCode status)
+    [Fact]
+    public async Task PostCharacterSyncAsync_RequestTimeout_ThrowsHttpRequestExceptionRatherThanRecordingAPermanentFailure()
     {
-        var (client, _) = ClientFor(status, "{}");
+        var (client, _) = ClientFor(HttpStatusCode.RequestTimeout, "{}");
         var request = new CharacterSyncRequest("batch-1", "1.0.0", []);
 
         await Assert.ThrowsAsync<HttpRequestException>(
+            () => client.PostCharacterSyncAsync("1", request, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task PostCharacterSyncAsync_TooManyRequests_ThrowsGigagrugThrottledExceptionRatherThanUnreachable()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.TooManyRequests, "{}");
+        var request = new CharacterSyncRequest("batch-1", "1.0.0", []);
+
+        await Assert.ThrowsAsync<GigagrugThrottledException>(
             () => client.PostCharacterSyncAsync("1", request, TestContext.Current.CancellationToken));
     }
 

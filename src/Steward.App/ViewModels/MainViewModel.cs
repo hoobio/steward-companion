@@ -1412,6 +1412,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _stateStore.Save(state);
             SetCharacterSyncRow(install, key, null, [], message);
         }
+        catch (GigagrugThrottledException)
+        {
+            SetCharacterSyncRow(install, key, null, [], "Sent too recently, trying again shortly");
+        }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             SetCharacterSyncRow(install, key, null, [], "gigagrug unreachable, retrying");

@@ -17,6 +17,8 @@ public sealed class GigagrugRequestException(HttpStatusCode statusCode, string? 
     public string? Body { get; } = body;
 }
 
+public sealed class GigagrugThrottledException() : Exception("request was rate limited (429)");
+
 public sealed class GigagrugClient
 {
     private readonly HttpClient _httpClient;
@@ -349,8 +351,13 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
-            // 429/408 are transient like a 5xx; every other 4xx is the server rejecting this batch outright, so retrying it unchanged would never succeed.
-            if ((int)response.StatusCode is >= 400 and < 500 and not 429 and not 408)
+            // 429 means the server is up and throttling this route specifically, distinct from a 408/5xx "gigagrug is unreachable" transient; every other 4xx rejects this batch outright, so retrying it unchanged would never succeed.
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                throw new GigagrugThrottledException();
+            }
+
+            if ((int)response.StatusCode is >= 400 and < 500 and not 408)
             {
                 var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                 throw new GigagrugRequestException(response.StatusCode, body);
