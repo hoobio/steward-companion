@@ -128,6 +128,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _isAccessRechecking;
     private bool _isGuildPulling;
     private bool _guildPullPending;
+    private bool _isBannerRefreshing;
+    private bool _bannerRefreshPending;
     private bool _isPushing;
     private bool? _pendingPush;
     private bool _isChecking;
@@ -1431,6 +1433,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     {
                         QueueAccessRecheck();
                     }
+                    else if (eventType == "bannersChanged")
+                    {
+                        _logger.Info("Access event stream: bannersChanged");
+                        QueueBannerRefresh();
+                    }
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -1512,6 +1519,35 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         finally
         {
             _isAccessRechecking = false;
+        }
+    }
+
+    private void QueueBannerRefresh()
+    {
+        _bannerRefreshPending = true;
+        if (!_isBannerRefreshing)
+        {
+            _ = RunBannerRefreshAsync();
+        }
+    }
+
+    private async Task RunBannerRefreshAsync()
+    {
+        _isBannerRefreshing = true;
+        try
+        {
+            while (_bannerRefreshPending)
+            {
+                await Task.Delay(AccessEventDebounce).ConfigureAwait(true);
+                _bannerRefreshPending = false;
+                _lastBannersSync = DateTimeOffset.Now;
+                await SyncBannersAsync().ConfigureAwait(true);
+                _logger.Info("Banners refetched from bannersChanged event");
+            }
+        }
+        finally
+        {
+            _isBannerRefreshing = false;
         }
     }
 

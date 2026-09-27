@@ -347,6 +347,22 @@ public sealed class GigagrugClientTests
     }
 
     [Fact]
+    public async Task StreamAccessEventsAsync_Success_YieldsBannersChanged()
+    {
+        var (client, _) = ClientFor(
+            HttpStatusCode.OK,
+            "data: {\"type\": \"bannersChanged\"}\n\n");
+
+        var events = new List<string>();
+        await foreach (var eventType in client.StreamAccessEventsAsync(TestContext.Current.CancellationToken))
+        {
+            events.Add(eventType);
+        }
+
+        Assert.Equal(["bannersChanged"], events);
+    }
+
+    [Fact]
     public async Task StreamAccessEventsAsync_IgnoresAFrameWithNoTypeOrUnparsableData()
     {
         var (client, _) = ClientFor(
