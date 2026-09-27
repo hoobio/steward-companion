@@ -507,19 +507,19 @@ public static class ProfessionsPushSelection
     public static ProfessionsCharacterState StateOf(CharacterPushOutcome? outcome, string fingerprint) => outcome switch
     {
         null => ProfessionsCharacterState.Pending,
+        { Accepted: false } => ProfessionsCharacterState.Rejected,
         _ when !string.Equals(outcome.Fingerprint, fingerprint, StringComparison.Ordinal) => ProfessionsCharacterState.Pending,
-        { Accepted: true } => ProfessionsCharacterState.Synced,
-        _ => ProfessionsCharacterState.Rejected,
+        _ => ProfessionsCharacterState.Synced,
     };
 
     // An officer fixing the roster link is the only change outside the character's own data that can turn a not-linked rejection into an accept.
-    private static bool NeedsSend(CharacterPushOutcome? outcome, string fingerprint, bool linkedToMe) =>
-        StateOf(outcome, fingerprint) switch
-        {
-            ProfessionsCharacterState.Synced => false,
-            ProfessionsCharacterState.Rejected => linkedToMe && outcome!.Reason == CharacterSyncRejectionCopy.NotLinkedReason,
-            _ => true,
-        };
+    private static bool NeedsSend(CharacterPushOutcome? outcome, string fingerprint, bool linkedToMe) => outcome switch
+    {
+        null => true,
+        _ when !string.Equals(outcome.Fingerprint, fingerprint, StringComparison.Ordinal) => true,
+        { Accepted: true } => false,
+        _ => linkedToMe && outcome.Reason == CharacterSyncRejectionCopy.NotLinkedReason,
+    };
 }
 
 public sealed record WowClientProcess(int ProcessId, DateTimeOffset StartTime);

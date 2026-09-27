@@ -170,12 +170,59 @@ public sealed class ProfessionsPushSelectionTests
     }
 
     [Fact]
-    public void StateOf_IsPending_WhenTheDataChangedSinceTheOutcome()
+    public void StateOf_IsSynced_WhenAcceptedAndUnchanged()
     {
-        var outcome = new CharacterPushOutcome(true, Fingerprint: "old");
+        Assert.Equal(ProfessionsCharacterState.Synced, ProfessionsPushSelection.StateOf(new CharacterPushOutcome(true, Fingerprint: "fp"), "fp"));
+    }
 
-        Assert.Equal(ProfessionsCharacterState.Pending, ProfessionsPushSelection.StateOf(outcome, "new"));
-        Assert.Equal(ProfessionsCharacterState.Synced, ProfessionsPushSelection.StateOf(outcome, "old"));
-        Assert.Equal(ProfessionsCharacterState.Pending, ProfessionsPushSelection.StateOf(null, "old"));
+    [Fact]
+    public void StateOf_IsPending_WhenAcceptedAndChanged()
+    {
+        Assert.Equal(ProfessionsCharacterState.Pending, ProfessionsPushSelection.StateOf(new CharacterPushOutcome(true, Fingerprint: "old"), "new"));
+    }
+
+    [Fact]
+    public void StateOf_IsPending_WhenNeverSent()
+    {
+        Assert.Equal(ProfessionsCharacterState.Pending, ProfessionsPushSelection.StateOf(null, "fp"));
+    }
+
+    [Fact]
+    public void StateOf_IsRejected_WhenRejectedAndUnchanged()
+    {
+        var outcome = new CharacterPushOutcome(false, CharacterSyncRejectionCopy.NotLinkedReason, "fp");
+
+        Assert.Equal(ProfessionsCharacterState.Rejected, ProfessionsPushSelection.StateOf(outcome, "fp"));
+    }
+
+    [Fact]
+    public void StateOf_StaysRejected_WhenRejectedAndChanged()
+    {
+        var outcome = new CharacterPushOutcome(false, CharacterSyncRejectionCopy.NotLinkedReason, "old");
+
+        Assert.Equal(ProfessionsCharacterState.Rejected, ProfessionsPushSelection.StateOf(outcome, "new"));
+    }
+
+    [Fact]
+    public void StateOf_StaysRejected_WhenTheRosterNowLinksItToMe_UntilAnAcceptedPush()
+    {
+        var hoobiFingerprint = CharacterSyncMapping.ProfessionsFingerprint(Professions[HoobiGuid]);
+        var grugFingerprint = CharacterSyncMapping.ProfessionsFingerprint(Professions[GrugGuid]);
+        var rejected = new CharacterPushOutcome(false, CharacterSyncRejectionCopy.NotLinkedReason, grugFingerprint);
+        var last = AllAccepted(Professions, CharacterSyncMapping.CatalogueFingerprint(Catalogue)) with
+        {
+            Characters = new Dictionary<string, CharacterPushOutcome>
+            {
+                [HoobiGuid] = new(true, Fingerprint: hoobiFingerprint),
+                [GrugGuid] = rejected,
+            },
+        };
+        var plan = Select(Professions, last, [new DirectoryCharacter(GrugGuid, "Grug", 58, 7, MyUserId)]);
+
+        Assert.Equal(ProfessionsCharacterState.Rejected, ProfessionsPushSelection.StateOf(rejected, grugFingerprint));
+
+        var merged = ProfessionsPushSelection.Merge(last.Characters, plan, new Dictionary<string, string>());
+
+        Assert.Equal(ProfessionsCharacterState.Synced, ProfessionsPushSelection.StateOf(merged[GrugGuid], grugFingerprint));
     }
 }

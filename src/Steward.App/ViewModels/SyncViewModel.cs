@@ -283,7 +283,9 @@ public sealed partial class SyncViewModel : ObservableObject
                 .OrderBy(c => c.State)
                 .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase)];
 
-            var unsynced = view.ProfessionsCharacters.Count(c => c.State != ProfessionsCharacterState.Synced);
+            var synced = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Synced);
+            var pending = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Pending);
+            var rejected = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Rejected);
             var professions = Dataset(
                 ProfessionsDatasetKey,
                 "Your professions",
@@ -294,12 +296,10 @@ public sealed partial class SyncViewModel : ObservableObject
                 exportedAt,
                 isStale,
                 isFirst: true,
-                isSynced: covered.Count > 0 && unsynced == 0,
+                isSynced: synced > 0 && pending == 0,
                 showOutcomeSummary: false);
             professions.IconSource = new BitmapImage(new Uri("ms-appx:///Assets/Professions.png"));
-            professions.StatusText = unsynced == 0
-                ? covered.Count == 0 ? null : "In sync with the guild"
-                : $"{unsynced} character{(unsynced == 1 ? "" : "s")} not synced yet";
+            professions.StatusText = ProfessionsStatus(synced, pending, rejected);
             view.Datasets.Add(professions);
 
             return view;
@@ -360,6 +360,24 @@ public sealed partial class SyncViewModel : ObservableObject
                 ? _main.DescribeRejection(character.CharacterGuid, reason)
                 : null);
     }
+
+    private static string? ProfessionsStatus(int synced, int pending, int rejected)
+    {
+        if (pending == 0 && rejected == 0)
+        {
+            return synced == 0 ? null : "In sync with the guild";
+        }
+
+        string?[] parts =
+        [
+            synced > 0 ? $"{synced} synced" : null,
+            pending > 0 ? $"{Characters(pending)} not sent yet" : null,
+            rejected > 0 ? $"{Characters(rejected)} not accepted" : null,
+        ];
+        return string.Join(", ", parts.OfType<string>());
+    }
+
+    private static string Characters(int count) => $"{count} character{(count == 1 ? "" : "s")}";
 
     private static SyncDatasetViewModel Dataset(
         string key,
