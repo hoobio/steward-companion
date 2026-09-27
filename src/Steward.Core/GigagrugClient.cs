@@ -369,7 +369,9 @@ public sealed class GigagrugClient
             .ReadFromJsonAsync(CompanionJsonContext.Default.RecipeCatalogueResponse, cancellationToken)
             .ConfigureAwait(false);
 
-        return body?.Catalogue ?? new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
+        return body?.Catalogue is { } catalogue
+            ? MemberCatalogueMapping.ToCatalogue(catalogue)
+            : new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
     }
 
     public async Task<CharacterSyncResponse> PostCharacterSyncAsync(

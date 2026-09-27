@@ -205,7 +205,7 @@ public sealed record CatalogueRecipe(
     [property: JsonPropertyName("reagents"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionReagent>? Reagents);
 
 public sealed record RecipeCatalogueResponse(
-    [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> Catalogue);
+    [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Catalogue);
 
 public sealed record DirectoryPerson(
     [property: JsonPropertyName("id")] string Id,
