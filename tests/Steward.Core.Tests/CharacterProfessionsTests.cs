@@ -21,19 +21,7 @@ public sealed class CharacterProfessionsTests
         var professions = new CharacterProfessions(
             1758260000,
             [new ProfessionSkill("Alchemy", 285, 300, false)],
-            new Dictionary<string, ProfessionRecipes>
-            {
-                ["Alchemy"] = new ProfessionRecipes(
-                    1758260000,
-                    [new ProfessionRecipe(
-                        "Major Healing Potion",
-                        11460,
-                        "Potions",
-                        "optimal",
-                        13446,
-                        string.Empty,
-                        [new ProfessionReagent("Golden Sansam", 13464, 2)])]),
-            });
+            new Dictionary<string, IReadOnlyList<int>> { ["Alchemy"] = [11460, 11461] });
 
         var entry = new CharacterSyncEntry(
             "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1,
@@ -46,22 +34,15 @@ public sealed class CharacterProfessionsTests
         Assert.Equal("Player-4395-0A1B2C3D", root.GetProperty("guid").GetString());
         var professionsElement = root.GetProperty("professions");
         Assert.Equal(1758260000, professionsElement.GetProperty("observedAt").GetInt64());
+        Assert.Equal(2, professionsElement.GetProperty("schema").GetInt32());
 
         var skill = Assert.Single(professionsElement.GetProperty("skills").EnumerateArray());
         Assert.Equal("Alchemy", skill.GetProperty("name").GetString());
         Assert.Equal(285, skill.GetProperty("rank").GetInt32());
         Assert.False(skill.TryGetProperty("secondary", out var secondary) && secondary.ValueKind == JsonValueKind.Null);
 
-        var recipe = Assert.Single(professionsElement.GetProperty("recipes").GetProperty("Alchemy").GetProperty("list").EnumerateArray());
-        Assert.Equal("Major Healing Potion", recipe.GetProperty("name").GetString());
-        Assert.Equal(11460, recipe.GetProperty("recipeId").GetInt32());
-        Assert.False(recipe.TryGetProperty("tools", out var tools) && tools.ValueKind == JsonValueKind.Null);
-        Assert.Equal(string.Empty, recipe.GetProperty("tools").GetString());
-
-        var reagent = Assert.Single(recipe.GetProperty("reagents").EnumerateArray());
-        Assert.Equal("Golden Sansam", reagent.GetProperty("name").GetString());
-        Assert.Equal(13464, reagent.GetProperty("itemId").GetInt32());
-        Assert.Equal(2, reagent.GetProperty("count").GetInt32());
+        var recipeIds = professionsElement.GetProperty("recipes").GetProperty("Alchemy").EnumerateArray().Select(e => e.GetInt32());
+        Assert.Equal([11460, 11461], recipeIds);
     }
 
     [Fact]

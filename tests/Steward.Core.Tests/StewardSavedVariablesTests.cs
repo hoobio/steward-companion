@@ -153,7 +153,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["skills"] = { { ["name"] = "Cooking" }, } },
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["schema"] = 2, ["skills"] = { { ["name"] = "Cooking" }, } },
             },
             }
             """));
@@ -264,7 +264,8 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["professions"] = {
             ["Player-4395-0A1B2C3D"] = {
                 ["observedAt"] = {{observedAt}},
-                ["recipes"] = { ["Alchemy"] = { ["scannedAt"] = {{observedAt}}, ["list"] = { { ["recipeId"] = {{recipeId}}, ["name"] = "Potion" } } } },
+                ["schema"] = 2,
+                ["recipes"] = { ["Alchemy"] = { {{recipeId}} } },
             },
             },
             ["catalogue"] = {
@@ -352,18 +353,13 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["Player-4395-0A1B2C3D"] = {
                 ["observedAt"] = 1758260000,
                 ["fp"] = "a1b2c3d4",
+                ["schema"] = 2,
                 ["skills"] = {
                 { ["name"] = "Alchemy", ["rank"] = 285, ["maxRank"] = 300, ["secondary"] = false },
                 { ["name"] = "Cooking", ["rank"] = 150, ["maxRank"] = 225, ["secondary"] = true },
                 },
                 ["recipes"] = {
-                ["Alchemy"] = {
-                    ["scannedAt"] = 1758260000,
-                    ["list"] = {
-                    { ["recipeId"] = 11460, ["name"] = "Major Healing Potion", ["header"] = "Potions", ["difficulty"] = "optimal", ["itemId"] = 13446,
-                      ["tools"] = "", ["reagents"] = { { ["itemId"] = 13464, ["name"] = "Golden Sansam", ["count"] = 2 } } },
-                    },
-                },
+                ["Alchemy"] = { 11460, 11461 },
                 },
             },
             },
@@ -374,6 +370,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var professions = snapshot.Professions["Player-4395-0A1B2C3D"];
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000), DateTimeOffset.FromUnixTimeSeconds(professions.ObservedAt!.Value));
         Assert.Equal("a1b2c3d4", professions.Fp);
+        Assert.Equal(2, professions.Schema);
 
         var alchemy = professions.Skills!.Single(s => s.Name == "Alchemy");
         Assert.Equal(285, alchemy.Rank);
@@ -381,19 +378,58 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.False(alchemy.Secondary);
         Assert.True(professions.Skills!.Single(s => s.Name == "Cooking").Secondary);
 
-        var recipes = professions.Recipes!["Alchemy"];
-        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000).ToUnixTimeSeconds(), recipes.ScannedAt);
-        var recipe = Assert.Single(recipes.List!);
-        Assert.Equal(11460, recipe.RecipeId);
-        Assert.Equal("Major Healing Potion", recipe.Name);
-        Assert.Equal("Potions", recipe.Header);
-        Assert.Equal("optimal", recipe.Difficulty);
-        Assert.Equal(13446, recipe.ItemId);
-        Assert.Equal(string.Empty, recipe.Tools);
-        var reagent = Assert.Single(recipe.Reagents!);
-        Assert.Equal(13464, reagent.ItemId);
-        Assert.Equal("Golden Sansam", reagent.Name);
-        Assert.Equal(2, reagent.Count);
+        Assert.Equal([11460, 11461], professions.Recipes!["Alchemy"]);
+    }
+
+    [Fact]
+    public void Read_RejectsAProfessionsEntry_MissingSchema()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["professions"] = {
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["skills"] = { { ["name"] = "Alchemy" } } },
+            },
+            }
+            """));
+
+        Assert.Empty(snapshot.Professions);
+        Assert.Equal(1, snapshot.Skipped);
+        Assert.Equal(1, snapshot.OutdatedProfessions);
+    }
+
+    [Fact]
+    public void Read_RejectsAProfessionsEntry_WithTheOldRecipeObjectShape()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["professions"] = {
+            ["Player-4395-0A1B2C3D"] = {
+                ["observedAt"] = 1758260000,
+                ["schema"] = 2,
+                ["recipes"] = { ["Alchemy"] = { ["scannedAt"] = 1758260000, ["list"] = { { ["recipeId"] = 11460, ["name"] = "Potion" } } } },
+            },
+            },
+            }
+            """));
+
+        Assert.Empty(snapshot.Professions);
+        Assert.Equal(1, snapshot.Skipped);
+        Assert.Equal(1, snapshot.OutdatedProfessions);
+    }
+
+    [Fact]
+    public void Read_RejectsAProfessionsEntry_WithANonPositiveRecipeId()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["professions"] = {
+            ["Player-4395-0A1B2C3D"] = { ["schema"] = 2, ["recipes"] = { ["Alchemy"] = { 11460, 0 } } },
+            },
+            }
+            """));
+
+        Assert.Empty(snapshot.Professions);
+        Assert.Equal(1, snapshot.OutdatedProfessions);
     }
 
     [Fact]
@@ -402,7 +438,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = {},
+            ["Player-4395-0A1B2C3D"] = { ["schema"] = 2 },
             },
             }
             """));
@@ -423,25 +459,20 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["professions"] = {
             { ["observedAt"] = 1758260000 }, -- [1] no guid key
             ["Player-4395-0A1B2C3D"] = {
+                ["schema"] = 2,
                 ["skills"] = {
                 { ["rank"] = 285 }, -- missing name
                 },
-                ["recipes"] = {
-                ["Alchemy"] = {
-                    ["list"] = {
-                    { ["header"] = "Potions" }, -- missing name
-                    },
-                },
-                },
+                ["recipes"] = { ["Alchemy"] = { 11460 } },
             },
             },
             }
             """));
 
-        Assert.Equal(3, snapshot.Skipped);
+        Assert.Equal(2, snapshot.Skipped);
         var professions = snapshot.Professions["Player-4395-0A1B2C3D"];
         Assert.Empty(professions.Skills!);
-        Assert.Empty(professions.Recipes!["Alchemy"].List!);
+        Assert.Equal([11460], professions.Recipes!["Alchemy"]);
     }
 
     [Fact]
@@ -450,14 +481,14 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var older = """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758200000, ["skills"] = { { ["name"] = "Cooking", ["rank"] = 1 } } },
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758200000, ["schema"] = 2, ["skills"] = { { ["name"] = "Cooking", ["rank"] = 1 } } },
             },
             }
             """;
         var newer = """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["skills"] = { { ["name"] = "Alchemy", ["rank"] = 285 } } },
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["schema"] = 2, ["skills"] = { { ["name"] = "Alchemy", ["rank"] = 285 } } },
             },
             }
             """;
@@ -735,7 +766,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000000, ["skills"] = { { ["name"] = "Alchemy", ["rank"] = 1 } } },
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000000, ["schema"] = 2, ["skills"] = { { ["name"] = "Alchemy", ["rank"] = 1 } } },
             },
             ["catalogue"] = {
             ["Alchemy"] = { ["scannedAt"] = -99999999999999, ["list"] = { { ["name"] = "Minor Healing Potion" } } },

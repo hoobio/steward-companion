@@ -98,7 +98,8 @@ public sealed record SavedVariablesSnapshot(
     IReadOnlyDictionary<string, CharacterProfessions> Professions,
     IReadOnlyDictionary<string, ProfessionCatalogue> Catalogue,
     GuildRanks? GuildRanks = null,
-    bool HasAccountData = false)
+    bool HasAccountData = false,
+    int OutdatedProfessions = 0)
 {
     public bool HasExportedData => Characters.Count > 0 || Professions.Count > 0 || Catalogue.Count > 0 || GuildRanks is not null;
 
@@ -154,30 +155,23 @@ public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("observedAt")] long? ObservedAt,
     [property: JsonPropertyName("professions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CharacterProfessions? Professions = null);
 
+public static class ProfessionsSchema
+{
+    public const int Current = 2;
+}
+
 public sealed record CharacterProfessions(
     [property: JsonPropertyName("observedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ObservedAt,
     [property: JsonPropertyName("skills"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionSkill>? Skills,
-    [property: JsonPropertyName("recipes"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, ProfessionRecipes>? Recipes,
-    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null);
+    [property: JsonPropertyName("recipes"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, IReadOnlyList<int>>? Recipes,
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null,
+    [property: JsonPropertyName("schema")] int Schema = ProfessionsSchema.Current);
 
 public sealed record ProfessionSkill(
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("rank"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Rank,
     [property: JsonPropertyName("maxRank"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxRank,
     [property: JsonPropertyName("secondary"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Secondary);
-
-public sealed record ProfessionRecipes(
-    [property: JsonPropertyName("scannedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ScannedAt,
-    [property: JsonPropertyName("list"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionRecipe>? List);
-
-public sealed record ProfessionRecipe(
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("recipeId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RecipeId,
-    [property: JsonPropertyName("header"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Header,
-    [property: JsonPropertyName("difficulty"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Difficulty,
-    [property: JsonPropertyName("itemId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? ItemId,
-    [property: JsonPropertyName("tools"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Tools,
-    [property: JsonPropertyName("reagents"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionReagent>? Reagents);
 
 public sealed record ProfessionReagent(
     [property: JsonPropertyName("name"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Name,
@@ -250,7 +244,7 @@ public sealed record DirectoryProfessions(
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("class_id")] int ClassId,
     [property: JsonPropertyName("skills")] IReadOnlyList<DirectorySkill> Skills,
-    [property: JsonPropertyName("recipes")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Recipes);
+    [property: JsonPropertyName("recipes")] IReadOnlyDictionary<string, IReadOnlyList<int>> Recipes);
 
 public sealed record MemberRoster(
     [property: JsonPropertyName("people")] IReadOnlyList<DirectoryPerson> People,
@@ -417,7 +411,7 @@ public static class CharacterSyncMapping
     private static CharacterProfessions Canonical(CharacterProfessions professions) => professions with
     {
         ObservedAt = null,
-        Recipes = professions.Recipes is null ? null : Sorted(professions.Recipes, recipes => recipes with { ScannedAt = null }),
+        Recipes = professions.Recipes is null ? null : Sorted(professions.Recipes, ids => ids),
     };
 
     private static SortedDictionary<string, T> Sorted<T>(IReadOnlyDictionary<string, T> source, Func<T, T> canonicalise) =>

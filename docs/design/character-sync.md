@@ -84,25 +84,20 @@ The SPA roster build line shows `<name> (<level>)` of the person's current chara
 
 The logged-in character's own professions and known recipes, readable only from that character's client, so a push covers the characters of the account that pushes.
 
-The addon writes `StewardDB.professions[guid]` for the logged-in character, in the account file beside `characters`:
+The addon writes `StewardDB.professions[guid]` for the logged-in character, in the account file beside `characters`. Schema 2 (the only version this app or gigagrug accepts): known recipes are bare recipe id arrays, and there is no per-recipe object or `difficulty` field anywhere in this dataset.
 
 ```lua
 ["professions"] = {
   ["Player-4395-0A1B2C3D"] = {
     ["observedAt"] = 1758260000,
     ["fp"] = "a1b2c3d4e5f6...",
+    ["schema"] = 2,
     ["skills"] = {
       { ["name"] = "Alchemy", ["rank"] = 285, ["maxRank"] = 300, ["secondary"] = false },
       { ["name"] = "Cooking", ["rank"] = 150, ["maxRank"] = 225, ["secondary"] = true },
     },
     ["recipes"] = {
-      ["Alchemy"] = {
-        ["scannedAt"] = 1758260000,
-        ["list"] = {
-          { ["name"] = "Major Healing Potion", ["header"] = "Potions", ["difficulty"] = "optimal", ["itemId"] = 13446,
-            ["tools"] = "", ["reagents"] = { { ["itemId"] = 13464, ["name"] = "Golden Sansam", ["count"] = 2 } } },
-        },
-      },
+      ["Alchemy"] = { 11460, 11461 },
     },
   },
 }
@@ -110,13 +105,14 @@ The addon writes `StewardDB.professions[guid]` for the logged-in character, in t
 
 - The Forever client has no Classic tradeskill globals (`GetTradeSkillInfo` and the rest are absent from `D:\wow-ui-source` at `bd2470a`); professions run on the retail-style `C_TradeSkillUI`, whose recipe data arrives from the server only when a profession's window opens (`TRADE_SKILL_SHOW`, `TRADE_SKILL_LIST_UPDATE`). A recipe list is therefore captured the first time each profession's window opens and refreshed on every later opening; an addon cannot open the window itself outside a hardware event: `C_TradeSkillUI.OpenTradeSkill(185)` opens Cooking from `/run`, but the same call from a `C_Timer.After` callback raises `ADDON_ACTION_BLOCKED` (`ForceTaint_Strong`), verified in game on 26 Sep 2026, so it works only from a click or key handler.
 - `skills` is read without a window, on login and whenever skill ranks change, from whatever the client's API offers for the character's professions and secondary skills; `secondary` marks a secondary skill.
-- `recipes[profession]` is replaced whole on each capture and holds learned recipes only, each also carrying its `recipeId` (spell id). A profession never opened has no entry. `difficulty` is the recipe's relative difficulty: `optimal`, `medium`, `easy` or `trivial`. Every field comes from APIs verified present in `D:\wow-ui-source`; a field the client cannot supply is omitted rather than guessed.
-- The app sends a character's `professions` object (same shape, camelCase) on that character's record in the sync batch, `fp` included.
-- gigagrug stores it as `professions_json` on the observation, validated for shape and bounds (rank at most maxRank, maxRank at most 375, at most 1000 recipes per profession, counts 1-100). The current professions are the latest non-voided observation carrying `professions_json`, independent of the latest roster observation, as links are.
+- `recipes[profession]` is replaced whole on each capture: a Lua array of learned recipe ids (spell ids), ascending and unique. A profession never opened has no entry. Recipe names, headers, tools and reagents live only in the catalogue (`catalogue`/`StewardDB.catalogue`, unchanged); a reader wanting them resolves the id against it.
+- `schema` is a required integer, currently always `2`; it exists so a client change to this shape is detected rather than read lossily. The app rejects (does not map or push) a professions entry whose `schema` is not `2`, or whose `recipes[profession]` values are not arrays of positive integers (including the pre-schema `{ scannedAt, list = { {recipeId, ...} } }` shape); the Sync page shows "Update the Steward addon" for the affected install instead of sending stale or malformed data. gigagrug rejects a pushed professions entry whose `schema` is not `2` with a 4xx telling the officer to update both the addon and the app, surfaced verbatim on the push row.
+- The app sends a character's `professions` object (same shape, camelCase) on that character's record in the sync batch, `fp` and `schema` included.
+- gigagrug stores it as `professions_json` on the observation, validated for shape and bounds (rank at most maxRank, maxRank at most 375, at most 1000 recipes per profession, `schema` exactly `2`). The current professions are the latest non-voided observation carrying `professions_json`, independent of the latest roster observation, as links are.
 
 ## Integrity
 
-`fp` is a keyed fingerprint the addon computes over a fixed canonical form of a character's professions and sends alongside them; `StewardSavedVariables` parses it into `CharacterProfessions.Fp` and the app forwards it untouched, included in the push-gate fingerprint so a changed `fp` triggers a push like any other professions field. gigagrug recomputes it on receipt and rejects that record's professions on a missing or mismatched value, DMing the character's owner. It is a deterrent against a hand-edited push, not security: the key and the exact algorithm are defined in the Steward addon and in gigagrug, not here.
+`fp` is a keyed fingerprint the addon computes over a fixed canonical form of a character's professions (the id arrays, not the old per-recipe objects) and sends alongside them; `StewardSavedVariables` parses it into `CharacterProfessions.Fp` and the app forwards it untouched, included in the push-gate fingerprint so a changed `fp` triggers a push like any other professions field. gigagrug recomputes it on receipt and rejects that record's professions on a missing or mismatched value, DMing the character's owner. It is a deterrent against a hand-edited push, not security: the key and the exact algorithm are defined in the Steward addon and in gigagrug, not here.
 
 ## Other members' professions
 
@@ -129,7 +125,7 @@ Verified in game on 26 Sep 2026: once a profession's window has opened, `C_Trade
 - The addon writes `StewardDB.catalogue[profession] = { ["scannedAt"], ["list"] = { recipe, ... } }` whenever a profession's window data arrives: every recipe `GetAllRecipeIDs` returns, learned or not, in the recipe shape above minus `difficulty`.
 - The app sends each install's catalogue as a top-level `catalogue` object on the sync batch. gigagrug keeps one row per `(guild_id, profession, recipe_id)`, replaced by a newer `scannedAt`, and serves it at `GET /api/admin/{guild_id}/recipes/catalogue` (flag-gated) as `{catalogue: {<profession>: [recipe, ...]}}`.
 - The app writes that catalogue into `StewardSync.lua` as `["catalogue"]`, only while `sync` is held.
-- At login the addon unions the synced and local catalogues and, for each profession the character has (`GetProfessions`), lists as known every recipe where `IsPlayerSpell(recipeId)` is true, writing `professions[guid].recipes[profession]` with `difficulty` omitted. A window capture of the same profession replaces it with the richer list, `difficulty` included.
+- At login the addon unions the synced and local catalogues and, for each profession the character has (`GetProfessions`), lists as known every recipe where `IsPlayerSpell(recipeId)` is true, writing `professions[guid].recipes[profession]` as that profession's id array. A window capture of the same profession rebuilds the same array from the window's own known recipes.
 
 ## Raider self-push
 

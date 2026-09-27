@@ -25,6 +25,9 @@ public sealed partial class SyncInstallViewModel : ObservableObject
     public partial bool AddonMissing { get; set; }
 
     [ObservableProperty]
+    public partial int OutdatedProfessions { get; set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(OldFormatVisibility))]
     [NotifyPropertyChangedFor(nameof(DatasetsVisibility))]
     [NotifyPropertyChangedFor(nameof(DatasetListVisibility))]
@@ -93,6 +96,7 @@ public sealed partial class SyncInstallViewModel : ObservableObject
         ClientVersion = fresh.ClientVersion;
         IsClientRunning = fresh.IsClientRunning;
         AddonMissing = fresh.AddonMissing;
+        OutdatedProfessions = fresh.OutdatedProfessions;
         ExportState = fresh.ExportState;
         ReadError = fresh.ReadError;
         ApplyExpansion(fresh.IsProfessionsExpanded);

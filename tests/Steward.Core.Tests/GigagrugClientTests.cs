@@ -276,8 +276,7 @@ public sealed class GigagrugClientTests
         """
         {"professions":[{"guid":"Player-4395-0A1B2C3D","name":"Hoobi","class_id":1,
         "skills":[{"name":"Alchemy","rank":285,"max_rank":300,"secondary":false}],
-        "recipes":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","difficulty":"optimal","header":"Potions",
-        "item_id":13446,"tools":"","reagents":[{"item_id":13464,"name":"Golden Sansam","count":2}]}]}}],
+        "recipes":{"Alchemy":[11460,11461]}}],
         "catalogue":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","header":"Potions","item_id":13446,
         "tools":"","reagents":[]}]}}
         """;
@@ -293,8 +292,7 @@ public sealed class GigagrugClientTests
         var profession = Assert.Single(response.Professions);
         Assert.Equal("Hoobi", profession.Name);
         Assert.Equal(1, profession.ClassId);
-        var recipe = Assert.Single(profession.Recipes["Alchemy"]);
-        Assert.Equal("optimal", recipe.Difficulty);
+        Assert.Equal([11460, 11461], profession.Recipes["Alchemy"]);
         Assert.Null(Assert.Single(response.Catalogue["Alchemy"]).Difficulty);
     }
 

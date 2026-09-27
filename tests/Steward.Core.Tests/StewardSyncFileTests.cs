@@ -274,14 +274,7 @@ public sealed class StewardSyncFileTests : IDisposable
         "Hoobi",
         1,
         [new DirectorySkill("Alchemy", 285, 300, false)],
-        new Dictionary<string, IReadOnlyList<DirectoryRecipe>>
-        {
-            ["Alchemy"] =
-            [
-                new DirectoryRecipe(11460, "Major Healing Potion", "optimal", "Potions", 13446, string.Empty,
-                    [new DirectoryReagent(13464, "Golden Sansam", 2)]),
-            ],
-        });
+        new Dictionary<string, IReadOnlyList<int>> { ["Alchemy"] = [11460, 11461] });
 
     [Fact]
     public void Render_OmitsTheDirectoryKey_WhenThePayloadCarriesNone()
@@ -393,11 +386,8 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Equal("Alchemy", skill.GetString("name"));
         Assert.Equal(300d, skill.GetNumber("maxRank"));
 
-        var recipe = Assert.Single(profession.GetTable("recipes")!.GetTable("Alchemy")!.Items);
-        Assert.Equal(11460d, recipe.GetNumber("recipeId"));
-        Assert.Equal("optimal", recipe.GetString("difficulty"));
-        var reagent = Assert.Single(recipe.GetTable("reagents")!.Items);
-        Assert.Equal(13464d, reagent.GetNumber("itemId"));
+        var recipeIds = profession.GetTable("recipes")!.GetTable("Alchemy")!.Items.Select(i => i.Number);
+        Assert.Equal([11460d, 11461d], recipeIds);
     }
 
     [Fact]

@@ -23,6 +23,7 @@ public sealed partial class SyncViewModel : ObservableObject
 
     private const string GuildlessNote = "Log in to a character in a guild.";
     private const string NoSyncFeatureNote = "Your account can't push characters (missing the sync feature).";
+    private const string OutdatedProfessionsNote = "Update the Steward addon: some characters' professions are in an old format and were not sent.";
 
     private static readonly string[] SummaryNames =
     [
@@ -241,7 +242,9 @@ public sealed partial class SyncViewModel : ObservableObject
             pushRow.CharacterSync = _main.HasSyncFeature
                 ? _main.CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath)
                 : null;
-            pushRow.Note = pushRow.CharacterSync is null ? NoSyncFeatureNote : null;
+            pushRow.Note = pushRow.CharacterSync is null
+                ? NoSyncFeatureNote
+                : install.OutdatedProfessions > 0 ? OutdatedProfessionsNote : null;
         }
     }
 
@@ -280,6 +283,7 @@ public sealed partial class SyncViewModel : ObservableObject
             AddonMissing = addonMissing,
             ExportState = snapshot?.ExportState ?? SyncExportState.NoFile,
             ReadError = readError,
+            OutdatedProfessions = snapshot?.OutdatedProfessions ?? 0,
         };
 
         if (_main.IsProfessionsOnlySync)

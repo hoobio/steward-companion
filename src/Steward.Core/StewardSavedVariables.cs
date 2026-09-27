@@ -57,6 +57,7 @@ public static class StewardSavedVariables
         GuildRanks? guildRanks = null;
         var hasAccount = false;
         var skipped = 0;
+        var outdatedProfessions = 0;
 
         foreach (var (path, lastWriteTime, text) in files)
         {
@@ -78,7 +79,7 @@ public static class StewardSavedVariables
                 roster.AddRange(MapAll(account.GetTable("roster"), MapRoster, ref skipped));
                 characters.AddRange(MapCharacters(account.GetTable("characters"), ref skipped)
                     .Select(c => (c.CharacterGuid, c.ObservedAt ?? DateTimeOffset.MinValue, c)));
-                professions.AddRange(MapProfessionsByGuid(account.GetTable("professions"), ref skipped)
+                professions.AddRange(MapProfessionsByGuid(account.GetTable("professions"), ref skipped, ref outdatedProfessions)
                     .Select(p => (p.Guid, ToTimestamp(p.Professions.ObservedAt) ?? DateTimeOffset.MinValue, p.Professions)));
                 catalogue.AddRange(MapCatalogueByProfession(account.GetTable("catalogue"), ref skipped)
                     .Select(c => (c.Profession, ToTimestamp(c.Catalogue.ScannedAt) ?? DateTimeOffset.MinValue, c.Catalogue)));
@@ -110,7 +111,8 @@ public static class StewardSavedVariables
             dedupedProfessions,
             dedupedCatalogue,
             guildRanks,
-            hasAccount);
+            hasAccount,
+            outdatedProfessions);
     }
 
     private static Dictionary<string, T> DedupeByKey<T>(List<(string Id, DateTimeOffset Rank, T Item)> records) =>
@@ -293,29 +295,55 @@ public static class StewardSavedVariables
         return new GuildRanks(realm, guild, ToTimestamp(table.GetNumber("observedAt")), ranks);
     }
 
-    private static List<(string Guid, CharacterProfessions Professions)> MapProfessionsByGuid(LuaValue? table, ref int skipped)
+    private static List<(string Guid, CharacterProfessions Professions)> MapProfessionsByGuid(
+        LuaValue? table, ref int skipped, ref int outdated)
     {
         var mapped = new List<(string, CharacterProfessions)>();
         foreach (var entry in table?.Table ?? [])
         {
-            if (entry.Key is { Kind: LuaKind.Text } key && entry.Value.Kind is LuaKind.Table)
-            {
-                mapped.Add((key.Text!, MapProfessions(entry.Value, ref skipped)));
-            }
-            else
+            if (entry.Key is not { Kind: LuaKind.Text } key || entry.Value.Kind is not LuaKind.Table)
             {
                 skipped++;
+                continue;
             }
+
+            var professions = MapProfessions(entry.Value, ref skipped);
+            if (professions is null)
+            {
+                skipped++;
+                outdated++;
+                continue;
+            }
+
+            mapped.Add((key.Text!, professions));
         }
 
         return mapped;
     }
 
-    private static CharacterProfessions MapProfessions(LuaValue value, ref int skipped) => new(
-        ToNullableLong(value.GetNumber("observedAt")),
-        MapProfessionSkills(value.GetTable("skills"), ref skipped),
-        MapRecipesByProfession(value.GetTable("recipes"), ref skipped),
-        value.GetString("fp"));
+    private static CharacterProfessions? MapProfessions(LuaValue value, ref int skipped)
+    {
+        if (ToNullableInt(value.GetNumber("schema")) != ProfessionsSchema.Current)
+        {
+            return null;
+        }
+
+        IReadOnlyDictionary<string, IReadOnlyList<int>>? recipes = null;
+        if (value.GetTable("recipes") is { } recipesTable)
+        {
+            recipes = MapRecipesByProfession(recipesTable);
+            if (recipes is null)
+            {
+                return null;
+            }
+        }
+
+        return new CharacterProfessions(
+            ToNullableLong(value.GetNumber("observedAt")),
+            MapProfessionSkills(value.GetTable("skills"), ref skipped),
+            recipes,
+            value.GetString("fp"));
+    }
 
     private static List<ProfessionSkill>? MapProfessionSkills(LuaValue? table, ref int skipped)
     {
@@ -356,73 +384,51 @@ public static class StewardSavedVariables
             value.Get("secondary") is { Kind: LuaKind.Boolean } secondary ? secondary.Boolean : null);
     }
 
-    private static Dictionary<string, ProfessionRecipes>? MapRecipesByProfession(LuaValue? table, ref int skipped)
+    // schema 2: recipes[profession] is a bare array of positive recipe ids; anything else (including the
+    // schema-1 { scannedAt, list = {...} } shape) fails the whole professions entry rather than being read lossily.
+    private static Dictionary<string, IReadOnlyList<int>>? MapRecipesByProfession(LuaValue table)
     {
-        if (table is null)
-        {
-            return null;
-        }
-
-        var mapped = new Dictionary<string, ProfessionRecipes>(StringComparer.Ordinal);
+        var mapped = new Dictionary<string, IReadOnlyList<int>>(StringComparer.Ordinal);
         foreach (var entry in table.Table)
         {
-            if (entry.Key is { Kind: LuaKind.Text } key && entry.Value.Kind is LuaKind.Table)
+            if (entry.Key is not { Kind: LuaKind.Text } key || entry.Value.Kind is not LuaKind.Table)
             {
-                mapped[key.Text!] = MapProfessionRecipes(entry.Value, ref skipped);
+                return null;
             }
-            else
+
+            var ids = MapRecipeIds(entry.Value);
+            if (ids is null)
             {
-                skipped++;
+                return null;
             }
+
+            mapped[key.Text!] = ids;
         }
 
         return mapped;
     }
 
-    private static ProfessionRecipes MapProfessionRecipes(LuaValue value, ref int skipped) => new(
-        ToNullableLong(value.GetNumber("scannedAt")),
-        MapRecipeList(value.GetTable("list"), ref skipped));
-
-    private static List<ProfessionRecipe>? MapRecipeList(LuaValue? table, ref int skipped)
+    private static List<int>? MapRecipeIds(LuaValue table)
     {
-        if (table is null)
+        if (table.Table.Count != table.Items.Count)
         {
+            // A keyed entry here (e.g. schema 1's ["scannedAt"]/["list"]) means this isn't a bare id array.
             return null;
         }
 
-        var mapped = new List<ProfessionRecipe>();
+        var ids = new List<int>();
         foreach (var entry in table.Items)
         {
-            var recipe = entry.Kind is LuaKind.Table ? MapRecipe(entry, ref skipped) : null;
-            if (recipe is null)
+            if (entry.Kind is not LuaKind.Number || entry.Number is not (>= 1 and <= int.MaxValue)
+                || entry.Number != Math.Floor(entry.Number))
             {
-                skipped++;
+                return null;
             }
-            else
-            {
-                mapped.Add(recipe);
-            }
+
+            ids.Add((int)entry.Number);
         }
 
-        return mapped;
-    }
-
-    private static ProfessionRecipe? MapRecipe(LuaValue value, ref int skipped)
-    {
-        var name = value.GetString("name");
-        if (name is null)
-        {
-            return null;
-        }
-
-        return new ProfessionRecipe(
-            name,
-            ToNullableInt(value.GetNumber("recipeId")),
-            value.GetString("header"),
-            value.GetString("difficulty"),
-            ToNullableInt(value.GetNumber("itemId")),
-            value.GetString("tools"),
-            MapReagents(value.GetTable("reagents"), ref skipped));
+        return ids;
     }
 
     private static List<ProfessionReagent>? MapReagents(LuaValue? table, ref int skipped)
