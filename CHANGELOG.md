@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.0](https://github.com/hoobio/steward-companion/compare/v0.13.1...v0.14.0) (2026-09-27)
+
+
+### Features
+
+* ✨ move professions known recipes to schema-2 id arrays ([3052e9b](https://github.com/hoobio/steward-companion/commit/3052e9b817124d9f94aac209af3e8a20510c98ca))
+
+
+### Bug Fixes
+
+* 🐛 deserialise the officer recipe catalogue with gigagrug's snake_case keys ([2560551](https://github.com/hoobio/steward-companion/commit/256055177649812aebd736a1afb8cdd0ca5a5873))
+
 ## [0.13.1](https://github.com/hoobio/steward-companion/compare/v0.13.0...v0.13.1) (2026-09-27)
 
 
