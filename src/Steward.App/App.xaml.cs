@@ -4,10 +4,12 @@ using System.Runtime.InteropServices;
 using Steward.App.Hosting;
 using Steward.App.Services;
 using Steward.App.Views;
+using Steward.Core.Diagnostics;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 
 namespace Steward.App;
@@ -32,6 +34,9 @@ public partial class App : Application
 
     public static readonly bool IsPackaged = ResolveIsPackaged();
 
+    private static readonly string RealDataRoot = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward");
+
     public static string DisplayDataFolder(string realDataFolder)
     {
         if (!IsPackaged)
@@ -39,7 +44,8 @@ public partial class App : Application
             return realDataFolder;
         }
 
-        var virtualised = Path.Combine(Windows.Storage.ApplicationData.Current.LocalCacheFolder.Path, "Local", "Steward");
+        var relative = Path.GetRelativePath(RealDataRoot, realDataFolder);
+        var virtualised = Path.Combine(Windows.Storage.ApplicationData.Current.LocalCacheFolder.Path, "Local", "Steward", relative);
         return Directory.Exists(virtualised) ? virtualised : realDataFolder;
     }
 
@@ -57,6 +63,13 @@ public partial class App : Application
         builder.Configuration.SetBasePath(AppContext.BaseDirectory).AddJsonFile("appsettings.json", optional: false);
         builder.ConfigureSteward();
         _host = builder.Build();
+
+        var logger = _host.Services.GetRequiredService<ILogger<App>>();
+        UnhandledException += (_, e) => logger.Crit(e.Exception, "Unhandled UI exception");
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            logger.Crit(e.ExceptionObject as Exception, "Unhandled AppDomain exception");
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+            logger.Crit(e.Exception, "Unobserved task exception");
 
         _window = _host.Services.GetRequiredService<MainWindow>();
         _window.Closed += (_, _) => _host.Dispose();

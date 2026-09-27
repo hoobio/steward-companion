@@ -114,6 +114,14 @@ Every push to `main` that touches anything outside the `paths-ignore` list submi
 
 CommunityToolkit.Mvvm's field-backed `[ObservableProperty]` triggers diagnostic `MVVMTK0045` under WinUI; the ViewModels here declare partial properties instead (`[ObservableProperty] public partial string? Foo { get; set; }`).
 
+## Diagnostic logging
+
+The app writes a daily-rolling diagnostic log to `%LocalAppData%\Steward\logs\steward-YYYYMMDD.log` (the packaged build's virtualised equivalent, same as `state.json`), through `FileLoggerProvider` in `Steward.Core` (`src/Steward.Core/Diagnostics`), registered as an `ILoggerProvider` in `HostBuilderExtensions` alongside the existing `Microsoft.Extensions.Hosting`/`Logging` setup. Each line is `<UTC ISO timestamp> <level> <category>: <message>`, with an exception's full `ToString()` (stack included) on the following line; writes are single-threaded behind a lock and flushed per line. `LogFileRetention.DeleteOlderThan` runs at startup and drops any `steward-*.log` file older than 14 days. Minimum level is Information for `Steward.*` categories and Warning for `Microsoft.*`/`System.*` (`builder.Logging.AddFilter`).
+
+Instrumented through `ILogger<T>` injected where the class is already resolved through DI (`MainViewModel`, `SessionService`, `AddonUpdater`, `RestedXpService`, `GigagrugGuildSyncApi`) or passed as a parameter to the one static call site that needs it (`GuildRosterSync.WriteIfChanged`): sign-in (start, browser launch, callback received, code exchange, completion or failure), every `/api/me` recheck (authorized/401/unreachable, role, feature count), guild roster and character-directory pulls (counts, 403/404 handled quietly, 401), character pushes (accepted/rejected counts, 403/429/unreachable), both SSE event streams (connect, ready, drop with reason and backoff, give-up), banner fetches, Store update checks, addon manifest probes and installs (per addon and install path), `StewardSync.lua`/`StewardGuides` writes (written/skipped-unchanged/failed) and RestedXP session refresh failures. `Application.UnhandledException`, `AppDomain.CurrentDomain.UnhandledException` and `TaskScheduler.UnobservedTaskException` are hooked in `App.OnLaunched` to log at Critical without changing how they are otherwise handled.
+
+Never logged: the `gg_session` cookie/token, the sign-in code or PKCE verifier, RestedXP tokens or password, and any DPAPI blob; the sign-in URL is logged through `LogRedactor.PathOnly`, which drops its query string (the challenge and callback port) entirely rather than judging what in it is sensitive.
+
 ## UI verification
 
 A change to anything visible is launched and driven before it is reported done; a clean build is not evidence that a view looks or behaves right. The sequence:

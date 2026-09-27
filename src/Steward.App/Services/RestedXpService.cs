@@ -3,6 +3,9 @@ using System.Text;
 using System.Text.Json;
 
 using Steward.Core;
+using Steward.Core.Diagnostics;
+
+using Microsoft.Extensions.Logging;
 
 namespace Steward.App.Services;
 
@@ -31,17 +34,20 @@ public sealed class RestedXpService : IDisposable
     private readonly string _cacheFolder;
     private readonly Dictionary<string, DateTimeOffset> _lastFailure = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _syncGate = new(1, 1);
+    private readonly ILogger<RestedXpService> _logger;
 
     private string? _pendingPassword;
 
     public RestedXpService(
         RestedXpClient client,
         AppStateStore stateStore,
-        IReadOnlyDictionary<string, string[]> productPrefixes)
+        IReadOnlyDictionary<string, string[]> productPrefixes,
+        ILogger<RestedXpService> logger)
     {
         _client = client;
         _stateStore = stateStore;
         _productPrefixes = productPrefixes;
+        _logger = logger;
         _cacheFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward", "guides");
     }
@@ -174,8 +180,9 @@ public sealed class RestedXpService : IDisposable
         {
             Store(session.Username, await _client.RefreshAsync(session.RefreshToken, cancellationToken).ConfigureAwait(true));
         }
-        catch (RestedXpSessionExpiredException)
+        catch (RestedXpSessionExpiredException ex)
         {
+            _logger.Warn(ex, "RestedXP session refresh failed, session expired");
             SignOut();
             throw;
         }
@@ -293,9 +300,12 @@ public sealed class RestedXpService : IDisposable
             var effective = StewardGuidesAddon.Write(install.AddOnsPath, strings, generation);
             rewritten = effective == generation;
             generation = effective;
+            _logger.Info(
+                $"StewardGuides {(rewritten ? "written" : "skipped, unchanged")} for {install.FlavourPath}, {strings.Count} product(s)");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
+            _logger.Warn(ex, $"StewardGuides write failed for {install.FlavourPath}");
             foreach (var (productName, _, _) in strings)
             {
                 results[productName] = new GuideSyncResult(
@@ -421,6 +431,7 @@ public sealed class RestedXpService : IDisposable
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or IOException or TaskCanceledException)
         {
+            _logger.Warn(ex, $"RestedXP guide fetch failed for {productName}");
             _lastFailure[productName] = DateTimeOffset.UtcNow;
             return (null, null, ex.Message);
         }

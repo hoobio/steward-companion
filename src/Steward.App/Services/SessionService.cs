@@ -6,6 +6,9 @@ using System.Security.Cryptography;
 using System.Text;
 
 using Steward.Core;
+using Steward.Core.Diagnostics;
+
+using Microsoft.Extensions.Logging;
 
 namespace Steward.App.Services;
 
@@ -58,17 +61,20 @@ public sealed class SessionService : ISessionService
     private readonly AppStateStore _stateStore;
     private readonly GigagrugClient _gigagrugClient;
     private readonly string _baseUrl;
+    private readonly ILogger<SessionService> _logger;
 
     public SessionService(
         CookieContainer cookieContainer,
         AppStateStore stateStore,
         GigagrugClient gigagrugClient,
-        string baseUrl)
+        string baseUrl,
+        ILogger<SessionService> logger)
     {
         _cookieContainer = cookieContainer;
         _stateStore = stateStore;
         _gigagrugClient = gigagrugClient;
         _baseUrl = baseUrl;
+        _logger = logger;
     }
 
     public bool TryRestoreSession()
@@ -97,11 +103,13 @@ public sealed class SessionService : ISessionService
         try
         {
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
+            _logger.Info($"Sign-in browser launch succeeded for {LogRedactor.PathOnly(url)}");
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // a picker with no default https handler throws different exception types per OS state, seen live with Hurl
+            _logger.Warn(ex, $"Sign-in browser launch failed for {LogRedactor.PathOnly(url)}");
             return false;
         }
     }
@@ -119,6 +127,7 @@ public sealed class SessionService : ISessionService
 
     public async Task SignInAsync(IProgress<string> signInUrl, CancellationToken cancellationToken)
     {
+        _logger.Info("Sign-in started");
         var verifier = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
         var challenge = Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
 
@@ -138,11 +147,26 @@ public sealed class SessionService : ISessionService
             token = await LoopbackCallback.WaitForTokenAsync(
                 listener,
                 CallbackBody,
-                (code, ct) => _gigagrugClient.ExchangeDesktopCodeAsync(code, verifier, ct),
+                async (code, ct) =>
+                {
+                    _logger.Info("Sign-in callback received");
+                    try
+                    {
+                        var exchanged = await _gigagrugClient.ExchangeDesktopCodeAsync(code, verifier, ct).ConfigureAwait(false);
+                        _logger.Info("Sign-in code exchange succeeded");
+                        return exchanged;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warn(ex, "Sign-in code exchange failed");
+                        throw;
+                    }
+                },
                 timeout.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            _logger.Warn(null, "Sign-in timed out waiting for the browser callback");
             throw new TimeoutException("No sign-in reached Steward from the browser.");
         }
         finally
@@ -156,5 +180,6 @@ public sealed class SessionService : ISessionService
             Encoding.UTF8.GetBytes(token), null, DataProtectionScope.CurrentUser);
         var state = _stateStore.Load();
         _stateStore.Save(state with { EncryptedSessionToken = Convert.ToBase64String(protectedToken) });
+        _logger.Info("Sign-in completed");
     }
 }

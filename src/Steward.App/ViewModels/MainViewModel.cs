@@ -11,7 +11,9 @@ using CommunityToolkit.Mvvm.Input;
 
 using Steward.App.Services;
 using Steward.Core;
+using Steward.Core.Diagnostics;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -91,6 +93,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly AppStateStore _stateStore;
     private readonly IReadOnlyList<ManagedAddon> _addons;
     private readonly IReadOnlyDictionary<string, string> _supportedProducts;
+    private readonly ILogger<MainViewModel> _logger;
     private readonly Dictionary<string, AddonChannelStatus> _status = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyDictionary<string, AddonRelease?>> _releases =
         new(StringComparer.OrdinalIgnoreCase);
@@ -141,7 +144,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AppStateStore stateStore,
         IReadOnlyList<ManagedAddon> addons,
         IReadOnlyDictionary<string, string> supportedProducts,
-        RestedXpService restedXpService)
+        RestedXpService restedXpService,
+        ILogger<MainViewModel> logger)
     {
         ArgumentNullException.ThrowIfNull(addons);
         ArgumentNullException.ThrowIfNull(supportedProducts);
@@ -154,6 +158,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _stateStore = stateStore;
         _addons = addons;
         _supportedProducts = supportedProducts;
+        _logger = logger;
 
         var state = stateStore.Load();
         _isLoadingState = true;
@@ -509,6 +514,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Steward");
 
+    public string LogFolder => Path.Combine(DataFolder, "logs");
+
     public string StatePath => Path.Combine(DataFolder, "state.json");
 
     public string AboutDescription =>
@@ -604,22 +611,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (OperationCanceledException)
         {
+            _logger.Info("Sign-in cancelled");
         }
-        catch (TimeoutException)
+        catch (TimeoutException ex)
         {
+            _logger.Warn(ex, "Sign-in timed out");
             Failure = GateFailure.Timeout;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger.Warn(ex, "Sign-in failed, gigagrug unreachable");
             Failure = GateFailure.Unreachable;
         }
         catch (Exception ex) when (!IsSignedIn)
         {
+            _logger.Warn(ex, "Sign-in failed");
             SignInError = $"Sign-in failed: {ex.Message}";
             Failure = GateFailure.SignInFailed;
         }
         catch (Exception ex)
         {
+            _logger.Warn(ex, "Sign-in succeeded but the follow-up load failed");
             StatusMessage = ex.Message;
         }
         finally
@@ -858,10 +870,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var context = StoreContext.GetDefault();
             WinRT.Interop.InitializeWithWindow.Initialize(context, OwnerWindowHandle);
             var updates = await context.GetAppAndOptionalStorePackageUpdatesAsync();
+            _logger.Info($"Store update check: {updates.Count} update(s) available");
             return updates.Count == 0 ? null : new AddonRelease(string.Empty, _appUpdater.StoreListingUri.OriginalString, string.Empty, 0, DateTimeOffset.Now);
         }
         catch (Exception ex)
         {
+            _logger.Warn(ex, "Store update check failed");
             StatusMessage = $"Could not check the Microsoft Store for an update: {ex.Message}";
             return null;
         }
@@ -869,6 +883,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void OpenStoreListing() => OpenUri(_appUpdater.StoreListingUri);
+
+    [RelayCommand]
+    private void CheckForUpdates() => OpenUri(App.IsPackaged ? _appUpdater.StoreUpdatesUri : _appUpdater.StoreListingUri);
 
     private static void OpenUri(Uri uri) =>
         Process.Start(new ProcessStartInfo(uri.OriginalString) { UseShellExecute = true })?.Dispose();
@@ -976,6 +993,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
         {
+            _logger.Warn(ex, "Addon manifest check failed");
             StatusMessage = ex.Message;
             succeeded = false;
         }
@@ -997,6 +1015,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
         {
+            _logger.Warn(ex, "Auto-apply failed");
             StatusMessage = ex.Message;
         }
 
@@ -1090,6 +1109,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or SessionExpiredException)
         {
+            _logger.Warn(ex, $"Guild roster pull failed for {guildId}");
             var message = $"Could not pull the guild roster: {ex.Message}";
             StatusMessage = message;
             return message;
@@ -1099,7 +1119,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastOfficerPayload = payload;
         foreach (var install in Installs)
         {
-            GuildRosterSync.WriteIfChanged(install.Install, payload, _stateStore, force);
+            GuildRosterSync.WriteIfChanged(install.Install, payload, _stateStore, force, _logger);
         }
 
         return null;
@@ -1147,15 +1167,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             _lastDirectory = new SyncDirectory(people, characters, professions);
             _lastMemberCatalogue = catalogue;
+            _logger.Info(
+                $"Directory sync for {guildId}: {people?.Count} people, {characters?.Count} characters, {professions?.Count} professions, {catalogue?.Count} catalogue recipe(s)");
         }
         catch (SessionExpiredException)
         {
+            _logger.Info($"Directory sync for {guildId}: 401, session expired");
             SignOutTo(GateFailure.SessionExpired);
             return;
         }
         // A 403/404 means the guild's features do not allow that route, or an older gigagrug; handled quietly like the events stream, with no error bar.
         catch (Exception ex) when (ex is GigagrugRequestException or HttpRequestException or TaskCanceledException or JsonException)
         {
+            var status = (ex as GigagrugRequestException)?.StatusCode;
+            _logger.Warn(ex, $"Directory sync for {guildId} failed, status={status}");
             return;
         }
 
@@ -1177,6 +1202,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // Banners work signed in or out and must never fail visibly; a failed or malformed fetch keeps the last good set.
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
+            _logger.Warn(ex, "Banner fetch failed, keeping the last known banners");
             return;
         }
 
@@ -1294,6 +1320,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task RunEventStreamAsync(string guildId, CancellationToken cancellationToken)
     {
         var backoff = EventStreamMinBackoff;
+        _logger.Info($"Guild event stream connecting for {guildId}");
         while (!cancellationToken.IsCancellationRequested)
         {
             try
@@ -1302,6 +1329,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 {
                     if (eventType == "ready")
                     {
+                        _logger.Info($"Guild event stream ready for {guildId}");
                         _isEventStreamLive = true;
                         backoff = EventStreamMinBackoff;
                         RecomputeLiveUpdatesState();
@@ -1315,15 +1343,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                _logger.Info($"Guild event stream stopped for {guildId}");
                 return;
             }
             catch (SessionExpiredException)
             {
+                _logger.Info($"Guild event stream dropped for {guildId}: 401, session expired");
                 SignOutTo(GateFailure.SessionExpired);
                 return;
             }
             catch (GigagrugRequestException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
             {
+                _logger.Info($"Guild event stream giving up for {guildId}, status={ex.StatusCode}");
                 _isEventStreamLive = false;
                 _eventsUnsupported |= ex.StatusCode == HttpStatusCode.NotFound;
                 RecomputeLiveUpdatesState();
@@ -1331,7 +1362,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or TimeoutException or IOException or OperationCanceledException)
             {
-                Debug.WriteLine($"Guild event stream dropped, retrying in {backoff}: {ex.Message}");
+                _logger.Warn(ex, $"Guild event stream dropped for {guildId}, retrying in {backoff}");
             }
 
             _isEventStreamLive = false;
@@ -1377,12 +1408,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task RunAccessEventStreamAsync(CancellationToken cancellationToken)
     {
         var backoff = EventStreamMinBackoff;
+        _logger.Info("Access event stream connecting");
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
                 await foreach (var eventType in _gigagrugClient.StreamAccessEventsAsync(cancellationToken).ConfigureAwait(true))
                 {
+                    if (backoff != EventStreamMinBackoff || !_isAccessEventStreamLive)
+                    {
+                        _logger.Info("Access event stream ready");
+                    }
+
                     backoff = EventStreamMinBackoff;
                     _isAccessEventStreamLive = true;
                     RecomputeLiveUpdatesState();
@@ -1394,15 +1431,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                _logger.Info("Access event stream stopped");
                 return;
             }
             catch (SessionExpiredException)
             {
+                _logger.Info("Access event stream dropped: 401, session expired");
                 SignOutTo(GateFailure.SessionExpired);
                 return;
             }
             catch (GigagrugRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
+                _logger.Info($"Access event stream giving up, status={ex.StatusCode}");
                 _accessEventsUnsupported = true;
                 _isAccessEventStreamLive = false;
                 RecomputeLiveUpdatesState();
@@ -1410,7 +1450,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or TimeoutException or IOException or OperationCanceledException)
             {
-                Debug.WriteLine($"Access event stream dropped, retrying in {backoff}: {ex.Message}");
+                _logger.Warn(ex, $"Access event stream dropped, retrying in {backoff}");
             }
 
             _isAccessEventStreamLive = false;
@@ -1679,16 +1719,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, result.Accepted, Characters: outcomes, CatalogueFingerprint: catalogueFingerprint);
             _stateStore.Save(state);
             SetCharacterSyncRow(install, key, result.Accepted, result.Rejected, null);
+            _logger.Info(
+                $"Character push for {guildId} {install.FlavourPath}: {result.Accepted} accepted, {result.Rejected.Count} rejected");
             _lastDirectorySync = DateTimeOffset.Now;
             await SyncDirectoryAsync().ConfigureAwait(true);
         }
         catch (SessionExpiredException)
         {
+            _logger.Info($"Character push for {guildId} {install.FlavourPath}: 401, session expired");
             SignOutTo(GateFailure.SessionExpired);
             return true;
         }
         catch (GigagrugRequestException ex)
         {
+            _logger.Warn(ex, $"Character push for {guildId} {install.FlavourPath} rejected, status={ex.StatusCode}");
             var message = ex.StatusCode == HttpStatusCode.Forbidden
                 ? "Your account can't sync this guild."
                 : ex.Body ?? ex.Message;
@@ -1701,10 +1745,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (GigagrugThrottledException)
         {
+            _logger.Info($"Character push for {guildId} {install.FlavourPath}: 429, throttled");
             SetCharacterSyncRow(install, key, null, [], "Sent too recently, trying again shortly");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
+            _logger.Warn(ex, $"Character push for {guildId} {install.FlavourPath} failed, gigagrug unreachable");
             SetCharacterSyncRow(install, key, null, [], "gigagrug unreachable, retrying");
         }
 
@@ -2127,6 +2173,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var features = GigagrugClient.EffectiveFeatures(me);
             if (!GigagrugClient.IsAuthorizing(features))
             {
+                _logger.Info($"/api/me recheck: not authorized, {features.Count} feature(s) held");
                 SignOutTo(GateFailure.NotAuthorized);
                 return AuthCheckResult.NotAuthorized;
             }
@@ -2168,15 +2215,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             PropagateAuthorized();
             UpdateEventStream();
             UpdateAccessEventStream();
+            _logger.Info($"/api/me recheck: authorized, role={Role}, {_features.Count} feature(s)");
             return AuthCheckResult.Authorized;
         }
         catch (SessionExpiredException)
         {
+            _logger.Info("/api/me recheck: 401, session expired");
             SignOutTo(GateFailure.SessionExpired);
             return AuthCheckResult.SessionExpired;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
+            _logger.Warn(ex, "/api/me recheck: gigagrug unreachable");
             Failure = GateFailure.Unreachable;
             StatusMessage = ex.Message;
             UpdateEventStream();
@@ -2212,7 +2262,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 var cleared = lastOfficerPayload with { Me = null };
                 foreach (var install in installs)
                 {
-                    GuildRosterSync.WriteIfChanged(install, cleared, _stateStore);
+                    GuildRosterSync.WriteIfChanged(install, cleared, _stateStore, logger: _logger);
                 }
             }
         }
@@ -2239,7 +2289,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
         foreach (var install in installs)
         {
-            GuildRosterSync.WriteIfChanged(install, payload, _stateStore, force);
+            GuildRosterSync.WriteIfChanged(install, payload, _stateStore, force, _logger);
         }
     }
 

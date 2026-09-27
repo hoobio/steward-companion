@@ -4,6 +4,7 @@ using Steward.App.Services;
 using Steward.App.ViewModels;
 using Steward.App.Views;
 using Steward.Core;
+using Steward.Core.Diagnostics;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,12 @@ internal static class HostBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.Logging.AddDebug();
+        var logDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward", "logs");
+        builder.Logging.AddProvider(new FileLoggerProvider(logDirectory));
+        builder.Logging.AddFilter("Steward", LogLevel.Information);
+        builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
+        builder.Logging.AddFilter("System", LogLevel.Warning);
 
         var baseUrl = builder.Configuration["Gigagrug:BaseUrl"]
             ?? throw new InvalidOperationException("Gigagrug:BaseUrl is not configured");
@@ -76,9 +83,11 @@ internal static class HostBuilderExtensions
             sp.GetRequiredService<CookieContainer>(),
             sp.GetRequiredService<AppStateStore>(),
             sp.GetRequiredService<GigagrugClient>(),
-            baseUrl));
+            baseUrl,
+            sp.GetRequiredService<ILogger<SessionService>>()));
         builder.Services.AddSingleton(sp => new AddonUpdater(
-            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon")));
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"),
+            sp.GetRequiredService<ILogger<AddonUpdater>>()));
         builder.Services.AddSingleton(sp => new AppUpdater(storeProductId));
 
         builder.Services.AddSingleton(sp => new RestedXpClient(
@@ -91,7 +100,8 @@ internal static class HostBuilderExtensions
         builder.Services.AddSingleton(sp => new RestedXpService(
             sp.GetRequiredService<RestedXpClient>(),
             sp.GetRequiredService<AppStateStore>(),
-            new Dictionary<string, string[]>(productPrefixes, StringComparer.OrdinalIgnoreCase)));
+            new Dictionary<string, string[]>(productPrefixes, StringComparer.OrdinalIgnoreCase),
+            sp.GetRequiredService<ILogger<RestedXpService>>()));
 
         builder.Services.AddSingleton(sp => new DiscordImage(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon")));

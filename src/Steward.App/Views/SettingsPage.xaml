@@ -231,6 +231,16 @@
                 </controls:SettingsCard>
 
                 <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Diagnostic logs"
+                    Description="{x:Bind ViewModel.LogFolder, Mode=OneWay}">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE9D9;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <Button Content="Open folder" Click="OnOpenLogFolderClick" />
+                </controls:SettingsCard>
+
+                <controls:SettingsCard
                     CornerRadius="{StaticResource GroupBottomCornerRadius}"
                     Header="Source and issues"
                     Description="github.com/hoobio/steward-companion"

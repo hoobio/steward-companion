@@ -1,10 +1,13 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using Steward.Core;
+using Steward.Core.Diagnostics;
+
+using Microsoft.Extensions.Logging;
 
 namespace Steward.App.Services;
 
-public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore stateStore, DiscordImage images)
+public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore stateStore, DiscordImage images, ILogger<GigagrugGuildSyncApi> logger)
 {
     private static readonly IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> NoCatalogue = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
 
@@ -23,6 +26,8 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore st
         var discord = await client.GetDiscordMembersAsync(guildId, ct).ConfigureAwait(false);
         var icon = await images.LoadAsync(guild?.IconUrl, ct).ConfigureAwait(false);
         var catalogue = await TryGetCatalogueAsync(me, guildId, ct).ConfigureAwait(false);
+        logger.Info(
+            $"Guild roster pulled for {guildId}: {members.Count} members, {discord.Count} Discord members, {catalogue.Count} catalogue recipe(s)");
 
         var syncMe = new SyncMe(me.User.Id, me.User.Role, [.. GigagrugClient.EffectiveFeatures(me)]);
         return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue, Me = syncMe };
@@ -45,6 +50,7 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore st
         catch (Exception ex) when (ex is HttpRequestException or JsonException or SessionExpiredException or TaskCanceledException)
         {
             // a failed fetch (404 or timeout included) never blocks the roster write; that user's last catalogue for this guild is written instead.
+            logger.Warn(ex, $"Recipe catalogue pull failed for {guildId}, keeping the last known catalogue");
             return _lastCatalogue.GetValueOrDefault(key) ?? NoCatalogue;
         }
     }

@@ -46,4 +46,13 @@ public sealed partial class SettingsPage : Page
             Open(App.DisplayDataFolder(viewModel.DataFolder));
         }
     }
+
+    private void OnOpenLogFolderClick(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is { } viewModel)
+        {
+            Directory.CreateDirectory(viewModel.LogFolder);
+            Open(App.DisplayDataFolder(viewModel.LogFolder));
+        }
+    }
 }

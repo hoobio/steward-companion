@@ -4,13 +4,23 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 
+using Steward.Core.Diagnostics;
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Steward.Core;
 
 public sealed class AddonUpdater
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger _logger;
 
-    public AddonUpdater(HttpClient httpClient) => _httpClient = httpClient;
+    public AddonUpdater(HttpClient httpClient, ILogger<AddonUpdater>? logger = null)
+    {
+        _httpClient = httpClient;
+        _logger = logger ?? NullLogger<AddonUpdater>.Instance;
+    }
 
     public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken) =>
         await FetchManifestAsync(_httpClient, ManifestUri(addon, channel), cancellationToken).ConfigureAwait(false);
@@ -72,19 +82,30 @@ public sealed class AddonUpdater
             : new Uri(ManifestUri(addon, channel), release.Zip);
         var tempZipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
 
+        _logger.Info($"Installing {addon.Id} {channel} {release.Version} into {addOnsPath}");
         try
         {
-            await DownloadAsync(_httpClient, zipUri, tempZipPath, release.Size, progress, cancellationToken).ConfigureAwait(false);
-            await VerifyChecksumAsync(tempZipPath, release.Sha256, cancellationToken).ConfigureAwait(false);
-            RemoveExistingInstall(addOnsPath, addon.FolderName);
-            ExtractZip(tempZipPath, addOnsPath);
-        }
-        finally
-        {
-            if (File.Exists(tempZipPath))
+            try
             {
-                File.Delete(tempZipPath);
+                await DownloadAsync(_httpClient, zipUri, tempZipPath, release.Size, progress, cancellationToken).ConfigureAwait(false);
+                await VerifyChecksumAsync(tempZipPath, release.Sha256, cancellationToken).ConfigureAwait(false);
+                RemoveExistingInstall(addOnsPath, addon.FolderName);
+                ExtractZip(tempZipPath, addOnsPath);
             }
+            finally
+            {
+                if (File.Exists(tempZipPath))
+                {
+                    File.Delete(tempZipPath);
+                }
+            }
+
+            _logger.Info($"Installed {addon.Id} {channel} {release.Version} into {addOnsPath}");
+        }
+        catch (Exception ex)
+        {
+            _logger.Err(ex, $"Failed to install {addon.Id} {channel} into {addOnsPath}");
+            throw;
         }
     }
 
