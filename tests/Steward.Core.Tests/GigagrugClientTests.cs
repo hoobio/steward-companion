@@ -33,7 +33,7 @@ public sealed class GigagrugClientTests
     private static (GigagrugClient Client, StubHandler Handler) ClientFor(HttpStatusCode status, string body)
     {
         var handler = new StubHandler(status, body);
-        return (new GigagrugClient(new HttpClient(handler), "https://api.example.com/guild"), handler);
+        return (new GigagrugClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)"), handler);
     }
 
     private const string RosterBody =
@@ -212,6 +212,16 @@ public sealed class GigagrugClientTests
         await client.PostCharacterSyncAsync("1", request, TestContext.Current.CancellationToken);
 
         Assert.Equal("https://api.example.com/guild/api/guild/1/characters/sync", handler.RequestUrl);
+    }
+
+    [Fact]
+    public async Task Constructor_SetsTheUserAgentOnEveryRequest()
+    {
+        var (client, handler) = ClientFor(HttpStatusCode.OK, """{"user":{"id":"1","name":"Hoobi"},"guilds":[]}""");
+
+        await client.GetMeAsync(CancellationToken.None);
+
+        Assert.Equal("Steward/1.0.0 (dev)", handler.Request!.Headers.UserAgent.ToString());
     }
 
     [Fact]

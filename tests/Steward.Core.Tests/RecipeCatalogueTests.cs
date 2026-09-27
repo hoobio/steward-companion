@@ -60,7 +60,7 @@ public sealed class RecipeCatalogueTests
         var handler = new StubHandler(HttpStatusCode.OK, """
             {"catalogue":{"Alchemy":[{"recipeId":11460,"name":"Major Healing Potion","header":"Potions","itemId":13446,"tools":"","reagents":[{"itemId":13464,"name":"Golden Sansam","count":2}]}]}}
             """);
-        var client = new GigagrugClient(new HttpClient(handler), "https://api.example.com/guild");
+        var client = new GigagrugClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
 
         var catalogue = await client.GetRecipeCatalogueAsync("1", CancellationToken.None);
 
@@ -73,7 +73,7 @@ public sealed class RecipeCatalogueTests
     [Fact]
     public async Task GetRecipeCatalogueAsync_Unauthorized_ThrowsSessionExpired()
     {
-        var client = new GigagrugClient(new HttpClient(new StubHandler(HttpStatusCode.Unauthorized, "{}")), "https://api.example.com/guild");
+        var client = new GigagrugClient(new HttpClient(new StubHandler(HttpStatusCode.Unauthorized, "{}")), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
 
         await Assert.ThrowsAsync<SessionExpiredException>(() => client.GetRecipeCatalogueAsync("1", CancellationToken.None));
     }
@@ -81,7 +81,7 @@ public sealed class RecipeCatalogueTests
     [Fact]
     public async Task GetRecipeCatalogueAsync_NotFound_ThrowsHttpRequestException()
     {
-        var client = new GigagrugClient(new HttpClient(new StubHandler(HttpStatusCode.NotFound, "{}")), "https://api.example.com/guild");
+        var client = new GigagrugClient(new HttpClient(new StubHandler(HttpStatusCode.NotFound, "{}")), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
 
         var exception = await Assert.ThrowsAsync<HttpRequestException>(() => client.GetRecipeCatalogueAsync("1", CancellationToken.None));
         Assert.Contains("404", exception.Message, StringComparison.Ordinal);

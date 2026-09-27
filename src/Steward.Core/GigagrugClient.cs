@@ -22,10 +22,11 @@ public sealed class GigagrugClient
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
 
-    public GigagrugClient(HttpClient httpClient, string baseUrl)
+    public GigagrugClient(HttpClient httpClient, string baseUrl, string userAgent)
     {
         _httpClient = httpClient;
         _baseUrl = baseUrl.TrimEnd('/');
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
     }
 
     public async Task<AdminMe> GetMeAsync(CancellationToken cancellationToken)

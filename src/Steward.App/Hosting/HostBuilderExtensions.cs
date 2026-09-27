@@ -51,6 +51,9 @@ internal static class HostBuilderExtensions
             throw new InvalidOperationException("SupportedProducts is not configured");
         }
 
+        var channel = !App.IsGitHubRelease ? "dev" : App.IsPackaged ? "store" : "msi";
+        var userAgent = $"Steward/{MainViewModel.InstalledVersion} ({channel})";
+
         builder.Services.AddSingleton<CookieContainer>();
         builder.Services.AddHttpClient("Gigagrug")
             // gigagrug's _same_site check accepts Sec-Fetch-Site: none, a value browsers never let a page set.
@@ -68,7 +71,8 @@ internal static class HostBuilderExtensions
         builder.Services.AddSingleton(sp => new AppStateStore([.. sp.GetRequiredService<IReadOnlyList<ManagedAddon>>().Select(a => a.Id)]));
         builder.Services.AddSingleton(sp => new GigagrugClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gigagrug"),
-            baseUrl));
+            baseUrl,
+            userAgent));
         builder.Services.AddSingleton<ISessionService>(sp => new SessionService(
             sp.GetRequiredService<CookieContainer>(),
             sp.GetRequiredService<AppStateStore>(),
