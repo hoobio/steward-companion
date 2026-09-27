@@ -121,7 +121,7 @@
                         TextWrapping="Wrap"
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                        Visibility="{x:Bind CharacterSync.RejectedVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
+                        Visibility="{x:Bind CharacterRejectedVisibility, Mode=OneWay}" />
                     <TextBlock
                         Text="{x:Bind Note, Mode=OneWay}"
                         TextWrapping="Wrap"
@@ -137,7 +137,7 @@
                     FontSize="12.5"
                     TextAlignment="Right"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Visibility="{x:Bind CharacterSync.AcceptedVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
+                    Visibility="{x:Bind CharacterAcceptedVisibility, Mode=OneWay}" />
 
                 <TextBlock
                     Grid.Column="3"
@@ -199,10 +199,10 @@
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" MaxWidth="200">
                     <TextBlock
-                        Text="Accepted"
+                        Text="Synced"
                         FontSize="12"
                         TextAlignment="Right"
-                        Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Visibility="{x:Bind AcceptedVisibility}" />
                     <TextBlock
                         Text="{x:Bind ReasonText}"
@@ -212,38 +212,6 @@
                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                         Visibility="{x:Bind RejectedVisibility}" />
                 </StackPanel>
-            </Grid>
-        </DataTemplate>
-
-        <DataTemplate x:Key="UncapturedCharacterTemplate" x:DataType="vm:UncapturedCharacterViewModel">
-            <Grid
-                BorderThickness="0,1,0,0"
-                BorderBrush="{ThemeResource RowHairlineBrush}"
-                Padding="{StaticResource CardRowPadding}"
-                Opacity="0.6"
-                ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Spacing="2">
-                    <TextBlock Text="{x:Bind Name}" FontSize="13.5" FontWeight="SemiBold" />
-                    <TextBlock
-                        Text="{x:Bind LevelClassText}"
-                        FontSize="12"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                </StackPanel>
-
-                <TextBlock
-                    Grid.Column="1"
-                    VerticalAlignment="Center"
-                    Text="No professions captured yet: log in on this character"
-                    FontSize="12"
-                    TextAlignment="Right"
-                    TextWrapping="Wrap"
-                    MaxWidth="220"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </Grid>
         </DataTemplate>
 
@@ -325,10 +293,6 @@
                         ItemsSource="{x:Bind ProfessionsCharacters, Mode=OneWay}"
                         ItemTemplate="{StaticResource ProfessionsCharacterTemplate}"
                         Visibility="{x:Bind ProfessionsCharactersVisibility, Mode=OneWay}" />
-                    <ItemsControl
-                        ItemsSource="{x:Bind UncapturedCharacters, Mode=OneWay}"
-                        ItemTemplate="{StaticResource UncapturedCharacterTemplate}"
-                        Visibility="{x:Bind UncapturedCharactersVisibility, Mode=OneWay}" />
                 </StackPanel>
             </Expander>
         </DataTemplate>

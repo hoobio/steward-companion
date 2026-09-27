@@ -278,10 +278,6 @@ public sealed partial class SyncViewModel : ObservableObject
             IReadOnlyList<CharacterObservation> covered = snapshot is null ? [] : CharacterSyncMapping.FilterToProfessionsOnly(snapshot);
             var outcomes = _main.GetCharacterOutcomes(install.FlavourPath);
             view.ProfessionsCharacters = [.. covered.Select(c => ProfessionsCharacter(c, snapshot!.Professions, outcomes))];
-            view.UncapturedCharacters = snapshot is null
-                ? []
-                : [.. snapshot.Characters.Except(covered)
-                    .Select(c => new UncapturedCharacterViewModel(c.Name, c.Level, WowClasses.NameFor(c.ClassId)))];
 
             view.Datasets.Add(Dataset(
                 ProfessionsDatasetKey,
@@ -292,7 +288,8 @@ public sealed partial class SyncViewModel : ObservableObject
                 sourceFile,
                 exportedAt,
                 isStale,
-                isFirst: true));
+                isFirst: true,
+                showOutcomeSummary: false));
 
             return view;
         }
@@ -334,7 +331,7 @@ public sealed partial class SyncViewModel : ObservableObject
         return view;
     }
 
-    private static ProfessionsCharacterViewModel ProfessionsCharacter(
+    private ProfessionsCharacterViewModel ProfessionsCharacter(
         CharacterObservation character,
         IReadOnlyDictionary<string, CharacterProfessions> professions,
         IReadOnlyDictionary<string, CharacterPushOutcome> outcomes)
@@ -346,7 +343,7 @@ public sealed partial class SyncViewModel : ObservableObject
             WowClasses.NameFor(character.ClassId),
             ProfessionsSkillSummary.Format(professions.GetValueOrDefault(character.CharacterGuid)?.Skills),
             outcome?.Accepted,
-            outcome is { Accepted: false, Reason: { } reason } ? CharacterSyncRejectionCopy.Describe(reason) : null);
+            outcome is { Accepted: false, Reason: { } reason } ? _main.DescribeRejection(character.CharacterGuid, reason) : null);
     }
 
     private static SyncDatasetViewModel Dataset(
@@ -360,7 +357,8 @@ public sealed partial class SyncViewModel : ObservableObject
         bool isStale,
         bool isFirst,
         bool isComingSoon = false,
-        bool isSynced = false) => new()
+        bool isSynced = false,
+        bool showOutcomeSummary = true) => new()
     {
         Key = key,
         Name = name,
@@ -373,6 +371,7 @@ public sealed partial class SyncViewModel : ObservableObject
         IsFirst = isFirst,
         IsComingSoon = isComingSoon,
         IsSynced = isSynced,
+        ShowOutcomeSummary = showOutcomeSummary,
     };
 
     private static string SourceFile(SavedVariablesSnapshot? snapshot) => snapshot switch

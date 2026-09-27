@@ -11,6 +11,8 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     [
         nameof(CharacterSyncVisibility),
         nameof(NoteVisibility),
+        nameof(CharacterAcceptedVisibility),
+        nameof(CharacterRejectedVisibility),
     ];
 
     public required string Key { get; init; }
@@ -37,6 +39,8 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
 
     public Visibility SyncedGlyphVisibility => When(IsSynced);
 
+    public bool ShowOutcomeSummary { get; init; } = true;
+
     [ObservableProperty]
     public partial string? Note { get; set; }
 
@@ -44,6 +48,10 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     public partial CharacterSyncRowViewModel? CharacterSync { get; set; }
 
     public Visibility CharacterSyncVisibility => When(CharacterSync is not null);
+
+    public Visibility CharacterAcceptedVisibility => When(ShowOutcomeSummary && CharacterSync?.AcceptedVisibility == Visibility.Visible);
+
+    public Visibility CharacterRejectedVisibility => When(ShowOutcomeSummary && (CharacterSync?.HasRejected ?? false));
 
     public Visibility NoteVisibility => When(CharacterSync is null && Note is not null && !IsComingSoon);
 

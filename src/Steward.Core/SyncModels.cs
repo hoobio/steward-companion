@@ -308,16 +308,42 @@ public sealed record CharacterPushRecord(
 
 public static class CharacterSyncRejectionCopy
 {
-    private const string NotLinked = "not linked to you";
+    public const string NotLinkedReason = "not linked to you";
     private const string FingerprintMissing = "professions fingerprint missing";
     private const string FingerprintMismatch = "professions integrity check failed";
 
     public static string Describe(string reason) => reason switch
     {
-        NotLinked => "Not linked to you in the guild roster yet: ask an officer",
+        NotLinkedReason => "Not linked to you in the guild roster yet: ask an officer",
         FingerprintMissing or FingerprintMismatch => "Changed outside the game, not sent",
         _ => reason,
     };
+
+    public static string DescribeNotLinked(
+        string characterGuid,
+        IReadOnlyList<DirectoryCharacter>? rosterCharacters,
+        IReadOnlyList<DirectoryPerson>? rosterPeople,
+        string? myUserId)
+    {
+        if (rosterCharacters is null)
+        {
+            return "Not linked to you";
+        }
+
+        var linkedUserId = rosterCharacters.FirstOrDefault(c => c.CharacterGuid == characterGuid)?.LinkedUserId;
+        if (linkedUserId is null)
+        {
+            return "Not linked to a Discord account yet: ask an officer";
+        }
+
+        if (linkedUserId == myUserId)
+        {
+            return "Linked to you";
+        }
+
+        var name = rosterPeople?.FirstOrDefault(p => p.Id == linkedUserId)?.Name;
+        return name is null ? "Linked to another Discord account" : $"Linked to {name} in the guild roster";
+    }
 }
 
 public static class ProfessionsSkillSummary
@@ -325,7 +351,7 @@ public static class ProfessionsSkillSummary
     public static string Format(IReadOnlyList<ProfessionSkill>? skills) =>
         skills is null or { Count: 0 }
             ? string.Empty
-            : string.Join(", ", skills.OrderBy(skill => skill.Secondary == true).Select(Describe));
+            : string.Join(", ", skills.Where(skill => skill.Secondary != true).Select(Describe));
 
     private static string Describe(ProfessionSkill skill) =>
         skill.Rank is { } rank && skill.MaxRank is { } maxRank ? $"{skill.Name} {rank}/{maxRank}" : skill.Name;

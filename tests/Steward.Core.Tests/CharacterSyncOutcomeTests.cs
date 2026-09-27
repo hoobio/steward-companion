@@ -53,16 +53,16 @@ public sealed class CharacterSyncOutcomeTests
     }
 
     [Fact]
-    public void ProfessionsSkillSummary_Format_ListsPrimariesBeforeSecondaries()
+    public void ProfessionsSkillSummary_Format_OmitsSecondaryProfessions()
     {
         var skills = new List<ProfessionSkill>
         {
             new("First Aid", 1, 75, true),
-            new("Blacksmithing", 1, 75, false),
-            new("Mining", 3, 75, false),
+            new("Blacksmithing", 7, 75, false),
+            new("Mining", 8, 75, false),
         };
 
-        Assert.Equal("Blacksmithing 1/75, Mining 3/75, First Aid 1/75", ProfessionsSkillSummary.Format(skills));
+        Assert.Equal("Blacksmithing 7/75, Mining 8/75", ProfessionsSkillSummary.Format(skills));
     }
 
     [Fact]
@@ -78,6 +78,63 @@ public sealed class CharacterSyncOutcomeTests
     {
         Assert.Equal(string.Empty, ProfessionsSkillSummary.Format(null));
         Assert.Equal(string.Empty, ProfessionsSkillSummary.Format([]));
+    }
+
+    [Fact]
+    public void ProfessionsSkillSummary_Format_IsEmpty_WhenOnlySecondaryProfessionsAreKnown()
+    {
+        var skills = new List<ProfessionSkill> { new("Cooking", 1, 75, true) };
+
+        Assert.Equal(string.Empty, ProfessionsSkillSummary.Format(skills));
+    }
+
+    [Fact]
+    public void CharacterSyncRejectionCopy_DescribeNotLinked_NoRosterPulled_IsNeutral()
+    {
+        Assert.Equal(
+            "Not linked to you",
+            CharacterSyncRejectionCopy.DescribeNotLinked("Player-4619-00B33CCD", null, null, "user-1"));
+    }
+
+    [Fact]
+    public void CharacterSyncRejectionCopy_DescribeNotLinked_NotLinkedToAnyone()
+    {
+        var characters = new List<DirectoryCharacter> { new("Player-4619-00B33CCD", "Hoobi", 60, 11, null) };
+
+        Assert.Equal(
+            "Not linked to a Discord account yet: ask an officer",
+            CharacterSyncRejectionCopy.DescribeNotLinked("Player-4619-00B33CCD", characters, [], "user-1"));
+    }
+
+    [Fact]
+    public void CharacterSyncRejectionCopy_DescribeNotLinked_LinkedToAnotherKnownPerson()
+    {
+        var characters = new List<DirectoryCharacter> { new("Player-4619-00B33CCD", "Hoobi", 60, 11, "user-2") };
+        var people = new List<DirectoryPerson> { new("user-2", "Grug", null) };
+
+        Assert.Equal(
+            "Linked to Grug in the guild roster",
+            CharacterSyncRejectionCopy.DescribeNotLinked("Player-4619-00B33CCD", characters, people, "user-1"));
+    }
+
+    [Fact]
+    public void CharacterSyncRejectionCopy_DescribeNotLinked_LinkedToAnotherUnknownPerson()
+    {
+        var characters = new List<DirectoryCharacter> { new("Player-4619-00B33CCD", "Hoobi", 60, 11, "user-2") };
+
+        Assert.Equal(
+            "Linked to another Discord account",
+            CharacterSyncRejectionCopy.DescribeNotLinked("Player-4619-00B33CCD", characters, [], "user-1"));
+    }
+
+    [Fact]
+    public void CharacterSyncRejectionCopy_DescribeNotLinked_LinkedToTheSignedInUser()
+    {
+        var characters = new List<DirectoryCharacter> { new("Player-4619-00B33CCD", "Hoobi", 60, 11, "user-1") };
+
+        Assert.Equal(
+            "Linked to you",
+            CharacterSyncRejectionCopy.DescribeNotLinked("Player-4619-00B33CCD", characters, [], "user-1"));
     }
 
     [Theory]

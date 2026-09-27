@@ -41,10 +41,6 @@ public sealed partial class SyncInstallViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ProfessionsCharactersVisibility))]
     public partial IReadOnlyList<ProfessionsCharacterViewModel> ProfessionsCharacters { get; set; } = [];
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(UncapturedCharactersVisibility))]
-    public partial IReadOnlyList<UncapturedCharacterViewModel> UncapturedCharacters { get; set; } = [];
-
     public Visibility RunningPillVisibility => When(IsClientRunning);
 
     public Visibility ReadErrorVisibility => When(ReadError is not null);
@@ -55,8 +51,6 @@ public sealed partial class SyncInstallViewModel : ObservableObject
 
     public Visibility ProfessionsCharactersVisibility => When(ProfessionsCharacters.Count > 0);
 
-    public Visibility UncapturedCharactersVisibility => When(UncapturedCharacters.Count > 0);
-
     public void CopyFrom(SyncInstallViewModel fresh)
     {
         ClientVersion = fresh.ClientVersion;
@@ -65,7 +59,6 @@ public sealed partial class SyncInstallViewModel : ObservableObject
         ExportState = fresh.ExportState;
         ReadError = fresh.ReadError;
         ProfessionsCharacters = fresh.ProfessionsCharacters;
-        UncapturedCharacters = fresh.UncapturedCharacters;
         for (var i = 0; i < Datasets.Count; i++)
         {
             Datasets[i].CopyFrom(fresh.Datasets[i]);

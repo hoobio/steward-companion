@@ -1389,6 +1389,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return _stateStore.Load().CharacterSync.GetValueOrDefault(key)?.Characters ?? new Dictionary<string, CharacterPushOutcome>();
     }
 
+    public string DescribeRejection(string characterGuid, string reason) =>
+        reason == CharacterSyncRejectionCopy.NotLinkedReason
+            ? CharacterSyncRejectionCopy.DescribeNotLinked(
+                characterGuid,
+                HasRosterFeature ? _lastDirectory?.Characters : null,
+                _lastDirectory?.People,
+                _userId)
+            : CharacterSyncRejectionCopy.Describe(reason);
+
     public async Task PushCharacterSyncAsync(bool force = false)
     {
         _pendingPush = force || _pendingPush == true;

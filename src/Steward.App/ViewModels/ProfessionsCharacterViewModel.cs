@@ -18,8 +18,3 @@ public sealed record ProfessionsCharacterViewModel(
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 }
-
-public sealed record UncapturedCharacterViewModel(string Name, int Level, string ClassName)
-{
-    public string LevelClassText => $"Level {Level} {ClassName}";
-}
