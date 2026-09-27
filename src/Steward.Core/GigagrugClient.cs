@@ -190,9 +190,9 @@ public sealed class GigagrugClient
             ? new HashSet<string>(features, StringComparer.Ordinal)
             : IsAdmin(me) ? AllFeatures : new HashSet<string>(StringComparer.Ordinal);
 
-    // sync is never standalone: a user holding only it has nothing else to do in the app.
+    // sync alone authorizes: a seatless holder gets the professions-only sync path.
     public static bool IsAuthorizing(IReadOnlySet<string> features) =>
-        AllFeatures.Any(features.Contains);
+        AllFeatures.Any(features.Contains) || features.Contains(SyncFeature);
 
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> GetRecipeCatalogueAsync(
         string guildId, CancellationToken cancellationToken)

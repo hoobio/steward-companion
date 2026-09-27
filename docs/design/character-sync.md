@@ -126,19 +126,18 @@ Verified in game on 26 Sep 2026: once a profession's window has opened, `C_Trade
 - The app writes that catalogue into `StewardSync.lua` as `["catalogue"]`, only while `sync` is held.
 - At login the addon unions the synced and local catalogues and, for each profession the character has (`GetProfessions`), lists as known every recipe where `IsPlayerSpell(recipeId)` is true, writing `professions[guid].recipes[profession]` with `difficulty` omitted. A window capture of the same profession replaces it with the richer list, `difficulty` included.
 
-## Raider self-push (not built)
+## Raider self-push
 
-Agreed direction on 26 Sep 2026, deferred: raiders push their own characters' professions so the guild professions page covers everyone, not only officers.
+Agreed direction on 26 Sep 2026, built: raiders push their own characters' professions so the guild professions page covers everyone, not only officers.
 
-- A separate grantable flag, `professions`, open to any user; `sync` stays officer-only and remains the only way to push roster fields.
-- A `professions` holder's push is accepted only for guids whose current link (latest non-voided officer observation with `link_known`) is that user, and only the `professions` object of each record; roster fields are ignored. Links come from officer-visible guild notes, so the raider cannot claim a character.
+- No separate `professions` flag: `sync` without an officer seat (`role` not `global`/`admin`) is the raider path. An officer's `sync` keeps the full push described above; a seatless holder gets the professions-only subset below.
+- A seatless `sync` holder's push is accepted only for guids whose current link (latest non-voided officer observation with `link_known`) is that user, and only the `professions` object of each record; roster fields and any `catalogue`/`guildRanks` on the batch are ignored. Links come from officer-visible guild notes, so the raider cannot claim a character.
 - A record for any other guid is stripped from the batch, logged, and reported by the bot as a DM to the global admins (one DM per offending batch, naming the user and the stripped count).
-- The app sends a `professions`-only holder's records only for guids present in `StewardDB.professions` (the account's own characters), with no roster fields, so an honest push never trips the alert; the addon's `characters` table holds the whole guild roster and would otherwise be stripped and reported on every push.
-- Routing: a non-officer has no seat, so `_authorise` 403s every `/api/admin/{guild_id}/` route, and `AdminMe.Guilds` is empty for them, so the app has no guild id. Both need solving: an exception in `_authorise` for `POST characters/sync` and `GET recipes/catalogue` (flag plus Discord membership of that guild), and a guild list in `/api/admin/me` for flag holders.
-- Catalogue: only officers seed or update it; a `professions` holder's `catalogue` object is ignored. `GET recipes/catalogue` opens to them so their addon gets the guild catalogue.
-- The app's roster pull (`/roster`, `/members`) stays officer-only; for a raider the catalogue fetch runs on its own.
-- The app's access gate needs `addons`, `guides` or `steward` besides `professions`, as it does for `sync`.
-- Signing (HMAC-SHA256 over each record with `sha2.lua`, verified by the app before upload) was agreed as a deterrent for raider pushes and lands with this work.
+- The app sends a seatless holder's records only for guids present in `StewardDB.professions` (the account's own characters), via `CharacterSyncMapping.FilterToProfessionsOnly`; the batch still carries each `CharacterSyncEntry`'s roster fields (name, realm, guild, level, classId), since the server's validation requires them on the shape, but the catalogue and guild ranks are sent null. An honest push never trips the alert; the addon's `characters` table holds the whole guild roster and would otherwise be stripped and reported on every push.
+- Routing: a non-officer has no seat, so `_authorise` 403s every `/api/admin/{guild_id}/` route below `me`. `/api/admin/me` now returns the guilds a `sync` holder is a Discord member of even without a seat, so the app has a guild id to push and to read the catalogue against; `POST characters/sync` and `GET recipes/catalogue` carry an exception in `_authorise` for `sync` plus Discord membership of that guild.
+- Catalogue: only officers seed or update it; a seatless holder's `catalogue` object is ignored server-side (the app never sends one). `GET recipes/catalogue` opens to them so their addon gets the guild catalogue.
+- The app's roster pull (`/roster`, `/members`) and the event stream stay officer-only (`HasStewardFeature`); for a raider the catalogue fetch runs on its own.
+- The app's access gate no longer needs `addons`, `guides` or `steward` alongside `sync`: `GigagrugClient.IsAuthorizing` treats `sync` alone as authorizing.
 
 ## Merge rules
 

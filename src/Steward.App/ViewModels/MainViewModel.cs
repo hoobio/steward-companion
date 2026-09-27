@@ -69,6 +69,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(GuidesVisibility),
         nameof(SyncVisibility),
         nameof(HasSyncFeature),
+        nameof(IsProfessionsOnlySync),
     ];
 
     private readonly ISessionService _sessionService;
@@ -308,6 +309,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasSyncFeature => _features.Contains(GigagrugClient.SyncFeature);
 
+    public bool IsProfessionsOnlySync => HasSyncFeature && Role is not ("global" or "admin");
+
     private IReadOnlyList<ManagedAddon> VisibleAddons() =>
         [.. _addons.Where(addon => addon.Features.Any(_features.Contains))];
 
@@ -365,7 +368,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             string.Equals(row.AddonId, RestedXpViewModel.AddonId, StringComparison.OrdinalIgnoreCase)
             && row.State is not (AddonRowState.Missing or AddonRowState.NoReleases)))));
 
-    public Visibility SyncVisibility => When(HasStewardFeature);
+    public Visibility SyncVisibility => When(HasStewardFeature || HasSyncFeature);
 
     public ObservableCollection<CharacterSyncRowViewModel> CharacterSyncRows { get; } = [];
 
@@ -1144,7 +1147,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        var fingerprint = snapshot?.CharactersFingerprint;
+        var professionsOnly = IsProfessionsOnlySync;
+        IReadOnlyList<CharacterObservation> characters = snapshot is null ? []
+            : professionsOnly ? CharacterSyncMapping.FilterToProfessionsOnly(snapshot)
+            : snapshot.Characters;
+        var fingerprint = snapshot is not { HasAccountData: true } ? null
+            : professionsOnly ? CharacterSyncMapping.Fingerprint(characters, snapshot.Professions)
+            : snapshot.CharactersFingerprint;
         var state = _stateStore.Load();
         if (fingerprint is null)
         {
@@ -1170,9 +1179,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var request = new CharacterSyncRequest(
             batchId,
             InstalledVersion,
-            [.. snapshot!.Characters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot.Professions))],
-            snapshot.Catalogue.Count == 0 ? null : snapshot.Catalogue,
-            snapshot.GuildRanks is null ? null : CharacterSyncMapping.ToSync(snapshot.GuildRanks));
+            [.. characters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot!.Professions))],
+            professionsOnly ? null : snapshot!.Catalogue.Count == 0 ? null : snapshot.Catalogue,
+            professionsOnly || snapshot!.GuildRanks is null ? null : CharacterSyncMapping.ToSync(snapshot.GuildRanks));
 
         try
         {

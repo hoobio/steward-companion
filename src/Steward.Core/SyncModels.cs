@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Steward.Core;
@@ -249,6 +251,37 @@ public static class CharacterSyncMapping
         ranks.Guild,
         ranks.ObservedAt?.ToUnixTimeSeconds(),
         ranks.Ranks.ToDictionary(entry => entry.Key.ToString(CultureInfo.InvariantCulture), entry => entry.Value, StringComparer.Ordinal));
+
+    public static IReadOnlyList<CharacterObservation> FilterToProfessionsOnly(SavedVariablesSnapshot snapshot) =>
+        [.. snapshot.Characters.Where(c => snapshot.Professions.ContainsKey(c.CharacterGuid))];
+
+    // observedAt and scannedAt are restamped on every roster rebuild, so they are left out or every /reload would push unchanged data.
+    public static string Fingerprint(
+        IReadOnlyList<CharacterObservation> characters,
+        IReadOnlyDictionary<string, CharacterProfessions> professions,
+        IReadOnlyDictionary<string, ProfessionCatalogue>? catalogue = null,
+        GuildRanks? guildRanks = null)
+    {
+        var canonicalProfessions = professions.ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value with
+            {
+                ObservedAt = null,
+                Recipes = entry.Value.Recipes is null ? null : Sorted(entry.Value.Recipes, recipes => recipes with { ScannedAt = null }),
+            },
+            StringComparer.Ordinal);
+        var canonical = new CharacterSyncRequest(
+            string.Empty,
+            string.Empty,
+            [.. characters.OrderBy(c => c.CharacterGuid, StringComparer.Ordinal)
+                .Select(c => ToEntry(c with { ObservedAt = null }, canonicalProfessions))],
+            catalogue is null or { Count: 0 } ? null : Sorted(catalogue, entry => entry with { ScannedAt = null }),
+            guildRanks is null ? null : ToSync(guildRanks) with { ObservedAt = null });
+        return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonical, CompanionJsonContext.Default.CharacterSyncRequest)));
+    }
+
+    private static SortedDictionary<string, T> Sorted<T>(IReadOnlyDictionary<string, T> source, Func<T, T> canonicalise) =>
+        new(source.ToDictionary(entry => entry.Key, entry => canonicalise(entry.Value), StringComparer.Ordinal), StringComparer.Ordinal);
 }
 
 public static class CharacterPushGate

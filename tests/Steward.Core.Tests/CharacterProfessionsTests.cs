@@ -142,6 +142,65 @@ public sealed class CharacterProfessionsTests
     }
 
     [Fact]
+    public void FilterToProfessionsOnly_KeepsOnlyCharactersWithAProfessionsEntry()
+    {
+        var linked = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, null, false, null);
+        var unlinked = new CharacterObservation(
+            "Player-4395-11111111", "Grug", "Nightslayer", "Gigagrug", 58, 7, 3, 2, null, null, false, null);
+        var snapshot = new SavedVariablesSnapshot(
+            [], null, [], [], [], 0,
+            [linked, unlinked],
+            "irrelevant",
+            new Dictionary<string, CharacterProfessions> { ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null) },
+            new Dictionary<string, ProfessionCatalogue>());
+
+        var filtered = CharacterSyncMapping.FilterToProfessionsOnly(snapshot);
+
+        var character = Assert.Single(filtered);
+        Assert.Equal("Player-4395-0A1B2C3D", character.CharacterGuid);
+    }
+
+    [Fact]
+    public void Fingerprint_IgnoresCatalogueAndGuildRanks_WhenOmitted()
+    {
+        var observation = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, null, false, null);
+        var professions = new Dictionary<string, CharacterProfessions>
+        {
+            ["Player-4395-0A1B2C3D"] = new CharacterProfessions(1758260000, null, null),
+        };
+
+        var withoutExtras = CharacterSyncMapping.Fingerprint([observation], professions);
+        var withCatalogueAndRanks = CharacterSyncMapping.Fingerprint(
+            [observation],
+            professions,
+            new Dictionary<string, ProfessionCatalogue> { ["Alchemy"] = new ProfessionCatalogue(null, []) },
+            new GuildRanks("Nightslayer", "Gigagrug", null, new Dictionary<int, string> { [1] = "Officer" }));
+
+        Assert.NotEqual(withoutExtras, withCatalogueAndRanks);
+    }
+
+    [Fact]
+    public void Fingerprint_ChangesWhenTheFilteredCharacterSetChanges()
+    {
+        var one = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, null, false, null);
+        var two = new CharacterObservation(
+            "Player-4395-11111111", "Grug", "Nightslayer", "Gigagrug", 58, 7, 3, 2, null, null, false, null);
+        var professions = new Dictionary<string, CharacterProfessions>
+        {
+            ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null),
+            ["Player-4395-11111111"] = new CharacterProfessions(null, null, null),
+        };
+
+        var withOne = CharacterSyncMapping.Fingerprint([one], professions);
+        var withBoth = CharacterSyncMapping.Fingerprint([one, two], professions);
+
+        Assert.NotEqual(withOne, withBoth);
+    }
+
+    [Fact]
     public void CharacterSyncRequest_SerialisesGuildRanks_WithCamelCaseStringKeys()
     {
         var ranks = new GuildRanks(

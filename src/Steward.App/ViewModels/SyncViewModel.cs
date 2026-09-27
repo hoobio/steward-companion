@@ -15,6 +15,7 @@ public sealed partial class SyncViewModel : ObservableObject
     private const string RosterDatasetKey = "roster";
     private const string LootDatasetKey = "loot";
     private const string AttendanceDatasetKey = "attendance";
+    private const string ProfessionsDatasetKey = "professions";
 
     private const string GuildlessNote = "Log in to a character in a guild.";
     private const string NoSyncFeatureNote = "Your account can't push characters (missing the sync feature).";
@@ -31,7 +32,11 @@ public sealed partial class SyncViewModel : ObservableObject
         nameof(LastSyncedText),
         nameof(GeneratedFilePath),
         nameof(GeneratedFileDescription),
+        nameof(GeneratedFileVisibility),
         nameof(SyncNowVisibility),
+        nameof(IsProfessionsOnlySync),
+        nameof(PageTitle),
+        nameof(ProfessionsOnlyVisibility),
     ];
 
     private readonly MainViewModel _main;
@@ -71,10 +76,16 @@ public sealed partial class SyncViewModel : ObservableObject
     [ObservableProperty]
     public partial string? GeneratedFileError { get; set; }
 
+    public bool IsProfessionsOnlySync => _main.IsProfessionsOnlySync;
+
+    public string PageTitle => IsProfessionsOnlySync ? "Your professions" : "Sync";
+
+    public Visibility ProfessionsOnlyVisibility => When(IsProfessionsOnlySync);
+
     public bool HasWaiting => _main.HasSyncFeature && Installs.Any(install =>
         install.ExportState == SyncExportState.Ready
-        && install.Datasets.FirstOrDefault(dataset => dataset.Key == RosterDatasetKey) is { } roster
-        && (roster.CharacterSync is null || roster.CharacterSync.Error is not null));
+        && install.Datasets.FirstOrDefault(dataset => dataset.Key is RosterDatasetKey or ProfessionsDatasetKey) is { } pushRow
+        && (pushRow.CharacterSync is null || pushRow.CharacterSync.Error is not null));
 
     public Visibility NoInstallVisibility => When(_main.Installs.Count == 0);
 
@@ -140,6 +151,8 @@ public sealed partial class SyncViewModel : ObservableObject
 
     public bool UnreachableIsOpen => IsUnreachable;
 
+    public Visibility GeneratedFileVisibility => When(!IsProfessionsOnlySync);
+
     public Visibility SyncNowVisibility => When(_main.HasSyncFeature);
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
@@ -203,23 +216,23 @@ public sealed partial class SyncViewModel : ObservableObject
     {
         foreach (var install in Installs)
         {
-            var roster = install.Datasets.FirstOrDefault(dataset => dataset.Key == RosterDatasetKey);
-            if (roster is null)
+            var pushRow = install.Datasets.FirstOrDefault(dataset => dataset.Key is RosterDatasetKey or ProfessionsDatasetKey);
+            if (pushRow is null)
             {
                 continue;
             }
 
             if (install.ExportState == SyncExportState.Guildless)
             {
-                roster.CharacterSync = null;
-                roster.Note = GuildlessNote;
+                pushRow.CharacterSync = null;
+                pushRow.Note = GuildlessNote;
                 continue;
             }
 
-            roster.CharacterSync = _main.HasSyncFeature
+            pushRow.CharacterSync = _main.HasSyncFeature
                 ? _main.CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath)
                 : null;
-            roster.Note = roster.CharacterSync is null ? NoSyncFeatureNote : null;
+            pushRow.Note = pushRow.CharacterSync is null ? NoSyncFeatureNote : null;
         }
     }
 
@@ -259,6 +272,22 @@ public sealed partial class SyncViewModel : ObservableObject
             ExportState = snapshot?.ExportState ?? SyncExportState.NoFile,
             ReadError = readError,
         };
+
+        if (_main.IsProfessionsOnlySync)
+        {
+            view.Datasets.Add(Dataset(
+                ProfessionsDatasetKey,
+                "Your professions",
+                "characters",
+                "",
+                snapshot is null ? 0 : CharacterSyncMapping.FilterToProfessionsOnly(snapshot).Count,
+                sourceFile,
+                exportedAt,
+                isStale,
+                isFirst: true));
+
+            return view;
+        }
 
         view.Datasets.Add(Dataset(
             RosterDatasetKey,
@@ -353,7 +382,10 @@ public sealed partial class SyncViewModel : ObservableObject
     private async Task SyncNowAsync()
     {
         await _main.PushCharacterSyncAsync(force: true).ConfigureAwait(true);
-        await WriteGeneratedFileAsync().ConfigureAwait(true);
+        if (!IsProfessionsOnlySync)
+        {
+            await WriteGeneratedFileAsync().ConfigureAwait(true);
+        }
     }
 
     [RelayCommand]

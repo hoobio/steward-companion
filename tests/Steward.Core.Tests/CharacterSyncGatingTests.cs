@@ -3,11 +3,11 @@ namespace Steward.Core.Tests;
 public sealed class CharacterSyncGatingTests
 {
     [Fact]
-    public void IsAuthorizing_IsFalse_WhenSyncIsTheOnlyFeature()
+    public void IsAuthorizing_IsTrue_WhenSyncIsTheOnlyFeature()
     {
         var features = new HashSet<string>([GigagrugClient.SyncFeature], StringComparer.Ordinal);
 
-        Assert.False(GigagrugClient.IsAuthorizing(features));
+        Assert.True(GigagrugClient.IsAuthorizing(features));
     }
 
     [Fact]

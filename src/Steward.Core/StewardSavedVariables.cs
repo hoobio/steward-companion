@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using System.Text.Json;
-
 namespace Steward.Core;
 
 public static class StewardSavedVariables
@@ -109,7 +106,7 @@ public static class StewardSavedVariables
             Dedupe(attendance),
             skipped,
             dedupedCharacters,
-            hasAccount ? CharactersFingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue, guildRanks) : null,
+            hasAccount ? CharacterSyncMapping.Fingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue, guildRanks) : null,
             dedupedProfessions,
             dedupedCatalogue,
             guildRanks,
@@ -118,34 +115,6 @@ public static class StewardSavedVariables
 
     private static Dictionary<string, T> DedupeByKey<T>(List<(string Id, DateTimeOffset Rank, T Item)> records) =>
         records.GroupBy(r => r.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.MaxBy(r => r.Rank).Item, StringComparer.Ordinal);
-
-    // observedAt and scannedAt are restamped on every roster rebuild, so they are left out or every /reload would push unchanged data.
-    private static string CharactersFingerprint(
-        IReadOnlyList<CharacterObservation> characters,
-        IReadOnlyDictionary<string, CharacterProfessions> professions,
-        IReadOnlyDictionary<string, ProfessionCatalogue> catalogue,
-        GuildRanks? guildRanks)
-    {
-        var canonicalProfessions = professions.ToDictionary(
-            entry => entry.Key,
-            entry => entry.Value with
-            {
-                ObservedAt = null,
-                Recipes = entry.Value.Recipes is null ? null : Sorted(entry.Value.Recipes, recipes => recipes with { ScannedAt = null }),
-            },
-            StringComparer.Ordinal);
-        var canonical = new CharacterSyncRequest(
-            string.Empty,
-            string.Empty,
-            [.. characters.OrderBy(c => c.CharacterGuid, StringComparer.Ordinal)
-                .Select(c => CharacterSyncMapping.ToEntry(c with { ObservedAt = null }, canonicalProfessions))],
-            Sorted(catalogue, entry => entry with { ScannedAt = null }),
-            guildRanks is null ? null : CharacterSyncMapping.ToSync(guildRanks) with { ObservedAt = null });
-        return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonical, CompanionJsonContext.Default.CharacterSyncRequest)));
-    }
-
-    private static SortedDictionary<string, T> Sorted<T>(IReadOnlyDictionary<string, T> source, Func<T, T> canonicalise) =>
-        new(source.ToDictionary(entry => entry.Key, entry => canonicalise(entry.Value), StringComparer.Ordinal), StringComparer.Ordinal);
 
     private static void AddIfExists(List<string> files, string scopePath)
     {

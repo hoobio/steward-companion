@@ -262,10 +262,14 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Spacing="4">
-                    <TextBlock Text="Sync" FontSize="26" FontWeight="SemiBold" Margin="{StaticResource PageTitleMargin}" />
+                    <TextBlock Text="{x:Bind ViewModel.PageTitle, Mode=OneWay}" FontSize="26" FontWeight="SemiBold" Margin="{StaticResource PageTitleMargin}" />
                     <TextBlock
                         Text="{x:Bind ViewModel.LastSyncedText, Mode=OneWay}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock
+                        Text="Pushes your own characters' professions to the guild."
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Visibility="{x:Bind ViewModel.ProfessionsOnlyVisibility, Mode=OneWay}" />
                 </StackPanel>
 
                 <Button
@@ -510,7 +514,8 @@
             <controls:SettingsCard
                 Padding="{StaticResource CardRowPadding}"
                 Header="Guild data in game"
-                Description="{x:Bind ViewModel.GeneratedFileDescription, Mode=OneWay}">
+                Description="{x:Bind ViewModel.GeneratedFileDescription, Mode=OneWay}"
+                Visibility="{x:Bind ViewModel.GeneratedFileVisibility, Mode=OneWay}">
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE8A5;" />
                 </controls:SettingsCard.HeaderIcon>
