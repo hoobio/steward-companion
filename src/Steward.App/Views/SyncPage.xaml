@@ -177,13 +177,11 @@
             </Grid>
         </DataTemplate>
 
-        <Thickness x:Key="ChevronAlignedRowPadding">16,10,60,10</Thickness>
-
         <DataTemplate x:Key="PullDatasetTemplate" x:DataType="vm:SyncDatasetViewModel">
             <Grid
                 BorderThickness="{x:Bind HairlineThickness}"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
-                Padding="{StaticResource ChevronAlignedRowPadding}"
+                Padding="{StaticResource CardRowPadding}"
                 MinHeight="{StaticResource CardRowMinHeight}"
                 ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
@@ -231,7 +229,7 @@
             <Grid
                 BorderThickness="0,1,0,0"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
-                Padding="{StaticResource ChevronAlignedRowPadding}"
+                Padding="{StaticResource CardRowPadding}"
                 ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
