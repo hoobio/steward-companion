@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/hoobio/steward-companion/compare/v0.13.0...v0.13.1) (2026-09-27)
+
+
+### Bug Fixes
+
+* 🐛 restore the sync tick's status text on the officer Roster row ([d43c8e7](https://github.com/hoobio/steward-companion/commit/d43c8e71d3dfa63321c4386f1e9170a7872cdbd6))
+
 ## [0.13.0](https://github.com/hoobio/steward-companion/compare/v0.12.0...v0.13.0) (2026-09-27)
 
 
