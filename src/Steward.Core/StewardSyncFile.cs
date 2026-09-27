@@ -218,7 +218,7 @@ public static class StewardSyncFile
 
     private static LuaValue DirectoryReagentToLua(DirectoryReagent reagent) => LuaValue.FromTable(
         new LuaEntry(LuaValue.FromString("itemId"), OrNilNumber(reagent.ItemId)),
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(reagent.Name)),
+        new LuaEntry(LuaValue.FromString("name"), OrNil(reagent.Name)),
         new LuaEntry(LuaValue.FromString("count"), OrNilNumber(reagent.Count)));
 
     private static LuaValue MeToLua(SyncMe me)
@@ -324,7 +324,7 @@ public static class StewardSyncFile
 
     private static LuaValue ReagentToLua(ProfessionReagent reagent) => LuaValue.FromTable(
         new LuaEntry(LuaValue.FromString("itemId"), OrNilNumber(reagent.ItemId)),
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(reagent.Name)),
+        new LuaEntry(LuaValue.FromString("name"), OrNil(reagent.Name)),
         new LuaEntry(LuaValue.FromString("count"), OrNilNumber(reagent.Count)));
 
     private static LuaValue OrNilNumber(int? value) => value is null ? LuaValue.Nil : LuaValue.FromNumber(value.Value);

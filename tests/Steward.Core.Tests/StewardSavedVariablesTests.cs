@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Steward.Core.Tests;
 
 public sealed class StewardSavedVariablesTests : IDisposable
@@ -518,6 +520,39 @@ public sealed class StewardSavedVariablesTests : IDisposable
 
         Assert.Equal(2, snapshot.Skipped);
         Assert.Empty(snapshot.Catalogue["Alchemy"].List!);
+    }
+
+    [Fact]
+    public void Read_KeepsAReagentWithoutAName_SoTheSignedListIsForwardedWhole()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["catalogue"] = {
+            ["Blacksmithing"] = {
+                ["scannedAt"] = 1790496548,
+                ["fp"] = "70f39d50",
+                ["list"] = {
+                {
+                    ["name"] = "Shifting Silver Breastplate", ["itemId"] = 210794, ["recipeId"] = 429348,
+                    ["reagents"] = {
+                    { ["name"] = "Shining Silver Breastplate", ["count"] = 1, ["itemId"] = 2870 },
+                    { ["count"] = 1, ["itemId"] = 211422 },
+                    },
+                },
+                },
+            },
+            },
+            }
+            """));
+
+        Assert.Equal(0, snapshot.Skipped);
+        var request = new CharacterSyncRequest("batch-1", "0.12.0", [], snapshot.Catalogue);
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(request, CompanionJsonContext.Default.CharacterSyncRequest));
+        var smithing = doc.RootElement.GetProperty("catalogue").GetProperty("Blacksmithing");
+        Assert.Equal("70f39d50", smithing.GetProperty("fp").GetString());
+        var reagents = Assert.Single(smithing.GetProperty("list").EnumerateArray()).GetProperty("reagents").EnumerateArray().ToList();
+        Assert.Equal([2870, 211422], reagents.Select(r => r.GetProperty("itemId").GetInt32()));
+        Assert.False(reagents[1].TryGetProperty("name", out _));
     }
 
     [Fact]

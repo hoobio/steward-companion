@@ -180,7 +180,7 @@ public sealed record ProfessionRecipe(
     [property: JsonPropertyName("reagents"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionReagent>? Reagents);
 
 public sealed record ProfessionReagent(
-    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("name"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Name,
     [property: JsonPropertyName("itemId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? ItemId,
     [property: JsonPropertyName("count"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Count);
 
@@ -233,7 +233,7 @@ public sealed record DirectorySkill(
 
 public sealed record DirectoryReagent(
     [property: JsonPropertyName("item_id")] int? ItemId,
-    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("name")] string? Name,
     [property: JsonPropertyName("count")] int? Count);
 
 public sealed record DirectoryRecipe(

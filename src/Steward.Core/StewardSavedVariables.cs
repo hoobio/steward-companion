@@ -449,16 +449,8 @@ public static class StewardSavedVariables
         return mapped;
     }
 
-    private static ProfessionReagent? MapReagent(LuaValue value)
-    {
-        var name = value.GetString("name");
-        if (name is null)
-        {
-            return null;
-        }
-
-        return new ProfessionReagent(name, ToNullableInt(value.GetNumber("itemId")), ToNullableInt(value.GetNumber("count")));
-    }
+    private static ProfessionReagent MapReagent(LuaValue value) =>
+        new(value.GetString("name"), ToNullableInt(value.GetNumber("itemId")), ToNullableInt(value.GetNumber("count")));
 
     private static List<(string Profession, ProfessionCatalogue Catalogue)> MapCatalogueByProfession(LuaValue? table, ref int skipped)
     {
