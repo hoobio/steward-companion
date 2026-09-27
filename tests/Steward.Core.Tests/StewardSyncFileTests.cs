@@ -317,8 +317,9 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Equal("111", character.GetString("linkedUserId"));
 
         Assert.Null(table.GetTable("professions"));
+        Assert.Null(table.GetTable("links"));
 
-        var links = table.GetTable("links")!;
+        var links = LuaSavedVariables.Parse(asAssignment)["X"].GetTable("links")!;
         Assert.Equal("111", links.GetString("Player-4395-0A1B2C3D"));
     }
 
@@ -337,24 +338,22 @@ public sealed class StewardSyncFileTests : IDisposable
         var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
         asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
 
-        var links = LuaSavedVariables.Parse(asAssignment)["X"].GetTable("directory")!.GetTable("links")!;
+        var parsed = LuaSavedVariables.Parse(asAssignment)["X"];
+        Assert.Null(parsed.GetTable("directory")!.GetTable("links"));
 
+        var links = parsed.GetTable("links")!;
         Assert.Equal("111", links.GetString("Player-4395-0A1B2C3D"));
         Assert.Null(links.GetString("Player-9999-0A1B2C3D"));
     }
 
     [Fact]
-    public void Render_OmitsTheLinksTable_WhenNoRosterWasPulled()
+    public void Render_OmitsTheLinksKey_WhenNoRosterWasPulled()
     {
         var directory = new SyncDirectory(null, null, [SampleProfessions()]);
         var payload = SamplePayload() with { Directory = directory };
         var rendered = StewardSyncFile.Render(payload);
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
 
-        var table = LuaSavedVariables.Parse(asAssignment)["X"].GetTable("directory")!;
-
-        Assert.Null(table.GetTable("links"));
+        Assert.DoesNotContain("links", rendered, StringComparison.Ordinal);
     }
 
     [Fact]

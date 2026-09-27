@@ -122,6 +122,11 @@ public static class StewardSyncFile
             entries.Add(new(LuaValue.FromString("directory"), DirectoryToLua(payload.Directory!)));
         }
 
+        if (payload.Directory?.Characters is { } linkedCharacters)
+        {
+            entries.Add(new(LuaValue.FromString("links"), LinksToLua(linkedCharacters)));
+        }
+
         return LuaValue.FromTable(entries);
     }
 
@@ -132,7 +137,6 @@ public static class StewardSyncFile
         {
             entries.Add(new(LuaValue.FromString("people"), LuaValue.Array(people.Select(DirectoryPersonToLua))));
             entries.Add(new(LuaValue.FromString("characters"), LuaValue.Array(characters.Select(DirectoryCharacterToLua))));
-            entries.Add(new(LuaValue.FromString("links"), LinksToLua(characters)));
         }
 
         if (directory.Professions is { } professions)
