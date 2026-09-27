@@ -66,6 +66,17 @@ public sealed class GuildRosterSyncTests : IDisposable
     }
 
     [Fact]
+    public void WriteIfChanged_Rewrites_WhenForcedWithAnUnchangedRoster()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore));
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore, force: true));
+    }
+
+    [Fact]
     public void WriteIfChanged_DoesNotRewriteTheAvatar_WhenTheUrlIsUnchanged()
     {
         var install = InstallAddon();

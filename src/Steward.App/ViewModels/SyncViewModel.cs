@@ -509,7 +509,8 @@ public sealed partial class SyncViewModel : ObservableObject
     [RelayCommand]
     private async Task WriteAgainAsync()
     {
-        await WriteGeneratedFileAsync().ConfigureAwait(true);
+        GeneratedFileError = await _main.RewriteGuildDataAsync().ConfigureAwait(true);
+        await ReloadAsync().ConfigureAwait(true);
     }
 
     private void Recompute()

@@ -2,7 +2,7 @@ namespace Steward.Core;
 
 public static class GuildRosterSync
 {
-    public static bool WriteIfChanged(WowInstall install, SyncPayload payload, AppStateStore stateStore)
+    public static bool WriteIfChanged(WowInstall install, SyncPayload payload, AppStateStore stateStore, bool force = false)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(payload);
@@ -10,7 +10,8 @@ public static class GuildRosterSync
 
         var fingerprint = StewardSyncFile.Fingerprint(payload);
         var state = stateStore.Load();
-        if (StewardSyncFile.ReadFingerprint(install.AddOnsPath) == fingerprint
+        if (!force
+            && StewardSyncFile.ReadFingerprint(install.AddOnsPath) == fingerprint
             && (payload.Avatar is null || File.Exists(StewardSyncFile.AvatarPathFor(install.AddOnsPath))))
         {
             return false;

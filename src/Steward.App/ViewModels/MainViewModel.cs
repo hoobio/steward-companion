@@ -976,7 +976,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _guildFeatures.UnionWith(GigagrugClient.ResolveGuildFeatures(guild, _features));
     }
 
-    public async Task<string?> SyncRosterAsync()
+    public async Task<string?> RewriteGuildDataAsync()
+    {
+        await SyncDirectoryAsync().ConfigureAwait(true);
+        if (HasStewardFeature)
+        {
+            return await SyncRosterAsync(force: true).ConfigureAwait(true);
+        }
+
+        if (!IsSignedIn || _userId is null)
+        {
+            return null;
+        }
+
+        WriteMe(Installs.Select(install => install.Install), new SyncMe(_userId, Role, [.. _features]), force: true);
+        return null;
+    }
+
+    public async Task<string?> SyncRosterAsync(bool force = false)
     {
         if (!IsSignedIn || !IsApiReachable || !HasStewardFeature || _guildId is not { } guildId)
         {
@@ -999,7 +1016,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastOfficerPayload = payload;
         foreach (var install in Installs)
         {
-            GuildRosterSync.WriteIfChanged(install.Install, payload, _stateStore);
+            GuildRosterSync.WriteIfChanged(install.Install, payload, _stateStore, force);
         }
 
         return null;
@@ -2097,7 +2114,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         UpdateAccessEventStream();
     }
 
-    private void WriteMe(IEnumerable<WowInstall> installs, SyncMe? me)
+    private void WriteMe(IEnumerable<WowInstall> installs, SyncMe? me, bool force = false)
     {
         var catalogue = me is null ? null : _lastMemberCatalogue;
         var payload = new SyncPayload(DateTimeOffset.Now, null, [], [], [], [], [], [])
@@ -2110,7 +2127,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
         foreach (var install in installs)
         {
-            GuildRosterSync.WriteIfChanged(install, payload, _stateStore);
+            GuildRosterSync.WriteIfChanged(install, payload, _stateStore, force);
         }
     }
 
