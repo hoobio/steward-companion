@@ -117,8 +117,58 @@ public static class StewardSyncFile
             entries.Add(new(LuaValue.FromString("me"), MeToLua(me)));
         }
 
+        if (payload.Directory is { } directory)
+        {
+            entries.Add(new(LuaValue.FromString("directory"), DirectoryToLua(directory)));
+        }
+
         return LuaValue.FromTable(entries);
     }
+
+    private static LuaValue DirectoryToLua(GuildDirectory directory) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("people"), LuaValue.Array(directory.People.Select(DirectoryPersonToLua))),
+        new LuaEntry(LuaValue.FromString("characters"), LuaValue.Array(directory.Characters.Select(DirectoryCharacterToLua))),
+        new LuaEntry(LuaValue.FromString("professions"), LuaValue.Array(directory.Professions.Select(DirectoryProfessionsToLua))),
+        new LuaEntry(LuaValue.FromString("catalogue"), LuaValue.FromTable(
+            [.. directory.Catalogue.Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(DirectoryRecipeToLua))))])));
+
+    private static LuaValue DirectoryPersonToLua(DirectoryPerson person) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("id"), LuaValue.FromString(person.Id)),
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(person.Name)),
+        new LuaEntry(LuaValue.FromString("mainGuid"), OrNil(person.MainGuid)));
+
+    private static LuaValue DirectoryCharacterToLua(DirectoryCharacter character) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("guid"), LuaValue.FromString(character.CharacterGuid)),
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(character.Name)),
+        new LuaEntry(LuaValue.FromString("level"), LuaValue.FromNumber(character.Level)),
+        new LuaEntry(LuaValue.FromString("classId"), LuaValue.FromNumber(character.ClassId)),
+        new LuaEntry(LuaValue.FromString("linkedUserId"), OrNil(character.LinkedUserId)));
+
+    private static LuaValue DirectoryProfessionsToLua(DirectoryProfessions professions) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("guid"), LuaValue.FromString(professions.CharacterGuid)),
+        new LuaEntry(LuaValue.FromString("skills"), LuaValue.Array(professions.Skills.Select(DirectorySkillToLua))),
+        new LuaEntry(LuaValue.FromString("recipes"), LuaValue.FromTable(
+            [.. professions.Recipes.Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(DirectoryRecipeToLua))))])));
+
+    private static LuaValue DirectorySkillToLua(DirectorySkill skill) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(skill.Name)),
+        new LuaEntry(LuaValue.FromString("rank"), LuaValue.FromNumber(skill.Rank)),
+        new LuaEntry(LuaValue.FromString("maxRank"), LuaValue.FromNumber(skill.MaxRank)),
+        new LuaEntry(LuaValue.FromString("secondary"), LuaValue.FromBoolean(skill.Secondary)));
+
+    private static LuaValue DirectoryRecipeToLua(DirectoryRecipe recipe) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("recipeId"), LuaValue.FromNumber(recipe.RecipeId)),
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(recipe.Name)),
+        new LuaEntry(LuaValue.FromString("difficulty"), OrNil(recipe.Difficulty)),
+        new LuaEntry(LuaValue.FromString("header"), OrNil(recipe.Header)),
+        new LuaEntry(LuaValue.FromString("itemId"), OrNilNumber(recipe.ItemId)),
+        new LuaEntry(LuaValue.FromString("tools"), OrNil(recipe.Tools)),
+        new LuaEntry(LuaValue.FromString("reagents"), LuaValue.Array((recipe.Reagents ?? []).Select(DirectoryReagentToLua))));
+
+    private static LuaValue DirectoryReagentToLua(DirectoryReagent reagent) => LuaValue.FromTable(
+        new LuaEntry(LuaValue.FromString("itemId"), OrNilNumber(reagent.ItemId)),
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(reagent.Name)),
+        new LuaEntry(LuaValue.FromString("count"), OrNilNumber(reagent.Count)));
 
     private static LuaValue MeToLua(SyncMe me)
     {

@@ -269,6 +269,73 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Null(table.GetTable("me")!.GetString("role"));
     }
 
+    private static GuildDirectory SampleDirectory() => new(
+        [new DirectoryPerson("111", "Hoobi", "Player-4395-0A1B2C3D")],
+        [new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "111")],
+        [
+            new DirectoryProfessions(
+                "Player-4395-0A1B2C3D",
+                [new DirectorySkill("Alchemy", 285, 300, false)],
+                new Dictionary<string, IReadOnlyList<DirectoryRecipe>>
+                {
+                    ["Alchemy"] =
+                    [
+                        new DirectoryRecipe(11460, "Major Healing Potion", "optimal", "Potions", 13446, string.Empty,
+                            [new DirectoryReagent(13464, "Golden Sansam", 2)]),
+                    ],
+                }),
+        ],
+        new Dictionary<string, IReadOnlyList<DirectoryRecipe>>
+        {
+            ["Alchemy"] = [new DirectoryRecipe(11460, "Major Healing Potion", null, "Potions", 13446, string.Empty, [])],
+        });
+
+    [Fact]
+    public void Render_OmitsTheDirectoryKey_WhenThePayloadCarriesNone()
+    {
+        var rendered = StewardSyncFile.Render(SamplePayload());
+
+        Assert.DoesNotContain("directory", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Render_ProducesTheDirectoryTable()
+    {
+        var payload = SamplePayload() with { Directory = SampleDirectory() };
+        var rendered = StewardSyncFile.Render(payload);
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"].GetTable("directory")!;
+
+        var person = Assert.Single(table.GetTable("people")!.Items);
+        Assert.Equal("111", person.GetString("id"));
+        Assert.Equal("Hoobi", person.GetString("name"));
+        Assert.Equal("Player-4395-0A1B2C3D", person.GetString("mainGuid"));
+
+        var character = Assert.Single(table.GetTable("characters")!.Items);
+        Assert.Equal("Player-4395-0A1B2C3D", character.GetString("guid"));
+        Assert.Equal(60d, character.GetNumber("level"));
+        Assert.Equal(1d, character.GetNumber("classId"));
+        Assert.Equal("111", character.GetString("linkedUserId"));
+
+        var profession = Assert.Single(table.GetTable("professions")!.Items);
+        Assert.Equal("Player-4395-0A1B2C3D", profession.GetString("guid"));
+        var skill = Assert.Single(profession.GetTable("skills")!.Items);
+        Assert.Equal("Alchemy", skill.GetString("name"));
+        Assert.Equal(300d, skill.GetNumber("maxRank"));
+
+        var recipe = Assert.Single(profession.GetTable("recipes")!.GetTable("Alchemy")!.Items);
+        Assert.Equal(11460d, recipe.GetNumber("recipeId"));
+        Assert.Equal("optimal", recipe.GetString("difficulty"));
+        var reagent = Assert.Single(recipe.GetTable("reagents")!.Items);
+        Assert.Equal(13464d, reagent.GetNumber("itemId"));
+
+        var catalogueRecipe = Assert.Single(table.GetTable("catalogue")!.GetTable("Alchemy")!.Items);
+        Assert.Equal(11460d, catalogueRecipe.GetNumber("recipeId"));
+        Assert.Null(catalogueRecipe.GetString("difficulty"));
+    }
+
     [Fact]
     public void Write_CreatesTheSyncFile_WhenTheAddonIsInstalled()
     {

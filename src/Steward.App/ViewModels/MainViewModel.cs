@@ -94,6 +94,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastGuideCheck;
     private DateTimeOffset _lastStoreCheck;
     private DateTimeOffset _lastGuildSync;
+    private DateTimeOffset _lastDirectorySync;
+    private GuildDirectory? _lastDirectory;
+    private SyncPayload? _lastOfficerPayload;
     private CancellationTokenSource? _eventsCts;
     private string? _eventsGuildId;
     private bool _eventsUnsupported;
@@ -541,20 +544,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void SignOut()
     {
-        _sessionService.ClearSession();
-        ResetInstalls();
-        _guildId = null;
-        SetGuilds([], null);
-        UserName = null;
-        UserHandle = null;
-        Role = null;
-        AvatarUri = null;
-        IsAuthorized = false;
-        IsGlobalAdmin = false;
-        StatusMessage = null;
-        Failure = GateFailure.None;
-        IsSignedIn = false;
-        UpdateEventStream();
+        SignOutTo(GateFailure.None);
         RecomputeSummary();
     }
 
@@ -584,6 +574,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
             await PushCharacterSyncAsync().ConfigureAwait(true);
+            _lastDirectorySync = DateTimeOffset.Now;
+            await SyncDirectoryAsync().ConfigureAwait(true);
             await CheckAppUpdateAsync().ConfigureAwait(true);
             await CheckGuidesAsync().ConfigureAwait(true);
 
@@ -701,6 +693,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
             await PushCharacterSyncAsync().ConfigureAwait(true);
+            _lastDirectorySync = DateTimeOffset.Now;
+            await SyncDirectoryAsync().ConfigureAwait(true);
             await CheckAppUpdateAsync().ConfigureAwait(true);
             await CheckGuidesAsync().ConfigureAwait(true);
         }
@@ -949,12 +943,44 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return message;
         }
 
+        payload = payload with { Directory = _lastDirectory };
+        _lastOfficerPayload = payload;
         foreach (var install in Installs)
         {
             GuildRosterSync.WriteIfChanged(install.Install, payload, _stateStore);
         }
 
         return null;
+    }
+
+    private async Task SyncDirectoryAsync()
+    {
+        if (!IsSignedIn || !IsApiReachable || !HasSyncFeature || _guildId is not { } guildId)
+        {
+            return;
+        }
+
+        try
+        {
+            _lastDirectory = await _gigagrugClient.GetDirectoryAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (SessionExpiredException)
+        {
+            SignOutTo(GateFailure.SessionExpired);
+            return;
+        }
+        // A 403/404 means no directory access or an older gigagrug; handled quietly like the events stream, with no error bar.
+        catch (Exception ex) when (ex is GigagrugRequestException or HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return;
+        }
+
+        if (HasStewardFeature)
+        {
+            return;
+        }
+
+        WriteMe(Installs.Select(install => install.Install), new SyncMe(_userId!, Role, [.. _features]));
     }
 
     private void UpdateEventStream()
@@ -1191,6 +1217,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, result.Accepted);
             _stateStore.Save(state);
             SetCharacterSyncRow(install, key, result.Accepted, result.Rejected, null);
+            _lastDirectorySync = DateTimeOffset.Now;
+            await SyncDirectoryAsync().ConfigureAwait(true);
         }
         catch (SessionExpiredException)
         {
@@ -1575,6 +1603,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     _lastGuildSync = DateTimeOffset.Now;
                     await PushCharacterSyncAsync().ConfigureAwait(true);
                 }
+                if (DateTimeOffset.Now - _lastDirectorySync >= GuildSyncFallbackInterval)
+                {
+                    _lastDirectorySync = DateTimeOffset.Now;
+                    await SyncDirectoryAsync().ConfigureAwait(true);
+                }
                 if (!App.IsPackaged || DateTimeOffset.Now - _lastStoreCheck >= StoreCheckInterval)
                 {
                     await CheckAppUpdateAsync().ConfigureAwait(true);
@@ -1677,8 +1710,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void SignOutTo(GateFailure failure)
     {
-        // An officer's file carries a full roster payload the me-only skeleton would wipe, so only a non-officer's file is cleared here.
-        var installsToClearMe = HasStewardFeature ? [] : Installs.Select(install => install.Install).ToList();
+        var wasOfficer = HasStewardFeature;
+        var installs = Installs.Select(install => install.Install).ToList();
+        var lastOfficerPayload = _lastOfficerPayload;
         _sessionService.ClearSession();
         ResetInstalls();
         IsAuthorized = false;
@@ -1693,14 +1727,38 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         StatusMessage = null;
         IsSignedIn = false;
         Failure = failure;
-        WriteMe(installsToClearMe, null);
+        if (wasOfficer)
+        {
+            // An officer's file carries the full roster payload; rewriting it minus me keeps that data instead of wiping it with a roster-less skeleton.
+            if (lastOfficerPayload is { Me: not null })
+            {
+                var cleared = lastOfficerPayload with { Me = null };
+                foreach (var install in installs)
+                {
+                    GuildRosterSync.WriteIfChanged(install, cleared, _stateStore);
+                }
+            }
+        }
+        else
+        {
+            WriteMe(installs, null);
+        }
+
         PropagateAuthorized();
         UpdateEventStream();
     }
 
     private void WriteMe(IEnumerable<WowInstall> installs, SyncMe? me)
     {
-        var payload = new SyncPayload(DateTimeOffset.Now, null, [], [], [], [], [], []) { Me = me };
+        var directory = me is null ? null : _lastDirectory;
+        var payload = new SyncPayload(DateTimeOffset.Now, null, [], [], [], [], [], [])
+        {
+            Me = me,
+            Directory = directory,
+            Catalogue = directory is null
+                ? new Dictionary<string, IReadOnlyList<CatalogueRecipe>>()
+                : GuildDirectoryMapping.ToCatalogue(directory),
+        };
         foreach (var install in installs)
         {
             GuildRosterSync.WriteIfChanged(install, payload, _stateStore);
@@ -1714,6 +1772,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _status.Clear();
         _releases.Clear();
         _features.Clear();
+        _lastDirectory = null;
+        _lastDirectorySync = default;
+        _lastOfficerPayload = null;
     }
 
     private void PropagateAuthorized()

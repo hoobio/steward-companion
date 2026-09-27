@@ -169,6 +169,7 @@ public sealed record CharacterSyncState(
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]
 [JsonSerializable(typeof(DiscordMembersResponse))]
+[JsonSerializable(typeof(GuildDirectory))]
 [JsonSerializable(typeof(GuildRosterResponse))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(RestedXpCachedGuide))]

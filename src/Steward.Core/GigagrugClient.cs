@@ -31,7 +31,7 @@ public sealed class GigagrugClient
     public async Task<AdminMe> GetMeAsync(CancellationToken cancellationToken)
     {
         using var response = await _httpClient
-            .GetAsync($"{_baseUrl}/api/admin/me", cancellationToken)
+            .GetAsync($"{_baseUrl}/api/me", cancellationToken)
             .ConfigureAwait(false);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -42,14 +42,37 @@ public sealed class GigagrugClient
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
-                $"GET /api/admin/me returned {(int)response.StatusCode} {response.StatusCode}");
+                $"GET /api/me returned {(int)response.StatusCode} {response.StatusCode}");
         }
 
         var me = await response.Content
             .ReadFromJsonAsync(CompanionJsonContext.Default.AdminMe, cancellationToken)
             .ConfigureAwait(false);
 
-        return me ?? throw new HttpRequestException("GET /api/admin/me returned an empty body");
+        return me ?? throw new HttpRequestException("GET /api/me returned an empty body");
+    }
+
+    public async Task<GuildDirectory> GetDirectoryAsync(string guildId, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .GetAsync($"{_baseUrl}/api/guild/{guildId}/directory", cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new GigagrugRequestException(response.StatusCode, null);
+        }
+
+        var directory = await response.Content
+            .ReadFromJsonAsync(CompanionJsonContext.Default.GuildDirectory, cancellationToken)
+            .ConfigureAwait(false);
+
+        return directory ?? throw new HttpRequestException($"GET /api/guild/{guildId}/directory returned an empty body");
     }
 
     public async Task<(IReadOnlyList<GuildRosterMember> Members, IReadOnlyList<string> Statuses, IReadOnlyList<OriginDef> Origins)> GetGuildRosterAsync(string guildId, CancellationToken cancellationToken)
@@ -234,7 +257,7 @@ public sealed class GigagrugClient
         content.Headers.ContentEncoding.Add("gzip");
 
         using var response = await _httpClient
-            .PostAsync($"{_baseUrl}/api/admin/{guildId}/characters/sync", content, cancellationToken)
+            .PostAsync($"{_baseUrl}/api/guild/{guildId}/characters/sync", content, cancellationToken)
             .ConfigureAwait(false);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -252,7 +275,7 @@ public sealed class GigagrugClient
             }
 
             throw new HttpRequestException(
-                $"POST /api/admin/{guildId}/characters/sync returned {(int)response.StatusCode} {response.StatusCode}");
+                $"POST /api/guild/{guildId}/characters/sync returned {(int)response.StatusCode} {response.StatusCode}");
         }
 
         var result = await response.Content
@@ -260,6 +283,6 @@ public sealed class GigagrugClient
             .ConfigureAwait(false);
 
         return result ?? throw new HttpRequestException(
-            $"POST /api/admin/{guildId}/characters/sync returned an empty body");
+            $"POST /api/guild/{guildId}/characters/sync returned an empty body");
     }
 }

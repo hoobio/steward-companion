@@ -212,6 +212,66 @@ public sealed record CatalogueRecipe(
 public sealed record RecipeCatalogueResponse(
     [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> Catalogue);
 
+public sealed record DirectoryPerson(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("main_guid")] string? MainGuid);
+
+public sealed record DirectoryCharacter(
+    [property: JsonPropertyName("guid")] string CharacterGuid,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("level")] int Level,
+    [property: JsonPropertyName("class_id")] int ClassId,
+    [property: JsonPropertyName("linked_user_id")] string? LinkedUserId);
+
+public sealed record DirectorySkill(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("rank")] int Rank,
+    [property: JsonPropertyName("max_rank")] int MaxRank,
+    [property: JsonPropertyName("secondary")] bool Secondary);
+
+public sealed record DirectoryReagent(
+    [property: JsonPropertyName("item_id")] int? ItemId,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("count")] int? Count);
+
+public sealed record DirectoryRecipe(
+    [property: JsonPropertyName("recipe_id")] int RecipeId,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("difficulty")] string? Difficulty,
+    [property: JsonPropertyName("header")] string? Header,
+    [property: JsonPropertyName("item_id")] int? ItemId,
+    [property: JsonPropertyName("tools")] string? Tools,
+    [property: JsonPropertyName("reagents")] IReadOnlyList<DirectoryReagent>? Reagents);
+
+public sealed record DirectoryProfessions(
+    [property: JsonPropertyName("guid")] string CharacterGuid,
+    [property: JsonPropertyName("skills")] IReadOnlyList<DirectorySkill> Skills,
+    [property: JsonPropertyName("recipes")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Recipes);
+
+public sealed record GuildDirectory(
+    [property: JsonPropertyName("people")] IReadOnlyList<DirectoryPerson> People,
+    [property: JsonPropertyName("characters")] IReadOnlyList<DirectoryCharacter> Characters,
+    [property: JsonPropertyName("professions")] IReadOnlyList<DirectoryProfessions> Professions,
+    [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Catalogue);
+
+public static class GuildDirectoryMapping
+{
+    public static IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> ToCatalogue(GuildDirectory directory) =>
+        directory.Catalogue.ToDictionary(
+            kv => kv.Key,
+            kv => (IReadOnlyList<CatalogueRecipe>)[.. kv.Value.Select(ToCatalogueRecipe)],
+            StringComparer.Ordinal);
+
+    private static CatalogueRecipe ToCatalogueRecipe(DirectoryRecipe recipe) => new(
+        recipe.Name,
+        recipe.RecipeId,
+        recipe.Header,
+        recipe.ItemId,
+        recipe.Tools,
+        recipe.Reagents?.Select(r => new ProfessionReagent(r.Name, r.ItemId, r.Count)).ToList());
+}
+
 public sealed record CharacterSyncRejection(
     [property: JsonPropertyName("guid")] string CharacterGuid,
     [property: JsonPropertyName("reason")] string Reason);
@@ -321,5 +381,7 @@ public sealed record SyncPayload(
     public IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> Catalogue { get; init; } = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
 
     public SyncMe? Me { get; init; }
+
+    public GuildDirectory? Directory { get; init; }
 }
 

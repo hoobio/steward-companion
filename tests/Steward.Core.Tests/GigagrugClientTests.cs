@@ -202,4 +202,64 @@ public sealed class GigagrugClientTests
             () => client.PostCharacterSyncAsync("1", request, TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.BadRequest, exception.StatusCode);
     }
+
+    [Fact]
+    public async Task PostCharacterSyncAsync_PostsToTheMemberScopedRoute()
+    {
+        var (client, handler) = ClientFor(HttpStatusCode.OK, """{"accepted":1,"rejected":[]}""");
+        var request = new CharacterSyncRequest("batch-1", "1.0.0", []);
+
+        await client.PostCharacterSyncAsync("1", request, TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://api.example.com/guild/api/guild/1/characters/sync", handler.RequestUrl);
+    }
+
+    [Fact]
+    public async Task GetMeAsync_CallsTheTopLevelRoute()
+    {
+        var (client, handler) = ClientFor(HttpStatusCode.OK, """{"user":{"id":"1","name":"Hoobi"},"guilds":[]}""");
+
+        await client.GetMeAsync(CancellationToken.None);
+
+        Assert.Equal("https://api.example.com/guild/api/me", handler.RequestUrl);
+    }
+
+    private const string DirectoryBody =
+        """
+        {"people":[{"id":"1","name":"Hoobi","main_guid":"Player-4395-0A1B2C3D"}],
+        "characters":[{"guid":"Player-4395-0A1B2C3D","name":"Hoobi","level":60,"class_id":1,"linked_user_id":"1"}],
+        "professions":[{"guid":"Player-4395-0A1B2C3D","skills":[{"name":"Alchemy","rank":285,"max_rank":300,"secondary":false}],
+        "recipes":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","difficulty":"optimal","header":"Potions",
+        "item_id":13446,"tools":"","reagents":[{"item_id":13464,"name":"Golden Sansam","count":2}]}]}}],
+        "catalogue":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","header":"Potions","item_id":13446,
+        "tools":"","reagents":[]}]}}
+        """;
+
+    [Fact]
+    public async Task GetDirectoryAsync_Success_CallsTheGuildRouteAndDeserialises()
+    {
+        var (client, handler) = ClientFor(HttpStatusCode.OK, DirectoryBody);
+
+        var directory = await client.GetDirectoryAsync("1", CancellationToken.None);
+
+        Assert.Equal("https://api.example.com/guild/api/guild/1/directory", handler.RequestUrl);
+        var person = Assert.Single(directory.People);
+        Assert.Equal("Player-4395-0A1B2C3D", person.MainGuid);
+        var character = Assert.Single(directory.Characters);
+        Assert.Equal(60, character.Level);
+        var profession = Assert.Single(directory.Professions);
+        var recipe = Assert.Single(profession.Recipes["Alchemy"]);
+        Assert.Equal("optimal", recipe.Difficulty);
+        Assert.Null(Assert.Single(directory.Catalogue["Alchemy"]).Difficulty);
+    }
+
+    [Fact]
+    public async Task GetDirectoryAsync_Forbidden_ThrowsGigagrugRequestException()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.Forbidden, "{}");
+
+        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+            () => client.GetDirectoryAsync("1", CancellationToken.None));
+        Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
+    }
 }
