@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.13.0](https://github.com/hoobio/steward-companion/compare/v0.12.0...v0.13.0) (2026-09-27)
+
+
+### Features
+
+* ✨ add a Check for updates link to the sign-in gate footer ([38062cc](https://github.com/hoobio/steward-companion/commit/38062ccec9b380d5dd98dafcdda0fa4ce2e6c093))
+* ✨ add a diagnostic file log for sign-in, sync and event-stream failures ([f861c83](https://github.com/hoobio/steward-companion/commit/f861c830990bd18c103f58cdd67a91bf42502cc7))
+* ✨ add the guild roster and guild professions icons ([2458600](https://github.com/hoobio/steward-companion/commit/2458600ebd273aa0000a44c5a24e731de8366e12))
+* ✨ add the hoobiscripts flag as its own grantable addon feature ([d7c8300](https://github.com/hoobio/steward-companion/commit/d7c8300b89c977c70231ca5c99c1e08f91c1b41c))
+* ✨ cache addon icons on disk so rows paint at once on startup ([15a2b20](https://github.com/hoobio/steward-companion/commit/15a2b2029c1b8c08eb9f883b9a5a20f2d4e3d608))
+* ✨ carry a me identity and a professions integrity fingerprint through StewardSync.lua ([140bec0](https://github.com/hoobio/steward-companion/commit/140bec03db7f0114e46bb4f2c74717cf91f34768))
+* ✨ give a seatless sync holder a professions-only push ([6351480](https://github.com/hoobio/steward-companion/commit/63514804d2abe1cf8257aaf10aeab7a5d9d925bf))
+* ✨ let a professions-only push add new guild catalogue recipes ([5d9d630](https://github.com/hoobio/steward-companion/commit/5d9d630d7b1d02a4ecf1c9e38b717ca69f18a548))
+* ✨ list the characters a professions-only push covers on the Sync page ([9ff40a6](https://github.com/hoobio/steward-companion/commit/9ff40a65950069ca8bbe1bd7db23a5bf8737dbb7))
+* ✨ move onto gigagrug's member-scoped API and sync the guild directory ([c86834b](https://github.com/hoobio/steward-companion/commit/c86834be6cbe5b06acebfadbc841cdc7f96f5a74))
+* ✨ move to per-flag guild routes and gate steward/sync/roster/professions per guild ([a213246](https://github.com/hoobio/steward-companion/commit/a2132464c5f864969bf7f5390e8aee0c6c0e9c66))
+* ✨ pull guild data the moment gigagrug reports a change and push character exports as soon as the game writes them ([10b1ec9](https://github.com/hoobio/steward-companion/commit/10b1ec9de3ae4ee49e9abf140a5876b692c70109))
+* ✨ push only changed professions and show per-character sync state on the raider Sync page ([6725d4a](https://github.com/hoobio/steward-companion/commit/6725d4ae1c2b267c11d140341baefe9fe35caa03))
+* ✨ refetch banners live on the access event stream's bannersChanged frame ([a6f7d7c](https://github.com/hoobio/steward-companion/commit/a6f7d7ce5ffac737c9aac07e30c673d03b63ec9c))
+* ✨ send a Steward User-Agent on every gigagrug request ([28a83f1](https://github.com/hoobio/steward-companion/commit/28a83f1ef15507473c7e1f9d11f06d2808d3ecdb))
+* ✨ show a green tick on the Sync page roster row when it is in sync with the guild ([10b1ec9](https://github.com/hoobio/steward-companion/commit/10b1ec9de3ae4ee49e9abf140a5876b692c70109))
+* ✨ show a live-updates indicator in the title bar ([adb2596](https://github.com/hoobio/steward-companion/commit/adb2596ee504aa823924ef480adc9ee8c6fabb28))
+* ✨ show guild roster, guild professions and your characters rows on the raider Sync page ([00ee5a7](https://github.com/hoobio/steward-companion/commit/00ee5a72fc23aa8cfa0657e826212e9fd43b680b))
+* ✨ show server-driven banners from gigagrug on every page ([30b76fb](https://github.com/hoobio/steward-companion/commit/30b76fb4aebae2e7bbef03d8b7cd57d37cf966f7))
+* ✨ stream access changes to every signed-in user, not just officers ([85a947c](https://github.com/hoobio/steward-companion/commit/85a947ce8ae4f8b001ef7f6d448bf0fc3e2b7ac5))
+* ✨ write pinned character links into StewardSync.lua ([6dab464](https://github.com/hoobio/steward-companion/commit/6dab464e4040a5e6b2a31fff05585a01b16278f2))
+
+
+### Bug Fixes
+
+* 🐛 add a link and copy fallback to the Discord sign-in wait screen ([a6cf296](https://github.com/hoobio/steward-companion/commit/a6cf2969771f6bd2fba73d4f611a7912f2053ef9))
+* 🐛 align raider Sync row text to the card's right edge ([0d4715b](https://github.com/hoobio/steward-companion/commit/0d4715ba8a4d28543ec532aba638ba2f5c43abdd))
+* 🐛 do not record a replayed professions batch as every character synced ([a0399dd](https://github.com/hoobio/steward-companion/commit/a0399ddc4aa0c989221bfa66853d937fe2eacd28))
+* 🐛 drop the duplicate timestamp lines from officer Sync dataset rows ([c8731a7](https://github.com/hoobio/steward-companion/commit/c8731a74294743af37c6bb82f81c9b8873e00a9c))
+* 🐛 forward a reagent without a name so the catalogue fingerprint matches ([6b55768](https://github.com/hoobio/steward-companion/commit/6b557683152f1a2d3b24fd6f09295fce7548f9f5))
+* 🐛 give a throttled character-sync push its own retry message ([1f87313](https://github.com/hoobio/steward-companion/commit/1f87313e4f56bf6ee271721c49c8e95338febd72))
+* 🐛 hide the WoW-running banner on the Sync page once data is exported after the current session ([10b1ec9](https://github.com/hoobio/steward-companion/commit/10b1ec9de3ae4ee49e9abf140a5876b692c70109))
+* 🐛 keep a completed Discord sign-in and show sign-in errors on the gate ([9000b1b](https://github.com/hoobio/steward-companion/commit/9000b1b5334a07ff8c39a1bd18166125ef016561))
+* 🐛 keep rejected characters reading as not accepted on the raider Sync page ([6214348](https://github.com/hoobio/steward-companion/commit/6214348076eefc7b4028b9becc118f4de8c4c5f3))
+* 🐛 make Write again pull and rewrite the guild data file for every user ([5f8c95a](https://github.com/hoobio/steward-companion/commit/5f8c95a2d8c27d4e8df0afe49087806389500811))
+* 🐛 open the Microsoft Store updates page from Check for a new version ([10b1ec9](https://github.com/hoobio/steward-companion/commit/10b1ec9de3ae4ee49e9abf140a5876b692c70109))
+* 🐛 rewrite StewardSync.lua when the file on disk is not the one last written ([4fac5c4](https://github.com/hoobio/steward-companion/commit/4fac5c43d129a1b8e024fa6085f64c90518a7c27))
+* 🐛 show per-character sync outcomes on the raider Sync page ([8592439](https://github.com/hoobio/steward-companion/commit/8592439f77fb03ff5cbef8180d40787079283685))
+* 🐛 show the Addons page banner only when updates are available ([10b1ec9](https://github.com/hoobio/steward-companion/commit/10b1ec9de3ae4ee49e9abf140a5876b692c70109))
+* 🐛 use the Forever professions portrait for the Sync professions tile ([e2dd556](https://github.com/hoobio/steward-companion/commit/e2dd5561f19cb5e2fd3e55395f6f3791bedb000d))
+* 🐛 write character links as a top-level StewardSync.lua key ([f7a1ccd](https://github.com/hoobio/steward-companion/commit/f7a1ccd7e92035c5add508210b1de45d14a9c869))
+
 ## [0.12.0](https://github.com/hoobio/steward-companion/compare/v0.11.0...v0.12.0) (2026-09-26)
 
 
