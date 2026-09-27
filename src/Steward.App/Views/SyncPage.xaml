@@ -72,8 +72,6 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" MinWidth="96" />
                     <ColumnDefinition Width="Auto" MinWidth="80" />
-                    <ColumnDefinition Width="Auto" MinWidth="88" />
-                    <ColumnDefinition Width="Auto" MinWidth="60" />
                 </Grid.ColumnDefinitions>
 
                 <Border
@@ -95,25 +93,13 @@
 
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind Name}" FontSize="13.5" FontWeight="SemiBold" />
-                    <TextBlock
-                        Text="{x:Bind SourceFile, Mode=OneWay}"
-                        FontFamily="Cascadia Mono"
-                        FontSize="11.5"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon
-                            Glyph="&#xE73E;"
-                            FontSize="12"
-                            VerticalAlignment="Center"
-                            Foreground="{ThemeResource SystemFillColorSuccessBrush}"
-                            ToolTipService.ToolTip="In sync with the guild"
-                            Visibility="{x:Bind SyncedGlyphVisibility, Mode=OneWay}" />
-                        <TextBlock
-                            Text="{x:Bind CharacterSync.LastPushText, Mode=OneWay, FallbackValue=''}"
-                            FontSize="12"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Visibility="{x:Bind CharacterSyncVisibility, Mode=OneWay}" />
-                    </StackPanel>
+                    <FontIcon
+                        Glyph="&#xE73E;"
+                        FontSize="12"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                        ToolTipService.ToolTip="In sync with the guild"
+                        Visibility="{x:Bind SyncedGlyphVisibility, Mode=OneWay}" />
                     <TextBlock
                         Text="{x:Bind CharacterSync.Error, Mode=OneWay, FallbackValue=''}"
                         TextWrapping="Wrap"
@@ -152,17 +138,8 @@
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Visibility="{x:Bind RecordsVisibility, Mode=OneWay}" />
 
-                <TextBlock
-                    Grid.Column="4"
-                    VerticalAlignment="Center"
-                    Text="{x:Bind ExportedAtText, Mode=OneWay}"
-                    FontSize="12"
-                    TextAlignment="Right"
-                    Foreground="{x:Bind ExportedAtBrush, Mode=OneWay}"
-                    Visibility="{x:Bind ExportedAtVisibility, Mode=OneWay}" />
-
                 <Border
-                    Grid.Column="5"
+                    Grid.Column="3"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
                     CornerRadius="4"
