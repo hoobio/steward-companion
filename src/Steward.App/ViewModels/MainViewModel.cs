@@ -32,6 +32,7 @@ public enum GateFailure
     SessionExpired,
     Unreachable,
     NotAuthorized,
+    SignInFailed,
 }
 
 public enum LiveUpdatesState
@@ -183,9 +184,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
         SavedVariablesChanged = Sync.ReloadAsync;
         AfterStewardInstalled = _ => HasStewardFeature ? Sync.WriteGeneratedFileAsync() : WriteMeAfterInstallAsync();
-
-        _sessionService.PendingSignInUrlChanged += url => PendingSignInUrl = url;
-        _sessionService.BrowserLaunchAttempted += opened => BrowserOpenFailed = !opened;
     }
 
     private Task WriteMeAfterInstallAsync()
@@ -269,7 +267,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string? CopyLinkStatus { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(NotAuthorizedVisibility), nameof(IsApiReachable), nameof(RetryVisibility))]
+    public partial string? SignInError { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(NotAuthorizedVisibility), nameof(SignInFailedVisibility), nameof(IsApiReachable), nameof(RetryVisibility))]
     public partial GateFailure Failure { get; set; }
 
     [ObservableProperty]
@@ -446,6 +447,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility NotAuthorizedVisibility => When(Failure == GateFailure.NotAuthorized);
 
+    public Visibility SignInFailedVisibility => When(Failure == GateFailure.SignInFailed);
+
     public bool IsApiReachable => Failure != GateFailure.Unreachable;
 
     public Visibility LiveUpdatesVisibility => When(LiveUpdatesState != LiveUpdatesState.Hidden);
@@ -595,7 +598,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _signInCts = new CancellationTokenSource();
         try
         {
-            await _sessionService.SignInAsync(_signInCts.Token);
+            await _sessionService.SignInAsync(new Progress<string>(OpenSignInUrl), _signInCts.Token);
             IsSignedIn = true;
             await LoadAsync(CancellationToken.None);
         }
@@ -610,12 +613,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             Failure = GateFailure.Unreachable;
         }
+        catch (Exception ex) when (!IsSignedIn)
+        {
+            SignInError = $"Sign-in failed: {ex.Message}";
+            Failure = GateFailure.SignInFailed;
+        }
         catch (Exception ex)
         {
             StatusMessage = ex.Message;
         }
         finally
         {
+            PendingSignInUrl = null;
             IsSigningIn = false;
             _signInCts.Dispose();
             _signInCts = null;
@@ -627,8 +636,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void CancelSignIn() => _signInCts?.Cancel();
 
+    private void OpenSignInUrl(string url)
+    {
+        PendingSignInUrl = url;
+        OpenBrowserAgain();
+    }
+
     [RelayCommand(CanExecute = nameof(HasPendingSignInUrl))]
-    private void OpenBrowserAgain() => _sessionService.TryOpenPendingSignInUrl();
+    private void OpenBrowserAgain() =>
+        BrowserOpenFailed = PendingSignInUrl is { } url && !_sessionService.TryOpenBrowser(url);
 
     [RelayCommand(CanExecute = nameof(HasPendingSignInUrl))]
     private async Task CopyLinkAsync()

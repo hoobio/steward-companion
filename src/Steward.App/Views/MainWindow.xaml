@@ -230,6 +230,14 @@
                     Severity="Error"
                     CornerRadius="8"
                     HorizontalAlignment="Center"
+                    Visibility="{x:Bind ViewModel.SignInFailedVisibility, Mode=OneWay}"
+                    Message="{x:Bind ViewModel.SignInError, Mode=OneWay}" />
+                <InfoBar
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Error"
+                    CornerRadius="8"
+                    HorizontalAlignment="Center"
                     Visibility="{x:Bind ViewModel.UnreachableVisibility, Mode=OneWay}"
                     Message="Could not reach api.hoobi.io. Check your connection.">
                     <InfoBar.ActionButton>
@@ -275,12 +283,17 @@
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Stretch">
                         <TextBox
+                            x:Name="SignInUrlBox"
                             Text="{x:Bind ViewModel.PendingSignInUrl, Mode=OneWay}"
                             IsReadOnly="True"
                             FontFamily="Consolas"
                             FontSize="12"
                             BorderThickness="0"
                             CornerRadius="4"
+                            MinHeight="0"
+                            Padding="10,8"
+                            VerticalAlignment="Center"
+                            GotFocus="SelectAllSignInUrl"
                             Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                             HorizontalAlignment="Stretch" />
                         <Button Content="Copy link" Command="{x:Bind ViewModel.CopyLinkCommand}" />

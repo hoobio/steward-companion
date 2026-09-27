@@ -92,31 +92,18 @@ public sealed class SessionService : ISessionService
         }
     }
 
-    public event Action<string?>? PendingSignInUrlChanged;
-
-    public event Action<bool>? BrowserLaunchAttempted;
-
-    public string? PendingSignInUrl { get; private set; }
-
-    public bool TryOpenPendingSignInUrl() =>
-        PendingSignInUrl is { } url && TryLaunchBrowser(url);
-
-    private bool TryLaunchBrowser(string url)
+    public bool TryOpenBrowser(string url)
     {
-        bool opened;
         try
         {
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
-            opened = true;
+            return true;
         }
         catch (Exception)
         {
             // a picker with no default https handler throws different exception types per OS state, seen live with Hurl
-            opened = false;
+            return false;
         }
-
-        BrowserLaunchAttempted?.Invoke(opened);
-        return opened;
     }
 
     public void ClearSession()
@@ -130,7 +117,7 @@ public sealed class SessionService : ISessionService
         }
     }
 
-    public async Task SignInAsync(CancellationToken cancellationToken)
+    public async Task SignInAsync(IProgress<string> signInUrl, CancellationToken cancellationToken)
     {
         var verifier = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
         var challenge = Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
@@ -142,15 +129,17 @@ public sealed class SessionService : ISessionService
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(SignInTimeout);
 
-        var url = $"{_baseUrl}/api/auth/desktop?challenge={challenge}&port={port}";
-        PendingSignInUrl = url;
-        PendingSignInUrlChanged?.Invoke(url);
-        TryLaunchBrowser(url);
+        // IProgress posts to the caller's UI thread; a view-model event raised after the thread-pool await threw RPC_E_WRONG_THREAD and discarded a completed sign-in (a6cf296).
+        signInUrl.Report($"{_baseUrl}/api/auth/desktop?challenge={challenge}&port={port}");
 
         string token;
         try
         {
-            token = await WaitForTokenAsync(listener, verifier, timeout.Token).ConfigureAwait(false);
+            token = await LoopbackCallback.WaitForTokenAsync(
+                listener,
+                CallbackBody,
+                (code, ct) => _gigagrugClient.ExchangeDesktopCodeAsync(code, verifier, ct),
+                timeout.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -159,8 +148,6 @@ public sealed class SessionService : ISessionService
         finally
         {
             listener.Stop();
-            PendingSignInUrl = null;
-            PendingSignInUrlChanged?.Invoke(null);
         }
 
         _cookieContainer.Add(new Uri(_baseUrl), new Cookie(SessionCookieName, token));
@@ -169,51 +156,5 @@ public sealed class SessionService : ISessionService
             Encoding.UTF8.GetBytes(token), null, DataProtectionScope.CurrentUser);
         var state = _stateStore.Load();
         _stateStore.Save(state with { EncryptedSessionToken = Convert.ToBase64String(protectedToken) });
-    }
-
-    private async Task<string> WaitForTokenAsync(
-        TcpListener listener,
-        string verifier,
-        CancellationToken cancellationToken)
-    {
-        while (true)
-        {
-            using var client = await listener.AcceptTcpClientAsync(cancellationToken).ConfigureAwait(false);
-            var requestLine = await RespondAsync(client, cancellationToken).ConfigureAwait(false);
-
-            if (!LoopbackCallback.TryReadCode(requestLine, out var code))
-            {
-                continue;
-            }
-
-            try
-            {
-                return await _gigagrugClient
-                    .ExchangeDesktopCodeAsync(code, verifier, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (InvalidOperationException)
-            {
-            }
-        }
-    }
-
-    private static async Task<string?> RespondAsync(TcpClient client, CancellationToken cancellationToken)
-    {
-        var stream = client.GetStream();
-        using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
-        var requestLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-
-        var response =
-            "HTTP/1.1 200 OK\r\n" +
-            "Content-Type: text/html; charset=utf-8\r\n" +
-            $"Content-Length: {Encoding.UTF8.GetByteCount(CallbackBody)}\r\n" +
-            "Connection: close\r\n" +
-            "\r\n" +
-            CallbackBody;
-        await stream.WriteAsync(Encoding.UTF8.GetBytes(response), cancellationToken).ConfigureAwait(false);
-        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-
-        return requestLine;
     }
 }

@@ -2,15 +2,11 @@ namespace Steward.App.Services;
 
 public interface ISessionService
 {
-    event Action<string?>? PendingSignInUrlChanged;
-
-    event Action<bool>? BrowserLaunchAttempted;
-
     bool TryRestoreSession();
 
-    Task SignInAsync(CancellationToken cancellationToken);
+    Task SignInAsync(IProgress<string> signInUrl, CancellationToken cancellationToken);
 
-    bool TryOpenPendingSignInUrl();
+    bool TryOpenBrowser(string url);
 
     void ClearSession();
 }

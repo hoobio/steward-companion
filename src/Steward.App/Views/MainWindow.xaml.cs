@@ -62,9 +62,13 @@ public sealed partial class MainWindow : Window
         TrayIcon.ForceCreate();
         AppWindow.Closing += OnWindowClosing;
         AppWindow.Changed += OnWindowChanged;
+        // TextBox handles the tap itself to place the caret, which would clear a selection made on focus.
+        SignInUrlBox.AddHandler(UIElement.TappedEvent, new Microsoft.UI.Xaml.Input.TappedEventHandler(SelectAllSignInUrl), true);
     }
 
     public MainViewModel ViewModel { get; }
+
+    private void SelectAllSignInUrl(object sender, RoutedEventArgs e) => SignInUrlBox.SelectAll();
 
     private void OnNavSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
