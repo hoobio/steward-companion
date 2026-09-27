@@ -1,0 +1,58 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+
+using Steward.Core;
+
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+
+namespace Steward.App.Services;
+
+public static class AddonIcon
+{
+    private static readonly HttpClient HttpClient = new();
+    private static readonly ConcurrentDictionary<string, Task> Refreshes = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly string CacheFolder = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward", "icons");
+
+    public static ImageSource For(ManagedAddon addon)
+    {
+        ArgumentNullException.ThrowIfNull(addon);
+
+        var path = Path.Combine(CacheFolder, $"{addon.Id}.png");
+        Refreshes.GetOrAdd(addon.Id, _ => Task.Run(() => RefreshAsync(addon.IconUri, path)));
+
+        try
+        {
+            var bitmap = new BitmapImage();
+            bitmap.SetSource(new MemoryStream(File.ReadAllBytes(path)).AsRandomAccessStream());
+            return bitmap;
+        }
+        catch (IOException)
+        {
+            return new BitmapImage(addon.IconUri);
+        }
+    }
+
+    private static async Task RefreshAsync(Uri source, string path)
+    {
+        try
+        {
+            using var response = await HttpClient.GetAsync(source).ConfigureAwait(false);
+            // A Static Web App fallback answers a missing path with index.html and a 200.
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentType?.MediaType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) != true)
+            {
+                return;
+            }
+
+            Directory.CreateDirectory(CacheFolder);
+            var temp = path + ".tmp";
+            await File.WriteAllBytesAsync(temp, await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            File.Move(temp, path, overwrite: true);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or UnauthorizedAccessException)
+        {
+            Debug.WriteLine($"Icon refresh for {source} failed: {ex.Message}");
+        }
+    }
+}

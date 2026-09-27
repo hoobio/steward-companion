@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
+using Steward.App.Services;
 using Steward.Core;
 
 using Microsoft.UI.Xaml;
@@ -24,7 +25,7 @@ public sealed partial class AddonChannelViewModel : ObservableObject
         _addon = addon;
         _stateStore = stateStore;
         _channelChanged = channelChanged;
-        Icon = new BitmapImage(addon.IconUri);
+        Icon = AddonIcon.For(addon);
         SelectedIndex = -1;
     }
 

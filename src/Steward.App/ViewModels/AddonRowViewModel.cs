@@ -4,6 +4,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
+using Steward.App.Services;
 using Steward.Core;
 
 using Microsoft.UI.Xaml;
@@ -86,7 +87,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         _ensureAuthorized = ensureAuthorized;
         _changeChannelRequested = changeChannelRequested;
         _afterStewardInstalled = afterStewardInstalled;
-        Icon = new BitmapImage(addon.IconUri);
+        Icon = AddonIcon.For(addon);
         IsHidden = stateStore.Load().HiddenAddons.Contains(addon.Id, StringComparer.OrdinalIgnoreCase);
         RefreshInstalledVersion();
     }
