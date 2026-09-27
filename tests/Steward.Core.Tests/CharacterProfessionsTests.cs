@@ -124,6 +124,52 @@ public sealed class CharacterProfessionsTests
     }
 
     [Fact]
+    public void CharacterSyncRequest_SerialisesCatalogueFp_WhenPresent()
+    {
+        var request = new CharacterSyncRequest("batch-1", "1.0.0", [], new Dictionary<string, ProfessionCatalogue>
+        {
+            ["Alchemy"] = new ProfessionCatalogue(null, null, "a1b2c3d4"),
+        });
+
+        var json = JsonSerializer.Serialize(request, CompanionJsonContext.Default.CharacterSyncRequest);
+        using var doc = JsonDocument.Parse(json);
+
+        Assert.Equal("a1b2c3d4", doc.RootElement.GetProperty("catalogue").GetProperty("Alchemy").GetProperty("fp").GetString());
+    }
+
+    [Fact]
+    public void CharacterSyncRequest_OmitsCatalogueFp_WhenAbsent()
+    {
+        var request = new CharacterSyncRequest("batch-1", "1.0.0", [], new Dictionary<string, ProfessionCatalogue>
+        {
+            ["Alchemy"] = new ProfessionCatalogue(null, null),
+        });
+
+        var json = JsonSerializer.Serialize(request, CompanionJsonContext.Default.CharacterSyncRequest);
+        using var doc = JsonDocument.Parse(json);
+
+        Assert.False(doc.RootElement.GetProperty("catalogue").GetProperty("Alchemy").TryGetProperty("fp", out _));
+    }
+
+    [Fact]
+    public void Fingerprint_ChangesWhenCatalogueFpChanges()
+    {
+        var observation = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, null, false, null);
+        var professions = new Dictionary<string, CharacterProfessions>
+        {
+            ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null),
+        };
+
+        var withOneFp = CharacterSyncMapping.Fingerprint(
+            [observation], professions, new Dictionary<string, ProfessionCatalogue> { ["Alchemy"] = new ProfessionCatalogue(null, null, "a1b2c3d4") });
+        var withAnotherFp = CharacterSyncMapping.Fingerprint(
+            [observation], professions, new Dictionary<string, ProfessionCatalogue> { ["Alchemy"] = new ProfessionCatalogue(null, null, "deadbeef") });
+
+        Assert.NotEqual(withOneFp, withAnotherFp);
+    }
+
+    [Fact]
     public void ToEntry_AttachesProfessions_ByMatchingGuid()
     {
         var observation = new CharacterObservation(

@@ -199,7 +199,8 @@ public sealed record GuildRanksSync(
 
 public sealed record ProfessionCatalogue(
     [property: JsonPropertyName("scannedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ScannedAt,
-    [property: JsonPropertyName("list"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<CatalogueRecipe>? List);
+    [property: JsonPropertyName("list"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<CatalogueRecipe>? List,
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null);
 
 public sealed record CatalogueRecipe(
     [property: JsonPropertyName("name")] string Name,

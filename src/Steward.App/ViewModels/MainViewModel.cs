@@ -1349,7 +1349,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             : professionsOnly ? CharacterSyncMapping.FilterToProfessionsOnly(snapshot)
             : snapshot.Characters;
         var fingerprint = snapshot is not { HasAccountData: true } ? null
-            : professionsOnly ? CharacterSyncMapping.Fingerprint(characters, snapshot.Professions)
+            : professionsOnly ? CharacterSyncMapping.Fingerprint(characters, snapshot.Professions, snapshot.Catalogue)
             : snapshot.CharactersFingerprint;
         var state = _stateStore.Load();
         if (fingerprint is null)
@@ -1377,7 +1377,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             batchId,
             InstalledVersion,
             [.. characters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot!.Professions))],
-            professionsOnly ? null : snapshot!.Catalogue.Count == 0 ? null : snapshot.Catalogue,
+            snapshot!.Catalogue.Count == 0 ? null : snapshot.Catalogue,
             professionsOnly || snapshot!.GuildRanks is null ? null : CharacterSyncMapping.ToSync(snapshot.GuildRanks));
 
         try

@@ -474,6 +474,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["catalogue"] = {
             ["Alchemy"] = {
                 ["scannedAt"] = 1758260000,
+                ["fp"] = "a1b2c3d4",
                 ["list"] = {
                 { ["recipeId"] = 11460, ["name"] = "Major Healing Potion", ["header"] = "Potions", ["itemId"] = 13446,
                   ["tools"] = "", ["reagents"] = { { ["itemId"] = 13464, ["name"] = "Golden Sansam", ["count"] = 2 } } },
@@ -486,6 +487,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal(0, snapshot.Skipped);
         var alchemy = snapshot.Catalogue["Alchemy"];
         Assert.Equal(1758260000, alchemy.ScannedAt);
+        Assert.Equal("a1b2c3d4", alchemy.Fp);
         var recipe = Assert.Single(alchemy.List!);
         Assert.Equal(11460, recipe.RecipeId);
         Assert.Equal("Major Healing Potion", recipe.Name);

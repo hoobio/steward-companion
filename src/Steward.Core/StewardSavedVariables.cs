@@ -480,7 +480,8 @@ public static class StewardSavedVariables
 
     private static ProfessionCatalogue MapCatalogue(LuaValue value, ref int skipped) => new(
         ToNullableLong(value.GetNumber("scannedAt")),
-        MapCatalogueRecipeList(value.GetTable("list"), ref skipped));
+        MapCatalogueRecipeList(value.GetTable("list"), ref skipped),
+        value.GetString("fp"));
 
     private static List<CatalogueRecipe>? MapCatalogueRecipeList(LuaValue? table, ref int skipped)
     {
