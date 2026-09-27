@@ -173,7 +173,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             StateChanged = () => OnPropertyChanged(nameof(SyncBadgeVisibility)),
         };
         SavedVariablesChanged = Sync.ReloadAsync;
-        AfterStewardInstalled = _ => Sync.WriteGeneratedFileAsync();
+        AfterStewardInstalled = _ => HasStewardFeature ? Sync.WriteGeneratedFileAsync() : WriteMeAfterInstallAsync();
+    }
+
+    private Task WriteMeAfterInstallAsync()
+    {
+        if (IsSignedIn && _userId is { } userId)
+        {
+            WriteMe(Installs.Select(install => install.Install), new SyncMe(userId, Role, [.. _features]));
+        }
+
+        return Task.CompletedTask;
     }
 
     public SyncViewModel Sync { get; }
@@ -1374,8 +1384,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             && state.CharacterSync.GetValueOrDefault(key)?.Error is null;
 
         return pushedUp
-            && state.GuildRosterSync.ContainsKey(flavourPath)
-            && File.Exists(StewardSyncFile.PathFor(addOnsPath));
+            && state.GuildRosterSync.TryGetValue(flavourPath, out var written)
+            && written == StewardSyncFile.ReadFingerprint(addOnsPath);
     }
 
     public IReadOnlyDictionary<string, CharacterPushOutcome> GetCharacterOutcomes(string flavourPath)

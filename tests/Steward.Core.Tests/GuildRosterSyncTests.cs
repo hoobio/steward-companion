@@ -117,6 +117,61 @@ public sealed class GuildRosterSyncTests : IDisposable
     }
 
     [Fact]
+    public void WriteIfChanged_Rewrites_WhenAnAddonUpdateLeftThePlaceholder()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        var target = StewardSyncFile.PathFor(install.AddOnsPath);
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore));
+        File.WriteAllText(target, """Steward.LoadSync({ ["writtenAt"] = 0, ["members"] = {}, ["discord"] = {} })""");
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore));
+        Assert.Equal(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.ReadFingerprint(install.AddOnsPath));
+    }
+
+    [Fact]
+    public void WriteIfChanged_Skips_WhenTheFileCarriesTheMatchingFingerprint()
+    {
+        var install = InstallAddon();
+        StewardSyncFile.Write(install.AddOnsPath, SamplePayload());
+        var first = File.ReadAllText(StewardSyncFile.PathFor(install.AddOnsPath));
+
+        Assert.False(GuildRosterSync.WriteIfChanged(install, SamplePayload(), new AppStateStore(["steward"], StatePath)));
+        Assert.Equal(first, File.ReadAllText(StewardSyncFile.PathFor(install.AddOnsPath)));
+    }
+
+    [Fact]
+    public void WriteIfChanged_Rewrites_WhenTheFileCarriesAStaleFingerprint()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        StewardSyncFile.Write(install.AddOnsPath, SamplePayload() with { Discord = [] });
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore));
+        Assert.Equal(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.ReadFingerprint(install.AddOnsPath));
+    }
+
+    [Fact]
+    public void WriteIfChanged_Rewrites_WhenTheFileIsUnreadable()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        File.WriteAllBytes(StewardSyncFile.PathFor(install.AddOnsPath), [0xFF, 0xFE, 0x00, 0x5B, 0x22]);
+
+        Assert.True(GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore));
+        Assert.Equal(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.ReadFingerprint(install.AddOnsPath));
+    }
+
+    [Fact]
+    public void ReadFingerprint_IsNull_WhenTheFileIsMissing()
+    {
+        var install = InstallAddon();
+
+        Assert.Null(StewardSyncFile.ReadFingerprint(install.AddOnsPath));
+    }
+
+    [Fact]
     public void WriteIfChanged_Rewrites_WhenTheRosterChanges()
     {
         var install = InstallAddon();

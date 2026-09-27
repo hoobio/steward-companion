@@ -132,6 +132,21 @@ public sealed class StewardGuidesAddonTests : IDisposable
     }
 
     [Fact]
+    public void Write_Rewrites_WhenOnlyTheTocOrIconIsStale()
+    {
+        var addOnsPath = InstallRxpGuides();
+        Assert.Equal(1, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1));
+
+        InstallRxpGuides("11510");
+        Assert.Equal(2, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2));
+        Assert.Contains("## Interface: 11510", File.ReadAllText(Path.Combine(addOnsPath, "StewardGuides", "StewardGuides.toc")), StringComparison.Ordinal);
+
+        File.Delete(Path.Combine(addOnsPath, "StewardGuides", "Icon.tga"));
+        Assert.Equal(3, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 3));
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "StewardGuides", "Icon.tga")));
+    }
+
+    [Fact]
     public void Write_Throws_WhenTheFolderIsNotOurs()
     {
         var addOnsPath = InstallRxpGuides();

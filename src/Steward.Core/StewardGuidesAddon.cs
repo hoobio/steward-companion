@@ -214,11 +214,6 @@ public static partial class StewardGuidesAddon
     public static long Write(string addOnsPath, IReadOnlyList<(string Name, string Text, string? Tag)> guides, long generation)
     {
         var lua = Render(guides, generation);
-        if (ExistingGeneration(Path.Combine(addOnsPath, FolderName, "Guides.lua"), lua) is { } unchanged)
-        {
-            return unchanged;
-        }
-
         var rxpTocPath = Path.Combine(addOnsPath, "RXPGuides", "RXPGuides.toc");
         var toc = Toc(TocFile.ReadDirective(rxpTocPath, "Interface")
             ?? throw new InvalidOperationException($"{rxpTocPath} has no ## Interface line; RXPGuides must be installed first"));
@@ -228,6 +223,11 @@ public static partial class StewardGuidesAddon
             .Contains("WTF", StringComparer.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException($"refusing to write a path containing a WTF segment: {folder}");
+        }
+
+        if (ExistingGeneration(folder, toc, lua) is { } unchanged)
+        {
+            return unchanged;
         }
 
         if (Directory.Exists(folder))
@@ -248,9 +248,14 @@ public static partial class StewardGuidesAddon
         return generation;
     }
 
-    private static long? ExistingGeneration(string guidesPath, string rendered)
+    private static long? ExistingGeneration(string folder, string toc, string rendered)
     {
-        if (!File.Exists(guidesPath))
+        var guidesPath = Path.Combine(folder, "Guides.lua");
+        var tocPath = Path.Combine(folder, $"{FolderName}.toc");
+        var iconPath = Path.Combine(folder, "Icon.tga");
+        if (!File.Exists(guidesPath) || !File.Exists(tocPath) || !File.Exists(iconPath)
+            || !string.Equals(File.ReadAllText(tocPath), toc, StringComparison.Ordinal)
+            || !File.ReadAllBytes(iconPath).AsSpan().SequenceEqual(Icon()))
         {
             return null;
         }

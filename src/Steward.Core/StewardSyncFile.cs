@@ -18,12 +18,37 @@ public static class StewardSyncFile
     public static string AvatarPathFor(string addOnsPath) =>
         Path.Combine(addOnsPath, StewardSavedVariables.AddonName, AvatarFileName);
 
-    public static string Render(SyncPayload payload, bool withAvatar = false) =>
-        "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload, withAvatar)) + ")" + Environment.NewLine;
+    private const string FingerprintKey = "[\"fingerprint\"] = \"";
+
+    public static string Render(SyncPayload payload, bool withAvatar = false, string? fingerprint = null) =>
+        "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload, withAvatar, fingerprint)) + ")" + Environment.NewLine;
 
     public static string Fingerprint(SyncPayload payload) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }) + payload.Avatar?.SourceUrl)));
+
+    public static string? ReadFingerprint(string addOnsPath)
+    {
+        try
+        {
+            using var reader = new StreamReader(PathFor(addOnsPath), Encoding.UTF8);
+            var buffer = new char[512];
+            var head = new string(buffer, 0, reader.ReadBlock(buffer));
+            var start = head.IndexOf(FingerprintKey, StringComparison.Ordinal);
+            if (start < 0)
+            {
+                return null;
+            }
+
+            start += FingerprintKey.Length;
+            var end = head.IndexOf('"', start);
+            return end < 0 ? null : head[start..end];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     public static void Write(string addOnsPath, SyncPayload payload)
     {
@@ -37,7 +62,7 @@ public static class StewardSyncFile
         }
 
         var wroteAvatar = TryWriteAvatar(addOnsPath, payload.Avatar);
-        WriteGuarded(addOnsPath, FileName, Encoding.UTF8.GetBytes(Render(payload, wroteAvatar)));
+        WriteGuarded(addOnsPath, FileName, Encoding.UTF8.GetBytes(Render(payload, wroteAvatar, Fingerprint(payload))));
     }
 
     private static bool TryWriteAvatar(string addOnsPath, AvatarImage? avatar)
@@ -80,12 +105,17 @@ public static class StewardSyncFile
         File.Move(tempPath, target, overwrite: true);
     }
 
-    private static LuaValue ToLua(SyncPayload payload, bool withAvatar)
+    private static LuaValue ToLua(SyncPayload payload, bool withAvatar, string? fingerprint)
     {
         var entries = new List<LuaEntry>
         {
             new(LuaValue.FromString("writtenAt"), LuaValue.FromNumber(payload.WrittenAt.ToUnixTimeSeconds())),
         };
+
+        if (fingerprint is not null)
+        {
+            entries.Add(new(LuaValue.FromString("fingerprint"), LuaValue.FromString(fingerprint)));
+        }
 
         if (payload.ExportedAt is { } exportedAt)
         {
