@@ -317,6 +317,59 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Equal("111", character.GetString("linkedUserId"));
 
         Assert.Null(table.GetTable("professions"));
+
+        var links = table.GetTable("links")!;
+        Assert.Equal("111", links.GetString("Player-4395-0A1B2C3D"));
+    }
+
+    [Fact]
+    public void Render_OmitsAnUnlinkedCharacterFromLinks_ButStillWritesTheTable()
+    {
+        var directory = new SyncDirectory(
+            [new DirectoryPerson("111", "Hoobi", "Player-4395-0A1B2C3D")],
+            [
+                new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "111"),
+                new DirectoryCharacter("Player-9999-0A1B2C3D", "Grug", 60, 2, null),
+            ],
+            null);
+        var payload = SamplePayload() with { Directory = directory };
+        var rendered = StewardSyncFile.Render(payload);
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var links = LuaSavedVariables.Parse(asAssignment)["X"].GetTable("directory")!.GetTable("links")!;
+
+        Assert.Equal("111", links.GetString("Player-4395-0A1B2C3D"));
+        Assert.Null(links.GetString("Player-9999-0A1B2C3D"));
+    }
+
+    [Fact]
+    public void Render_OmitsTheLinksTable_WhenNoRosterWasPulled()
+    {
+        var directory = new SyncDirectory(null, null, [SampleProfessions()]);
+        var payload = SamplePayload() with { Directory = directory };
+        var rendered = StewardSyncFile.Render(payload);
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"].GetTable("directory")!;
+
+        Assert.Null(table.GetTable("links"));
+    }
+
+    [Fact]
+    public void Fingerprint_Changes_WhenACharacterLinkChanges()
+    {
+        var linked = new SyncDirectory(
+            [new DirectoryPerson("111", "Hoobi", "Player-4395-0A1B2C3D")],
+            [new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "111")],
+            null);
+        var unlinked = linked with { Characters = [linked.Characters![0] with { LinkedUserId = null }] };
+
+        var linkedFingerprint = StewardSyncFile.Fingerprint(SamplePayload() with { Directory = linked });
+        var unlinkedFingerprint = StewardSyncFile.Fingerprint(SamplePayload() with { Directory = unlinked });
+
+        Assert.NotEqual(linkedFingerprint, unlinkedFingerprint);
     }
 
     [Fact]
