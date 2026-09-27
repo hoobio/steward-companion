@@ -93,13 +93,17 @@
 
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                     <TextBlock Text="{x:Bind Name}" FontSize="13.5" FontWeight="SemiBold" />
-                    <FontIcon
-                        Glyph="&#xE73E;"
-                        FontSize="12"
-                        VerticalAlignment="Center"
-                        Foreground="{ThemeResource SystemFillColorSuccessBrush}"
-                        ToolTipService.ToolTip="In sync with the guild"
-                        Visibility="{x:Bind SyncedGlyphVisibility, Mode=OneWay}" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind SyncedGlyphVisibility, Mode=OneWay}">
+                        <FontIcon
+                            Glyph="&#xE73E;"
+                            FontSize="12"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                        <TextBlock
+                            Text="In sync with the guild"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
                     <TextBlock
                         Text="{x:Bind CharacterSync.Error, Mode=OneWay, FallbackValue=''}"
                         TextWrapping="Wrap"
