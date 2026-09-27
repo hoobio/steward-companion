@@ -269,25 +269,18 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Null(table.GetTable("me")!.GetString("role"));
     }
 
-    private static GuildDirectory SampleDirectory() => new(
-        [new DirectoryPerson("111", "Hoobi", "Player-4395-0A1B2C3D")],
-        [new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "111")],
-        [
-            new DirectoryProfessions(
-                "Player-4395-0A1B2C3D",
-                [new DirectorySkill("Alchemy", 285, 300, false)],
-                new Dictionary<string, IReadOnlyList<DirectoryRecipe>>
-                {
-                    ["Alchemy"] =
-                    [
-                        new DirectoryRecipe(11460, "Major Healing Potion", "optimal", "Potions", 13446, string.Empty,
-                            [new DirectoryReagent(13464, "Golden Sansam", 2)]),
-                    ],
-                }),
-        ],
+    private static DirectoryProfessions SampleProfessions() => new(
+        "Player-4395-0A1B2C3D",
+        "Hoobi",
+        1,
+        [new DirectorySkill("Alchemy", 285, 300, false)],
         new Dictionary<string, IReadOnlyList<DirectoryRecipe>>
         {
-            ["Alchemy"] = [new DirectoryRecipe(11460, "Major Healing Potion", null, "Potions", 13446, string.Empty, [])],
+            ["Alchemy"] =
+            [
+                new DirectoryRecipe(11460, "Major Healing Potion", "optimal", "Potions", 13446, string.Empty,
+                    [new DirectoryReagent(13464, "Golden Sansam", 2)]),
+            ],
         });
 
     [Fact]
@@ -299,9 +292,13 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
-    public void Render_ProducesTheDirectoryTable()
+    public void Render_ProducesOnlyThePeopleAndCharactersSections_WhenOnlyRosterWasPulled()
     {
-        var payload = SamplePayload() with { Directory = SampleDirectory() };
+        var directory = new SyncDirectory(
+            [new DirectoryPerson("111", "Hoobi", "Player-4395-0A1B2C3D")],
+            [new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "111")],
+            null);
+        var payload = SamplePayload() with { Directory = directory };
         var rendered = StewardSyncFile.Render(payload);
         var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
         asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
@@ -319,8 +316,27 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Equal(1d, character.GetNumber("classId"));
         Assert.Equal("111", character.GetString("linkedUserId"));
 
+        Assert.Null(table.GetTable("professions"));
+    }
+
+    [Fact]
+    public void Render_ProducesOnlyTheProfessionsSection_WhenOnlyProfessionsWasPulled()
+    {
+        var directory = new SyncDirectory(null, null, [SampleProfessions()]);
+        var payload = SamplePayload() with { Directory = directory };
+        var rendered = StewardSyncFile.Render(payload);
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"].GetTable("directory")!;
+
+        Assert.Null(table.GetTable("people"));
+        Assert.Null(table.GetTable("characters"));
+
         var profession = Assert.Single(table.GetTable("professions")!.Items);
         Assert.Equal("Player-4395-0A1B2C3D", profession.GetString("guid"));
+        Assert.Equal("Hoobi", profession.GetString("name"));
+        Assert.Equal(1d, profession.GetNumber("classId"));
         var skill = Assert.Single(profession.GetTable("skills")!.Items);
         Assert.Equal("Alchemy", skill.GetString("name"));
         Assert.Equal(300d, skill.GetNumber("maxRank"));
@@ -330,10 +346,6 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Equal("optimal", recipe.GetString("difficulty"));
         var reagent = Assert.Single(recipe.GetTable("reagents")!.Items);
         Assert.Equal(13464d, reagent.GetNumber("itemId"));
-
-        var catalogueRecipe = Assert.Single(table.GetTable("catalogue")!.GetTable("Alchemy")!.Items);
-        Assert.Equal(11460d, catalogueRecipe.GetNumber("recipeId"));
-        Assert.Null(catalogueRecipe.GetString("difficulty"));
     }
 
     [Fact]

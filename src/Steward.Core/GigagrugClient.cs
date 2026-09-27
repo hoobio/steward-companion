@@ -53,10 +53,10 @@ public sealed class GigagrugClient
         return me ?? throw new HttpRequestException("GET /api/me returned an empty body");
     }
 
-    public async Task<GuildDirectory> GetDirectoryAsync(string guildId, CancellationToken cancellationToken)
+    public async Task<MemberRoster> GetMemberRosterAsync(string guildId, CancellationToken cancellationToken)
     {
         using var response = await _httpClient
-            .GetAsync($"{_baseUrl}/api/guild/{guildId}/directory", cancellationToken)
+            .GetAsync($"{_baseUrl}/api/guild/{guildId}/roster", cancellationToken)
             .ConfigureAwait(false);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -69,11 +69,57 @@ public sealed class GigagrugClient
             throw new GigagrugRequestException(response.StatusCode, null);
         }
 
-        var directory = await response.Content
-            .ReadFromJsonAsync(CompanionJsonContext.Default.GuildDirectory, cancellationToken)
+        var roster = await response.Content
+            .ReadFromJsonAsync(CompanionJsonContext.Default.MemberRoster, cancellationToken)
             .ConfigureAwait(false);
 
-        return directory ?? throw new HttpRequestException($"GET /api/guild/{guildId}/directory returned an empty body");
+        return roster ?? throw new HttpRequestException($"GET /api/guild/{guildId}/roster returned an empty body");
+    }
+
+    public async Task<MemberProfessions> GetMemberProfessionsAsync(string guildId, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .GetAsync($"{_baseUrl}/api/guild/{guildId}/professions", cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new GigagrugRequestException(response.StatusCode, null);
+        }
+
+        var professions = await response.Content
+            .ReadFromJsonAsync(CompanionJsonContext.Default.MemberProfessions, cancellationToken)
+            .ConfigureAwait(false);
+
+        return professions ?? throw new HttpRequestException($"GET /api/guild/{guildId}/professions returned an empty body");
+    }
+
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>> GetMemberCatalogueAsync(string guildId, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .GetAsync($"{_baseUrl}/api/guild/{guildId}/recipes/catalogue", cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new GigagrugRequestException(response.StatusCode, null);
+        }
+
+        var catalogue = await response.Content
+            .ReadFromJsonAsync(CompanionJsonContext.Default.MemberCatalogue, cancellationToken)
+            .ConfigureAwait(false);
+
+        return catalogue?.Catalogue ?? throw new HttpRequestException($"GET /api/guild/{guildId}/recipes/catalogue returned an empty body");
     }
 
     public async Task<(IReadOnlyList<GuildRosterMember> Members, IReadOnlyList<string> Statuses, IReadOnlyList<OriginDef> Origins)> GetGuildRosterAsync(string guildId, CancellationToken cancellationToken)
@@ -199,9 +245,18 @@ public sealed class GigagrugClient
     public const string GuidesFeature = "guides";
     public const string StewardFeature = "steward";
     public const string SyncFeature = "sync";
+    public const string RosterFeature = "roster";
+    public const string ProfessionsFeature = "professions";
+    public const string SignupsFeature = "signups";
 
-    private static readonly IReadOnlySet<string> AllFeatures = new HashSet<string>(
-        [AddonsFeature, GuidesFeature, StewardFeature], StringComparer.Ordinal);
+    private static readonly IReadOnlySet<string> OfficerFeatures = new HashSet<string>(
+        [AddonsFeature, GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature, SignupsFeature],
+        StringComparer.Ordinal);
+
+    // signups alone gives no in-app access today, so it does not authorize.
+    private static readonly IReadOnlySet<string> AuthorizingFeatures = new HashSet<string>(
+        [AddonsFeature, GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature],
+        StringComparer.Ordinal);
 
     public static bool IsAdmin(AdminMe me) =>
         me.User.Role is "global" or "admin";
@@ -212,11 +267,14 @@ public sealed class GigagrugClient
     public static IReadOnlySet<string> EffectiveFeatures(AdminMe me) =>
         me.User.Features is { } features
             ? new HashSet<string>(features, StringComparer.Ordinal)
-            : IsAdmin(me) ? AllFeatures : new HashSet<string>(StringComparer.Ordinal);
+            : IsAdmin(me) ? OfficerFeatures : new HashSet<string>(StringComparer.Ordinal);
 
-    // sync alone authorizes: a seatless holder gets the professions-only sync path.
     public static bool IsAuthorizing(IReadOnlySet<string> features) =>
-        AllFeatures.Any(features.Contains) || features.Contains(SyncFeature);
+        AuthorizingFeatures.Any(features.Contains);
+
+    // steward/sync/roster/professions gate per guild, since an officer of one guild is a plain member of another; a guild entry with no features (an older gigagrug, or /api/admin/me) falls back to the user-level set.
+    public static IReadOnlySet<string> ResolveGuildFeatures(AdminGuild? guild, IReadOnlySet<string> userFeatures) =>
+        guild?.Features is { } features ? new HashSet<string>(features, StringComparer.Ordinal) : userFeatures;
 
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> GetRecipeCatalogueAsync(
         string guildId, CancellationToken cancellationToken)

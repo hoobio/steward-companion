@@ -84,6 +84,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly Dictionary<string, IReadOnlyDictionary<string, AddonRelease?>> _releases =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _features = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _guildFeatures = new(StringComparer.Ordinal);
+    private IReadOnlyList<AdminGuild> _meGuilds = [];
 
     private DispatcherQueueTimer? _recheckTimer;
     private CancellationTokenSource? _signInCts;
@@ -95,7 +97,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastStoreCheck;
     private DateTimeOffset _lastGuildSync;
     private DateTimeOffset _lastDirectorySync;
-    private GuildDirectory? _lastDirectory;
+    private SyncDirectory? _lastDirectory;
+    private IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? _lastMemberCatalogue;
     private SyncPayload? _lastOfficerPayload;
     private CancellationTokenSource? _eventsCts;
     private string? _eventsGuildId;
@@ -309,9 +312,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasGuidesFeature => _features.Contains(GigagrugClient.GuidesFeature);
 
-    private bool HasStewardFeature => _features.Contains(GigagrugClient.StewardFeature);
+    private bool HasStewardFeature => _guildFeatures.Contains(GigagrugClient.StewardFeature);
 
-    public bool HasSyncFeature => _features.Contains(GigagrugClient.SyncFeature);
+    public bool HasSyncFeature => _guildFeatures.Contains(GigagrugClient.SyncFeature);
+
+    private bool HasRosterFeature => _guildFeatures.Contains(GigagrugClient.RosterFeature);
+
+    private bool HasProfessionsFeature => _guildFeatures.Contains(GigagrugClient.ProfessionsFeature);
 
     public bool IsProfessionsOnlySync => HasSyncFeature && Role is not ("global" or "admin");
 
@@ -914,6 +921,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _guildId = value.Id;
         _stateStore.Save(_stateStore.Load() with { GuildId = value.Id });
+        UpdateGuildFeatures();
         foreach (var option in Guilds)
         {
             option.IsCurrent = option == value;
@@ -921,7 +929,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         SyncCharacterSyncRows();
         UpdateEventStream();
+        RecomputeSummary();
         _ = SyncRosterAsync();
+    }
+
+    private void UpdateGuildFeatures()
+    {
+        var guild = _meGuilds.FirstOrDefault(g => g.Id == _guildId);
+        _guildFeatures.Clear();
+        _guildFeatures.UnionWith(GigagrugClient.ResolveGuildFeatures(guild, _features));
     }
 
     public async Task<string?> SyncRosterAsync()
@@ -955,21 +971,53 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task SyncDirectoryAsync()
     {
-        if (!IsSignedIn || !IsApiReachable || !HasSyncFeature || _guildId is not { } guildId)
+        if (!IsSignedIn || !IsApiReachable || _guildId is not { } guildId)
+        {
+            return;
+        }
+
+        var pullRoster = HasRosterFeature;
+        var pullProfessions = HasProfessionsFeature;
+        var pullCatalogue = pullProfessions || HasSyncFeature;
+        if (!pullRoster && !pullProfessions && !pullCatalogue)
         {
             return;
         }
 
         try
         {
-            _lastDirectory = await _gigagrugClient.GetDirectoryAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+            IReadOnlyList<DirectoryPerson>? people = null;
+            IReadOnlyList<DirectoryCharacter>? characters = null;
+            IReadOnlyList<DirectoryProfessions>? professions = null;
+            IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? catalogue = null;
+
+            if (pullRoster)
+            {
+                var roster = await _gigagrugClient.GetMemberRosterAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+                people = roster.People;
+                characters = roster.Characters;
+            }
+
+            if (pullProfessions)
+            {
+                var response = await _gigagrugClient.GetMemberProfessionsAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+                professions = response.Professions;
+                catalogue = response.Catalogue;
+            }
+            else if (pullCatalogue)
+            {
+                catalogue = await _gigagrugClient.GetMemberCatalogueAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+            }
+
+            _lastDirectory = new SyncDirectory(people, characters, professions);
+            _lastMemberCatalogue = catalogue;
         }
         catch (SessionExpiredException)
         {
             SignOutTo(GateFailure.SessionExpired);
             return;
         }
-        // A 403/404 means no directory access or an older gigagrug; handled quietly like the events stream, with no error bar.
+        // A 403/404 means the guild's features do not allow that route, or an older gigagrug; handled quietly like the events stream, with no error bar.
         catch (Exception ex) when (ex is GigagrugRequestException or HttpRequestException or TaskCanceledException or JsonException)
         {
             return;
@@ -1678,12 +1726,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             var guild = me.ResolveGuild(_stateStore.Load().GuildId);
             _guildId = guild?.Id;
+            _meGuilds = me.Guilds;
 
             var previousFeatures = new HashSet<string>(_features, StringComparer.Ordinal);
             var previousRole = Role;
             var previousUserId = _userId;
             _features.Clear();
             _features.UnionWith(features);
+            UpdateGuildFeatures();
             if (!previousFeatures.SetEquals(_features))
             {
                 ReconcileFeatureGating();
@@ -1768,14 +1818,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void WriteMe(IEnumerable<WowInstall> installs, SyncMe? me)
     {
-        var directory = me is null ? null : _lastDirectory;
+        var catalogue = me is null ? null : _lastMemberCatalogue;
         var payload = new SyncPayload(DateTimeOffset.Now, null, [], [], [], [], [], [])
         {
             Me = me,
-            Directory = directory,
-            Catalogue = directory is null
+            Directory = me is null ? null : _lastDirectory,
+            Catalogue = catalogue is null
                 ? new Dictionary<string, IReadOnlyList<CatalogueRecipe>>()
-                : GuildDirectoryMapping.ToCatalogue(directory),
+                : MemberCatalogueMapping.ToCatalogue(catalogue),
         };
         foreach (var install in installs)
         {
@@ -1790,7 +1840,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _status.Clear();
         _releases.Clear();
         _features.Clear();
+        _guildFeatures.Clear();
+        _meGuilds = [];
         _lastDirectory = null;
+        _lastMemberCatalogue = null;
         _lastDirectorySync = default;
         _lastOfficerPayload = null;
     }

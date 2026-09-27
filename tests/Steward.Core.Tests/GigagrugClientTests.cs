@@ -234,11 +234,40 @@ public sealed class GigagrugClientTests
         Assert.Equal("https://api.example.com/guild/api/me", handler.RequestUrl);
     }
 
-    private const string DirectoryBody =
+    private const string MemberRosterBody =
         """
         {"people":[{"id":"1","name":"Hoobi","main_guid":"Player-4395-0A1B2C3D"}],
-        "characters":[{"guid":"Player-4395-0A1B2C3D","name":"Hoobi","level":60,"class_id":1,"linked_user_id":"1"}],
-        "professions":[{"guid":"Player-4395-0A1B2C3D","skills":[{"name":"Alchemy","rank":285,"max_rank":300,"secondary":false}],
+        "characters":[{"guid":"Player-4395-0A1B2C3D","name":"Hoobi","level":60,"class_id":1,"linked_user_id":"1"}]}
+        """;
+
+    [Fact]
+    public async Task GetMemberRosterAsync_Success_CallsTheGuildRouteAndDeserialises()
+    {
+        var (client, handler) = ClientFor(HttpStatusCode.OK, MemberRosterBody);
+
+        var roster = await client.GetMemberRosterAsync("1", CancellationToken.None);
+
+        Assert.Equal("https://api.example.com/guild/api/guild/1/roster", handler.RequestUrl);
+        var person = Assert.Single(roster.People);
+        Assert.Equal("Player-4395-0A1B2C3D", person.MainGuid);
+        var character = Assert.Single(roster.Characters);
+        Assert.Equal(60, character.Level);
+    }
+
+    [Fact]
+    public async Task GetMemberRosterAsync_Forbidden_ThrowsGigagrugRequestException()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.Forbidden, "{}");
+
+        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+            () => client.GetMemberRosterAsync("1", CancellationToken.None));
+        Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
+    }
+
+    private const string ProfessionsBody =
+        """
+        {"professions":[{"guid":"Player-4395-0A1B2C3D","name":"Hoobi","class_id":1,
+        "skills":[{"name":"Alchemy","rank":285,"max_rank":300,"secondary":false}],
         "recipes":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","difficulty":"optimal","header":"Potions",
         "item_id":13446,"tools":"","reagents":[{"item_id":13464,"name":"Golden Sansam","count":2}]}]}}],
         "catalogue":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","header":"Potions","item_id":13446,
@@ -246,30 +275,49 @@ public sealed class GigagrugClientTests
         """;
 
     [Fact]
-    public async Task GetDirectoryAsync_Success_CallsTheGuildRouteAndDeserialises()
+    public async Task GetMemberProfessionsAsync_Success_CallsTheGuildRouteAndDeserialises()
     {
-        var (client, handler) = ClientFor(HttpStatusCode.OK, DirectoryBody);
+        var (client, handler) = ClientFor(HttpStatusCode.OK, ProfessionsBody);
 
-        var directory = await client.GetDirectoryAsync("1", CancellationToken.None);
+        var response = await client.GetMemberProfessionsAsync("1", CancellationToken.None);
 
-        Assert.Equal("https://api.example.com/guild/api/guild/1/directory", handler.RequestUrl);
-        var person = Assert.Single(directory.People);
-        Assert.Equal("Player-4395-0A1B2C3D", person.MainGuid);
-        var character = Assert.Single(directory.Characters);
-        Assert.Equal(60, character.Level);
-        var profession = Assert.Single(directory.Professions);
+        Assert.Equal("https://api.example.com/guild/api/guild/1/professions", handler.RequestUrl);
+        var profession = Assert.Single(response.Professions);
+        Assert.Equal("Hoobi", profession.Name);
+        Assert.Equal(1, profession.ClassId);
         var recipe = Assert.Single(profession.Recipes["Alchemy"]);
         Assert.Equal("optimal", recipe.Difficulty);
-        Assert.Null(Assert.Single(directory.Catalogue["Alchemy"]).Difficulty);
+        Assert.Null(Assert.Single(response.Catalogue["Alchemy"]).Difficulty);
     }
 
     [Fact]
-    public async Task GetDirectoryAsync_Forbidden_ThrowsGigagrugRequestException()
+    public async Task GetMemberProfessionsAsync_Forbidden_ThrowsGigagrugRequestException()
     {
         var (client, _) = ClientFor(HttpStatusCode.Forbidden, "{}");
 
         var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
-            () => client.GetDirectoryAsync("1", CancellationToken.None));
+            () => client.GetMemberProfessionsAsync("1", CancellationToken.None));
+        Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetMemberCatalogueAsync_Success_CallsTheGuildRouteAndDeserialises()
+    {
+        var (client, handler) = ClientFor(HttpStatusCode.OK, """{"catalogue":{"Alchemy":[]}}""");
+
+        var catalogue = await client.GetMemberCatalogueAsync("1", CancellationToken.None);
+
+        Assert.Equal("https://api.example.com/guild/api/guild/1/recipes/catalogue", handler.RequestUrl);
+        Assert.True(catalogue.ContainsKey("Alchemy"));
+    }
+
+    [Fact]
+    public async Task GetMemberCatalogueAsync_Forbidden_ThrowsGigagrugRequestException()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.Forbidden, "{}");
+
+        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+            () => client.GetMemberCatalogueAsync("1", CancellationToken.None));
         Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
     }
 }

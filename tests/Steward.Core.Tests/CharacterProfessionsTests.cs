@@ -259,22 +259,18 @@ public sealed class CharacterProfessionsTests
     }
 
     [Fact]
-    public void GuildDirectoryMapping_ToCatalogue_MapsEachRecipeAndReagent()
+    public void MemberCatalogueMapping_ToCatalogue_MapsEachRecipeAndReagent()
     {
-        var directory = new GuildDirectory(
-            [],
-            [],
-            [],
-            new Dictionary<string, IReadOnlyList<DirectoryRecipe>>
-            {
-                ["Alchemy"] =
-                [
-                    new DirectoryRecipe(11460, "Major Healing Potion", "optimal", "Potions", 13446, string.Empty,
-                        [new DirectoryReagent(13464, "Golden Sansam", 2)]),
-                ],
-            });
+        var directoryCatalogue = new Dictionary<string, IReadOnlyList<DirectoryRecipe>>
+        {
+            ["Alchemy"] =
+            [
+                new DirectoryRecipe(11460, "Major Healing Potion", "optimal", "Potions", 13446, string.Empty,
+                    [new DirectoryReagent(13464, "Golden Sansam", 2)]),
+            ],
+        };
 
-        var catalogue = GuildDirectoryMapping.ToCatalogue(directory);
+        var catalogue = MemberCatalogueMapping.ToCatalogue(directoryCatalogue);
 
         var recipe = Assert.Single(catalogue["Alchemy"]);
         Assert.Equal("Major Healing Potion", recipe.Name);

@@ -117,20 +117,30 @@ public static class StewardSyncFile
             entries.Add(new(LuaValue.FromString("me"), MeToLua(me)));
         }
 
-        if (payload.Directory is { } directory)
+        if (payload.Directory is { People: not null } or { Professions: not null })
         {
-            entries.Add(new(LuaValue.FromString("directory"), DirectoryToLua(directory)));
+            entries.Add(new(LuaValue.FromString("directory"), DirectoryToLua(payload.Directory!)));
         }
 
         return LuaValue.FromTable(entries);
     }
 
-    private static LuaValue DirectoryToLua(GuildDirectory directory) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("people"), LuaValue.Array(directory.People.Select(DirectoryPersonToLua))),
-        new LuaEntry(LuaValue.FromString("characters"), LuaValue.Array(directory.Characters.Select(DirectoryCharacterToLua))),
-        new LuaEntry(LuaValue.FromString("professions"), LuaValue.Array(directory.Professions.Select(DirectoryProfessionsToLua))),
-        new LuaEntry(LuaValue.FromString("catalogue"), LuaValue.FromTable(
-            [.. directory.Catalogue.Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(DirectoryRecipeToLua))))])));
+    private static LuaValue DirectoryToLua(SyncDirectory directory)
+    {
+        var entries = new List<LuaEntry>();
+        if (directory.People is { } people && directory.Characters is { } characters)
+        {
+            entries.Add(new(LuaValue.FromString("people"), LuaValue.Array(people.Select(DirectoryPersonToLua))));
+            entries.Add(new(LuaValue.FromString("characters"), LuaValue.Array(characters.Select(DirectoryCharacterToLua))));
+        }
+
+        if (directory.Professions is { } professions)
+        {
+            entries.Add(new(LuaValue.FromString("professions"), LuaValue.Array(professions.Select(DirectoryProfessionsToLua))));
+        }
+
+        return LuaValue.FromTable(entries);
+    }
 
     private static LuaValue DirectoryPersonToLua(DirectoryPerson person) => LuaValue.FromTable(
         new LuaEntry(LuaValue.FromString("id"), LuaValue.FromString(person.Id)),
@@ -146,6 +156,8 @@ public static class StewardSyncFile
 
     private static LuaValue DirectoryProfessionsToLua(DirectoryProfessions professions) => LuaValue.FromTable(
         new LuaEntry(LuaValue.FromString("guid"), LuaValue.FromString(professions.CharacterGuid)),
+        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(professions.Name)),
+        new LuaEntry(LuaValue.FromString("classId"), LuaValue.FromNumber(professions.ClassId)),
         new LuaEntry(LuaValue.FromString("skills"), LuaValue.Array(professions.Skills.Select(DirectorySkillToLua))),
         new LuaEntry(LuaValue.FromString("recipes"), LuaValue.FromTable(
             [.. professions.Recipes.Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(DirectoryRecipeToLua))))])));

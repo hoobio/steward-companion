@@ -246,19 +246,33 @@ public sealed record DirectoryRecipe(
 
 public sealed record DirectoryProfessions(
     [property: JsonPropertyName("guid")] string CharacterGuid,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("class_id")] int ClassId,
     [property: JsonPropertyName("skills")] IReadOnlyList<DirectorySkill> Skills,
     [property: JsonPropertyName("recipes")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Recipes);
 
-public sealed record GuildDirectory(
+public sealed record MemberRoster(
     [property: JsonPropertyName("people")] IReadOnlyList<DirectoryPerson> People,
-    [property: JsonPropertyName("characters")] IReadOnlyList<DirectoryCharacter> Characters,
+    [property: JsonPropertyName("characters")] IReadOnlyList<DirectoryCharacter> Characters);
+
+public sealed record MemberProfessions(
     [property: JsonPropertyName("professions")] IReadOnlyList<DirectoryProfessions> Professions,
     [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Catalogue);
 
-public static class GuildDirectoryMapping
+public sealed record MemberCatalogue(
+    [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Catalogue);
+
+// Composed from whichever of the roster/professions routes the selected guild's features allow; never itself sent or received as JSON.
+public sealed record SyncDirectory(
+    IReadOnlyList<DirectoryPerson>? People,
+    IReadOnlyList<DirectoryCharacter>? Characters,
+    IReadOnlyList<DirectoryProfessions>? Professions);
+
+public static class MemberCatalogueMapping
 {
-    public static IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> ToCatalogue(GuildDirectory directory) =>
-        directory.Catalogue.ToDictionary(
+    public static IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> ToCatalogue(
+        IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> catalogue) =>
+        catalogue.ToDictionary(
             kv => kv.Key,
             kv => (IReadOnlyList<CatalogueRecipe>)[.. kv.Value.Select(ToCatalogueRecipe)],
             StringComparer.Ordinal);
@@ -412,6 +426,6 @@ public sealed record SyncPayload(
 
     public SyncMe? Me { get; init; }
 
-    public GuildDirectory? Directory { get; init; }
+    public SyncDirectory? Directory { get; init; }
 }
 

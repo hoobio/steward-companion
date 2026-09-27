@@ -36,7 +36,8 @@ public sealed record AdminGuild(
     [property: JsonPropertyName("name")] string? Name,
     [property: JsonPropertyName("icon_url")] string? IconUrl,
     [property: JsonPropertyName("member_count")] int MemberCount,
-    [property: JsonPropertyName("nick")] string? Nick);
+    [property: JsonPropertyName("nick")] string? Nick,
+    [property: JsonPropertyName("features")] IReadOnlyList<string>? Features = null);
 
 public sealed record AdminMe(
     [property: JsonPropertyName("user")] AdminUser User,
@@ -170,9 +171,11 @@ public sealed record CharacterSyncState(
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]
 [JsonSerializable(typeof(DiscordMembersResponse))]
-[JsonSerializable(typeof(GuildDirectory))]
 [JsonSerializable(typeof(GuildRosterResponse))]
 [JsonSerializable(typeof(JsonElement))]
+[JsonSerializable(typeof(MemberCatalogue))]
+[JsonSerializable(typeof(MemberProfessions))]
+[JsonSerializable(typeof(MemberRoster))]
 [JsonSerializable(typeof(RestedXpCachedGuide))]
 [JsonSerializable(typeof(RestedXpCookie))]
 [JsonSerializable(typeof(RestedXpGuideResponse))]

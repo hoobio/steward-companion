@@ -26,6 +26,30 @@ public sealed class CharacterSyncGatingTests
     }
 
     [Fact]
+    public void IsAuthorizing_IsTrue_WhenRosterIsTheOnlyFeature()
+    {
+        var features = new HashSet<string>([GigagrugClient.RosterFeature], StringComparer.Ordinal);
+
+        Assert.True(GigagrugClient.IsAuthorizing(features));
+    }
+
+    [Fact]
+    public void IsAuthorizing_IsTrue_WhenProfessionsIsTheOnlyFeature()
+    {
+        var features = new HashSet<string>([GigagrugClient.ProfessionsFeature], StringComparer.Ordinal);
+
+        Assert.True(GigagrugClient.IsAuthorizing(features));
+    }
+
+    [Fact]
+    public void IsAuthorizing_IsFalse_WhenSignupsIsTheOnlyFeature()
+    {
+        var features = new HashSet<string>([GigagrugClient.SignupsFeature], StringComparer.Ordinal);
+
+        Assert.False(GigagrugClient.IsAuthorizing(features));
+    }
+
+    [Fact]
     public void ShouldPush_IsTrue_WhenThereIsNoPriorPush()
     {
         Assert.True(CharacterPushGate.ShouldPush("abc", new Dictionary<string, CharacterPushRecord>(), "install"));
