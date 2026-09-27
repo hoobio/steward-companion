@@ -208,6 +208,8 @@ Checking runs at startup and on every tick of a 1-minute `DispatcherQueueTimer` 
 
 ## Related repos
 
+Read `D:\Steward\AGENTS.md` and `D:\HoobiScripts\AGENTS.md` for the addon-side context before working on anything that crosses into the game. `D:\gigagrug` is the source of the guild API, the website and the sync destination. The Forever client's `WTF` folder, where every saved-variables file lands, is `C:\Program Files (x86)\World of Warcraft\_classic_beta_\WTF`; search there directly, since a recursive search from a drive root takes minutes.
+
 - `hoobio/HoobiScripts` (private, local clone `D:\HoobiScripts`): the quality-of-life addon. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
 - `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. It has an `Addons` entry here (`steward`, `https://addon.hoobi.io/steward/`). The contract between it and this app is `docs/design/roster-sync.md`.
 - `hoobio/gigagrug` (private, local clone `D:\gigagrug`): the Discord bot, guild API and admin SPA behind `api.hoobi.io/guild`. It holds the roster of people and the Discord member list this app pulls. Also covered by `docs/design/roster-sync.md`.
