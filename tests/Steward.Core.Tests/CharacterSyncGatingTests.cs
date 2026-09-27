@@ -50,6 +50,14 @@ public sealed class CharacterSyncGatingTests
     }
 
     [Fact]
+    public void IsAuthorizing_IsTrue_WhenHoobiScriptsIsTheOnlyFeature()
+    {
+        var features = new HashSet<string>([GigagrugClient.HoobiScriptsFeature], StringComparer.Ordinal);
+
+        Assert.True(GigagrugClient.IsAuthorizing(features));
+    }
+
+    [Fact]
     public void ShouldPush_IsTrue_WhenThereIsNoPriorPush()
     {
         Assert.True(CharacterPushGate.ShouldPush("abc", new Dictionary<string, CharacterPushRecord>(), "install"));
