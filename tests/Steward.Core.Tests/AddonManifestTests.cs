@@ -140,16 +140,16 @@ public sealed class AddonManifestTests
     }
 
     [Fact]
-    public void Features_NotConfigured_DefaultsToAddonsOnly()
+    public void Features_NotConfigured_DefaultsToEmpty()
     {
-        Assert.Equal(["addons"], Addon.Features);
+        Assert.Empty(Addon.Features);
     }
 
     [Fact]
     public void Features_Configured_UsesThemVerbatim()
     {
-        var addon = new ManagedAddon("restedxp", "RXPGuides", "https://addon.example/restedxp/", Features: ["addons", "guides"]);
+        var addon = new ManagedAddon("restedxp", "RXPGuides", "https://addon.example/restedxp/", Features: ["guides"]);
 
-        Assert.Equal(["addons", "guides"], addon.Features);
+        Assert.Equal(["guides"], addon.Features);
     }
 }

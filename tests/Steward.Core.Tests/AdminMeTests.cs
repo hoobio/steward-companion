@@ -48,7 +48,7 @@ public sealed class AdminMeTests
         var features = GigagrugClient.EffectiveFeatures(MeWithRole("admin"));
 
         Assert.Equal(
-            new HashSet<string> { "addons", "guides", "steward", "sync", "roster", "professions", "signups" },
+            new HashSet<string> { "guides", "steward", "sync", "roster", "professions", "signups" },
             features);
     }
 

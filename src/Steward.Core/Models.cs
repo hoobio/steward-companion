@@ -5,7 +5,7 @@ namespace Steward.Core;
 
 public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? Name = null, IReadOnlyList<string>? Features = null)
 {
-    public IReadOnlyList<string> Features { get; init; } = Features ?? [GigagrugClient.AddonsFeature];
+    public IReadOnlyList<string> Features { get; init; } = Features ?? [];
 
     public string DisplayName => Name ?? FolderName;
 

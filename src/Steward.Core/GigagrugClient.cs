@@ -312,7 +312,6 @@ public sealed class GigagrugClient
             ?? throw new HttpRequestException("POST /api/auth/desktop/exchange returned an empty body");
     }
 
-    public const string AddonsFeature = "addons";
     public const string GuidesFeature = "guides";
     public const string StewardFeature = "steward";
     public const string SyncFeature = "sync";
@@ -322,12 +321,12 @@ public sealed class GigagrugClient
     public const string HoobiScriptsFeature = "hoobiscripts";
 
     private static readonly IReadOnlySet<string> OfficerFeatures = new HashSet<string>(
-        [AddonsFeature, GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature, SignupsFeature],
+        [GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature, SignupsFeature],
         StringComparer.Ordinal);
 
     // signups alone gives no in-app access today, so it does not authorize; hoobiscripts is grantable to anyone and authorizes on its own.
     private static readonly IReadOnlySet<string> AuthorizingFeatures = new HashSet<string>(
-        [AddonsFeature, GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature, HoobiScriptsFeature],
+        [GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature, HoobiScriptsFeature],
         StringComparer.Ordinal);
 
     public static bool IsAdmin(AdminMe me) =>
