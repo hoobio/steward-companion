@@ -173,6 +173,80 @@
             </Grid>
         </DataTemplate>
 
+        <DataTemplate x:Key="ProfessionsCharacterTemplate" x:DataType="vm:ProfessionsCharacterViewModel">
+            <Grid
+                BorderThickness="0,1,0,0"
+                BorderBrush="{ThemeResource RowHairlineBrush}"
+                Padding="{StaticResource CardRowPadding}"
+                ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="{x:Bind Name}" FontSize="13.5" FontWeight="SemiBold" />
+                    <TextBlock
+                        Text="{x:Bind LevelClassText}"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock
+                        Text="{x:Bind SkillsSummary}"
+                        FontSize="12"
+                        TextWrapping="Wrap"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" MaxWidth="200">
+                    <TextBlock
+                        Text="Accepted"
+                        FontSize="12"
+                        TextAlignment="Right"
+                        Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                        Visibility="{x:Bind AcceptedVisibility}" />
+                    <TextBlock
+                        Text="{x:Bind ReasonText}"
+                        FontSize="12"
+                        TextAlignment="Right"
+                        TextWrapping="Wrap"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Visibility="{x:Bind RejectedVisibility}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="UncapturedCharacterTemplate" x:DataType="vm:UncapturedCharacterViewModel">
+            <Grid
+                BorderThickness="0,1,0,0"
+                BorderBrush="{ThemeResource RowHairlineBrush}"
+                Padding="{StaticResource CardRowPadding}"
+                Opacity="0.6"
+                ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="{x:Bind Name}" FontSize="13.5" FontWeight="SemiBold" />
+                    <TextBlock
+                        Text="{x:Bind LevelClassText}"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+
+                <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Text="No professions captured yet: log in on this character"
+                    FontSize="12"
+                    TextAlignment="Right"
+                    TextWrapping="Wrap"
+                    MaxWidth="220"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Grid>
+        </DataTemplate>
+
         <DataTemplate x:Key="SyncInstallCardTemplate" x:DataType="vm:SyncInstallViewModel">
             <Expander
                 IsExpanded="True"
@@ -247,6 +321,14 @@
                         ItemsSource="{x:Bind Datasets}"
                         ItemTemplate="{StaticResource SyncDatasetTemplate}"
                         Visibility="{x:Bind DatasetsVisibility, Mode=OneWay}" />
+                    <ItemsControl
+                        ItemsSource="{x:Bind ProfessionsCharacters, Mode=OneWay}"
+                        ItemTemplate="{StaticResource ProfessionsCharacterTemplate}"
+                        Visibility="{x:Bind ProfessionsCharactersVisibility, Mode=OneWay}" />
+                    <ItemsControl
+                        ItemsSource="{x:Bind UncapturedCharacters, Mode=OneWay}"
+                        ItemTemplate="{StaticResource UncapturedCharacterTemplate}"
+                        Visibility="{x:Bind UncapturedCharactersVisibility, Mode=OneWay}" />
                 </StackPanel>
             </Expander>
         </DataTemplate>

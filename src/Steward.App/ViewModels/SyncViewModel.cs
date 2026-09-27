@@ -275,12 +275,20 @@ public sealed partial class SyncViewModel : ObservableObject
 
         if (_main.IsProfessionsOnlySync)
         {
+            IReadOnlyList<CharacterObservation> covered = snapshot is null ? [] : CharacterSyncMapping.FilterToProfessionsOnly(snapshot);
+            var outcomes = _main.GetCharacterOutcomes(install.FlavourPath);
+            view.ProfessionsCharacters = [.. covered.Select(c => ProfessionsCharacter(c, snapshot!.Professions, outcomes))];
+            view.UncapturedCharacters = snapshot is null
+                ? []
+                : [.. snapshot.Characters.Except(covered)
+                    .Select(c => new UncapturedCharacterViewModel(c.Name, c.Level, WowClasses.NameFor(c.ClassId)))];
+
             view.Datasets.Add(Dataset(
                 ProfessionsDatasetKey,
                 "Your professions",
                 "characters",
                 "",
-                snapshot is null ? 0 : CharacterSyncMapping.FilterToProfessionsOnly(snapshot).Count,
+                covered.Count,
                 sourceFile,
                 exportedAt,
                 isStale,
@@ -324,6 +332,21 @@ public sealed partial class SyncViewModel : ObservableObject
             isComingSoon: true));
 
         return view;
+    }
+
+    private static ProfessionsCharacterViewModel ProfessionsCharacter(
+        CharacterObservation character,
+        IReadOnlyDictionary<string, CharacterProfessions> professions,
+        IReadOnlyDictionary<string, CharacterPushOutcome> outcomes)
+    {
+        var outcome = outcomes.GetValueOrDefault(character.CharacterGuid);
+        return new ProfessionsCharacterViewModel(
+            character.Name,
+            character.Level,
+            WowClasses.NameFor(character.ClassId),
+            ProfessionsSkillSummary.Format(professions.GetValueOrDefault(character.CharacterGuid)?.Skills),
+            outcome?.Accepted,
+            outcome is { Accepted: false, Reason: { } reason } ? CharacterSyncRejectionCopy.Describe(reason) : null);
     }
 
     private static SyncDatasetViewModel Dataset(
@@ -382,7 +405,11 @@ public sealed partial class SyncViewModel : ObservableObject
     private async Task SyncNowAsync()
     {
         await _main.PushCharacterSyncAsync(force: true).ConfigureAwait(true);
-        if (!IsProfessionsOnlySync)
+        if (IsProfessionsOnlySync)
+        {
+            await ReloadAsync().ConfigureAwait(true);
+        }
+        else
         {
             await WriteGeneratedFileAsync().ConfigureAwait(true);
         }

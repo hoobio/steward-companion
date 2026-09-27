@@ -163,6 +163,7 @@ public sealed record CharacterSyncState(
 [JsonSerializable(typeof(AdminMe))]
 [JsonSerializable(typeof(AdminUser))]
 [JsonSerializable(typeof(AppState))]
+[JsonSerializable(typeof(CharacterPushRecord))]
 [JsonSerializable(typeof(CharacterSyncRequest))]
 [JsonSerializable(typeof(CharacterSyncResponse))]
 [JsonSerializable(typeof(CharacterSyncState))]

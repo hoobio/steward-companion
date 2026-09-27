@@ -1111,6 +1111,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             && File.Exists(StewardSyncFile.PathFor(addOnsPath));
     }
 
+    public IReadOnlyDictionary<string, CharacterPushOutcome> GetCharacterOutcomes(string flavourPath)
+    {
+        if (_guildId is not { } guildId)
+        {
+            return new Dictionary<string, CharacterPushOutcome>();
+        }
+
+        var key = AppStateStore.CharacterSyncKey(guildId, flavourPath);
+        return _stateStore.Load().CharacterSync.GetValueOrDefault(key)?.Characters ?? new Dictionary<string, CharacterPushOutcome>();
+    }
+
     public async Task PushCharacterSyncAsync(bool force = false)
     {
         _pendingPush = force || _pendingPush == true;
@@ -1213,8 +1224,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var result = await _gigagrugClient.PostCharacterSyncAsync(guildId, request, CancellationToken.None).ConfigureAwait(true);
+            var rejections = result.Rejected.ToDictionary(r => r.CharacterGuid, r => r.Reason, StringComparer.Ordinal);
+            var outcomes = characters.ToDictionary(
+                c => c.CharacterGuid,
+                c => rejections.TryGetValue(c.CharacterGuid, out var reason)
+                    ? new CharacterPushOutcome(false, reason)
+                    : new CharacterPushOutcome(true),
+                StringComparer.Ordinal);
             state = _stateStore.Load();
-            state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, result.Accepted);
+            state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, result.Accepted, Characters: outcomes);
             _stateStore.Save(state);
             SetCharacterSyncRow(install, key, result.Accepted, result.Rejected, null);
             _lastDirectorySync = DateTimeOffset.Now;

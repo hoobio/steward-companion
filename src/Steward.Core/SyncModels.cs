@@ -280,11 +280,41 @@ public sealed record CharacterSyncResponse(
     [property: JsonPropertyName("accepted")] int Accepted,
     [property: JsonPropertyName("rejected")] IReadOnlyList<CharacterSyncRejection> Rejected);
 
+public sealed record CharacterPushOutcome(
+    [property: JsonPropertyName("accepted")] bool Accepted,
+    [property: JsonPropertyName("reason"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Reason = null);
+
 public sealed record CharacterPushRecord(
     [property: JsonPropertyName("fingerprint")] string Fingerprint,
     [property: JsonPropertyName("pushed_at")] DateTimeOffset PushedAt,
     [property: JsonPropertyName("accepted")] int Accepted,
-    [property: JsonPropertyName("error")] string? Error = null);
+    [property: JsonPropertyName("error")] string? Error = null,
+    [property: JsonPropertyName("characters"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, CharacterPushOutcome>? Characters = null);
+
+public static class CharacterSyncRejectionCopy
+{
+    private const string NotLinked = "not linked to you";
+    private const string FingerprintMissing = "professions fingerprint missing";
+    private const string FingerprintMismatch = "professions integrity check failed";
+
+    public static string Describe(string reason) => reason switch
+    {
+        NotLinked => "Not linked to you in the guild roster yet: ask an officer",
+        FingerprintMissing or FingerprintMismatch => "Changed outside the game, not sent",
+        _ => reason,
+    };
+}
+
+public static class ProfessionsSkillSummary
+{
+    public static string Format(IReadOnlyList<ProfessionSkill>? skills) =>
+        skills is null or { Count: 0 }
+            ? string.Empty
+            : string.Join(", ", skills.OrderBy(skill => skill.Secondary == true).Select(Describe));
+
+    private static string Describe(ProfessionSkill skill) =>
+        skill.Rank is { } rank && skill.MaxRank is { } maxRank ? $"{skill.Name} {rank}/{maxRank}" : skill.Name;
+}
 
 public sealed record CharacterSyncBatch(
     [property: JsonPropertyName("fingerprint")] string Fingerprint,
