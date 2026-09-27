@@ -17,6 +17,9 @@ public sealed partial class SyncViewModel : ObservableObject
     private const string LootDatasetKey = "loot";
     private const string AttendanceDatasetKey = "attendance";
     private const string ProfessionsDatasetKey = "professions";
+    private const string GuildRosterDatasetKey = "guild-roster";
+    private const string GuildProfessionsDatasetKey = "guild-professions";
+    private const string StewardSyncFileName = "StewardSync.lua";
 
     private const string GuildlessNote = "Log in to a character in a guild.";
     private const string NoSyncFeatureNote = "Your account can't push characters (missing the sync feature).";
@@ -33,18 +36,28 @@ public sealed partial class SyncViewModel : ObservableObject
         nameof(LastSyncedText),
         nameof(GeneratedFilePath),
         nameof(GeneratedFileDescription),
-        nameof(GeneratedFileVisibility),
         nameof(SyncNowVisibility),
         nameof(IsProfessionsOnlySync),
-        nameof(PageTitle),
-        nameof(ProfessionsOnlyVisibility),
     ];
 
     private readonly MainViewModel _main;
     private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
     private readonly Dictionary<string, SavedVariablesWatcher> _watchers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, bool> _expansionChoices = new(StringComparer.OrdinalIgnoreCase);
+
+    private static BitmapImage? _professionsIcon;
+    private static BitmapImage? _guildProfessionsIcon;
+    private static BitmapImage? _guildRosterIcon;
 
     private bool _isReloading;
+
+    private static BitmapImage ProfessionsIcon => _professionsIcon ??= Asset("Professions.png");
+
+    private static BitmapImage GuildProfessionsIcon => _guildProfessionsIcon ??= Asset("GuildProfessions.png");
+
+    private static BitmapImage GuildRosterIcon => _guildRosterIcon ??= Asset("GuildRoster.png");
+
+    private static BitmapImage Asset(string fileName) => new(new Uri($"ms-appx:///Assets/{fileName}"));
 
     public SyncViewModel(MainViewModel main)
     {
@@ -79,9 +92,6 @@ public sealed partial class SyncViewModel : ObservableObject
 
     public bool IsProfessionsOnlySync => _main.IsProfessionsOnlySync;
 
-    public string PageTitle => IsProfessionsOnlySync ? "Your professions" : "Sync";
-
-    public Visibility ProfessionsOnlyVisibility => When(IsProfessionsOnlySync);
 
     public bool HasWaiting => _main.HasSyncFeature && Installs.Any(install =>
         install.ExportState == SyncExportState.Ready
@@ -152,8 +162,6 @@ public sealed partial class SyncViewModel : ObservableObject
 
     public bool UnreachableIsOpen => IsUnreachable;
 
-    public Visibility GeneratedFileVisibility => When(!IsProfessionsOnlySync);
-
     public Visibility SyncNowVisibility => When(_main.HasSyncFeature);
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
@@ -172,7 +180,7 @@ public sealed partial class SyncViewModel : ObservableObject
             WatchSavedVariables();
 
             var fresh = _main.Installs.Select(Build).ToList();
-            if (fresh.Select(view => view.FlavourPath).SequenceEqual(Installs.Select(view => view.FlavourPath)))
+            if (fresh.Select(view => view.Shape).SequenceEqual(Installs.Select(view => view.Shape)))
             {
                 for (var i = 0; i < fresh.Count; i++)
                 {
@@ -278,17 +286,21 @@ public sealed partial class SyncViewModel : ObservableObject
         {
             IReadOnlyList<CharacterObservation> covered = snapshot is null ? [] : CharacterSyncMapping.FilterToProfessionsOnly(snapshot);
             var outcomes = _main.GetCharacterOutcomes(install.FlavourPath);
-            view.ProfessionsCharacters = [.. covered
+            foreach (var character in covered
                 .Select(c => ProfessionsCharacter(c, snapshot!.Professions, outcomes))
                 .OrderBy(c => c.State)
-                .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase)];
+                .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
+            {
+                view.ProfessionsCharacters.Add(character);
+            }
 
             var synced = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Synced);
             var pending = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Pending);
             var rejected = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Rejected);
+            var notLinked = covered.Count(c => outcomes.GetValueOrDefault(c.CharacterGuid) is { Accepted: false, Reason: CharacterSyncRejectionCopy.NotLinkedReason });
             var professions = Dataset(
                 ProfessionsDatasetKey,
-                "Your professions",
+                "Your characters",
                 "characters",
                 "",
                 covered.Count,
@@ -298,14 +310,42 @@ public sealed partial class SyncViewModel : ObservableObject
                 isFirst: true,
                 isSynced: synced > 0 && pending == 0,
                 showOutcomeSummary: false);
-            professions.IconSource = new BitmapImage(new Uri("ms-appx:///Assets/Professions.png"));
-            professions.StatusText = ProfessionsStatus(synced, pending, rejected);
+            professions.IconSource = ProfessionsIcon;
+            professions.StatusText = ProfessionsStatus(synced, pending, notLinked, rejected - notLinked);
             view.Datasets.Add(professions);
+            view.ProfessionsDataset = professions;
+            view.ApplyExpansion(_expansionChoices.GetValueOrDefault(install.FlavourPath));
+            view.ExpansionChosen = (flavourPath, expanded) => _expansionChoices[flavourPath] = expanded;
+
+            var written = _main.IsGuildDataWritten(install.FlavourPath, install.AddOnsPath);
+            var directory = _main.LastDirectory;
+            if (_main.HasRosterFeature)
+            {
+                var guildRoster = Dataset(GuildRosterDatasetKey, "Guild roster", $"people, {directory?.Characters?.Count ?? 0} characters", "", directory?.People?.Count ?? 0, StewardSyncFileName, "", false, isFirst: true);
+                guildRoster.IconSource = GuildRosterIcon;
+                AddPullDataset(view, guildRoster, directory?.People is not null, written);
+            }
+
+            if (_main.HasProfessionsFeature)
+            {
+                var guildProfessions = Dataset(
+                    GuildProfessionsDatasetKey,
+                    "Guild professions",
+                    $"characters, {_main.LastMemberCatalogue?.Count ?? 0} professions",
+                    "",
+                    directory?.Professions?.Count ?? 0,
+                    StewardSyncFileName,
+                    "",
+                    false,
+                    isFirst: view.PullDatasets.Count == 0);
+                guildProfessions.IconSource = GuildProfessionsIcon;
+                AddPullDataset(view, guildProfessions, directory?.Professions is not null, written);
+            }
 
             return view;
         }
 
-        view.Datasets.Add(Dataset(
+        var roster = Dataset(
             RosterDatasetKey,
             "Roster",
             "characters",
@@ -315,7 +355,9 @@ public sealed partial class SyncViewModel : ObservableObject
             exportedAt,
             isStale,
             isFirst: true,
-            isSynced: _main.IsRosterInSync(install.FlavourPath, install.AddOnsPath, snapshot?.CharactersFingerprint)));
+            isSynced: _main.IsRosterInSync(install.FlavourPath, install.AddOnsPath, snapshot?.CharactersFingerprint));
+        roster.IconSource = GuildRosterIcon;
+        view.Datasets.Add(roster);
         view.Datasets.Add(Dataset(
             LootDatasetKey,
             "Loot",
@@ -361,9 +403,17 @@ public sealed partial class SyncViewModel : ObservableObject
                 : null);
     }
 
-    private static string? ProfessionsStatus(int synced, int pending, int rejected)
+    private static void AddPullDataset(SyncInstallViewModel view, SyncDatasetViewModel dataset, bool pulled, bool written)
     {
-        if (pending == 0 && rejected == 0)
+        dataset.IsSynced = pulled && written;
+        dataset.StatusText = !pulled ? "Not pulled yet" : written ? "In game after /reload" : "Not written to the game yet";
+        view.Datasets.Add(dataset);
+        view.PullDatasets.Add(dataset);
+    }
+
+    private static string? ProfessionsStatus(int synced, int pending, int notLinked, int otherRejected)
+    {
+        if (pending == 0 && notLinked == 0 && otherRejected == 0)
         {
             return synced == 0 ? null : "In sync with the guild";
         }
@@ -372,7 +422,8 @@ public sealed partial class SyncViewModel : ObservableObject
         [
             synced > 0 ? $"{synced} synced" : null,
             pending > 0 ? $"{Characters(pending)} not sent yet" : null,
-            rejected > 0 ? $"{Characters(rejected)} not accepted" : null,
+            notLinked > 0 ? $"{Characters(notLinked)} linked to other accounts" : null,
+            otherRejected > 0 ? $"{Characters(otherRejected)} not accepted" : null,
         ];
         return string.Join(", ", parts.OfType<string>());
     }

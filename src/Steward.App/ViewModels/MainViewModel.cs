@@ -337,9 +337,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasSyncFeature => _guildFeatures.Contains(GigagrugClient.SyncFeature);
 
-    private bool HasRosterFeature => _guildFeatures.Contains(GigagrugClient.RosterFeature);
+    public bool HasRosterFeature => _guildFeatures.Contains(GigagrugClient.RosterFeature);
 
-    private bool HasProfessionsFeature => _guildFeatures.Contains(GigagrugClient.ProfessionsFeature);
+    public bool HasProfessionsFeature => _guildFeatures.Contains(GigagrugClient.ProfessionsFeature);
+
+    public SyncDirectory? LastDirectory => _lastDirectory;
+
+    public IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? LastMemberCatalogue => _lastMemberCatalogue;
 
     public bool IsProfessionsOnlySync => HasSyncFeature && Role is not ("global" or "admin");
 
@@ -1061,6 +1065,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         WriteMe(Installs.Select(install => install.Install), new SyncMe(_userId!, Role, [.. _features]));
+        await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
     }
 
     private async Task SyncBannersAsync()
@@ -1383,10 +1388,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var pushedUp = !CharacterPushGate.ShouldPush(charactersFingerprint, state.CharacterSync, key)
             && state.CharacterSync.GetValueOrDefault(key)?.Error is null;
 
-        return pushedUp
-            && state.GuildRosterSync.TryGetValue(flavourPath, out var written)
-            && written == StewardSyncFile.ReadFingerprint(addOnsPath);
+        return pushedUp && IsGuildDataWritten(flavourPath, addOnsPath);
     }
+
+    public bool IsGuildDataWritten(string flavourPath, string addOnsPath) =>
+        _stateStore.Load().GuildRosterSync.TryGetValue(flavourPath, out var written)
+        && written == StewardSyncFile.ReadFingerprint(addOnsPath);
 
     public IReadOnlyDictionary<string, CharacterPushOutcome> GetCharacterOutcomes(string flavourPath)
     {

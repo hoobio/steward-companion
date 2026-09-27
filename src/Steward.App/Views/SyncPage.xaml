@@ -88,11 +88,8 @@
                             Glyph="{x:Bind Glyph}"
                             FontSize="14"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Visibility="{x:Bind GlyphVisibility, Mode=OneWay}" />
-                        <Image
-                            Source="{x:Bind IconSource, Mode=OneWay}"
-                            Stretch="UniformToFill"
-                            Visibility="{x:Bind IconVisibility, Mode=OneWay}" />
+                            Visibility="{x:Bind GlyphVisibility}" />
+                        <Image Source="{x:Bind IconSource}" Stretch="UniformToFill" />
                     </Grid>
                 </Border>
 
@@ -102,8 +99,7 @@
                         Text="{x:Bind SourceFile, Mode=OneWay}"
                         FontFamily="Cascadia Mono"
                         FontSize="11.5"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Visibility="{x:Bind SourceFileVisibility}" />
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon
                             Glyph="&#xE73E;"
@@ -116,12 +112,7 @@
                             Text="{x:Bind CharacterSync.LastPushText, Mode=OneWay, FallbackValue=''}"
                             FontSize="12"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Visibility="{x:Bind LastPushVisibility, Mode=OneWay}" />
-                        <TextBlock
-                            Text="{x:Bind StatusText, Mode=OneWay}"
-                            FontSize="12"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Visibility="{x:Bind StatusVisibility, Mode=OneWay}" />
+                            Visibility="{x:Bind CharacterSyncVisibility, Mode=OneWay}" />
                     </StackPanel>
                     <TextBlock
                         Text="{x:Bind CharacterSync.Error, Mode=OneWay, FallbackValue=''}"
@@ -186,11 +177,61 @@
             </Grid>
         </DataTemplate>
 
+        <Thickness x:Key="ChevronAlignedRowPadding">16,10,60,10</Thickness>
+
+        <DataTemplate x:Key="PullDatasetTemplate" x:DataType="vm:SyncDatasetViewModel">
+            <Grid
+                BorderThickness="{x:Bind HairlineThickness}"
+                BorderBrush="{ThemeResource RowHairlineBrush}"
+                Padding="{StaticResource ChevronAlignedRowPadding}"
+                MinHeight="{StaticResource CardRowMinHeight}"
+                ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="30" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Border
+                    Grid.Column="0"
+                    Width="30"
+                    Height="30"
+                    VerticalAlignment="Center"
+                    CornerRadius="6"
+                    Background="{ThemeResource ChipBrush}">
+                    <Image Source="{x:Bind IconSource}" Stretch="UniformToFill" />
+                </Border>
+
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind Name}" FontSize="13.5" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon
+                            Glyph="&#xE73E;"
+                            FontSize="12"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                            Visibility="{x:Bind SyncedGlyphVisibility, Mode=OneWay}" />
+                        <TextBlock
+                            Text="{x:Bind StatusText, Mode=OneWay}"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Text="{x:Bind RecordsText, Mode=OneWay}"
+                    FontSize="12.5"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Grid>
+        </DataTemplate>
+
         <DataTemplate x:Key="ProfessionsCharacterTemplate" x:DataType="vm:ProfessionsCharacterViewModel">
             <Grid
                 BorderThickness="0,1,0,0"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
-                Padding="{StaticResource CardRowPadding}"
+                Padding="{StaticResource ChevronAlignedRowPadding}"
                 ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -316,11 +357,75 @@
                     <ItemsControl
                         ItemsSource="{x:Bind Datasets}"
                         ItemTemplate="{StaticResource SyncDatasetTemplate}"
-                        Visibility="{x:Bind DatasetsVisibility, Mode=OneWay}" />
+                        Visibility="{x:Bind DatasetListVisibility, Mode=OneWay}" />
                     <ItemsControl
-                        ItemsSource="{x:Bind ProfessionsCharacters, Mode=OneWay}"
-                        ItemTemplate="{StaticResource ProfessionsCharacterTemplate}"
-                        Visibility="{x:Bind ProfessionsCharactersVisibility, Mode=OneWay}" />
+                        ItemsSource="{x:Bind PullDatasets}"
+                        ItemTemplate="{StaticResource PullDatasetTemplate}"
+                        Visibility="{x:Bind ProfessionsVisibility, Mode=OneWay}" />
+                    <Border
+                        BorderBrush="{ThemeResource RowHairlineBrush}"
+                        BorderThickness="{x:Bind ProfessionsHairlineThickness}"
+                        Visibility="{x:Bind ProfessionsVisibility, Mode=OneWay}">
+                        <Expander
+                            IsExpanded="{x:Bind IsProfessionsExpanded, Mode=TwoWay}"
+                            Padding="0"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Stretch"
+                            CornerRadius="0"
+                            BorderThickness="0">
+                            <Expander.Resources>
+                                <Thickness x:Key="ExpanderContentBorderThickness">0</Thickness>
+                                <Thickness x:Key="ExpanderContentDownBorderThickness">0</Thickness>
+                                <Thickness x:Key="ExpanderContentUpBorderThickness">0</Thickness>
+                                <Thickness x:Key="ExpanderHeaderPadding">16,0,0,0</Thickness>
+                            </Expander.Resources>
+                            <Expander.Header>
+                                <Grid ColumnSpacing="12" MinHeight="{StaticResource CardRowMinHeight}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="30" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border
+                                        Grid.Column="0"
+                                        Width="30"
+                                        Height="30"
+                                        VerticalAlignment="Center"
+                                        CornerRadius="6"
+                                        Background="{ThemeResource ChipBrush}">
+                                        <Image Source="{x:Bind ProfessionsDataset.IconSource, Mode=OneWay, FallbackValue={x:Null}}" Stretch="UniformToFill" />
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind ProfessionsDataset.Name, Mode=OneWay, FallbackValue=''}" FontSize="13.5" FontWeight="SemiBold" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon
+                                                Glyph="&#xE73E;"
+                                                FontSize="12"
+                                                VerticalAlignment="Center"
+                                                Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                                                Visibility="{x:Bind ProfessionsDataset.SyncedGlyphVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
+                                            <TextBlock
+                                                Text="{x:Bind ProfessionsDataset.StatusText, Mode=OneWay, FallbackValue=''}"
+                                                FontSize="12"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <TextBlock
+                                        Grid.Column="2"
+                                        VerticalAlignment="Center"
+                                        Text="{x:Bind ProfessionsDataset.RecordsText, Mode=OneWay, FallbackValue=''}"
+                                        FontSize="12.5"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </Grid>
+                            </Expander.Header>
+                            <ItemsControl
+                                ItemsSource="{x:Bind ProfessionsCharacters}"
+                                ItemTemplate="{StaticResource ProfessionsCharacterTemplate}" />
+                        </Expander>
+                    </Border>
                 </StackPanel>
             </Expander>
         </DataTemplate>
@@ -336,14 +441,10 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Spacing="4">
-                    <TextBlock Text="{x:Bind ViewModel.PageTitle, Mode=OneWay}" FontSize="26" FontWeight="SemiBold" Margin="{StaticResource PageTitleMargin}" />
+                    <TextBlock Text="Sync" FontSize="26" FontWeight="SemiBold" Margin="{StaticResource PageTitleMargin}" />
                     <TextBlock
                         Text="{x:Bind ViewModel.LastSyncedText, Mode=OneWay}"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock
-                        Text="Pushes your own characters' professions to the guild."
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind ViewModel.ProfessionsOnlyVisibility, Mode=OneWay}" />
                 </StackPanel>
 
                 <Button
@@ -590,8 +691,7 @@
             <controls:SettingsCard
                 Padding="{StaticResource CardRowPadding}"
                 Header="Guild data in game"
-                Description="{x:Bind ViewModel.GeneratedFileDescription, Mode=OneWay}"
-                Visibility="{x:Bind ViewModel.GeneratedFileVisibility, Mode=OneWay}">
+                Description="{x:Bind ViewModel.GeneratedFileDescription, Mode=OneWay}">
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE8A5;" />
                 </controls:SettingsCard.HeaderIcon>

@@ -27,19 +27,27 @@ public sealed partial class SyncInstallViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(OldFormatVisibility))]
     [NotifyPropertyChangedFor(nameof(DatasetsVisibility))]
+    [NotifyPropertyChangedFor(nameof(DatasetListVisibility))]
+    [NotifyPropertyChangedFor(nameof(ProfessionsVisibility))]
     public partial SyncExportState ExportState { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ReadErrorVisibility))]
     [NotifyPropertyChangedFor(nameof(OldFormatVisibility))]
     [NotifyPropertyChangedFor(nameof(DatasetsVisibility))]
+    [NotifyPropertyChangedFor(nameof(DatasetListVisibility))]
+    [NotifyPropertyChangedFor(nameof(ProfessionsVisibility))]
     public partial string? ReadError { get; set; }
 
     public ObservableCollection<SyncDatasetViewModel> Datasets { get; } = [];
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ProfessionsCharactersVisibility))]
-    public partial IReadOnlyList<ProfessionsCharacterViewModel> ProfessionsCharacters { get; set; } = [];
+    public ObservableCollection<SyncDatasetViewModel> PullDatasets { get; } = [];
+
+    public ObservableCollection<ProfessionsCharacterViewModel> ProfessionsCharacters { get; } = [];
+
+    public Thickness ProfessionsHairlineThickness => PullDatasets.Count > 0 ? new Thickness(0, 1, 0, 0) : default;
+
+    public string Shape => $"{FlavourPath}|{string.Join(',', Datasets.Select(dataset => dataset.Key))}";
 
     public Visibility RunningPillVisibility => When(IsClientRunning);
 
@@ -49,7 +57,36 @@ public sealed partial class SyncInstallViewModel : ObservableObject
 
     public Visibility DatasetsVisibility => When(ReadError is null && ExportState != SyncExportState.OldFormat);
 
-    public Visibility ProfessionsCharactersVisibility => When(ProfessionsCharacters.Count > 0);
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DatasetListVisibility))]
+    [NotifyPropertyChangedFor(nameof(ProfessionsVisibility))]
+    public partial SyncDatasetViewModel? ProfessionsDataset { get; set; }
+
+    public Visibility DatasetListVisibility => When(DatasetsVisibility == Visibility.Visible && ProfessionsDataset is null);
+
+    public Visibility ProfessionsVisibility => When(DatasetsVisibility == Visibility.Visible && ProfessionsDataset is not null);
+
+    [ObservableProperty]
+    public partial bool IsProfessionsExpanded { get; set; }
+
+    public Action<string, bool>? ExpansionChosen { get; set; }
+
+    private bool _applyingExpansion;
+
+    public void ApplyExpansion(bool expanded)
+    {
+        _applyingExpansion = true;
+        IsProfessionsExpanded = expanded;
+        _applyingExpansion = false;
+    }
+
+    partial void OnIsProfessionsExpandedChanged(bool value)
+    {
+        if (!_applyingExpansion)
+        {
+            ExpansionChosen?.Invoke(FlavourPath, value);
+        }
+    }
 
     public void CopyFrom(SyncInstallViewModel fresh)
     {
@@ -58,7 +95,24 @@ public sealed partial class SyncInstallViewModel : ObservableObject
         AddonMissing = fresh.AddonMissing;
         ExportState = fresh.ExportState;
         ReadError = fresh.ReadError;
-        ProfessionsCharacters = fresh.ProfessionsCharacters;
+        ApplyExpansion(fresh.IsProfessionsExpanded);
+        for (var i = 0; i < fresh.ProfessionsCharacters.Count; i++)
+        {
+            if (i == ProfessionsCharacters.Count)
+            {
+                ProfessionsCharacters.Add(fresh.ProfessionsCharacters[i]);
+            }
+            else if (ProfessionsCharacters[i] != fresh.ProfessionsCharacters[i])
+            {
+                ProfessionsCharacters[i] = fresh.ProfessionsCharacters[i];
+            }
+        }
+
+        while (ProfessionsCharacters.Count > fresh.ProfessionsCharacters.Count)
+        {
+            ProfessionsCharacters.RemoveAt(ProfessionsCharacters.Count - 1);
+        }
+
         for (var i = 0; i < Datasets.Count; i++)
         {
             Datasets[i].CopyFrom(fresh.Datasets[i]);

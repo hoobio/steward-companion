@@ -10,7 +10,6 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     private static readonly string[] CharacterSyncDerivedNames =
     [
         nameof(CharacterSyncVisibility),
-        nameof(LastPushVisibility),
         nameof(NoteVisibility),
         nameof(CharacterAcceptedVisibility),
         nameof(CharacterRejectedVisibility),
@@ -20,7 +19,7 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
 
     public required string Name { get; init; }
 
-    public required string Unit { get; init; }
+    public required string Unit { get; set; }
 
     public required string Glyph { get; init; }
 
@@ -46,15 +45,7 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
 
     public Visibility GlyphVisibility => When(IconSource is null);
 
-    public Visibility IconVisibility => When(IconSource is not null);
-
     public string? StatusText { get; set; }
-
-    public Visibility StatusVisibility => When(StatusText is not null);
-
-    public Visibility SourceFileVisibility => When(ShowOutcomeSummary);
-
-    public Visibility LastPushVisibility => When(ShowOutcomeSummary && CharacterSync is not null);
 
     [ObservableProperty]
     public partial string? Note { get; set; }
@@ -78,7 +69,7 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
 
     public Visibility RecordsVisibility => When(!IsComingSoon);
 
-    public Visibility ExportedAtVisibility => When(!IsComingSoon && ShowOutcomeSummary);
+    public Visibility ExportedAtVisibility => When(!IsComingSoon);
 
     public Brush ExportedAtBrush => (Brush)Application.Current.Resources[
         IsStale ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];
@@ -87,6 +78,7 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     {
         SourceFile = fresh.SourceFile;
         LocalCount = fresh.LocalCount;
+        Unit = fresh.Unit;
         ExportedAtText = fresh.ExportedAtText;
         IsStale = fresh.IsStale;
         IsSynced = fresh.IsSynced;
