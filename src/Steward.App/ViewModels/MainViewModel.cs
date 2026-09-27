@@ -18,6 +18,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 using Windows.ApplicationModel;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Management.Deployment;
 using Windows.Services.Store;
 using Windows.Storage.Pickers;
@@ -182,6 +183,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
         SavedVariablesChanged = Sync.ReloadAsync;
         AfterStewardInstalled = _ => HasStewardFeature ? Sync.WriteGeneratedFileAsync() : WriteMeAfterInstallAsync();
+
+        _sessionService.PendingSignInUrlChanged += url => PendingSignInUrl = url;
+        _sessionService.BrowserLaunchAttempted += opened => BrowserOpenFailed = !opened;
     }
 
     private Task WriteMeAfterInstallAsync()
@@ -251,6 +255,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(GateHeading), nameof(CancelSignInVisibility))]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
     public partial bool IsSigningIn { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PendingSignInVisibility))]
+    [NotifyCanExecuteChangedFor(nameof(OpenBrowserAgainCommand), nameof(CopyLinkCommand))]
+    public partial string? PendingSignInUrl { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BrowserOpenFailedVisibility))]
+    public partial bool BrowserOpenFailed { get; set; }
+
+    [ObservableProperty]
+    public partial string? CopyLinkStatus { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(NotAuthorizedVisibility), nameof(IsApiReachable), nameof(RetryVisibility))]
@@ -448,6 +464,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility CancelSignInVisibility => When(IsSigningIn);
 
+    public Visibility PendingSignInVisibility => When(PendingSignInUrl is not null);
+
+    public Visibility BrowserOpenFailedVisibility => When(BrowserOpenFailed);
+
     public ImageSource? AvatarImage => _avatarImage;
 
     public string GateHeading => IsSigningIn ? "Waiting for Discord" : "Sign in to Steward";
@@ -570,6 +590,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task SignInAsync()
     {
         Failure = GateFailure.None;
+        BrowserOpenFailed = false;
         IsSigningIn = true;
         _signInCts = new CancellationTokenSource();
         try
@@ -605,6 +626,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void CancelSignIn() => _signInCts?.Cancel();
+
+    [RelayCommand(CanExecute = nameof(HasPendingSignInUrl))]
+    private void OpenBrowserAgain() => _sessionService.TryOpenPendingSignInUrl();
+
+    [RelayCommand(CanExecute = nameof(HasPendingSignInUrl))]
+    private async Task CopyLinkAsync()
+    {
+        if (PendingSignInUrl is not { } url)
+        {
+            return;
+        }
+
+        var package = new DataPackage();
+        package.SetText(url);
+        Clipboard.SetContent(package);
+
+        CopyLinkStatus = "Link copied";
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        CopyLinkStatus = null;
+    }
+
+    private bool HasPendingSignInUrl() => PendingSignInUrl is not null;
 
     [RelayCommand]
     private void SignOut()

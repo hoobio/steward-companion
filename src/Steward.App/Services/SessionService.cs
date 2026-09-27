@@ -92,6 +92,33 @@ public sealed class SessionService : ISessionService
         }
     }
 
+    public event Action<string?>? PendingSignInUrlChanged;
+
+    public event Action<bool>? BrowserLaunchAttempted;
+
+    public string? PendingSignInUrl { get; private set; }
+
+    public bool TryOpenPendingSignInUrl() =>
+        PendingSignInUrl is { } url && TryLaunchBrowser(url);
+
+    private bool TryLaunchBrowser(string url)
+    {
+        bool opened;
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
+            opened = true;
+        }
+        catch (Exception)
+        {
+            // a picker with no default https handler throws different exception types per OS state, seen live with Hurl
+            opened = false;
+        }
+
+        BrowserLaunchAttempted?.Invoke(opened);
+        return opened;
+    }
+
     public void ClearSession()
     {
         var state = _stateStore.Load();
@@ -115,8 +142,10 @@ public sealed class SessionService : ISessionService
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(SignInTimeout);
 
-        Process.Start(new ProcessStartInfo(
-            $"{_baseUrl}/api/auth/desktop?challenge={challenge}&port={port}") { UseShellExecute = true })?.Dispose();
+        var url = $"{_baseUrl}/api/auth/desktop?challenge={challenge}&port={port}";
+        PendingSignInUrl = url;
+        PendingSignInUrlChanged?.Invoke(url);
+        TryLaunchBrowser(url);
 
         string token;
         try
@@ -130,6 +159,8 @@ public sealed class SessionService : ISessionService
         finally
         {
             listener.Stop();
+            PendingSignInUrl = null;
+            PendingSignInUrlChanged?.Invoke(null);
         }
 
         _cookieContainer.Add(new Uri(_baseUrl), new Cookie(SessionCookieName, token));
