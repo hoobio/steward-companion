@@ -96,11 +96,20 @@
                         FontFamily="Cascadia Mono"
                         FontSize="11.5"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                    <TextBlock
-                        Text="{x:Bind CharacterSync.LastPushText, Mode=OneWay, FallbackValue=''}"
-                        FontSize="12"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind CharacterSyncVisibility, Mode=OneWay}" />
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon
+                            Glyph="&#xE73E;"
+                            FontSize="12"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                            ToolTipService.ToolTip="In sync with the guild"
+                            Visibility="{x:Bind SyncedGlyphVisibility, Mode=OneWay}" />
+                        <TextBlock
+                            Text="{x:Bind CharacterSync.LastPushText, Mode=OneWay, FallbackValue=''}"
+                            FontSize="12"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Visibility="{x:Bind CharacterSyncVisibility, Mode=OneWay}" />
+                    </StackPanel>
                     <TextBlock
                         Text="{x:Bind CharacterSync.Error, Mode=OneWay, FallbackValue=''}"
                         TextWrapping="Wrap"

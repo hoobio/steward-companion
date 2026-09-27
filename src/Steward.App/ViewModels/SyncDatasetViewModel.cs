@@ -33,6 +33,10 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
 
     public bool IsComingSoon { get; init; }
 
+    public bool IsSynced { get; set; }
+
+    public Visibility SyncedGlyphVisibility => When(IsSynced);
+
     [ObservableProperty]
     public partial string? Note { get; set; }
 
@@ -62,6 +66,7 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
         LocalCount = fresh.LocalCount;
         ExportedAtText = fresh.ExportedAtText;
         IsStale = fresh.IsStale;
+        IsSynced = fresh.IsSynced;
         Note = fresh.Note;
         OnPropertyChanged(string.Empty);
     }

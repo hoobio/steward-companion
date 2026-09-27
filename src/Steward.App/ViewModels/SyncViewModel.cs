@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 
 using Steward.Core;
 
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 
 namespace Steward.App.ViewModels;
@@ -34,6 +35,8 @@ public sealed partial class SyncViewModel : ObservableObject
     ];
 
     private readonly MainViewModel _main;
+    private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
+    private readonly Dictionary<string, SavedVariablesWatcher> _watchers = new(StringComparer.OrdinalIgnoreCase);
 
     private bool _isReloading;
 
@@ -88,13 +91,18 @@ public sealed partial class SyncViewModel : ObservableObject
         && !Installs.All(install => install.AddonMissing)
         && Installs.All(install => install.ReadError is null && install.ExportState == SyncExportState.NoFile));
 
-    public Visibility ClientRunningBannerVisibility => When(Installs.Any(install => install.IsClientRunning));
+    private IEnumerable<SyncDatasetViewModel> StaleWhileRunning =>
+        Installs.Where(install => install.IsClientRunning)
+            .SelectMany(install => install.Datasets)
+            .Where(dataset => dataset.IsStale);
+
+    public Visibility ClientRunningBannerVisibility => When(StaleWhileRunning.Any());
 
     public string ClientRunningDetail
     {
         get
         {
-            var exported = Installs.SelectMany(install => install.Datasets)
+            var exported = StaleWhileRunning
                 .Select(dataset => dataset.ExportedAtText)
                 .FirstOrDefault() ?? "earlier";
             return $"This data was exported {exported}, before your current session. "
@@ -147,6 +155,7 @@ public sealed partial class SyncViewModel : ObservableObject
         try
         {
             IsUnreachable = !_main.IsApiReachable;
+            WatchSavedVariables();
 
             var fresh = _main.Installs.Select(Build).ToList();
             if (fresh.Select(view => view.FlavourPath).SequenceEqual(Installs.Select(view => view.FlavourPath)))
@@ -172,6 +181,21 @@ public sealed partial class SyncViewModel : ObservableObject
         finally
         {
             _isReloading = false;
+        }
+    }
+
+    private void WatchSavedVariables()
+    {
+        foreach (var install in _main.Installs.Where(install => !_watchers.ContainsKey(install.FlavourPath)))
+        {
+            var watcher = SavedVariablesWatcher.TryCreate(
+                install.FlavourPath,
+                $"{StewardSavedVariables.AddonName}.lua",
+                () => _dispatcher?.TryEnqueue(() => _ = _main.SavedVariablesWrittenAsync()));
+            if (watcher is not null)
+            {
+                _watchers[install.FlavourPath] = watcher;
+            }
         }
     }
 
@@ -245,7 +269,8 @@ public sealed partial class SyncViewModel : ObservableObject
             sourceFile,
             exportedAt,
             isStale,
-            isFirst: true));
+            isFirst: true,
+            isSynced: _main.IsRosterInSync(install.FlavourPath, install.AddOnsPath, snapshot?.CharactersFingerprint)));
         view.Datasets.Add(Dataset(
             LootDatasetKey,
             "Loot",
@@ -282,7 +307,8 @@ public sealed partial class SyncViewModel : ObservableObject
         string exportedAt,
         bool isStale,
         bool isFirst,
-        bool isComingSoon = false) => new()
+        bool isComingSoon = false,
+        bool isSynced = false) => new()
     {
         Key = key,
         Name = name,
@@ -294,6 +320,7 @@ public sealed partial class SyncViewModel : ObservableObject
         IsStale = isStale,
         IsFirst = isFirst,
         IsComingSoon = isComingSoon,
+        IsSynced = isSynced,
     };
 
     private static string SourceFile(SavedVariablesSnapshot? snapshot) => snapshot switch

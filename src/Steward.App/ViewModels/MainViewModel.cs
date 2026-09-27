@@ -41,6 +41,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private static readonly TimeSpan StoreCheckInterval = TimeSpan.FromHours(1);
 
+    private static readonly TimeSpan GuildSyncFallbackInterval = TimeSpan.FromMinutes(15);
+
+    private static readonly TimeSpan GuildEventDebounce = TimeSpan.FromSeconds(2);
+
+    private static readonly TimeSpan EventStreamMinBackoff = TimeSpan.FromSeconds(5);
+
+    private static readonly TimeSpan EventStreamMaxBackoff = TimeSpan.FromMinutes(5);
+
     private const string StartupTaskId = "StewardStartup";
 
     private static readonly string[] SummaryNames =
@@ -49,7 +57,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(AddonCount),
         nameof(UpdateCount),
         nameof(HeaderSubtitle),
-        nameof(BannerBrush),
         nameof(BannerGlyph),
         nameof(BannerTitle),
         nameof(BannerDetail),
@@ -84,6 +91,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastPass;
     private DateTimeOffset _lastGuideCheck;
     private DateTimeOffset _lastStoreCheck;
+    private DateTimeOffset _lastGuildSync;
+    private CancellationTokenSource? _eventsCts;
+    private string? _eventsGuildId;
+    private bool _eventsUnsupported;
+    private bool _isEventStreamLive;
+    private bool _isGuildPulling;
+    private bool _guildPullPending;
+    private bool _isPushing;
+    private bool? _pendingPush;
     private bool _isChecking;
     private bool _isAutoApplying;
     private bool _isLoadingState;
@@ -187,7 +203,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HeaderSubtitle), nameof(BannerDetail))]
+    [NotifyPropertyChangedFor(nameof(HeaderSubtitle))]
     public partial string LastCheckedRelative { get; set; } = "not checked yet";
 
     [ObservableProperty]
@@ -306,23 +322,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string HeaderSubtitle =>
         _lastPass == default ? "Not checked for updates yet" : $"Last checked for updates {LastCheckedRelative}";
 
-    public Brush BannerBrush => (Brush)Application.Current.Resources[
-        UpdateCount > 0 ? "CautionTintBrush" : "SuccessTintBrush"];
 
     public string BannerGlyph => UpdateCount > 0 ? "" : "";
 
-    public string BannerTitle =>
-        UpdateCount > 0 ? $"{UpdateCount} update{(UpdateCount == 1 ? "" : "s")} available" : "Everything is up to date";
+    public string BannerTitle => $"{UpdateCount} update{(UpdateCount == 1 ? "" : "s")} available";
 
     public string BannerDetail
     {
         get
         {
-            if (UpdateCount == 0)
-            {
-                return $"Last checked {LastCheckedRelative}";
-            }
-
             var first = Installs
                 .SelectMany(install => install.AddonRows)
                 .FirstOrDefault(row => !row.IsHidden && row.HasUpdateAvailable);
@@ -336,7 +344,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public Visibility BannerVisibility => When(Installs.Count > 0);
+    public Visibility BannerVisibility => When(UpdateCount > 0);
 
     public Visibility UpdateAllVisibility => When(IsAuthorized && UpdateCount > 0);
 
@@ -421,6 +429,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _recheckTimer?.Stop();
+        _eventsCts?.Cancel();
+        _eventsCts?.Dispose();
         _signInCts?.Dispose();
         _signInCts = null;
         DisposeInstalls();
@@ -540,6 +550,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         StatusMessage = null;
         Failure = GateFailure.None;
         IsSignedIn = false;
+        UpdateEventStream();
         RecomputeSummary();
     }
 
@@ -790,9 +801,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task CheckOrInstallAppUpdateAsync()
     {
-        if (AppUpdate is not null)
+        if (App.IsPackaged && App.IsGitHubRelease)
         {
-            InstallAppUpdate();
+            // StoreContext only sees an update once the Store app has scanned for it; no capability-free call forces that scan.
+            OpenUri(_appUpdater.StoreUpdatesUri);
             return;
         }
 
@@ -824,7 +836,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task CheckAsync(bool background, CancellationToken cancellationToken)
+    private async Task CheckAsync(bool background, CancellationToken cancellationToken, bool pullGuildRoster = true)
     {
         var succeeded = true;
         try
@@ -864,7 +876,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             StatusMessage = ex.Message;
         }
 
-        await SyncRosterAsync().ConfigureAwait(true);
+        if (pullGuildRoster)
+        {
+            await SyncRosterAsync().ConfigureAwait(true);
+        }
+
         await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
     }
 
@@ -906,6 +922,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         SyncCharacterSyncRows();
+        UpdateEventStream();
         _ = SyncRosterAsync();
     }
 
@@ -936,7 +953,158 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return null;
     }
 
+    private void UpdateEventStream()
+    {
+        var guildId = IsSignedIn && IsApiReachable && HasStewardFeature && !_eventsUnsupported ? _guildId : null;
+        if (guildId == _eventsGuildId)
+        {
+            return;
+        }
+
+        _eventsCts?.Cancel();
+        _eventsCts?.Dispose();
+        _eventsCts = null;
+        _isEventStreamLive = false;
+        _eventsGuildId = guildId;
+        if (guildId is null)
+        {
+            return;
+        }
+
+        _eventsCts = new CancellationTokenSource();
+        _ = RunEventStreamAsync(guildId, _eventsCts.Token);
+    }
+
+    private async Task RunEventStreamAsync(string guildId, CancellationToken cancellationToken)
+    {
+        var backoff = EventStreamMinBackoff;
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await foreach (var eventType in _gigagrugClient.StreamGuildEventsAsync(guildId, cancellationToken).ConfigureAwait(true))
+                {
+                    if (eventType == "ready")
+                    {
+                        _isEventStreamLive = true;
+                        backoff = EventStreamMinBackoff;
+                    }
+
+                    if (eventType is "ready" or "roster-changed" or "members-changed" or "characters-changed")
+                    {
+                        QueueGuildPull();
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (SessionExpiredException)
+            {
+                SignOutTo(GateFailure.SessionExpired);
+                return;
+            }
+            catch (GigagrugRequestException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
+            {
+                _isEventStreamLive = false;
+                _eventsUnsupported |= ex.StatusCode == HttpStatusCode.NotFound;
+                return;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or TimeoutException or IOException or OperationCanceledException)
+            {
+                Debug.WriteLine($"Guild event stream dropped, retrying in {backoff}: {ex.Message}");
+            }
+
+            _isEventStreamLive = false;
+            try
+            {
+                await Task.Delay(backoff, cancellationToken).ConfigureAwait(true);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            backoff = TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, EventStreamMaxBackoff.Ticks));
+        }
+    }
+
+    private void QueueGuildPull()
+    {
+        _guildPullPending = true;
+        if (!_isGuildPulling)
+        {
+            _ = RunGuildPullAsync();
+        }
+    }
+
+    private async Task RunGuildPullAsync()
+    {
+        _isGuildPulling = true;
+        try
+        {
+            while (_guildPullPending)
+            {
+                await Task.Delay(GuildEventDebounce).ConfigureAwait(true);
+                _guildPullPending = false;
+                await SyncRosterAsync().ConfigureAwait(true);
+                await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
+            }
+        }
+        finally
+        {
+            _isGuildPulling = false;
+        }
+    }
+
+    public async Task SavedVariablesWrittenAsync()
+    {
+        await PushCharacterSyncAsync().ConfigureAwait(true);
+        await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
+    }
+
+    public bool IsRosterInSync(string flavourPath, string addOnsPath, string? charactersFingerprint)
+    {
+        if (charactersFingerprint is null || _guildId is not { } guildId)
+        {
+            return false;
+        }
+
+        var state = _stateStore.Load();
+        var key = AppStateStore.CharacterSyncKey(guildId, flavourPath);
+        var pushedUp = !CharacterPushGate.ShouldPush(charactersFingerprint, state.CharacterSync, key)
+            && state.CharacterSync.GetValueOrDefault(key)?.Error is null;
+
+        return pushedUp
+            && state.GuildRosterSync.ContainsKey(flavourPath)
+            && File.Exists(StewardSyncFile.PathFor(addOnsPath));
+    }
+
     public async Task PushCharacterSyncAsync(bool force = false)
+    {
+        _pendingPush = force || _pendingPush == true;
+        if (_isPushing)
+        {
+            return;
+        }
+
+        _isPushing = true;
+        try
+        {
+            while (_pendingPush is { } next)
+            {
+                _pendingPush = null;
+                await PushCharacterSyncOnceAsync(next).ConfigureAwait(true);
+            }
+        }
+        finally
+        {
+            _isPushing = false;
+        }
+    }
+
+    private async Task PushCharacterSyncOnceAsync(bool force)
     {
         if (!HasSyncFeature)
         {
@@ -1390,8 +1558,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var result = await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
             if (result == AuthCheckResult.Authorized)
             {
-                await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
-                await PushCharacterSyncAsync().ConfigureAwait(true);
+                var guildSyncDue = !_isEventStreamLive || DateTimeOffset.Now - _lastGuildSync >= GuildSyncFallbackInterval;
+                await CheckAsync(background: true, CancellationToken.None, guildSyncDue).ConfigureAwait(true);
+                if (guildSyncDue)
+                {
+                    _lastGuildSync = DateTimeOffset.Now;
+                    await PushCharacterSyncAsync().ConfigureAwait(true);
+                }
                 if (!App.IsPackaged || DateTimeOffset.Now - _lastStoreCheck >= StoreCheckInterval)
                 {
                     await CheckAppUpdateAsync().ConfigureAwait(true);
@@ -1466,6 +1639,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsGlobalAdmin = GigagrugClient.IsGlobalAdmin(me);
 
             PropagateAuthorized();
+            UpdateEventStream();
             return AuthCheckResult.Authorized;
         }
         catch (SessionExpiredException)
@@ -1477,6 +1651,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             Failure = GateFailure.Unreachable;
             StatusMessage = ex.Message;
+            UpdateEventStream();
             return AuthCheckResult.Unreachable;
         }
     }
@@ -1497,6 +1672,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsSignedIn = false;
         Failure = failure;
         PropagateAuthorized();
+        UpdateEventStream();
     }
 
     private void ResetInstalls()

@@ -240,59 +240,6 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 }
 
-internal sealed class GuidesFileWatcher : IDisposable
-{
-    private static readonly TimeSpan Debounce = TimeSpan.FromMilliseconds(1500);
-
-    private readonly FileSystemWatcher _watcher;
-    private readonly Timer _timer;
-
-    private GuidesFileWatcher(FileSystemWatcher watcher, Action changed)
-    {
-        _watcher = watcher;
-        _timer = new Timer(_ => changed(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _watcher.Changed += OnEvent;
-        _watcher.Created += OnEvent;
-        _watcher.Renamed += OnEvent;
-        _watcher.EnableRaisingEvents = true;
-    }
-
-    public static GuidesFileWatcher? TryCreate(string flavourPath, Action changed)
-    {
-        var accountRoot = Path.Combine(flavourPath, "WTF", "Account");
-        if (!Directory.Exists(accountRoot))
-        {
-            return null;
-        }
-
-        FileSystemWatcher? watcher = null;
-        try
-        {
-            watcher = new FileSystemWatcher(accountRoot, StewardGuidesSavedVariables.FileName)
-            {
-                IncludeSubdirectories = true,
-                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
-            };
-            return new GuidesFileWatcher(watcher, changed);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            watcher?.Dispose();
-            return null;
-        }
-    }
-
-    public void Dispose()
-    {
-        _watcher.EnableRaisingEvents = false;
-        _watcher.Dispose();
-        _timer.Dispose();
-    }
-
-    private void OnEvent(object sender, FileSystemEventArgs e) =>
-        _timer.Change(Debounce, Timeout.InfiniteTimeSpan);
-}
-
 public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
 {
     public const string AddonId = "restedxp";
@@ -302,7 +249,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
     private readonly RestedXpService _service;
     private readonly Func<bool> _hasGuidesFeature;
     private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
-    private readonly Dictionary<string, GuidesFileWatcher> _watchers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, SavedVariablesWatcher> _watchers = new(StringComparer.OrdinalIgnoreCase);
 
     public RestedXpViewModel(RestedXpService service, Func<bool> hasGuidesFeature)
     {
@@ -445,8 +392,9 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         foreach (var card in Guides.Where(g => !_watchers.ContainsKey(g.FlavourPath)))
         {
             var flavourPath = card.FlavourPath;
-            var watcher = GuidesFileWatcher.TryCreate(
+            var watcher = SavedVariablesWatcher.TryCreate(
                 flavourPath,
+                StewardGuidesSavedVariables.FileName,
                 () => _dispatcher?.TryEnqueue(() => Confirm(flavourPath)));
             if (watcher is not null)
             {

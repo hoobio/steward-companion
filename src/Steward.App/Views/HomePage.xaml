@@ -443,7 +443,7 @@
                 <Border
                     CornerRadius="8"
                     Padding="16"
-                    Background="{x:Bind ViewModel.BannerBrush, Mode=OneWay}"
+                    Background="{ThemeResource CautionTintBrush}"
                     Visibility="{x:Bind ViewModel.BannerVisibility, Mode=OneWay}">
                     <Grid ColumnSpacing="12">
                         <Grid.ColumnDefinitions>

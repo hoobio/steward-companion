@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace Steward.Core;
@@ -107,6 +108,38 @@ public sealed class GigagrugClient
 
         return members?.Members
             ?? throw new HttpRequestException($"GET /api/admin/{guildId}/members returned an empty body");
+    }
+
+    private static readonly TimeSpan EventStreamIdleTimeout = TimeSpan.FromSeconds(60);
+
+    public async IAsyncEnumerable<string> StreamGuildEventsAsync(
+        string guildId, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/api/admin/{guildId}/events");
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+        // HttpClient.Timeout covers only SendAsync up to the headers with ResponseHeadersRead; the body read is bounded by the idle timeout instead.
+        using var response = await _httpClient
+            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new GigagrugRequestException(response.StatusCode, null);
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream);
+        await foreach (var eventType in ServerSentEventReader.ReadEventsAsync(reader, EventStreamIdleTimeout, cancellationToken)
+            .ConfigureAwait(false))
+        {
+            yield return eventType;
+        }
     }
 
     public async Task<string> ExchangeDesktopCodeAsync(string code, string verifier, CancellationToken cancellationToken)
