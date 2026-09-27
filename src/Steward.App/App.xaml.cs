@@ -76,6 +76,13 @@ public partial class App : Application
             return;
         }
 
+        if (LiveUpdatesPreview.IsRequested(Environment.GetCommandLineArgs()))
+        {
+            LiveUpdatesPreview.Apply(_window.ViewModel);
+            _window.Activate();
+            return;
+        }
+
         if (Environment.GetCommandLineArgs().Contains(StartupRegistration.TrayArgument) && _window.ViewModel.MinimizeToTray)
         {
             _window.HideToTray();

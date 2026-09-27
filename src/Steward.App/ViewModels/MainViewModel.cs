@@ -33,6 +33,13 @@ public enum GateFailure
     NotAuthorized,
 }
 
+public enum LiveUpdatesState
+{
+    Hidden,
+    Live,
+    Reconnecting,
+}
+
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
@@ -110,6 +117,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _isEventStreamLive;
     private CancellationTokenSource? _accessEventsCts;
     private bool _accessEventsRunning;
+    private bool _isAccessEventStreamLive;
     private bool _accessEventsUnsupported;
     private bool _accessRecheckPending;
     private bool _isAccessRechecking;
@@ -253,6 +261,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     public partial bool CloseToTray { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LiveUpdatesVisibility), nameof(LiveUpdatesLiveVisibility), nameof(LiveUpdatesReconnectingVisibility), nameof(LiveUpdatesText), nameof(LiveUpdatesTooltip))]
+    public partial LiveUpdatesState LiveUpdatesState { get; set; }
 
     [ObservableProperty]
     public partial bool StartWithWindows { get; set; }
@@ -419,6 +431,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Visibility NotAuthorizedVisibility => When(Failure == GateFailure.NotAuthorized);
 
     public bool IsApiReachable => Failure != GateFailure.Unreachable;
+
+    public Visibility LiveUpdatesVisibility => When(LiveUpdatesState != LiveUpdatesState.Hidden);
+
+    public Visibility LiveUpdatesLiveVisibility => When(LiveUpdatesState == LiveUpdatesState.Live);
+
+    public Visibility LiveUpdatesReconnectingVisibility => When(LiveUpdatesState == LiveUpdatesState.Reconnecting);
+
+    public string LiveUpdatesText => LiveUpdatesState == LiveUpdatesState.Reconnecting ? "Reconnecting" : "Live updates";
+
+    public string LiveUpdatesTooltip => LiveUpdatesState == LiveUpdatesState.Reconnecting
+        ? "Trying to reconnect; changes still arrive on the next check"
+        : "Changes to your access and guild data arrive instantly";
 
     public Visibility RetryVisibility => When(Failure == GateFailure.Unreachable);
 
@@ -1188,6 +1212,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var guildId = IsSignedIn && IsApiReachable && HasStewardFeature && !_eventsUnsupported ? _guildId : null;
         if (guildId == _eventsGuildId)
         {
+            RecomputeLiveUpdatesState();
             return;
         }
 
@@ -1198,11 +1223,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _eventsGuildId = guildId;
         if (guildId is null)
         {
+            RecomputeLiveUpdatesState();
             return;
         }
 
         _eventsCts = new CancellationTokenSource();
         _ = RunEventStreamAsync(guildId, _eventsCts.Token);
+        RecomputeLiveUpdatesState();
     }
 
     private async Task RunEventStreamAsync(string guildId, CancellationToken cancellationToken)
@@ -1218,6 +1245,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     {
                         _isEventStreamLive = true;
                         backoff = EventStreamMinBackoff;
+                        RecomputeLiveUpdatesState();
                     }
 
                     if (eventType is "ready" or "roster-changed" or "members-changed" or "characters-changed")
@@ -1239,6 +1267,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 _isEventStreamLive = false;
                 _eventsUnsupported |= ex.StatusCode == HttpStatusCode.NotFound;
+                RecomputeLiveUpdatesState();
                 return;
             }
             catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or TimeoutException or IOException or OperationCanceledException)
@@ -1247,6 +1276,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             _isEventStreamLive = false;
+            RecomputeLiveUpdatesState();
             try
             {
                 await Task.Delay(backoff, cancellationToken).ConfigureAwait(true);
@@ -1265,6 +1295,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var shouldRun = IsSignedIn && IsApiReachable && !_accessEventsUnsupported;
         if (shouldRun == _accessEventsRunning)
         {
+            RecomputeLiveUpdatesState();
             return;
         }
 
@@ -1272,13 +1303,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _accessEventsCts?.Dispose();
         _accessEventsCts = null;
         _accessEventsRunning = shouldRun;
+        _isAccessEventStreamLive = false;
         if (!shouldRun)
         {
+            RecomputeLiveUpdatesState();
             return;
         }
 
         _accessEventsCts = new CancellationTokenSource();
         _ = RunAccessEventStreamAsync(_accessEventsCts.Token);
+        RecomputeLiveUpdatesState();
     }
 
     private async Task RunAccessEventStreamAsync(CancellationToken cancellationToken)
@@ -1291,6 +1325,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 await foreach (var eventType in _gigagrugClient.StreamAccessEventsAsync(cancellationToken).ConfigureAwait(true))
                 {
                     backoff = EventStreamMinBackoff;
+                    _isAccessEventStreamLive = true;
+                    RecomputeLiveUpdatesState();
                     if (eventType == "accessChanged")
                     {
                         QueueAccessRecheck();
@@ -1309,6 +1345,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             catch (GigagrugRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 _accessEventsUnsupported = true;
+                _isAccessEventStreamLive = false;
+                RecomputeLiveUpdatesState();
                 return;
             }
             catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or TimeoutException or IOException or OperationCanceledException)
@@ -1316,6 +1354,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 Debug.WriteLine($"Access event stream dropped, retrying in {backoff}: {ex.Message}");
             }
 
+            _isAccessEventStreamLive = false;
+            RecomputeLiveUpdatesState();
             try
             {
                 await Task.Delay(backoff, cancellationToken).ConfigureAwait(true);
@@ -1327,6 +1367,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             backoff = TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, EventStreamMaxBackoff.Ticks));
         }
+    }
+
+    private void RecomputeLiveUpdatesState()
+    {
+        if (!IsSignedIn || !IsApiReachable)
+        {
+            LiveUpdatesState = LiveUpdatesState.Hidden;
+            return;
+        }
+
+        var guildOk = !HasStewardFeature || _eventsUnsupported || _isEventStreamLive;
+        var accessOk = _accessEventsUnsupported || _isAccessEventStreamLive;
+        LiveUpdatesState = guildOk && accessOk ? LiveUpdatesState.Live : LiveUpdatesState.Reconnecting;
     }
 
     private void QueueAccessRecheck()
