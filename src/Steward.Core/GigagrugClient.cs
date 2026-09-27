@@ -236,6 +236,53 @@ public sealed class GigagrugClient
         }
     }
 
+    public async IAsyncEnumerable<string> StreamAccessEventsAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/api/events");
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+        using var response = await _httpClient
+            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new GigagrugRequestException(response.StatusCode, null);
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream);
+        await foreach (var frame in ServerSentEventReader.ReadFramesAsync(reader, EventStreamIdleTimeout, cancellationToken)
+            .ConfigureAwait(false))
+        {
+            // /api/events carries its frame type inside the JSON data payload rather than an SSE `event:` field.
+            if (frame.Data is null)
+            {
+                continue;
+            }
+
+            AccessEventFrame? parsed;
+            try
+            {
+                parsed = JsonSerializer.Deserialize(frame.Data, CompanionJsonContext.Default.AccessEventFrame);
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+
+            if (parsed?.Type is { Length: > 0 } type)
+            {
+                yield return type;
+            }
+        }
+    }
+
     public async Task<string> ExchangeDesktopCodeAsync(string code, string verifier, CancellationToken cancellationToken)
     {
         using var response = await _httpClient

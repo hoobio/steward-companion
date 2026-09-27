@@ -91,4 +91,36 @@ public sealed class ServerSentEventReaderTests
             return null;
         }
     }
+
+    private static async Task<List<SseFrame>> ReadFrames(string text)
+    {
+        var frames = new List<SseFrame>();
+        await foreach (var frame in ServerSentEventReader.ReadFramesAsync(
+            new StringReader(text), TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken))
+        {
+            frames.Add(frame);
+        }
+
+        return frames;
+    }
+
+    [Fact]
+    public async Task ReadFramesAsync_CarriesTheDataPayload_WhenThereIsNoEventField()
+    {
+        var frames = await ReadFrames("data: {\"type\": \"accessChanged\"}\n\n");
+
+        var frame = Assert.Single(frames);
+        Assert.Null(frame.EventType);
+        Assert.Equal("{\"type\": \"accessChanged\"}", frame.Data);
+    }
+
+    [Fact]
+    public async Task ReadFramesAsync_CarriesBothTheEventFieldAndTheData()
+    {
+        var frames = await ReadFrames("event: roster-changed\ndata: {\"guild\":\"1\"}\n\n");
+
+        var frame = Assert.Single(frames);
+        Assert.Equal("roster-changed", frame.EventType);
+        Assert.Equal("{\"guild\":\"1\"}", frame.Data);
+    }
 }

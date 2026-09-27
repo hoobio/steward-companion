@@ -45,6 +45,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private static readonly TimeSpan GuildEventDebounce = TimeSpan.FromSeconds(2);
 
+    private static readonly TimeSpan AccessEventDebounce = TimeSpan.FromSeconds(1);
+
     private static readonly TimeSpan EventStreamMinBackoff = TimeSpan.FromSeconds(5);
 
     private static readonly TimeSpan EventStreamMaxBackoff = TimeSpan.FromMinutes(5);
@@ -106,6 +108,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string? _eventsGuildId;
     private bool _eventsUnsupported;
     private bool _isEventStreamLive;
+    private CancellationTokenSource? _accessEventsCts;
+    private bool _accessEventsRunning;
+    private bool _accessEventsUnsupported;
+    private bool _accessRecheckPending;
+    private bool _isAccessRechecking;
     private bool _isGuildPulling;
     private bool _guildPullPending;
     private bool _isPushing;
@@ -453,6 +460,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _recheckTimer?.Stop();
         _eventsCts?.Cancel();
         _eventsCts?.Dispose();
+        _accessEventsCts?.Cancel();
+        _accessEventsCts?.Dispose();
         _signInCts?.Dispose();
         _signInCts = null;
         DisposeInstalls();
@@ -1219,6 +1228,105 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void UpdateAccessEventStream()
+    {
+        var shouldRun = IsSignedIn && IsApiReachable && !_accessEventsUnsupported;
+        if (shouldRun == _accessEventsRunning)
+        {
+            return;
+        }
+
+        _accessEventsCts?.Cancel();
+        _accessEventsCts?.Dispose();
+        _accessEventsCts = null;
+        _accessEventsRunning = shouldRun;
+        if (!shouldRun)
+        {
+            return;
+        }
+
+        _accessEventsCts = new CancellationTokenSource();
+        _ = RunAccessEventStreamAsync(_accessEventsCts.Token);
+    }
+
+    private async Task RunAccessEventStreamAsync(CancellationToken cancellationToken)
+    {
+        var backoff = EventStreamMinBackoff;
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await foreach (var eventType in _gigagrugClient.StreamAccessEventsAsync(cancellationToken).ConfigureAwait(true))
+                {
+                    backoff = EventStreamMinBackoff;
+                    if (eventType == "accessChanged")
+                    {
+                        QueueAccessRecheck();
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (SessionExpiredException)
+            {
+                SignOutTo(GateFailure.SessionExpired);
+                return;
+            }
+            catch (GigagrugRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                _accessEventsUnsupported = true;
+                return;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or TimeoutException or IOException or OperationCanceledException)
+            {
+                Debug.WriteLine($"Access event stream dropped, retrying in {backoff}: {ex.Message}");
+            }
+
+            try
+            {
+                await Task.Delay(backoff, cancellationToken).ConfigureAwait(true);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            backoff = TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, EventStreamMaxBackoff.Ticks));
+        }
+    }
+
+    private void QueueAccessRecheck()
+    {
+        _accessRecheckPending = true;
+        if (!_isAccessRechecking)
+        {
+            _ = RunAccessRecheckAsync();
+        }
+    }
+
+    private async Task RunAccessRecheckAsync()
+    {
+        _isAccessRechecking = true;
+        try
+        {
+            while (_accessRecheckPending)
+            {
+                await Task.Delay(AccessEventDebounce).ConfigureAwait(true);
+                _accessRecheckPending = false;
+                if (!_isChecking)
+                {
+                    await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
+                }
+            }
+        }
+        finally
+        {
+            _isAccessRechecking = false;
+        }
+    }
+
     private void QueueGuildPull()
     {
         _guildPullPending = true;
@@ -1880,6 +1988,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             PropagateAuthorized();
             UpdateEventStream();
+            UpdateAccessEventStream();
             return AuthCheckResult.Authorized;
         }
         catch (SessionExpiredException)
@@ -1892,6 +2001,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Failure = GateFailure.Unreachable;
             StatusMessage = ex.Message;
             UpdateEventStream();
+            UpdateAccessEventStream();
             return AuthCheckResult.Unreachable;
         }
     }
@@ -1934,6 +2044,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         PropagateAuthorized();
         UpdateEventStream();
+        UpdateAccessEventStream();
     }
 
     private void WriteMe(IEnumerable<WowInstall> installs, SyncMe? me)

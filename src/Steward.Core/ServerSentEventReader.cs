@@ -2,14 +2,25 @@ using System.Runtime.CompilerServices;
 
 namespace Steward.Core;
 
+public readonly record struct SseFrame(string? EventType, string? Data);
+
 public static class ServerSentEventReader
 {
     public static async IAsyncEnumerable<string> ReadEventsAsync(
         TextReader reader, TimeSpan idleTimeout, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        await foreach (var frame in ReadFramesAsync(reader, idleTimeout, cancellationToken).ConfigureAwait(false))
+        {
+            yield return frame.EventType ?? "message";
+        }
+    }
+
+    public static async IAsyncEnumerable<SseFrame> ReadFramesAsync(
+        TextReader reader, TimeSpan idleTimeout, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
         using var idle = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         string? eventType = null;
-        var hasData = false;
+        string? data = null;
         while (true)
         {
             idle.CancelAfter(idleTimeout);
@@ -31,13 +42,13 @@ public static class ServerSentEventReader
             if (line.Length == 0)
             {
                 // Dispatched on an event field alone as well as on data, so an `event: ready` sent without a data line still arrives.
-                if (eventType is not null || hasData)
+                if (eventType is not null || data is not null)
                 {
-                    yield return eventType ?? "message";
+                    yield return new SseFrame(eventType, data);
                 }
 
                 eventType = null;
-                hasData = false;
+                data = null;
                 continue;
             }
 
@@ -56,7 +67,7 @@ public static class ServerSentEventReader
             }
             else if (field == "data")
             {
-                hasData = true;
+                data = data is null ? value : $"{data}\n{value}";
             }
         }
     }

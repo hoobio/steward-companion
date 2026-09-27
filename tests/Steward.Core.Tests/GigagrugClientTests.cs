@@ -328,4 +328,64 @@ public sealed class GigagrugClientTests
             () => client.GetMemberCatalogueAsync("1", CancellationToken.None));
         Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
     }
+
+    [Fact]
+    public async Task StreamAccessEventsAsync_Success_YieldsTheTypeFromEachDataPayload()
+    {
+        var (client, handler) = ClientFor(
+            HttpStatusCode.OK,
+            "data: {\"type\": \"connected\"}\n\ndata: {\"type\": \"accessChanged\"}\n\ndata: {\"type\": \"adminSeats\", \"guild\": \"1\"}\n\n");
+
+        var events = new List<string>();
+        await foreach (var eventType in client.StreamAccessEventsAsync(TestContext.Current.CancellationToken))
+        {
+            events.Add(eventType);
+        }
+
+        Assert.Equal("https://api.example.com/guild/api/events", handler.RequestUrl);
+        Assert.Equal(["connected", "accessChanged", "adminSeats"], events);
+    }
+
+    [Fact]
+    public async Task StreamAccessEventsAsync_IgnoresAFrameWithNoTypeOrUnparsableData()
+    {
+        var (client, _) = ClientFor(
+            HttpStatusCode.OK,
+            "data: {}\n\ndata: not json\n\ndata: {\"type\": \"accessChanged\"}\n\n");
+
+        var events = new List<string>();
+        await foreach (var eventType in client.StreamAccessEventsAsync(TestContext.Current.CancellationToken))
+        {
+            events.Add(eventType);
+        }
+
+        Assert.Equal(["accessChanged"], events);
+    }
+
+    [Fact]
+    public async Task StreamAccessEventsAsync_Unauthorized_ThrowsSessionExpired()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.Unauthorized, "{}");
+
+        await Assert.ThrowsAsync<SessionExpiredException>(async () =>
+        {
+            await foreach (var _ in client.StreamAccessEventsAsync(TestContext.Current.CancellationToken))
+            {
+            }
+        });
+    }
+
+    [Fact]
+    public async Task StreamAccessEventsAsync_NotFound_ThrowsGigagrugRequestException()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.NotFound, "{}");
+
+        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(async () =>
+        {
+            await foreach (var _ in client.StreamAccessEventsAsync(TestContext.Current.CancellationToken))
+            {
+            }
+        });
+        Assert.Equal(HttpStatusCode.NotFound, exception.StatusCode);
+    }
 }

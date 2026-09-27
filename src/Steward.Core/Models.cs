@@ -48,6 +48,9 @@ public sealed record AdminMe(
         ?? (Guilds.Count > 0 ? Guilds[0] : null);
 }
 
+public sealed record AccessEventFrame(
+    [property: JsonPropertyName("type")] string? Type);
+
 public sealed record DesktopExchangeRequest(
     [property: JsonPropertyName("code")] string Code,
     [property: JsonPropertyName("verifier")] string Verifier);
@@ -164,6 +167,7 @@ public sealed record CharacterSyncState(
     [property: JsonPropertyName("character_sync")] Dictionary<string, CharacterPushRecord> CharacterSync,
     [property: JsonPropertyName("character_sync_batches")] Dictionary<string, CharacterSyncBatch> CharacterSyncBatches);
 
+[JsonSerializable(typeof(AccessEventFrame))]
 [JsonSerializable(typeof(AddonRelease))]
 [JsonSerializable(typeof(AdminMe))]
 [JsonSerializable(typeof(AdminUser))]
