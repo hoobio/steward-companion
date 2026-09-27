@@ -349,6 +349,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["professions"] = {
             ["Player-4395-0A1B2C3D"] = {
                 ["observedAt"] = 1758260000,
+                ["fp"] = "a1b2c3d4",
                 ["skills"] = {
                 { ["name"] = "Alchemy", ["rank"] = 285, ["maxRank"] = 300, ["secondary"] = false },
                 { ["name"] = "Cooking", ["rank"] = 150, ["maxRank"] = 225, ["secondary"] = true },
@@ -370,6 +371,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal(0, snapshot.Skipped);
         var professions = snapshot.Professions["Player-4395-0A1B2C3D"];
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000), DateTimeOffset.FromUnixTimeSeconds(professions.ObservedAt!.Value));
+        Assert.Equal("a1b2c3d4", professions.Fp);
 
         var alchemy = professions.Skills!.Single(s => s.Name == "Alchemy");
         Assert.Equal(285, alchemy.Rank);
@@ -406,6 +408,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal(0, snapshot.Skipped);
         var professions = snapshot.Professions["Player-4395-0A1B2C3D"];
         Assert.Null(professions.ObservedAt);
+        Assert.Null(professions.Fp);
         Assert.Null(professions.Skills);
         Assert.Null(professions.Recipes);
     }

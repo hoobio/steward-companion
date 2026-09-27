@@ -108,6 +108,10 @@ The app judges the freshness of what the addon wrote by the saved-variables file
 
 Data reaches a second officer's game client by the same route it reached the first: their desktop app pulls the same roster on the same gigagrug change event, or on its fallback timer, and rewrites their own `StewardSync.lua`. There is no addon-to-addon gossip, and adding some would not help, because the only staleness window is between a rewrite and the next `/reload` and no addon message can make the client reload. If officers ask for it later, the cheap version is one number broadcast on `GUILD` saying a newer roster exists.
 
+## The `me` dataset
+
+`StewardSync.lua` carries a `me` table for every signed-in user whose install has the Steward addon, officer or not: `{ id, role, features }`, `role` omitted when null, matching `SyncMe` in `Steward.Core`. An officer's write is the same full payload described above, with `me` added; a non-officer gets a payload holding only `me`, no roster, members, discord or catalogue, since they pull none of those. The file is rewritten whenever the signed-in user, their role or their feature set changes, and a non-officer's file is rewritten with `me` dropped on sign-out, so a shared machine does not keep serving a previous non-officer session's identity to the addon; an officer's roster-carrying file is left as last written, since a roster-less rewrite on sign-out would wipe the rest of it. This is a display gate only: the file is locally editable, so `Steward.IsOfficer()` uses `me.role` to hide officer-only windows and columns for a raider rather than to enforce anything; gigagrug and the game's own permissions are the real enforcement, and a client with no `me` (signed out, or an older `StewardSync.lua`) falls back to the guild rank check it already had.
+
 ## gigagrug endpoints in use
 
 No gigagrug change was needed for the first sprint. Both endpoints already existed for the admin SPA and the desktop client inherits their auth from `auth_middleware`.

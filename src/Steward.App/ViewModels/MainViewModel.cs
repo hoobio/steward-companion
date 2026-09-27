@@ -88,6 +88,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DispatcherQueueTimer? _recheckTimer;
     private CancellationTokenSource? _signInCts;
     private string? _guildId;
+    private string? _userId;
     private string? _characterRowsGuildId;
     private DateTimeOffset _lastPass;
     private DateTimeOffset _lastGuideCheck;
@@ -1628,6 +1629,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _guildId = guild?.Id;
 
             var previousFeatures = new HashSet<string>(_features, StringComparer.Ordinal);
+            var previousRole = Role;
+            var previousUserId = _userId;
             _features.Clear();
             _features.UnionWith(features);
             if (!previousFeatures.SetEquals(_features))
@@ -1638,6 +1641,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             UserName = me.User.Name;
             UserHandle = me.User.Username is { Length: > 0 } u ? $"@{u}" : null;
             Role = me.User.Role;
+            _userId = me.User.Id;
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = true;
             SetGuilds(me.Guilds, guild);
@@ -1646,6 +1650,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             // Client-side gate only: gigagrug does not restrict who can fetch the unstable manifest.
             IsGlobalAdmin = GigagrugClient.IsGlobalAdmin(me);
+
+            if (!HasStewardFeature
+                && (!previousFeatures.SetEquals(_features) || previousRole != Role || previousUserId != _userId))
+            {
+                WriteMe(Installs.Select(install => install.Install), new SyncMe(_userId, Role, [.. _features]));
+            }
 
             PropagateAuthorized();
             UpdateEventStream();
@@ -1667,6 +1677,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void SignOutTo(GateFailure failure)
     {
+        // An officer's file carries a full roster payload the me-only skeleton would wipe, so only a non-officer's file is cleared here.
+        var installsToClearMe = HasStewardFeature ? [] : Installs.Select(install => install.Install).ToList();
         _sessionService.ClearSession();
         ResetInstalls();
         IsAuthorized = false;
@@ -1674,14 +1686,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         UserName = null;
         UserHandle = null;
         Role = null;
+        _userId = null;
         AvatarUri = null;
         _guildId = null;
         SetGuilds([], null);
         StatusMessage = null;
         IsSignedIn = false;
         Failure = failure;
+        WriteMe(installsToClearMe, null);
         PropagateAuthorized();
         UpdateEventStream();
+    }
+
+    private void WriteMe(IEnumerable<WowInstall> installs, SyncMe? me)
+    {
+        var payload = new SyncPayload(DateTimeOffset.Now, null, [], [], [], [], [], []) { Me = me };
+        foreach (var install in installs)
+        {
+            GuildRosterSync.WriteIfChanged(install, payload, _stateStore);
+        }
     }
 
     private void ResetInstalls()

@@ -90,6 +90,7 @@ The addon writes `StewardDB.professions[guid]` for the logged-in character, in t
 ["professions"] = {
   ["Player-4395-0A1B2C3D"] = {
     ["observedAt"] = 1758260000,
+    ["fp"] = "a1b2c3d4e5f6...",
     ["skills"] = {
       { ["name"] = "Alchemy", ["rank"] = 285, ["maxRank"] = 300, ["secondary"] = false },
       { ["name"] = "Cooking", ["rank"] = 150, ["maxRank"] = 225, ["secondary"] = true },
@@ -110,8 +111,12 @@ The addon writes `StewardDB.professions[guid]` for the logged-in character, in t
 - The Forever client has no Classic tradeskill globals (`GetTradeSkillInfo` and the rest are absent from `D:\wow-ui-source` at `bd2470a`); professions run on the retail-style `C_TradeSkillUI`, whose recipe data arrives from the server only when a profession's window opens (`TRADE_SKILL_SHOW`, `TRADE_SKILL_LIST_UPDATE`). A recipe list is therefore captured the first time each profession's window opens and refreshed on every later opening; an addon cannot open the window itself outside a hardware event: `C_TradeSkillUI.OpenTradeSkill(185)` opens Cooking from `/run`, but the same call from a `C_Timer.After` callback raises `ADDON_ACTION_BLOCKED` (`ForceTaint_Strong`), verified in game on 26 Sep 2026, so it works only from a click or key handler.
 - `skills` is read without a window, on login and whenever skill ranks change, from whatever the client's API offers for the character's professions and secondary skills; `secondary` marks a secondary skill.
 - `recipes[profession]` is replaced whole on each capture and holds learned recipes only, each also carrying its `recipeId` (spell id). A profession never opened has no entry. `difficulty` is the recipe's relative difficulty: `optimal`, `medium`, `easy` or `trivial`. Every field comes from APIs verified present in `D:\wow-ui-source`; a field the client cannot supply is omitted rather than guessed.
-- The app sends a character's `professions` object (same shape, camelCase) on that character's record in the sync batch.
+- The app sends a character's `professions` object (same shape, camelCase) on that character's record in the sync batch, `fp` included.
 - gigagrug stores it as `professions_json` on the observation, validated for shape and bounds (rank at most maxRank, maxRank at most 375, at most 1000 recipes per profession, counts 1-100). The current professions are the latest non-voided observation carrying `professions_json`, independent of the latest roster observation, as links are.
+
+## Integrity
+
+`fp` is a keyed fingerprint the addon computes over a fixed canonical form of a character's professions and sends alongside them; `StewardSavedVariables` parses it into `CharacterProfessions.Fp` and the app forwards it untouched, included in the push-gate fingerprint so a changed `fp` triggers a push like any other professions field. gigagrug recomputes it on receipt and rejects that record's professions on a missing or mismatched value, DMing the character's owner. It is a deterrent against a hand-edited push, not security: the key and the exact algorithm are defined in the Steward addon and in gigagrug, not here.
 
 ## Other members' professions
 

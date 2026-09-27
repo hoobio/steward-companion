@@ -24,7 +24,8 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore st
         var icon = await images.LoadAsync(guild?.IconUrl, ct).ConfigureAwait(false);
         var catalogue = await TryGetCatalogueAsync(me, guildId, ct).ConfigureAwait(false);
 
-        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue };
+        var syncMe = new SyncMe(me.User.Id, me.User.Role, [.. GigagrugClient.EffectiveFeatures(me)]);
+        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue, Me = syncMe };
     }
 
     private async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> TryGetCatalogueAsync(AdminMe me, string guildId, CancellationToken ct)

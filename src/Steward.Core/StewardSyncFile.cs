@@ -112,6 +112,27 @@ public static class StewardSyncFile
                 [.. payload.Catalogue.Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(CatalogueRecipeToLua)))) ])));
         }
 
+        if (payload.Me is { } me)
+        {
+            entries.Add(new(LuaValue.FromString("me"), MeToLua(me)));
+        }
+
+        return LuaValue.FromTable(entries);
+    }
+
+    private static LuaValue MeToLua(SyncMe me)
+    {
+        var entries = new List<LuaEntry>
+        {
+            new(LuaValue.FromString("id"), LuaValue.FromString(me.Id)),
+        };
+
+        if (me.Role is not null)
+        {
+            entries.Add(new(LuaValue.FromString("role"), LuaValue.FromString(me.Role)));
+        }
+
+        entries.Add(new(LuaValue.FromString("features"), LuaValue.Array(me.Features.Select(LuaValue.FromString))));
         return LuaValue.FromTable(entries);
     }
 

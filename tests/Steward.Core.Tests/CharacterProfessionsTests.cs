@@ -84,6 +84,46 @@ public sealed class CharacterProfessionsTests
     }
 
     [Fact]
+    public void CharacterSyncEntry_SerialisesFp_WhenPresent()
+    {
+        var professions = new CharacterProfessions(null, null, null, "a1b2c3d4");
+        var entry = new CharacterSyncEntry(
+            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, null, false, null, professions);
+
+        var json = JsonSerializer.Serialize(entry, CompanionJsonContext.Default.CharacterSyncEntry);
+        using var doc = JsonDocument.Parse(json);
+
+        Assert.Equal("a1b2c3d4", doc.RootElement.GetProperty("professions").GetProperty("fp").GetString());
+    }
+
+    [Fact]
+    public void CharacterSyncEntry_OmitsFp_WhenAbsent()
+    {
+        var professions = new CharacterProfessions(null, null, null);
+        var entry = new CharacterSyncEntry(
+            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, null, false, null, professions);
+
+        var json = JsonSerializer.Serialize(entry, CompanionJsonContext.Default.CharacterSyncEntry);
+        using var doc = JsonDocument.Parse(json);
+
+        Assert.False(doc.RootElement.GetProperty("professions").TryGetProperty("fp", out _));
+    }
+
+    [Fact]
+    public void Fingerprint_ChangesWhenFpChanges()
+    {
+        var observation = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, null, false, null);
+
+        var withOneFp = CharacterSyncMapping.Fingerprint(
+            [observation], new Dictionary<string, CharacterProfessions> { ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null, "a1b2c3d4") });
+        var withAnotherFp = CharacterSyncMapping.Fingerprint(
+            [observation], new Dictionary<string, CharacterProfessions> { ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null, "deadbeef") });
+
+        Assert.NotEqual(withOneFp, withAnotherFp);
+    }
+
+    [Fact]
     public void ToEntry_AttachesProfessions_ByMatchingGuid()
     {
         var observation = new CharacterObservation(

@@ -314,7 +314,8 @@ public static class StewardSavedVariables
     private static CharacterProfessions MapProfessions(LuaValue value, ref int skipped) => new(
         ToNullableLong(value.GetNumber("observedAt")),
         MapProfessionSkills(value.GetTable("skills"), ref skipped),
-        MapRecipesByProfession(value.GetTable("recipes"), ref skipped));
+        MapRecipesByProfession(value.GetTable("recipes"), ref skipped),
+        value.GetString("fp"));
 
     private static List<ProfessionSkill>? MapProfessionSkills(LuaValue? table, ref int skipped)
     {

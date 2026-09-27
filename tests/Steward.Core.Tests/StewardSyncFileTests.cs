@@ -233,6 +233,43 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
+    public void Render_OmitsTheMeKey_WhenThePayloadCarriesNone()
+    {
+        var rendered = StewardSyncFile.Render(SamplePayload());
+
+        Assert.DoesNotContain("\"me\"", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Render_ProducesTheMeTable()
+    {
+        var payload = SamplePayload() with { Me = new SyncMe("123456789012345678", "admin", ["steward", "sync"]) };
+        var rendered = StewardSyncFile.Render(payload);
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"];
+
+        var me = table.GetTable("me")!;
+        Assert.Equal("123456789012345678", me.GetString("id"));
+        Assert.Equal("admin", me.GetString("role"));
+        Assert.Equal(["steward", "sync"], me.GetTable("features")!.Items.Select(i => i.Text));
+    }
+
+    [Fact]
+    public void Render_OmitsTheRoleKey_WhenMeCarriesNoRole()
+    {
+        var payload = SamplePayload() with { Me = new SyncMe("123456789012345678", null, ["sync"]) };
+        var rendered = StewardSyncFile.Render(payload);
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+
+        var table = LuaSavedVariables.Parse(asAssignment)["X"];
+
+        Assert.Null(table.GetTable("me")!.GetString("role"));
+    }
+
+    [Fact]
     public void Write_CreatesTheSyncFile_WhenTheAddonIsInstalled()
     {
         var addOnsPath = InstallAddon();

@@ -157,7 +157,8 @@ public sealed record CharacterSyncEntry(
 public sealed record CharacterProfessions(
     [property: JsonPropertyName("observedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ObservedAt,
     [property: JsonPropertyName("skills"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionSkill>? Skills,
-    [property: JsonPropertyName("recipes"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, ProfessionRecipes>? Recipes);
+    [property: JsonPropertyName("recipes"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, ProfessionRecipes>? Recipes,
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null);
 
 public sealed record ProfessionSkill(
     [property: JsonPropertyName("name")] string Name,
@@ -301,6 +302,8 @@ public sealed record WowClientProcess(int ProcessId, DateTimeOffset StartTime);
 
 public sealed record AvatarImage(string SourceUrl, int Width, int Height, byte[] Bgra);
 
+public sealed record SyncMe(string Id, string? Role, IReadOnlyList<string> Features);
+
 public sealed record SyncPayload(
     DateTimeOffset WrittenAt,
     DateTimeOffset? ExportedAt,
@@ -316,5 +319,7 @@ public sealed record SyncPayload(
     public IReadOnlyList<OriginDef> Origins { get; init; } = [];
 
     public IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> Catalogue { get; init; } = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
+
+    public SyncMe? Me { get; init; }
 }
 
