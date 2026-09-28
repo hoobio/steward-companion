@@ -240,9 +240,12 @@ internal static class Native
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern int RegisterApplicationRestart([MarshalAs(UnmanagedType.LPWStr)] string? pwzCommandline, int dwFlags);
 
+    // RESTART_NO_CRASH | RESTART_NO_HANG | RESTART_NO_REBOOT: only an update should restart the app, not a crash, hang or reboot.
+    private const int RestartNoCrashHangReboot = 1 | 2 | 8;
+
     // Windows closes the app to apply a Store update and relaunches it under this registration; --tray keeps it from popping the window back up when it was hidden.
     public static int RegisterRestartForStoreUpdate(nint handle) =>
-        RegisterApplicationRestart(IsWindowVisible(handle) ? null : "--tray", 0);
+        RegisterApplicationRestart(IsWindowVisible(handle) ? null : "--tray", RestartNoCrashHangReboot);
 
     // Windows refuses SetForegroundWindow to a process that did not receive the last input event; a tray click goes to explorer, so borrow its input queue for the call.
     public static void ForceForeground(nint handle)

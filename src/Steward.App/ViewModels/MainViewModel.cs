@@ -113,6 +113,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastStoreCheck;
     private StoreContext? _storeContext;
     private IReadOnlyList<StorePackageUpdate>? _storeUpdates;
+    private Task? _storeInstall;
     private DateTimeOffset _lastGuildSync;
     private DateTimeOffset _lastDirectorySync;
     private DateTimeOffset _lastBannersSync;
@@ -357,7 +358,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 #pragma warning disable CA1822 // x:Bind resolves these through a ViewModel instance
     public string AppUpdateTitle => "A Steward update is available in the Microsoft Store";
 
-    public string AppUpdateActionLabel => "Open the Store";
+    public string AppUpdateActionLabel => "Install update";
 #pragma warning restore CA1822
 
     public Uri? AppUpdateChangelogUri => AppUpdate is null ? null
@@ -878,7 +879,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             // SearchForUpdatesAsync is documented as needing a Microsoft-only private capability, but it runs unelevated from this full-trust process with no capability declared (verified 28 Sep 2026).
             var item = await manager.SearchForUpdatesAsync(_appUpdater.StoreProductId, string.Empty);
             _logger.Info(item is null
-                ? "Store scan for Steward: no install item returned"
+                ? "Store scan for Steward: no install item returned (the Store may still queue and install the update)"
                 : $"Store scan for Steward: {item.GetCurrentStatus().InstallState}");
         }
         catch (Exception ex)
@@ -906,9 +907,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _logger.Info($"Store update check: {updates.Count} update(s) available");
             _storeContext = context;
             _storeUpdates = updates;
-            if (updates.Count > 0 && context.CanSilentlyDownloadStorePackageUpdates && !IsAnyRowBusy)
+            if (updates.Count > 0 && context.CanSilentlyDownloadStorePackageUpdates && !IsAnyRowBusy
+                && _storeInstall is not { IsCompleted: false })
             {
-                _ = TrySilentInstallAsync(context, updates);
+                _storeInstall = TrySilentInstallAsync(context, updates);
             }
 
             return updates.Count == 0 ? null : new AddonRelease(string.Empty, _appUpdater.StoreListingUri.OriginalString, string.Empty, 0, DateTimeOffset.Now);
@@ -941,7 +943,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void OpenStoreListing() => OpenUri(_appUpdater.StoreListingUri);
 
     [RelayCommand]
-    private void CheckForUpdates() => OpenUri(App.IsPackaged ? _appUpdater.StoreUpdatesUri : _appUpdater.StoreListingUri);
+    private async Task CheckForUpdatesAsync()
+    {
+        if (App.IsPackaged && App.IsGitHubRelease)
+        {
+            await CheckOrInstallAppUpdateAsync().ConfigureAwait(true);
+            return;
+        }
+
+        OpenUri(App.IsPackaged ? _appUpdater.StoreUpdatesUri : _appUpdater.StoreListingUri);
+    }
 
     private static void OpenUri(Uri uri) =>
         Process.Start(new ProcessStartInfo(uri.OriginalString) { UseShellExecute = true })?.Dispose();
@@ -1016,6 +1027,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         await CheckAndConfirmAppUpdateAsync().ConfigureAwait(true);
     }
 
+    private async Task HandleStoreUpdateBannerActionAsync()
+    {
+        if (App.IsPackaged && App.IsGitHubRelease)
+        {
+            await CheckOrInstallAppUpdateAsync().ConfigureAwait(true);
+            return;
+        }
+
+        OpenUri(_appUpdater.StoreUpdatesUri);
+    }
+
     private async Task CheckAndConfirmAppUpdateAsync()
     {
         IsCheckingAppUpdate = true;
@@ -1045,17 +1067,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await CheckStoreUpdateAsync().ConfigureAwait(true);
         }
 
+        if (_storeInstall is { IsCompleted: false } inFlight)
+        {
+            await inFlight.ConfigureAwait(true);
+            return;
+        }
+
         if (_storeContext is null || _storeUpdates is null || _storeUpdates.Count == 0)
         {
             OpenUri(_appUpdater.StoreUpdatesUri);
             return;
         }
 
+        _storeInstall = RequestStoreInstallAsync(_storeContext, _storeUpdates);
+        await _storeInstall.ConfigureAwait(true);
+    }
+
+    private async Task RequestStoreInstallAsync(StoreContext context, IReadOnlyList<StorePackageUpdate> updates)
+    {
         try
         {
             Native.RegisterRestartForStoreUpdate(OwnerWindowHandle);
             _logger.Info("Store update install requested by the user");
-            var result = await _storeContext.RequestDownloadAndInstallStorePackageUpdatesAsync(_storeUpdates);
+            var result = await context.RequestDownloadAndInstallStorePackageUpdatesAsync(updates);
             _logger.Info($"Store update install result: {result.OverallState}");
             if (result.OverallState is StorePackageUpdateState.Canceled)
             {
@@ -1355,7 +1389,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             switch (BannerActions.Parse(action.Type))
             {
                 case BannerActionKind.StoreUpdate:
-                    actions.Add(new BannerActionViewModel { Label = action.Label, Command = new AsyncRelayCommand(InstallAppUpdateAsync) });
+                    actions.Add(new BannerActionViewModel { Label = action.Label, Command = new AsyncRelayCommand(HandleStoreUpdateBannerActionAsync) });
                     break;
                 case BannerActionKind.OpenUrl when BannerActions.IsAllowedUrl(action.Url):
                     actions.Add(new BannerActionViewModel { Label = action.Label, Command = new RelayCommand(() => OpenUri(new Uri(action.Url!))) });
