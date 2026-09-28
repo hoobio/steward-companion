@@ -3,6 +3,7 @@
     x:Class="Steward.App.Views.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:services="using:Steward.App.Services"
     xmlns:tb="using:H.NotifyIcon">
 
     <Grid Background="{ThemeResource WindowGroundBrush}">
@@ -94,15 +95,14 @@
                             <TextBlock Text="{x:Bind ViewModel.UserName, Mode=OneWay}" VerticalAlignment="Center" />
                         </StackPanel>
                         <DropDownButton.Flyout>
-                            <Flyout x:Name="AccountFlyout" Placement="BottomEdgeAlignedRight" ShouldConstrainToRootBounds="False">
+                            <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
+                            <Flyout x:Name="AccountFlyout" Placement="BottomEdgeAlignedRight" ShouldConstrainToRootBounds="False" AreOpenCloseAnimationsEnabled="False">
                                 <Flyout.SystemBackdrop>
-                                    <DesktopAcrylicBackdrop />
+                                    <services:TintedAcrylicBackdrop />
                                 </Flyout.SystemBackdrop>
                                 <Flyout.FlyoutPresenterStyle>
-                                    <Style TargetType="FlyoutPresenter">
+                                    <Style TargetType="FlyoutPresenter" BasedOn="{StaticResource TintedFlyoutPresenterStyle}">
                                         <Setter Property="Padding" Value="0" />
-                                        <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
-                                        <Setter Property="BorderBrush" Value="{ThemeResource MenuFlyoutPresenterBorderBrush}" />
                                         <Setter Property="CornerRadius" Value="8" />
                                     </Style>
                                 </Flyout.FlyoutPresenterStyle>

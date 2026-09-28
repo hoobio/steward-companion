@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:services="using:Steward.App.Services"
     xmlns:views="using:Steward.App.Views"
     xmlns:vm="using:Steward.App.ViewModels">
 
@@ -97,7 +98,14 @@
                 BorderBrush="{ThemeResource RowHairlineBrush}"
                 SizeChanged="OnTableRowSizeChanged">
                 <Grid.Resources>
-                    <MenuFlyout x:Key="RowMenu" Placement="BottomEdgeAlignedRight">
+                    <MenuFlyout
+                        x:Key="RowMenu"
+                        Placement="BottomEdgeAlignedRight"
+                        ShouldConstrainToRootBounds="False"
+                        MenuFlyoutPresenterStyle="{StaticResource TintedMenuFlyoutPresenterStyle}">
+                        <MenuFlyout.SystemBackdrop>
+                            <services:TintedAcrylicBackdrop />
+                        </MenuFlyout.SystemBackdrop>
                         <MenuFlyoutItem Text="{x:Bind IgnoreLabel, Mode=OneWay}" Command="{x:Bind ToggleIgnoredCommand}" Visibility="{x:Bind IgnoreVisibility, Mode=OneWay}" />
                         <MenuFlyoutItem Text="Change channel" Command="{x:Bind ChangeChannelCommand}" Visibility="{x:Bind ChannelChipVisibility, Mode=OneWay}" />
                         <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" Visibility="{x:Bind HideVisibility}" />
@@ -402,7 +410,14 @@
                 BorderBrush="{ThemeResource RowHairlineBrush}"
                 SizeChanged="OnTableRowSizeChanged">
                 <Grid.Resources>
-                    <MenuFlyout x:Key="RowMenu" Placement="BottomEdgeAlignedRight">
+                    <MenuFlyout
+                        x:Key="RowMenu"
+                        Placement="BottomEdgeAlignedRight"
+                        ShouldConstrainToRootBounds="False"
+                        MenuFlyoutPresenterStyle="{StaticResource TintedMenuFlyoutPresenterStyle}">
+                        <MenuFlyout.SystemBackdrop>
+                            <services:TintedAcrylicBackdrop />
+                        </MenuFlyout.SystemBackdrop>
                         <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" />
                         <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" />
                         <MenuFlyoutSeparator Visibility="{x:Bind UninstallVisibility}" />
@@ -647,17 +662,15 @@
                 </Grid>
                 <Button.Flyout>
                     <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
-                    <Flyout x:Name="InstallFlyout" Placement="BottomEdgeAlignedRight" ShouldConstrainToRootBounds="False" AreOpenCloseAnimationsEnabled="False">
+                    <Flyout
+                        x:Name="InstallFlyout"
+                        Placement="BottomEdgeAlignedRight"
+                        ShouldConstrainToRootBounds="False"
+                        AreOpenCloseAnimationsEnabled="False"
+                        FlyoutPresenterStyle="{StaticResource TintedFlyoutPresenterStyle}">
                         <Flyout.SystemBackdrop>
-                            <DesktopAcrylicBackdrop />
+                            <services:TintedAcrylicBackdrop />
                         </Flyout.SystemBackdrop>
-                        <Flyout.FlyoutPresenterStyle>
-                            <Style TargetType="FlyoutPresenter">
-                                <Setter Property="Padding" Value="4" />
-                                <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
-                                <Setter Property="BorderBrush" Value="{ThemeResource MenuFlyoutPresenterBorderBrush}" />
-                            </Style>
-                        </Flyout.FlyoutPresenterStyle>
                         <StackPanel Width="300" Spacing="2">
                             <StackPanel.Resources>
                                 <StaticResource x:Key="ButtonBackground" ResourceKey="MenuFlyoutItemBackground" />
@@ -928,7 +941,13 @@
                             IsEnabled="{x:Bind ViewModel.UpdateAllEnabled, Mode=OneWay}">
                             <FontIcon Glyph="&#xE70D;" FontSize="10" />
                             <Button.Flyout>
-                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuFlyout
+                                    Placement="BottomEdgeAlignedRight"
+                                    ShouldConstrainToRootBounds="False"
+                                    MenuFlyoutPresenterStyle="{StaticResource TintedMenuFlyoutPresenterStyle}">
+                                    <MenuFlyout.SystemBackdrop>
+                                        <services:TintedAcrylicBackdrop />
+                                    </MenuFlyout.SystemBackdrop>
                                     <MenuFlyoutItem
                                         Text="{x:Bind ViewModel.UpdateAllOnInstallLabel, Mode=OneWay}"
                                         KeyboardAcceleratorTextOverride="{x:Bind ViewModel.SelectedUpdateCountText, Mode=OneWay}"
