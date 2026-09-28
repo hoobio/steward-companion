@@ -428,6 +428,7 @@
                 </StackPanel>
 
                 <Button
+                    x:Name="GuildPicker"
                     Grid.Column="1"
                     Height="48"
                     Width="216"
@@ -490,7 +491,7 @@
                             VerticalAlignment="Center"
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     </Grid>
-                    <Button.Flyout>
+                    <FlyoutBase.AttachedFlyout>
                         <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
                         <Flyout
                             x:Name="GuildFlyout"
@@ -517,7 +518,7 @@
                                     ItemTemplate="{StaticResource GuildOptionTemplate}" />
                             </StackPanel>
                         </Flyout>
-                    </Button.Flyout>
+                    </FlyoutBase.AttachedFlyout>
                 </Button>
 
                 <StackPanel

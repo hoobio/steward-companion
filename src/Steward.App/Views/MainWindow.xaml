@@ -182,7 +182,7 @@
                                 FontSize="10"
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </Grid>
-                        <Button.Flyout>
+                        <FlyoutBase.AttachedFlyout>
                             <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
                             <Flyout
                                 x:Name="InstallFlyout"
@@ -242,9 +242,10 @@
                                     </Button>
                                 </StackPanel>
                             </Flyout>
-                        </Button.Flyout>
+                        </FlyoutBase.AttachedFlyout>
                     </Button>
                     <DropDownButton
+                        x:Name="AccountButton"
                         Height="36"
                         Margin="0"
                         VerticalAlignment="Center"
@@ -281,7 +282,7 @@
                             </Grid>
                             <TextBlock Text="{x:Bind ViewModel.UserName, Mode=OneWay}" VerticalAlignment="Center" />
                         </StackPanel>
-                        <DropDownButton.Flyout>
+                        <FlyoutBase.AttachedFlyout>
                             <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
                             <Flyout x:Name="AccountFlyout" Placement="BottomEdgeAlignedRight" ShouldConstrainToRootBounds="False" AreOpenCloseAnimationsEnabled="False">
                                 <Flyout.SystemBackdrop>
@@ -364,7 +365,7 @@
                                         Click="OnSignOutClick" />
                                 </StackPanel>
                             </Flyout>
-                        </DropDownButton.Flyout>
+                        </FlyoutBase.AttachedFlyout>
                     </DropDownButton>
                 </StackPanel>
             </TitleBar.RightHeader>

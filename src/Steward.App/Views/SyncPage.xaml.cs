@@ -1,3 +1,4 @@
+using Steward.App.Services;
 using Steward.App.ViewModels;
 
 using Microsoft.UI.Xaml;
@@ -11,6 +12,7 @@ public sealed partial class SyncPage : Page
     public SyncPage()
     {
         InitializeComponent();
+        FlyoutOpener.Attach(GuildPicker, GuildFlyout, "guild-switcher");
     }
 
     public SyncViewModel? ViewModel { get; private set; }

@@ -6,6 +6,8 @@ using CommunityToolkit.Mvvm.Input;
 
 using H.NotifyIcon.EfficiencyMode;
 
+using Microsoft.Extensions.Logging;
+
 using Steward.App.Services;
 using Steward.App.ViewModels;
 
@@ -21,9 +23,12 @@ public sealed partial class MainWindow : Window
     private bool _quitting;
     private Native.SubclassProc? _sessionEndSubclass;
 
-    public MainWindow(MainViewModel viewModel)
+    public MainWindow(MainViewModel viewModel, ILogger<MainWindow> logger)
     {
         InitializeComponent();
+        FlyoutOpener.TrackActivation(this, logger);
+        FlyoutOpener.Attach(InstallPicker, InstallFlyout, "install-picker");
+        FlyoutOpener.Attach(AccountButton, AccountFlyout, "account");
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
