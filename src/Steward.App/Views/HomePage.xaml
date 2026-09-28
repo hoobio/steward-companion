@@ -886,6 +886,7 @@
                 </Grid>
 
                 <Border
+                    Margin="0,10,0,0"
                     CornerRadius="8"
                     Background="{ThemeResource LayerFillColorDefaultBrush}"
                     Visibility="{x:Bind ViewModel.TableVisibility, Mode=OneWay}">
