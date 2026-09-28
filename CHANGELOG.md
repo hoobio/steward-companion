@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.15.0](https://github.com/hoobio/steward-companion/compare/v0.14.0...v0.15.0) (2026-09-28)
+
+
+### Features
+
+* ✨ add a sortable Status column, last-updated Version sort and changelog ([bf2fa99](https://github.com/hoobio/steward-companion/commit/bf2fa99b25fb02a8df3eecc078354e1e96f1dfb3))
+* ✨ add Write again to the Guides page ([4541745](https://github.com/hoobio/steward-companion/commit/4541745d28c133e3c97b6eda8e1506457ab381b5))
+* ✨ carry recipe order, grey and colour bounds through the catalogue sync ([a9b4511](https://github.com/hoobio/steward-companion/commit/a9b4511e4a28d2286f8fec5b3d41ace008b3c8a8))
+* ✨ decode addon TGA and BLP icons ([5fd577b](https://github.com/hoobio/steward-companion/commit/5fd577b22bb88aa0742d47cda236702b3b597a62))
+* ✨ edit installs from Settings ([8378a24](https://github.com/hoobio/steward-companion/commit/8378a2449f70bd91c9805095159a10f522b2debc))
+* ✨ install Store app updates from inside Steward ([80fd9a4](https://github.com/hoobio/steward-companion/commit/80fd9a48fdff477702d4a4cb5972cc406a28127f))
+* ✨ let Status fill the table and tint the header row ([246ae40](https://github.com/hoobio/steward-companion/commit/246ae403227f5c6489005691f9f048cd221cab59))
+* ✨ list only your own characters on the officer push row ([887def5](https://github.com/hoobio/steward-companion/commit/887def5b2f84f887817163e17a198a564aa76bfa))
+* ✨ manage BugSack and BugGrabber under the addons flag ([13ae253](https://github.com/hoobio/steward-companion/commit/13ae2539a631287a2ef85a5369b770a38719f6c1))
+* ✨ pick a stable initials colour per addon folder ([7191156](https://github.com/hoobio/steward-companion/commit/71911565ed79866848450097cde49254a1d3c38f))
+* ✨ pick the install from the title bar for every page ([9b484d8](https://github.com/hoobio/steward-companion/commit/9b484d8649d4076c78586e9f85ac7d1bd4c4c922))
+* ✨ read changelog notes from addon manifests ([2a9af26](https://github.com/hoobio/steward-companion/commit/2a9af26301874ca1223d3c16f5c771bfd22bacaf))
+* ✨ read local addons, interface numbers and install overrides ([981336c](https://github.com/hoobio/steward-companion/commit/981336c28e12d460a1cba2eb261f9a6f0a79ffd7))
+* ✨ replace a running Steward from another build and focus the same one ([3217a04](https://github.com/hoobio/steward-companion/commit/3217a04a850aee5258e3bf30fa89cc3f6d8349f9))
+* ✨ resize Addons table columns ([133ce9f](https://github.com/hoobio/steward-companion/commit/133ce9f912c82b335f246734548ce782e1241161))
+* ✨ show live updates as a ring around the avatar ([8c04c10](https://github.com/hoobio/steward-companion/commit/8c04c109893418fd67488e1eeb682131f7780772))
+* ✨ show officer sync as two pulls and a push ([effd123](https://github.com/hoobio/steward-companion/commit/effd123596a605a87ad66e977225e3409f133d90))
+* ✨ show the game version icon for an install ([6b84290](https://github.com/hoobio/steward-companion/commit/6b84290dcc2812fc8d8fcd77cfba6e3ce7346407))
+* ✨ show the live-updates connection as a dot with a tooltip ([4aef4bb](https://github.com/hoobio/steward-companion/commit/4aef4bb4f5d9453146308d3a1593af60c9419d52))
+* ✨ tell gigagrug the selected guild on a user-driven switch ([809e114](https://github.com/hoobio/steward-companion/commit/809e1142c55a3c7566eea795a2e21fd1dcf4f48e))
+* ✨ turn the Addons page into a per-install addon manager ([add99f9](https://github.com/hoobio/steward-companion/commit/add99f9318c57cdd111d62f3655b003e8cdf77fa))
+
+
+### Bug Fixes
+
+* 🐛 apply Local rescans on the UI thread ([630d2b7](https://github.com/hoobio/steward-companion/commit/630d2b7fb4c6bd95d63aeb9b95b9d81ce27f2b0f))
+* 🐛 centre a title-only banner and give local banners the info icon ([fd007f5](https://github.com/hoobio/steward-companion/commit/fd007f504c3ab7fa242f6847f42b49b16deb539a))
+* 🐛 find your own characters by their Discord link ([6cb2804](https://github.com/hoobio/steward-companion/commit/6cb280415ee4429e1a5bf6fcd73ac32f3f937f68))
+* 🐛 harden addon icon decoding ([846e6e1](https://github.com/hoobio/steward-companion/commit/846e6e19987c33d36c521c9c1f5ff1c42cb7dcc6))
+* 🐛 keep a locked addon folder from breaking the Local scan ([7ec4618](https://github.com/hoobio/steward-companion/commit/7ec4618dd068023cb9c6aa163d84a0e833bbb86b))
+* 🐛 keep Store self-update to one install at a time ([5a1fb76](https://github.com/hoobio/steward-companion/commit/5a1fb76b41220ee2b41de9113d675d5277ecf646))
+* 🐛 keep the gap between the avatar ring and the name ([b8de0f6](https://github.com/hoobio/steward-companion/commit/b8de0f6c911153e3cb70cb43aad01ac41bf9d25b))
+* 🐛 label a pre-release flight with the release it precedes ([f72f644](https://github.com/hoobio/steward-companion/commit/f72f6441b534308177a8d73bf432ac54d1ed0a53))
+* 🐛 make Addons page row actions safe while busy and off the UI thread ([e858e83](https://github.com/hoobio/steward-companion/commit/e858e83a97447c491cd4ef9e31ad58cccc89236f))
+* 🐛 match the toolbar-to-table gap to the title-to-toolbar gap ([d3fdb4f](https://github.com/hoobio/steward-companion/commit/d3fdb4fe71758306caa816a74cb4e4dc3166c233))
+* 🐛 name each build's diagnostic log separately ([86f72bc](https://github.com/hoobio/steward-companion/commit/86f72bc07a7adc3eee1ffee9b5245b87f452a0f6))
+* 🐛 open a title bar dropdown in one click while another is open ([0d82122](https://github.com/hoobio/steward-companion/commit/0d821226e4dfeb95f9f372db800993d2a533130f))
+* 🐛 open flyouts on the first click into an inactive window ([cb179f8](https://github.com/hoobio/steward-companion/commit/cb179f8de0726136cd2846ec1dcdd3f96a16b26e))
+* 🐛 place Write again below the install cards ([a3ac7d0](https://github.com/hoobio/steward-companion/commit/a3ac7d0e9d3291928f5b2ae308fa8f92a69ad96a))
+* 🐛 place Write again under the guides list ([79be9e1](https://github.com/hoobio/steward-companion/commit/79be9e18405bf35730bf6cee6791de77d5f1f856))
+* 🐛 push only professions to a server where the officer holds no seat ([50091b2](https://github.com/hoobio/steward-companion/commit/50091b252e248d5f1b89436d98bd0445ffb21815))
+* 🐛 rewrite StewardGuides only when a guide or its script changes ([37da95e](https://github.com/hoobio/steward-companion/commit/37da95e5ea11dabf55e65d78d20f192c1e1da1ba))
+* 🐛 run one Steward at a time across every build ([0d79c95](https://github.com/hoobio/steward-companion/commit/0d79c95a0968562ab311049fae7764b4f18631af))
+* 🐛 send the pre-release version in the User-Agent ([ea11b18](https://github.com/hoobio/steward-companion/commit/ea11b18556faa1bc0ed498f225af1922f6b9845c))
+* 🐛 show the last known update state on the About card ([48432af](https://github.com/hoobio/steward-companion/commit/48432afe55b4204b924099f79cc462afc91f4b10))
+* 🐛 smooth the install picker and guild switcher open animation ([674122c](https://github.com/hoobio/steward-companion/commit/674122c0bd5a8f346c1537e76a9c33b3db814004))
+* 🐛 spread RestedXP guide checks with random jitter ([9595e53](https://github.com/hoobio/steward-companion/commit/9595e537d4da851489561110e333a0b3c37c65b7))
+* 🐛 tint flyout acrylic to the app palette ([fa14690](https://github.com/hoobio/steward-companion/commit/fa14690eee769dabb2c80029757af6c6255c4d0a))
+
 ## [0.14.0](https://github.com/hoobio/steward-companion/compare/v0.13.1...v0.14.0) (2026-09-27)
 
 
