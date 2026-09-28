@@ -1,5 +1,6 @@
 using System.Net;
 
+using Steward.App;
 using Steward.App.Services;
 using Steward.App.ViewModels;
 using Steward.App.Views;
@@ -58,7 +59,7 @@ internal static class HostBuilderExtensions
             throw new InvalidOperationException("SupportedProducts is not configured");
         }
 
-        var userAgent = $"Steward/{MainViewModel.InstalledVersion} ({MainViewModel.Channel})";
+        var userAgent = $"Steward/{App.StoreDisplayVersion ?? MainViewModel.InstalledVersion} ({(App.IsPreRelease ? "prerelease" : MainViewModel.Channel)})";
 
         builder.Services.AddSingleton<CookieContainer>();
         builder.Services.AddHttpClient("Gigagrug")
