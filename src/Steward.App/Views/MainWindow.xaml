@@ -59,7 +59,8 @@
                         Margin="0,0,12,0"
                         VerticalAlignment="Center"
                         Visibility="{x:Bind ViewModel.LiveUpdatesVisibility, Mode=OneWay}"
-                        ToolTipService.ToolTip="{x:Bind ViewModel.LiveUpdatesTooltip, Mode=OneWay}">
+                        ToolTipService.ToolTip="{x:Bind ViewModel.LiveUpdatesTooltip, Mode=OneWay}"
+                        AutomationProperties.Name="{x:Bind ViewModel.LiveUpdatesTooltip, Mode=OneWay}">
                         <Ellipse
                             Width="8"
                             Height="8"
@@ -72,11 +73,6 @@
                             VerticalAlignment="Center"
                             Fill="{ThemeResource SystemFillColorCautionBrush}"
                             Visibility="{x:Bind ViewModel.LiveUpdatesReconnectingVisibility, Mode=OneWay}" />
-                        <TextBlock
-                            Text="{x:Bind ViewModel.LiveUpdatesText, Mode=OneWay}"
-                            VerticalAlignment="Center"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                     <DropDownButton
                         Height="36"

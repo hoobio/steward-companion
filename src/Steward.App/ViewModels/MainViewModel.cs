@@ -292,7 +292,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool CloseToTray { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(LiveUpdatesVisibility), nameof(LiveUpdatesLiveVisibility), nameof(LiveUpdatesReconnectingVisibility), nameof(LiveUpdatesText), nameof(LiveUpdatesTooltip))]
+    [NotifyPropertyChangedFor(nameof(LiveUpdatesVisibility), nameof(LiveUpdatesLiveVisibility), nameof(LiveUpdatesReconnectingVisibility), nameof(LiveUpdatesTooltip))]
     public partial LiveUpdatesState LiveUpdatesState { get; set; }
 
     [ObservableProperty]
@@ -473,11 +473,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility LiveUpdatesReconnectingVisibility => When(LiveUpdatesState == LiveUpdatesState.Reconnecting);
 
-    public string LiveUpdatesText => LiveUpdatesState == LiveUpdatesState.Reconnecting ? "Reconnecting" : "Live updates";
-
     public string LiveUpdatesTooltip => LiveUpdatesState == LiveUpdatesState.Reconnecting
-        ? "Trying to reconnect; changes still arrive on the next check"
-        : "Changes to your access and guild data arrive instantly";
+        ? "Reconnecting to api.hoobi.io; changes still arrive on the next check"
+        : "Connected to api.hoobi.io via SSE. Changes to guild data arrive instantly.";
 
     public Visibility RetryVisibility => When(Failure == GateFailure.Unreachable);
 
