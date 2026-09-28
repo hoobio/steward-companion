@@ -183,30 +183,6 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private void OnInstallOptionClick(object sender, RoutedEventArgs e)
-    {
-        InstallFlyout.Hide();
-        if (TaggedItem<WowInstallViewModel>(sender, nameof(OnInstallOptionClick)) is { } install)
-        {
-            ViewModel?.SelectInstall(install);
-        }
-    }
-
-    private void OnEditInstallOptionClick(object sender, RoutedEventArgs e)
-    {
-        InstallFlyout.Hide();
-        if (TaggedItem<WowInstallViewModel>(sender, nameof(OnEditInstallOptionClick)) is { } install)
-        {
-            ViewModel?.RequestEditInstall(install);
-        }
-    }
-
-    private void OnAddInstallClick(object sender, RoutedEventArgs e)
-    {
-        InstallFlyout.Hide();
-        ViewModel?.BrowseCommand.Execute(null);
-    }
-
     private void OnUpdateAllClick(object sender, RoutedEventArgs e)
     {
         if (ViewModel?.UpdateAllCommand.CanExecute(null) == true)
@@ -217,11 +193,5 @@ public sealed partial class HomePage : Page
         {
             UpdateAllMore.Flyout.ShowAt(UpdateAllMore);
         }
-    }
-
-    private void OnManageInstallsClick(object sender, RoutedEventArgs e)
-    {
-        InstallFlyout.Hide();
-        ViewModel?.OpenSettingsCommand.Execute(null);
     }
 }

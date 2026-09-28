@@ -236,15 +236,22 @@
                 </Grid>
             </Border>
 
-            <ItemsControl
-                ItemsSource="{x:Bind ViewModel.RestedXp.Guides, Mode=OneWay}"
-                ItemTemplate="{StaticResource GuideCardTemplate}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Spacing="10" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-            </ItemsControl>
+            <ContentControl
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Stretch"
+                Content="{x:Bind ViewModel.SelectedGuide, Mode=OneWay}"
+                ContentTemplate="{StaticResource GuideCardTemplate}" />
+
+            <Border
+                CornerRadius="8"
+                Padding="16,14"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                Visibility="{x:Bind ViewModel.GuidesNotInstalledVisibility, Mode=OneWay}">
+                <TextBlock
+                    Text="{x:Bind ViewModel.GuidesNotInstalledText, Mode=OneWay}"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Border>
 
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                 <ProgressRing

@@ -117,7 +117,7 @@ The primary working state. Top to bottom:
 1. Page header. `Sync` at 26/600, and under it "Last synced {relative time}".
 2. Header actions: a refresh icon button that re-reads the local files, and `Sync now` as the accent button.
 3. Summary banner, info tint: "{n} changes to send" at 19/600, a second line naming the datasets, and `Sync now` on the right.
-4. One `Expander` per install holding the Steward addon, expanded by default. Header matches the Addons page: flavour name, path in mono at 11.5px, client version chip, and a per-install state pill.
+4. One `Expander` for the install selected in the title bar's install picker (see `addon-manager.md`), expanded by default; the empty states, the running banner, the generated-file card and the nav badge read that install alone. Character pushes, `StewardSync.lua` writes and the saved-variables watchers still cover every install. Header matches the Addons page: flavour name, path in mono at 11.5px, client version chip, and a per-install state pill.
 5. Three dataset rows per card, divided by hairlines.
 
 A dataset row is: 30px glyph, the dataset name at 13.5px with the source file in mono beneath, then the record count and `exportedAt`, then the action.

@@ -74,6 +74,47 @@ public sealed partial class MainWindow : Window
 
     private void SelectAllSignInUrl(object sender, RoutedEventArgs e) => SignInUrlBox.SelectAll();
 
+    private WowInstallViewModel? TaggedInstall(object sender, string handler)
+    {
+        if (((FrameworkElement)sender).Tag is WowInstallViewModel install)
+        {
+            return install;
+        }
+
+        ViewModel.WarnUi($"{handler} could not resolve its {nameof(WowInstallViewModel)} from the element's Tag");
+        return null;
+    }
+
+    private void OnInstallOptionClick(object sender, RoutedEventArgs e)
+    {
+        InstallFlyout.Hide();
+        if (TaggedInstall(sender, nameof(OnInstallOptionClick)) is { } install)
+        {
+            ViewModel.SelectInstall(install);
+        }
+    }
+
+    private void OnEditInstallOptionClick(object sender, RoutedEventArgs e)
+    {
+        InstallFlyout.Hide();
+        if (TaggedInstall(sender, nameof(OnEditInstallOptionClick)) is { } install)
+        {
+            ViewModel.RequestEditInstall(install);
+        }
+    }
+
+    private void OnAddInstallClick(object sender, RoutedEventArgs e)
+    {
+        InstallFlyout.Hide();
+        ViewModel.BrowseCommand.Execute(null);
+    }
+
+    private void OnManageInstallsClick(object sender, RoutedEventArgs e)
+    {
+        InstallFlyout.Hide();
+        ViewModel.OpenSettingsCommand.Execute(null);
+    }
+
     private void OnNavSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         var page = args.IsSettingsSelected
@@ -85,6 +126,7 @@ public sealed partial class MainWindow : Window
                 _ => typeof(HomePage),
             };
 
+        ViewModel.IsSettingsShown = args.IsSettingsSelected;
         if (RootFrame.CurrentSourcePageType == page)
         {
             return;

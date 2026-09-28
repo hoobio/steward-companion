@@ -9,87 +9,6 @@
     xmlns:vm="using:Steward.App.ViewModels">
 
     <Page.Resources>
-        <DataTemplate x:Key="InstallOptionTemplate" x:DataType="vm:WowInstallViewModel">
-            <Grid>
-                <Button
-                    MinHeight="40"
-                    Padding="8,5"
-                    BorderThickness="0"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Stretch"
-                    ToolTipService.ToolTip="{x:Bind FlavourPath}"
-                    Tag="{x:Bind}"
-                    Click="OnInstallOptionClick">
-                    <Grid ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="20" />
-                        </Grid.ColumnDefinitions>
-
-                        <Grid Width="32" Height="32" VerticalAlignment="Center">
-                            <FontIcon
-                                Glyph="&#xE7BA;"
-                                FontSize="14"
-                                Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                                Visibility="{x:Bind NoGameVersionVisibility}" />
-                            <Image Source="{x:Bind ProductIcon}" Stretch="Uniform" />
-                        </Grid>
-
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="{x:Bind Label}" FontSize="12.5" TextTrimming="CharacterEllipsis" />
-                            <TextBlock
-                                Text="{x:Bind GameVersionName}"
-                                FontSize="11.5"
-                                TextTrimming="CharacterEllipsis"
-                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                Visibility="{x:Bind GameVersionLineVisibility}" />
-                            <TextBlock
-                                Text="Game version not set"
-                                FontSize="11.5"
-                                Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                                Visibility="{x:Bind NoGameVersionVisibility}" />
-                            <TextBlock
-                                Text="{x:Bind FlavourPath}"
-                                FontFamily="Cascadia Mono"
-                                FontSize="11"
-                                TextWrapping="NoWrap"
-                                TextTrimming="CharacterEllipsis"
-                                Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                        </StackPanel>
-
-                        <Ellipse
-                            Grid.Column="2"
-                            Width="6"
-                            Height="6"
-                            VerticalAlignment="Center"
-                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                            Visibility="{x:Bind CurrentDotVisibility, Mode=OneWay}" />
-                    </Grid>
-                </Button>
-                <Button
-                    Width="28"
-                    Height="28"
-                    Margin="0,0,4,0"
-                    Padding="0"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    BorderThickness="0"
-                    AutomationProperties.Name="{x:Bind EditAccessibleName, Mode=OneWay}"
-                    ToolTipService.ToolTip="Edit install"
-                    Tag="{x:Bind}"
-                    Click="OnEditInstallOptionClick">
-                    <Button.Resources>
-                        <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
-                        <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
-                        <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
-                    </Button.Resources>
-                    <FontIcon Glyph="&#xE70F;" FontSize="13" />
-                </Button>
-            </Grid>
-        </DataTemplate>
-
         <DataTemplate x:Key="AddonRowTemplate" x:DataType="vm:AddonRowViewModel">
             <Grid
                 Padding="16,8"
@@ -651,7 +570,6 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <TextBlock
@@ -659,116 +577,6 @@
                 FontSize="28"
                 FontWeight="SemiBold"
                 VerticalAlignment="Center" />
-
-            <Button
-                x:Name="InstallPicker"
-                Grid.Column="4"
-                Height="32"
-                Margin="6,0,0,0"
-                VerticalAlignment="Center"
-                MinWidth="200"
-                Padding="11,0,10,2"
-                HorizontalContentAlignment="Stretch"
-                Background="{ThemeResource ChipBrush}"
-                AutomationProperties.Name="Switch install"
-                ToolTipService.ToolTip="{x:Bind ViewModel.SelectedInstall.FlavourPath, Mode=OneWay}"
-                Visibility="{x:Bind ViewModel.InstallPickerVisibility, Mode=OneWay}">
-                <Button.Resources>
-                    <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="LayerFillColorAltBrush" />
-                    <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="ChipBrush" />
-                </Button.Resources>
-                <Grid ColumnSpacing="10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <FontIcon
-                        Glyph="&#xE7BA;"
-                        FontSize="13"
-                        Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                        Visibility="{x:Bind ViewModel.SelectedInstall.NoGameVersionVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
-                    <Image
-                        Width="20"
-                        Height="20"
-                        VerticalAlignment="Center"
-                        Stretch="Uniform"
-                        Source="{x:Bind ViewModel.SelectedInstall.ProductIcon, Mode=OneWay}"
-                        Visibility="{x:Bind ViewModel.SelectedInstall.ProductIconVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
-                    <TextBlock
-                        Grid.Column="1"
-                        Text="{x:Bind ViewModel.SelectedInstall.Label, Mode=OneWay}"
-                        FontSize="14"
-                        VerticalAlignment="Center"
-                        TextTrimming="CharacterEllipsis" />
-                    <FontIcon
-                        Grid.Column="2"
-                        Glyph="&#xE70D;"
-                        FontSize="10"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                </Grid>
-                <Button.Flyout>
-                    <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
-                    <Flyout
-                        x:Name="InstallFlyout"
-                        Placement="BottomEdgeAlignedRight"
-                        ShouldConstrainToRootBounds="False"
-                        AreOpenCloseAnimationsEnabled="False"
-                        FlyoutPresenterStyle="{StaticResource TintedFlyoutPresenterStyle}">
-                        <Flyout.SystemBackdrop>
-                            <services:TintedAcrylicBackdrop />
-                        </Flyout.SystemBackdrop>
-                        <StackPanel Width="300" Spacing="2">
-                            <StackPanel.Resources>
-                                <StaticResource x:Key="ButtonBackground" ResourceKey="MenuFlyoutItemBackground" />
-                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="MenuFlyoutItemBackgroundPointerOver" />
-                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="MenuFlyoutItemBackgroundPressed" />
-                            </StackPanel.Resources>
-                            <TextBlock
-                                Text="Switch install"
-                                FontSize="11.5"
-                                Margin="8,4,8,2"
-                                Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                            <ItemsControl
-                                ItemsSource="{x:Bind ViewModel.Installs, Mode=OneWay}"
-                                ItemTemplate="{StaticResource InstallOptionTemplate}" />
-                            <Border Height="1" Margin="8,2" Background="{ThemeResource MenuFlyoutSeparatorBackground}" />
-                            <Button
-                                Height="36"
-                                Padding="8,0"
-                                BorderThickness="0"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Stretch"
-                                Click="OnAddInstallClick">
-                                <Grid ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="32" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon Glyph="&#xE710;" FontSize="14" />
-                                    <TextBlock Grid.Column="1" Text="Add install" VerticalAlignment="Center" />
-                                </Grid>
-                            </Button>
-                            <Button
-                                Height="36"
-                                Padding="8,0"
-                                BorderThickness="0"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Stretch"
-                                Click="OnManageInstallsClick">
-                                <Grid ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="32" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon Glyph="&#xE713;" FontSize="14" />
-                                    <TextBlock Grid.Column="1" Text="Manage installs" VerticalAlignment="Center" />
-                                </Grid>
-                            </Button>
-                        </StackPanel>
-                    </Flyout>
-                </Button.Flyout>
-            </Button>
 
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="0,0,10,0" VerticalAlignment="Center">
                 <TextBlock
@@ -803,7 +611,7 @@
                 Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
 
             <Button
-                Grid.Column="5"
+                Grid.Column="4"
                 Width="32"
                 Height="32"
                 Padding="0"
@@ -818,7 +626,7 @@
             </Button>
 
             <Button
-                Grid.Column="6"
+                Grid.Column="5"
                 Width="32"
                 Height="32"
                 Padding="0"

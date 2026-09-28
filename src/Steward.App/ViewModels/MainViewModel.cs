@@ -72,6 +72,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(IsAnyRowBusy),
         nameof(InstallsDescription),
         nameof(GuidesVisibility),
+        nameof(SelectedGuide),
+        nameof(GuidesNotInstalledVisibility),
+        nameof(GuidesNotInstalledText),
+        nameof(TitleBarPickerVisibility),
         nameof(SyncVisibility),
         nameof(HasSyncFeature),
         nameof(IsProfessionsOnlySync),
@@ -182,6 +186,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(GuidesVisibility));
             }
         };
+        RestedXp.Guides.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(SelectedGuide));
+            OnPropertyChanged(nameof(GuidesNotInstalledVisibility));
+        };
 
         Sync = new SyncViewModel(this)
         {
@@ -286,6 +295,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LiveUpdatesLiveVisibility), nameof(LiveUpdatesReconnectingVisibility), nameof(LiveUpdatesTooltip), nameof(AccountAutomationName))]
     public partial LiveUpdatesState LiveUpdatesState { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TitleBarPickerVisibility))]
+    public partial bool IsSettingsShown { get; set; }
 
     [ObservableProperty]
     public partial bool StartWithWindows { get; set; }
@@ -399,9 +412,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Visibility SyncBadgeVisibility => When(Sync.HasWaiting);
 
     public Visibility GuidesVisibility => When(IsGuidesPreview
-        || (HasGuidesFeature && RestedXp.IsSignedIn && Installs.Any(install => install.AddonRows.Any(row =>
-            string.Equals(row.AddonId, RestedXpViewModel.AddonId, StringComparison.OrdinalIgnoreCase)
-            && row.State is not (AddonRowState.Missing or AddonRowState.NoReleases)))));
+        || (HasGuidesFeature && RestedXp.IsSignedIn && Installs.Any(HasRestedXp)));
+
+    private static bool HasRestedXp(WowInstallViewModel install) => install.AddonRows.Any(row =>
+        string.Equals(row.AddonId, RestedXpViewModel.AddonId, StringComparison.OrdinalIgnoreCase)
+        && row.State is not (AddonRowState.Missing or AddonRowState.NoReleases));
+
+    public RestedXpInstallViewModel? SelectedGuide => RestedXp.IsPreview
+        ? RestedXp.Guides.FirstOrDefault()
+        : SelectedInstall is { } install && HasRestedXp(install)
+            ? RestedXp.Guides.FirstOrDefault(guide => string.Equals(guide.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase))
+            : null;
+
+    public Visibility GuidesNotInstalledVisibility => When(SelectedGuide is null && SelectedInstall is not null);
+
+    public string GuidesNotInstalledText => $"RestedXP Guides is not installed on {SelectedInstall?.Label}.";
+
+    public Visibility TitleBarPickerVisibility => When(SelectedInstall is not null && !IsSettingsShown);
 
     public Visibility SyncVisibility => When(HasStewardFeature || HasSyncFeature);
 

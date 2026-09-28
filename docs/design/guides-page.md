@@ -18,7 +18,7 @@ Top to bottom:
 
 1. Page header. `RestedXP Guides` at 26/600, with a `Refresh` button right-aligned on the same row.
 2. Account strip. A Surface card holding "Signed in as {email} · {BattleTag}" with the BattleTag in mono, and `Sign out` as a hyperlink button. Signed out, it reads "Not signed in" with an accent `Sign in` button. No avatar.
-3. One card per WoW install. Header carries the install title and the path in mono at 11.5px.
+3. The card for the install selected in the title bar's install picker (see `addon-manager.md`). Header carries the install title and the path in mono at 11.5px. When the selected install has no RXPGuides, a Surface card reading "RestedXP Guides is not installed on {install}." takes its place; the selection is not switched. Guide writes, confirmations and saved-variables watchers still cover every install.
 4. A `Keep in game` column header above the rows, once per card.
 5. One row per owned product: checkbox, product name at 13.5px, "Updated {relative time}" in dim beneath, and a status pill at the right on each kept row.
 

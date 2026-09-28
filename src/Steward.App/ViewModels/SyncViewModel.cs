@@ -75,6 +75,10 @@ public sealed partial class SyncViewModel : ObservableObject
                 SyncCharacterPushRows();
                 Recompute();
             }
+            else if (e.PropertyName == nameof(MainViewModel.SelectedInstall))
+            {
+                _ = ReloadAsync();
+            }
         };
     }
 
@@ -142,9 +146,9 @@ public sealed partial class SyncViewModel : ObservableObject
         }
     }
 
-    public string GeneratedFilePath => _main.Installs.Count == 0
-        ? "No World of Warcraft install found"
-        : StewardSyncFile.PathFor(_main.Installs[0].AddOnsPath);
+    public string GeneratedFilePath => _main.SelectedInstall is { } install
+        ? StewardSyncFile.PathFor(install.AddOnsPath)
+        : "No World of Warcraft install found";
 
     public string GeneratedFileDescription
     {
@@ -180,7 +184,7 @@ public sealed partial class SyncViewModel : ObservableObject
             IsUnreachable = !_main.IsApiReachable;
             WatchSavedVariables();
 
-            var fresh = _main.Installs.Select(Build).ToList();
+            var fresh = _main.Installs.Where(install => install == _main.SelectedInstall).Select(Build).ToList();
             if (fresh.Select(view => view.Shape).SequenceEqual(Installs.Select(view => view.Shape)))
             {
                 for (var i = 0; i < fresh.Count; i++)
