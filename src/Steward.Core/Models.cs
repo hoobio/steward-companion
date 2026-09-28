@@ -21,7 +21,8 @@ public sealed record AddonRelease(
     [property: JsonPropertyName("zip")] string Zip,
     [property: JsonPropertyName("sha256")] string Sha256,
     [property: JsonPropertyName("size")] long Size,
-    [property: JsonPropertyName("released")] DateTimeOffset Released);
+    [property: JsonPropertyName("released")] DateTimeOffset Released,
+    [property: JsonPropertyName("notes")] IReadOnlyList<string>? Notes = null);
 
 public sealed record AdminUser(
     [property: JsonPropertyName("id")] string Id,
