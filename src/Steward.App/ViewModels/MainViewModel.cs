@@ -228,6 +228,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Func<WowInstall, Task>? AfterStewardInstalled { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AccountAutomationName))]
     public partial string? UserName { get; set; }
 
     [ObservableProperty]
@@ -283,7 +284,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool CloseToTray { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(LiveUpdatesVisibility), nameof(LiveUpdatesLiveVisibility), nameof(LiveUpdatesReconnectingVisibility), nameof(LiveUpdatesTooltip))]
+    [NotifyPropertyChangedFor(nameof(LiveUpdatesLiveVisibility), nameof(LiveUpdatesReconnectingVisibility), nameof(LiveUpdatesTooltip), nameof(AccountAutomationName))]
     public partial LiveUpdatesState LiveUpdatesState { get; set; }
 
     [ObservableProperty]
@@ -420,15 +421,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool IsApiReachable => Failure != GateFailure.Unreachable;
 
-    public Visibility LiveUpdatesVisibility => When(LiveUpdatesState != LiveUpdatesState.Hidden);
-
     public Visibility LiveUpdatesLiveVisibility => When(LiveUpdatesState == LiveUpdatesState.Live);
 
     public Visibility LiveUpdatesReconnectingVisibility => When(LiveUpdatesState == LiveUpdatesState.Reconnecting);
 
-    public string LiveUpdatesTooltip => LiveUpdatesState == LiveUpdatesState.Reconnecting
-        ? "Reconnecting to api.hoobi.io; changes still arrive on the next check"
-        : "Connected to api.hoobi.io via SSE. Changes to guild data arrive instantly.";
+    public string? LiveUpdatesTooltip => LiveUpdatesState switch
+    {
+        LiveUpdatesState.Reconnecting => "Reconnecting to api.hoobi.io; changes still arrive on the next check",
+        LiveUpdatesState.Live => "Connected to api.hoobi.io via SSE. Changes to guild data arrive instantly.",
+        _ => null,
+    };
+
+    public string? AccountAutomationName => LiveUpdatesTooltip is { } tooltip ? $"{UserName}, {tooltip}" : UserName;
 
     public Visibility RetryVisibility => When(Failure == GateFailure.Unreachable);
 
