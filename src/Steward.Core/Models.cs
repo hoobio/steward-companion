@@ -18,11 +18,15 @@ public sealed record ManagedAddon(string Id, string FolderName, string? Manifest
 
 public sealed record AddonRelease(
     [property: JsonPropertyName("version")] string Version,
-    [property: JsonPropertyName("zip")] string Zip,
-    [property: JsonPropertyName("sha256")] string Sha256,
+    [property: JsonPropertyName("zip")] string? Zip,
+    [property: JsonPropertyName("sha256")] string? Sha256,
     [property: JsonPropertyName("size")] long Size,
     [property: JsonPropertyName("released")] DateTimeOffset Released,
-    [property: JsonPropertyName("notes")] IReadOnlyList<string>? Notes = null);
+    [property: JsonPropertyName("notes")] IReadOnlyList<string>? Notes = null,
+    [property: JsonPropertyName("sha1")] string? Sha1 = null,
+    [property: JsonPropertyName("folders")] IReadOnlyList<string>? Folders = null,
+    [property: JsonPropertyName("website")] string? Website = null,
+    [property: JsonPropertyName("distributable")] bool Distributable = true);
 
 public sealed record AdminUser(
     [property: JsonPropertyName("id")] string Id,

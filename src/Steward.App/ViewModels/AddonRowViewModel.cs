@@ -538,7 +538,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
                 .ConfigureAwait(true);
 
             var state = _stateStore.Load();
-            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now);
+            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256 ?? release.Sha1!, DateTimeOffset.Now);
             _stateStore.Save(state);
 
             RefreshInstalledVersion();

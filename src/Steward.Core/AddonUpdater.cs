@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
@@ -77,19 +78,30 @@ public sealed class AddonUpdater
         IProgress<double>? progress,
         CancellationToken cancellationToken)
     {
-        var zipUri = addon.ManifestBaseUrl is null
-            ? new Uri(release.Zip)
-            : new Uri(ManifestUri(addon, channel), release.Zip);
-        var tempZipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
-
         _logger.Info($"Installing {addon.Id} {channel} {release.Version} into {addOnsPath}");
+        var tempZipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
         try
         {
             try
             {
+                if (!release.Distributable)
+                {
+                    throw new InvalidOperationException($"{addon.Id} {release.Version} is not distributable; get it from {release.Website ?? "its website"}");
+                }
+
+                if (release.Zip is null || (release.Sha256 is null && release.Sha1 is null))
+                {
+                    throw new InvalidOperationException($"{addon.Id} {release.Version} manifest has no zip or no sha256/sha1; refusing to install");
+                }
+
+                var folders = InstallFolders(addon, release);
+                var zipUri = addon.ManifestBaseUrl is null
+                    ? new Uri(release.Zip)
+                    : new Uri(ManifestUri(addon, channel), release.Zip);
                 await DownloadAsync(_httpClient, zipUri, tempZipPath, release.Size, progress, cancellationToken).ConfigureAwait(false);
-                await VerifyChecksumAsync(tempZipPath, release.Sha256, cancellationToken).ConfigureAwait(false);
-                RemoveExistingInstall(addOnsPath, addon.FolderName);
+                await VerifyChecksumAsync(tempZipPath, release.Sha256, release.Sha1, cancellationToken).ConfigureAwait(false);
+                RefuseForeignFolders(tempZipPath, folders);
+                Uninstall(addOnsPath, folders);
                 ExtractZip(tempZipPath, addOnsPath);
             }
             finally
@@ -142,22 +154,72 @@ public sealed class AddonUpdater
         }
     }
 
+    [SuppressMessage("Security", "CA5350", Justification = "CurseForge publishes only SHA-1 and MD5 file hashes; SHA-256 is used whenever the manifest has it")]
     internal static async Task VerifyChecksumAsync(
         string filePath,
-        string expectedSha256,
+        string? expectedSha256,
+        string? expectedSha1,
         CancellationToken cancellationToken)
     {
+        var (name, expected) = expectedSha256 is not null ? ("SHA-256", expectedSha256)
+            : expectedSha1 is not null ? ("SHA-1", expectedSha1)
+            : throw new InvalidOperationException("The manifest has neither sha256 nor sha1; refusing to install an unverified zip");
+
         string actualHash;
         await using (var stream = File.OpenRead(filePath))
         {
-            actualHash = Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
+            actualHash = Convert.ToHexString(expectedSha256 is not null
+                ? await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)
+                : await SHA1.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
         }
 
-        if (!string.Equals(actualHash, expectedSha256, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(actualHash, expected, StringComparison.OrdinalIgnoreCase))
         {
             File.Delete(filePath);
             throw new InvalidOperationException(
-                $"SHA-256 mismatch: expected {expectedSha256}, got {actualHash}");
+                $"{name} mismatch: expected {expected}, got {actualHash}");
+        }
+    }
+
+    public static IReadOnlyList<string> InstallFolders(ManagedAddon addon, AddonRelease? release)
+    {
+        ArgumentNullException.ThrowIfNull(addon);
+        var folders = release?.Folders is { Count: > 0 } listed ? listed : [addon.FolderName];
+        foreach (var folder in folders)
+        {
+            if (string.IsNullOrWhiteSpace(folder) || folder is "." or ".." || folder.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new InvalidOperationException($"{addon.Id} lists an invalid folder name '{folder}'");
+            }
+        }
+
+        return folders;
+    }
+
+    public static void Uninstall(string addOnsPath, IReadOnlyList<string> folders)
+    {
+        ArgumentNullException.ThrowIfNull(folders);
+        if (folders.Select(folder => RemovalRefusal(addOnsPath, folder)).FirstOrDefault(message => message is not null) is { } refusal)
+        {
+            throw new InvalidOperationException(refusal);
+        }
+
+        foreach (var folder in folders)
+        {
+            RemoveExistingInstall(addOnsPath, folder);
+        }
+    }
+
+    internal static void RefuseForeignFolders(string zipPath, IReadOnlyList<string> folders)
+    {
+        using var archive = ZipFile.OpenRead(zipPath);
+        foreach (var entry in archive.Entries)
+        {
+            var parts = entry.FullName.Split('/', '\\');
+            if (parts.Length < 2 || !folders.Contains(parts[0], StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Zip entry {entry.FullName} is outside the expected folders {string.Join(", ", folders)}");
+            }
         }
     }
 
