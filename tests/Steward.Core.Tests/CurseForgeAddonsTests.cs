@@ -25,6 +25,25 @@ public sealed class CurseForgeAddonsTests
     }
 
     [Fact]
+    public void Adopt_PrefersTheMatchesOwnName_OverTheTocTitle()
+    {
+        var adopted = Assert.Single(Adopt(
+            new CurseForgeMatch("Questie", 334372, 7, ["Questie"], "Questie", "https://www.curseforge.com/wow/addons/questie")));
+
+        Assert.Equal("Questie", adopted.Name);
+        Assert.Equal("https://www.curseforge.com/wow/addons/questie", adopted.WebsiteUrl);
+    }
+
+    [Fact]
+    public void Adopt_WithNoNameOnTheMatch_FallsBackToTheTocTitle()
+    {
+        var adopted = Assert.Single(Adopt(new CurseForgeMatch("Questie", 334372, 7, ["Questie"])));
+
+        Assert.Equal("Questie Classic", adopted.Name);
+        Assert.Null(adopted.WebsiteUrl);
+    }
+
+    [Fact]
     public void Adopt_DeclaredIdWinsOverAFingerprintForTheSameFolder()
     {
         var adopted = Assert.Single(Adopt(
@@ -127,7 +146,7 @@ public sealed class CurseForgeAddonsTests
     public async Task MatchCurseForgeAsync_PostsDeclaredAndFingerprints_AndParsesTheBareArray()
     {
         var (client, handler) = ClientFor(HttpStatusCode.OK,
-            """[{"folder":"Questie","modId":334372,"fileId":null,"folders":["QuestieDB","Questie"]}]""");
+            """[{"folder":"Questie","modId":334372,"fileId":null,"folders":["QuestieDB","Questie"],"name":"Questie","websiteUrl":"https://www.curseforge.com/wow/addons/questie"}]""");
 
         var matches = await client.MatchCurseForgeAsync(88568,
             new CurseForgeMatchRequest([new CurseForgeDeclared("Questie", 334372)], [new CurseForgeFolderFingerprint("QuestieDB", 4000000000)]),
@@ -139,6 +158,8 @@ public sealed class CurseForgeAddonsTests
         var match = Assert.Single(matches);
         Assert.Null(match.FileId);
         Assert.Equal(["QuestieDB", "Questie"], match.Folders);
+        Assert.Equal("Questie", match.Name);
+        Assert.Equal("https://www.curseforge.com/wow/addons/questie", match.WebsiteUrl);
     }
 
     [Fact]

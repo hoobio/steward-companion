@@ -532,7 +532,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
         if (!release.Distributable)
         {
-            if (Uri.TryCreate(release.Website, UriKind.Absolute, out var website) && website.Scheme == Uri.UriSchemeHttps)
+            if (Uri.TryCreate(release.Website ?? _addon.Website, UriKind.Absolute, out var website) && website.Scheme == Uri.UriSchemeHttps)
             {
                 Process.Start(new ProcessStartInfo(website.AbsoluteUri) { UseShellExecute = true })?.Dispose();
             }

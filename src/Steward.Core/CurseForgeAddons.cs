@@ -13,6 +13,7 @@ public static class CurseForgeAddons
         {
             IconUrl = record.IconUrl,
             Folders = Folders(record),
+            Website = record.WebsiteUrl,
         };
     }
 
@@ -82,7 +83,9 @@ public static class CurseForgeAddons
 
             claimed.UnionWith(present);
             var primary = PrimaryFolder(present);
-            adopted.Add(new ProviderAddonRecord(Id(group.Key, versionType), primary, title(primary) ?? primary, Source, group.Key, versionType, modules));
+            var name = group.Select(match => match.Name).FirstOrDefault(name => !string.IsNullOrEmpty(name)) ?? title(primary) ?? primary;
+            var websiteUrl = group.Select(match => match.WebsiteUrl).FirstOrDefault(url => !string.IsNullOrEmpty(url));
+            adopted.Add(new ProviderAddonRecord(Id(group.Key, versionType), primary, name, Source, group.Key, versionType, modules, WebsiteUrl: websiteUrl));
         }
 
         return adopted;

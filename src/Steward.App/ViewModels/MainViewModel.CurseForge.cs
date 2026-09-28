@@ -178,7 +178,7 @@ public sealed partial class MainViewModel
         }
 
         var id = CurseForgeAddons.Id(result.Id, versionType);
-        var draft = new ProviderAddonRecord(id, result.Name, result.Name, CurseForgeAddons.Source, result.Id, versionType, [], result.IconUrl);
+        var draft = new ProviderAddonRecord(id, result.Name, result.Name, CurseForgeAddons.Source, result.Id, versionType, [], result.IconUrl, result.WebsiteUrl);
         var probe = CurseForgeAddons.ToManagedAddon(draft, _gigagrugClient.CurseForgeManifestBaseUrl(result.Id, versionType));
         IReadOnlyDictionary<string, AddonRelease?> releases;
         try

@@ -17,6 +17,8 @@ public sealed record ManagedAddon(string Id, string FolderName, string? Manifest
 
     public IReadOnlyList<string>? Folders { get; init; }
 
+    public string? Website { get; init; }
+
     public Uri IconUri => IconUrl is not null
         ? new Uri(IconUrl)
         : new(new Uri(ManifestBaseUrl ?? throw new InvalidOperationException($"{Id} has no ManifestBaseUrl")), "icon.png");
@@ -30,7 +32,8 @@ public sealed record ProviderAddonRecord(
     [property: JsonPropertyName("mod_id")] int ModId,
     [property: JsonPropertyName("version_type")] int VersionType,
     [property: JsonPropertyName("folders")] IReadOnlyList<string> Folders,
-    [property: JsonPropertyName("icon_url")] string? IconUrl = null);
+    [property: JsonPropertyName("icon_url")] string? IconUrl = null,
+    [property: JsonPropertyName("website_url")] string? WebsiteUrl = null);
 
 public sealed record CurseForgeResult(
     [property: JsonPropertyName("id")] int Id,
@@ -65,7 +68,9 @@ public sealed record CurseForgeMatch(
     [property: JsonPropertyName("folder")] string Folder,
     [property: JsonPropertyName("modId")] int ModId,
     [property: JsonPropertyName("fileId")] long? FileId,
-    [property: JsonPropertyName("folders")] IReadOnlyList<string>? Folders);
+    [property: JsonPropertyName("folders")] IReadOnlyList<string>? Folders,
+    [property: JsonPropertyName("name")] string? Name = null,
+    [property: JsonPropertyName("websiteUrl")] string? WebsiteUrl = null);
 
 public sealed record AddonRelease(
     [property: JsonPropertyName("version")] string Version,
