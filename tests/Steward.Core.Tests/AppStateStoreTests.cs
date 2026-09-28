@@ -81,6 +81,49 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void ProviderAddons_RoundTrip_ThroughItsOwnFile()
+    {
+        var store = new AppStateStore(["steward"], StatePath);
+        var state = store.Load();
+        state.ProviderAddons[@"C:\wow"] = [new ProviderAddonRecord("curseforge-1-2", "Questie", "Questie", "CurseForge", 1, 2, ["Questie"])];
+        store.Save(state);
+
+        Assert.DoesNotContain("provider_addons", File.ReadAllText(StatePath));
+        var loaded = store.Load();
+
+        Assert.Equal("Questie", loaded.ProviderAddons[@"C:\wow"][0].Name);
+    }
+
+    [Fact]
+    public void ProviderAddons_SurviveAnOlderBuildRewritingStateJson()
+    {
+        var store = new AppStateStore(["steward"], StatePath);
+        var state = store.Load();
+        state.ProviderAddons[@"C:\wow"] = [new ProviderAddonRecord("curseforge-1-2", "Questie", "Questie", "CurseForge", 1, 2, ["Questie"])];
+        store.Save(state);
+
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
+
+        Assert.Equal("Questie", store.Load().ProviderAddons[@"C:\wow"][0].Name);
+    }
+
+    [Fact]
+    public void ProviderAddons_MigratesFromStateJson_OnFirstLoad()
+    {
+        File.WriteAllText(
+            StatePath,
+            """{"channels":{},"installs":{},"provider_addons":{"C:\\wow":[{"id":"curseforge-1-2","folder_name":"Questie","name":"Questie","source":"CurseForge","mod_id":1,"version_type":2,"folders":["Questie"]}]}}""");
+        var store = new AppStateStore(["steward"], StatePath);
+
+        var state = store.Load();
+        Assert.Equal("Questie", state.ProviderAddons[@"C:\wow"][0].Name);
+
+        store.Save(state);
+        Assert.DoesNotContain("provider_addons", File.ReadAllText(StatePath));
+        Assert.Equal("Questie", store.Load().ProviderAddons[@"C:\wow"][0].Name);
+    }
+
+    [Fact]
     public void Load_NoFile_ReturnsEmptyChannels()
     {
         var state = new AppStateStore(["hoobiscripts"], StatePath).Load();

@@ -234,6 +234,7 @@ public sealed record AppState(
     public Dictionary<string, double> TableColumnWidths { get; init; } = null!;
 
     [JsonPropertyName("provider_addons")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, List<ProviderAddonRecord>> ProviderAddons { get; init; } = null!;
 }
 
@@ -246,6 +247,9 @@ public sealed record CharacterSyncState(
     [property: JsonPropertyName("character_sync")] Dictionary<string, CharacterPushRecord> CharacterSync,
     [property: JsonPropertyName("character_sync_batches")] Dictionary<string, CharacterSyncBatch> CharacterSyncBatches);
 
+public sealed record ProviderAddonsState(
+    [property: JsonPropertyName("provider_addons")] Dictionary<string, List<ProviderAddonRecord>> ProviderAddons);
+
 [JsonSerializable(typeof(AccessEventFrame))]
 [JsonSerializable(typeof(AddonRelease))]
 [JsonSerializable(typeof(AdminMe))]
@@ -256,6 +260,7 @@ public sealed record CharacterSyncState(
 [JsonSerializable(typeof(CharacterSyncRequest))]
 [JsonSerializable(typeof(CharacterSyncResponse))]
 [JsonSerializable(typeof(CharacterSyncState))]
+[JsonSerializable(typeof(ProviderAddonsState))]
 [JsonSerializable(typeof(CurseForgeDiscover))]
 [JsonSerializable(typeof(CurseForgeMatch[]))]
 [JsonSerializable(typeof(CurseForgeMatchRequest))]

@@ -29,7 +29,9 @@ public sealed class AppStateStore
 
     private string CharacterSyncPath => Path.Combine(Path.GetDirectoryName(_path)!, "character_sync.json");
 
-    public AppState Load() => Normalise(WithCharacterSync(LoadState()));
+    private string ProviderAddonsPath => Path.Combine(Path.GetDirectoryName(_path)!, "provider_addons.json");
+
+    public AppState Load() => Normalise(WithProviderAddons(WithCharacterSync(LoadState())));
 
     private AppState LoadState()
     {
@@ -61,6 +63,25 @@ public sealed class AppStateStore
         {
             return JsonSerializer.Deserialize(File.ReadAllText(CharacterSyncPath), CompanionJsonContext.Default.CharacterSyncState) is { } sync
                 ? state with { CharacterSync = sync.CharacterSync, CharacterSyncBatches = sync.CharacterSyncBatches }
+                : state;
+        }
+        catch (JsonException)
+        {
+            return state;
+        }
+    }
+
+    private AppState WithProviderAddons(AppState state)
+    {
+        if (!File.Exists(ProviderAddonsPath))
+        {
+            return state;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize(File.ReadAllText(ProviderAddonsPath), CompanionJsonContext.Default.ProviderAddonsState) is { } providers
+                ? state with { ProviderAddons = providers.ProviderAddons }
                 : state;
         }
         catch (JsonException)
@@ -199,8 +220,11 @@ public sealed class AppStateStore
         WriteAtomically(CharacterSyncPath, JsonSerializer.Serialize(
             new CharacterSyncState(state.CharacterSync ?? [], state.CharacterSyncBatches ?? []),
             CompanionJsonContext.Default.CharacterSyncState));
+        WriteAtomically(ProviderAddonsPath, JsonSerializer.Serialize(
+            new ProviderAddonsState(state.ProviderAddons ?? []),
+            CompanionJsonContext.Default.ProviderAddonsState));
         WriteAtomically(_path, JsonSerializer.Serialize(
-            state with { CharacterSync = null!, CharacterSyncBatches = null! },
+            state with { CharacterSync = null!, CharacterSyncBatches = null!, ProviderAddons = null! },
             CompanionJsonContext.Default.AppState));
     }
 
