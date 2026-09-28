@@ -857,7 +857,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task CheckAppUpdateAsync(bool forceStoreScan = false)
     {
-        if (forceStoreScan && App.IsPackaged && App.IsGitHubRelease)
+        if (forceStoreScan && (!App.IsGitHubRelease || App.IsPackaged))
         {
             await ForceStoreScanAsync().ConfigureAwait(true);
         }
@@ -875,18 +875,43 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            Native.RegisterRestartForStoreUpdate(OwnerWindowHandle);
+            if (App.IsGitHubRelease)
+            {
+                Native.RegisterRestartForStoreUpdate(OwnerWindowHandle);
+            }
+            else
+            {
+                LogStoreCopyVersion("before");
+            }
+
             var manager = new AppInstallManager();
             // SearchForUpdatesAsync is documented as needing a Microsoft-only private capability, but it runs unelevated from this full-trust process with no capability declared (verified 28 Sep 2026).
             var item = await manager.SearchForUpdatesAsync(_appUpdater.StoreProductId, string.Empty);
             _logger.Info(item is null
                 ? "Store scan for Steward: no install item returned (the Store may still queue and install the update)"
                 : $"Store scan for Steward: {item.GetCurrentStatus().InstallState}");
+
+            if (!App.IsGitHubRelease)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(2)).ConfigureAwait(false);
+                    LogStoreCopyVersion("2 minutes after");
+                });
+            }
         }
         catch (Exception ex)
         {
             _logger.Warn(ex, "Store scan for Steward failed");
         }
+    }
+
+    private void LogStoreCopyVersion(string when)
+    {
+        var package = new PackageManager().FindPackagesForUser(string.Empty, App.PackageFamilyName).FirstOrDefault();
+        _logger.Info(package is null
+            ? $"Store copy of Steward not installed ({when} the scan)"
+            : $"Store copy of Steward is {package.Id.Version.Major}.{package.Id.Version.Minor}.{package.Id.Version.Build}.{package.Id.Version.Revision} ({when} the scan)");
     }
 
     private void UpdateStoreAppInstalledState()
@@ -950,6 +975,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await CheckOrInstallAppUpdateAsync().ConfigureAwait(true);
             return;
+        }
+
+        if (!App.IsGitHubRelease)
+        {
+            _ = ForceStoreScanAsync();
         }
 
         OpenUri(App.IsPackaged ? _appUpdater.StoreUpdatesUri : _appUpdater.StoreListingUri);
