@@ -18,6 +18,7 @@ public enum GuideSyncOutcome
     NeedsNewerAddon,
     Rejected,
     Unfinished,
+    ChangedOnDisk,
 }
 
 public sealed record GuideSyncResult(GuideSyncOutcome Outcome, DateTimeOffset UpdatedAt, string? Error = null);
@@ -254,7 +255,7 @@ public sealed class RestedXpService : IDisposable
         WowInstall install, IReadOnlyList<string> products, CancellationToken cancellationToken)
     {
         var results = new Dictionary<string, GuideSyncResult>(StringComparer.Ordinal);
-        var strings = new List<(string Name, string Text, string? Tag)>();
+        var strings = new List<(string Name, string Text, string? Tag, long UpdatedAt)>();
         var serverTimestamps = new Dictionary<string, long>(StringComparer.Ordinal);
 
         var prefix = AppStateStore.Key(install.FlavourPath, string.Empty);
@@ -283,7 +284,7 @@ public sealed class RestedXpService : IDisposable
             }
 
             serverTimestamps[productName] = serverTimestamp;
-            strings.Add((productName, guide, tag));
+            strings.Add((productName, guide, tag, serverTimestamp));
             results[productName] = new GuideSyncResult(GuideSyncOutcome.UpToDate, updatedAt);
         }
 
@@ -294,19 +295,23 @@ public sealed class RestedXpService : IDisposable
 
         var writtenAt = DateTimeOffset.Now;
         var generation = writtenAt.ToUnixTimeMilliseconds();
-        bool rewritten;
+        StewardGuidesWriteResult writeResult;
         try
         {
-            var effective = StewardGuidesAddon.Write(install.AddOnsPath, strings, generation);
-            rewritten = effective == generation;
-            generation = effective;
-            _logger.Info(
-                $"StewardGuides {(rewritten ? "written" : "skipped, unchanged")} for {install.FlavourPath}, {strings.Count} product(s)");
+            writeResult = StewardGuidesAddon.Write(install.AddOnsPath, strings, generation);
+            generation = writeResult.Generation;
+            var descriptor = writeResult.Outcome switch
+            {
+                StewardGuidesWriteOutcome.Written => "written",
+                StewardGuidesWriteOutcome.ChangedOnDisk => "changed on disk",
+                _ => "skipped, unchanged",
+            };
+            _logger.Info($"StewardGuides {descriptor} for {install.FlavourPath}, {strings.Count} product(s)");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             _logger.Warn(ex, $"StewardGuides write failed for {install.FlavourPath}");
-            foreach (var (productName, _, _) in strings)
+            foreach (var (productName, _, _, _) in strings)
             {
                 results[productName] = new GuideSyncResult(
                     GuideSyncOutcome.Downloaded, DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamps[productName]), ex.Message);
@@ -323,16 +328,19 @@ public sealed class RestedXpService : IDisposable
         }
 
         state.RestedXpGuidesGeneration[install.FlavourPath] = generation;
-        foreach (var (productName, _, _) in strings)
+        foreach (var (productName, _, _, _) in strings)
         {
             var serverTimestamp = serverTimestamps[productName];
             state.RestedXpGuides[AppStateStore.Key(install.FlavourPath, productName)] =
                 new RestedXpGuideRecord(serverTimestamp, writtenAt);
-            if (rewritten)
+            results[productName] = writeResult.Outcome switch
             {
-                results[productName] = new GuideSyncResult(
-                    GuideSyncOutcome.Written, DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamp));
-            }
+                StewardGuidesWriteOutcome.Written => new GuideSyncResult(
+                    GuideSyncOutcome.Written, DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamp)),
+                StewardGuidesWriteOutcome.ChangedOnDisk => new GuideSyncResult(
+                    GuideSyncOutcome.ChangedOnDisk, DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamp)),
+                _ => results[productName],
+            };
         }
 
         _stateStore.Save(state);

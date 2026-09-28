@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 namespace Steward.Core.Tests;
 
 public sealed class StewardGuidesAddonTests : IDisposable
@@ -8,10 +11,10 @@ public sealed class StewardGuidesAddonTests : IDisposable
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
-    private static (string Name, string Text, string? Tag)[] SampleGuides() =>
+    private static (string Name, string Text, string? Tag, long UpdatedAt)[] SampleGuides() =>
     [
-        ("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000", "Buyer#1234"),
-        ("Mists of Pandaria Guide - Bundle", "159|2792083552:other%|40000", null),
+        ("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000", "Buyer#1234", 100),
+        ("Mists of Pandaria Guide - Bundle", "159|2792083552:other%|40000", null, 200),
     ];
 
     private string InstallRxpGuides(string interfaceValue = Interface)
@@ -23,6 +26,25 @@ public sealed class StewardGuidesAddonTests : IDisposable
             Path.Combine(rxpPath, "RXPGuides.toc"),
             $"## Interface: {interfaceValue}\n## Title: RestedXP Guides\n## Version: v4.11.4\n");
         return addOnsPath;
+    }
+
+    private static string GuidesLuaPath(string addOnsPath) => Path.Combine(addOnsPath, "StewardGuides", "Guides.lua");
+
+    private static string TocPath(string addOnsPath) => Path.Combine(addOnsPath, "StewardGuides", "StewardGuides.toc");
+
+    private static string WithMismatchedBootstrapHash(string lua)
+    {
+        const string bootstrapMarker = "local bootstrap = \"";
+        var hashStart = lua.IndexOf(bootstrapMarker, StringComparison.Ordinal) + bootstrapMarker.Length;
+        var dummyHash = new string('0', 64);
+        var replaced = lua[..hashStart] + dummyHash + lua[(hashStart + 64)..];
+
+        var afterStart = replaced.IndexOf(bootstrapMarker, StringComparison.Ordinal);
+        var newFingerprint = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(replaced[afterStart..])));
+
+        const string fingerprintMarker = "local fingerprint = \"";
+        var fpStart = replaced.IndexOf(fingerprintMarker, StringComparison.Ordinal) + fingerprintMarker.Length;
+        return replaced[..fpStart] + newFingerprint + replaced[(fpStart + 64)..];
     }
 
     [Fact]
@@ -50,13 +72,14 @@ public sealed class StewardGuidesAddonTests : IDisposable
     {
         var lua = StewardGuidesAddon.Render(SampleGuides(), 1758380000000);
 
-        Assert.StartsWith("local generation = 1758380000000\nlocal guides = {\n", lua, StringComparison.Ordinal);
+        Assert.StartsWith("local generation = 1758380000000\nlocal fingerprint = \"", lua, StringComparison.Ordinal);
+        Assert.Contains("local bootstrap = \"", lua, StringComparison.Ordinal);
         Assert.Contains(
-            "    { name = \"Forever Leveling Guide - Both Factions\", text = [==[83|1084041902:payload%|40000]==], tag = \"Buyer#1234\" },",
+            "    { name = \"Forever Leveling Guide - Both Factions\", text = [==[83|1084041902:payload%|40000]==], tag = \"Buyer#1234\", updatedAt = 100 },",
             lua,
             StringComparison.Ordinal);
         Assert.Contains(
-            "    { name = \"Mists of Pandaria Guide - Bundle\", text = [==[159|2792083552:other%|40000]==] },",
+            "    { name = \"Mists of Pandaria Guide - Bundle\", text = [==[159|2792083552:other%|40000]==], updatedAt = 200 },",
             lua,
             StringComparison.Ordinal);
         Assert.Contains("rxp.guideImporter:ImportString(guide.text)", lua, StringComparison.Ordinal);
@@ -70,6 +93,22 @@ public sealed class StewardGuidesAddonTests : IDisposable
         Assert.Contains("C_ChatInfo.SendAddonMessage(\"HoobiVersion\", addonName .. \"=\"", lua, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Render_NeverProducesCarriageReturns() =>
+        Assert.DoesNotContain('\r', StewardGuidesAddon.Render(SampleGuides(), 1));
+
+    [Fact]
+    public void Render_FingerprintRoundTripsThroughARewrite()
+    {
+        var addOnsPath = InstallRxpGuides();
+        Assert.Equal(StewardGuidesWriteOutcome.Written, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1).Outcome);
+
+        var second = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2);
+
+        Assert.Equal(StewardGuidesWriteOutcome.Skipped, second.Outcome);
+        Assert.Equal(1, second.Generation);
+    }
+
     [Theory]
     [InlineData("83|1084041902:payload%|40000", "1084041902")]
     [InlineData("\n159|2792083552:other%|40000", "2792083552")]
@@ -81,13 +120,13 @@ public sealed class StewardGuidesAddonTests : IDisposable
     public void Render_Throws_WhenAGuideHoldsTheTerminator()
     {
         Assert.Throws<InvalidOperationException>(
-            () => StewardGuidesAddon.Render([("Broken", "83|1:pay]==]load%|40000", null)], 1));
+            () => StewardGuidesAddon.Render([("Broken", "83|1:pay]==]load%|40000", null, 1L)], 1));
     }
 
     [Fact]
     public void Render_EscapesQuotesAndBackslashesInNames()
     {
-        var lua = StewardGuidesAddon.Render([(@"A ""B"" \ C", "1|2:x", null)], 1);
+        var lua = StewardGuidesAddon.Render([(@"A ""B"" \ C", "1|2:x", (string?)null, 1L)], 1);
 
         Assert.Contains(@"name = ""A \""B\"" \\ C""", lua, StringComparison.Ordinal);
     }
@@ -97,8 +136,10 @@ public sealed class StewardGuidesAddonTests : IDisposable
     {
         var addOnsPath = InstallRxpGuides();
 
-        StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1758380000000);
+        var result = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1758380000000);
 
+        Assert.Equal(StewardGuidesWriteOutcome.Written, result.Outcome);
+        Assert.Equal(1758380000000, result.Generation);
         var folder = Path.Combine(addOnsPath, "StewardGuides");
         Assert.Contains($"## Interface: {Interface}", File.ReadAllText(Path.Combine(folder, "StewardGuides.toc")), StringComparison.Ordinal);
         Assert.Contains("[==[83|1084041902:payload%|40000]==]", File.ReadAllText(Path.Combine(folder, "Guides.lua")), StringComparison.Ordinal);
@@ -112,38 +153,142 @@ public sealed class StewardGuidesAddonTests : IDisposable
         var addOnsPath = InstallRxpGuides();
         StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1);
 
-        StewardGuidesAddon.Write(addOnsPath, [("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000", null)], 2);
+        StewardGuidesAddon.Write(
+            addOnsPath, [("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000", (string?)null, 100L)], 2);
 
-        var lua = File.ReadAllText(Path.Combine(addOnsPath, "StewardGuides", "Guides.lua"));
+        var lua = File.ReadAllText(GuidesLuaPath(addOnsPath));
         Assert.DoesNotContain("Mists of Pandaria", lua, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Write_KeepsTheGenerationWhenTheBodyIsUnchanged()
+    public void Write_KeepsTheGenerationWhenNothingChanged()
     {
         var addOnsPath = InstallRxpGuides();
-        Assert.Equal(1, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1));
+        Assert.Equal(1, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1).Generation);
 
-        Assert.Equal(1, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2));
-        Assert.Equal(3, StewardGuidesAddon.Write(addOnsPath, [("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000", null)], 3));
+        var unchanged = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2);
+        Assert.Equal(StewardGuidesWriteOutcome.Skipped, unchanged.Outcome);
+        Assert.Equal(1, unchanged.Generation);
 
-        var lua = File.ReadAllText(Path.Combine(addOnsPath, "StewardGuides", "Guides.lua"));
+        var changed = StewardGuidesAddon.Write(
+            addOnsPath, [("Forever Leveling Guide - Both Factions", "83|1084041902:payload%|40000", (string?)null, 100L)], 3);
+        Assert.Equal(StewardGuidesWriteOutcome.Written, changed.Outcome);
+        Assert.Equal(3, changed.Generation);
+
+        var lua = File.ReadAllText(GuidesLuaPath(addOnsPath));
         Assert.StartsWith("local generation = 3\n", lua, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Write_Rewrites_WhenAProductsUpdatedAtChanges()
+    {
+        var addOnsPath = InstallRxpGuides();
+        StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1);
+
+        var bumped = SampleGuides();
+        bumped[0] = (bumped[0].Name, bumped[0].Text, bumped[0].Tag, 999L);
+
+        var result = StewardGuidesAddon.Write(addOnsPath, bumped, 2);
+
+        Assert.Equal(StewardGuidesWriteOutcome.Written, result.Outcome);
+        Assert.Equal(2, result.Generation);
     }
 
     [Fact]
     public void Write_Rewrites_WhenOnlyTheTocOrIconIsStale()
     {
         var addOnsPath = InstallRxpGuides();
-        Assert.Equal(1, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1));
+        Assert.Equal(1, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1).Generation);
 
         InstallRxpGuides("11510");
-        Assert.Equal(2, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2));
-        Assert.Contains("## Interface: 11510", File.ReadAllText(Path.Combine(addOnsPath, "StewardGuides", "StewardGuides.toc")), StringComparison.Ordinal);
+        var afterInterfaceChange = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2);
+        Assert.Equal(StewardGuidesWriteOutcome.Written, afterInterfaceChange.Outcome);
+        Assert.Contains("## Interface: 11510", File.ReadAllText(TocPath(addOnsPath)), StringComparison.Ordinal);
 
         File.Delete(Path.Combine(addOnsPath, "StewardGuides", "Icon.tga"));
-        Assert.Equal(3, StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 3));
+        var afterIconDeleted = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 3);
+        Assert.Equal(StewardGuidesWriteOutcome.Written, afterIconDeleted.Outcome);
         Assert.True(File.Exists(Path.Combine(addOnsPath, "StewardGuides", "Icon.tga")));
+    }
+
+    [Fact]
+    public void Write_Skips_WhenOnlyTheTocVersionLineDiffers()
+    {
+        var addOnsPath = InstallRxpGuides();
+        StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1);
+
+        var tocPath = TocPath(addOnsPath);
+        var tamperedToc = File.ReadAllText(tocPath).ReplaceLineEndings("\n").Split('\n')
+            .Select(line => line.StartsWith("## Version:", StringComparison.Ordinal) ? "## Version: 0.0.0-tampered" : line);
+        File.WriteAllText(tocPath, string.Join('\n', tamperedToc));
+
+        var result = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2);
+
+        Assert.Equal(StewardGuidesWriteOutcome.Skipped, result.Outcome);
+        Assert.Equal(1, result.Generation);
+        Assert.Contains("## Version: 0.0.0-tampered", File.ReadAllText(tocPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Write_ReportsChangedOnDisk_WhenTheBodyWasEditedOutsideSteward_AndDoesNotRewrite()
+    {
+        var addOnsPath = InstallRxpGuides();
+        StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1);
+
+        var guidesPath = GuidesLuaPath(addOnsPath);
+        var tampered = File.ReadAllText(guidesPath).Replace("payload", "payloae", StringComparison.Ordinal);
+        File.WriteAllText(guidesPath, tampered);
+
+        var result = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2);
+
+        Assert.Equal(StewardGuidesWriteOutcome.ChangedOnDisk, result.Outcome);
+        Assert.Equal(1, result.Generation);
+        Assert.Equal(tampered, File.ReadAllText(guidesPath));
+    }
+
+    [Fact]
+    public void Write_Force_RewritesEvenWhenChangedOnDisk()
+    {
+        var addOnsPath = InstallRxpGuides();
+        StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1);
+
+        var guidesPath = GuidesLuaPath(addOnsPath);
+        File.WriteAllText(guidesPath, File.ReadAllText(guidesPath).Replace("payload", "payloae", StringComparison.Ordinal));
+
+        var forced = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2, force: true);
+
+        Assert.Equal(StewardGuidesWriteOutcome.Written, forced.Outcome);
+        Assert.Equal(2, forced.Generation);
+        Assert.DoesNotContain("payloae", File.ReadAllText(guidesPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Write_Rewrites_WhenAnOlderBuildsBootstrapHashDiffers()
+    {
+        var addOnsPath = InstallRxpGuides();
+        StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1);
+
+        var guidesPath = GuidesLuaPath(addOnsPath);
+        File.WriteAllText(guidesPath, WithMismatchedBootstrapHash(File.ReadAllText(guidesPath)));
+
+        var result = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2);
+
+        Assert.Equal(StewardGuidesWriteOutcome.Written, result.Outcome);
+        Assert.Equal(2, result.Generation);
+    }
+
+    [Fact]
+    public void Write_WritesOnce_WhenTheOnDiskFileHasNoFingerprintHeader()
+    {
+        var addOnsPath = InstallRxpGuides();
+        StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 1);
+
+        File.WriteAllText(GuidesLuaPath(addOnsPath), "local generation = 1\nlocal guides = {}\n");
+
+        var result = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 2);
+
+        Assert.Equal(StewardGuidesWriteOutcome.Written, result.Outcome);
+        Assert.Equal(2, result.Generation);
     }
 
     [Fact]

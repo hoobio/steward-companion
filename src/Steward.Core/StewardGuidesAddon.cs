@@ -1,9 +1,19 @@
 using System.Globalization;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Steward.Core;
+
+public enum StewardGuidesWriteOutcome
+{
+    Written,
+    Skipped,
+    ChangedOnDisk,
+}
+
+public readonly record struct StewardGuidesWriteResult(StewardGuidesWriteOutcome Outcome, long Generation);
 
 public static partial class StewardGuidesAddon
 {
@@ -164,6 +174,10 @@ public static partial class StewardGuidesAddon
 
         """;
 
+    // Bootstrap is a raw string literal, so its newlines follow the source checkout's line endings; normalise so every build hashes and renders the same bytes.
+    private static readonly string NormalizedBootstrap = Bootstrap.ReplaceLineEndings("\n");
+    private static readonly string BootstrapHash = Sha256Hex(NormalizedBootstrap);
+
     public static string Toc(string interfaceNumbers) => string.Join('\n',
         $"## Interface: {interfaceNumbers}",
         TitleLine,
@@ -185,33 +199,51 @@ public static partial class StewardGuidesAddon
         return GuideHeader().Match(guide) is { Success: true } match ? match.Groups[1].Value : null;
     }
 
-    public static string Render(IReadOnlyList<(string Name, string Text, string? Tag)> guides, long generation)
+    public static string Render(IReadOnlyList<(string Name, string Text, string? Tag, long UpdatedAt)> guides, long generation)
     {
         ArgumentNullException.ThrowIfNull(guides);
 
-        var builder = new StringBuilder("local generation = ")
-            .Append(generation.ToString(CultureInfo.InvariantCulture))
-            .Append("\nlocal guides = {\n");
-        foreach (var (name, text, tag) in guides)
+        var body = new StringBuilder("local guides = {\n");
+        foreach (var (name, text, tag, updatedAt) in guides)
         {
             if (text.Contains(Terminator, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException($"{name} contains the long-bracket terminator {Terminator}");
             }
 
-            builder.Append("    { name = \"").Append(Quote(name)).Append("\", text = [==[").Append(text.Trim()).Append("]==]");
+            body.Append("    { name = \"").Append(Quote(name)).Append("\", text = [==[").Append(text.Trim()).Append("]==]");
             if (tag is not null)
             {
-                builder.Append(", tag = \"").Append(Quote(tag)).Append('"');
+                body.Append(", tag = \"").Append(Quote(tag)).Append('"');
             }
 
-            builder.Append(" },\n");
+            body.Append(", updatedAt = ").Append(updatedAt.ToString(CultureInfo.InvariantCulture)).Append(" },\n");
         }
 
-        return builder.Append("}\n").Append(Bootstrap).ToString();
+        body.Append("}\n");
+
+        var after = new StringBuilder("local bootstrap = \"")
+            .Append(BootstrapHash)
+            .Append("\"\n")
+            .Append(body)
+            .Append(NormalizedBootstrap)
+            .ToString();
+
+        var fingerprint = Sha256Hex(after);
+
+        return new StringBuilder("local generation = ")
+            .Append(generation.ToString(CultureInfo.InvariantCulture))
+            .Append('\n')
+            .Append("local fingerprint = \"")
+            .Append(fingerprint)
+            .Append("\"\n")
+            .Append(after)
+            .ToString()
+            .ReplaceLineEndings("\n");
     }
 
-    public static long Write(string addOnsPath, IReadOnlyList<(string Name, string Text, string? Tag)> guides, long generation)
+    public static StewardGuidesWriteResult Write(
+        string addOnsPath, IReadOnlyList<(string Name, string Text, string? Tag, long UpdatedAt)> guides, long generation, bool force = false)
     {
         var lua = Render(guides, generation);
         var rxpTocPath = Path.Combine(addOnsPath, "RXPGuides", "RXPGuides.toc");
@@ -225,9 +257,9 @@ public static partial class StewardGuidesAddon
             throw new InvalidOperationException($"refusing to write a path containing a WTF segment: {folder}");
         }
 
-        if (ExistingGeneration(folder, toc, lua) is { } unchanged)
+        if (!force && Inspect(folder, toc, guides) is { } existing)
         {
-            return unchanged;
+            return existing;
         }
 
         if (Directory.Exists(folder))
@@ -245,30 +277,73 @@ public static partial class StewardGuidesAddon
         WriteFile(Path.Combine(folder, $"{FolderName}.toc"), Encoding.UTF8.GetBytes(toc));
         WriteFile(Path.Combine(folder, "Icon.tga"), Icon());
         WriteFile(Path.Combine(folder, "Guides.lua"), Encoding.UTF8.GetBytes(lua));
-        return generation;
+        return new StewardGuidesWriteResult(StewardGuidesWriteOutcome.Written, generation);
     }
 
-    private static long? ExistingGeneration(string folder, string toc, string rendered)
+    private static StewardGuidesWriteResult? Inspect(
+        string folder, string toc, IReadOnlyList<(string Name, string Text, string? Tag, long UpdatedAt)> guides)
     {
         var guidesPath = Path.Combine(folder, "Guides.lua");
         var tocPath = Path.Combine(folder, $"{FolderName}.toc");
         var iconPath = Path.Combine(folder, "Icon.tga");
         if (!File.Exists(guidesPath) || !File.Exists(tocPath) || !File.Exists(iconPath)
-            || !string.Equals(File.ReadAllText(tocPath), toc, StringComparison.Ordinal)
             || !File.ReadAllBytes(iconPath).AsSpan().SequenceEqual(Icon()))
         {
             return null;
         }
 
-        var existing = File.ReadAllText(guidesPath);
-        var match = GenerationLine().Match(existing);
-        return match.Success && string.Equals(existing[match.Length..], rendered[GenerationLine().Match(rendered).Length..], StringComparison.Ordinal)
-            ? long.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture)
-            : null;
+        var existingLua = File.ReadAllText(guidesPath);
+        var header = HeaderLine().Match(existingLua);
+        if (!header.Success)
+        {
+            return null;
+        }
+
+        var generation = long.Parse(header.Groups["generation"].Value, CultureInfo.InvariantCulture);
+        var after = header.Groups["after"].Value;
+        if (!string.Equals(Sha256Hex(after), header.Groups["fingerprint"].Value, StringComparison.OrdinalIgnoreCase))
+        {
+            return new StewardGuidesWriteResult(StewardGuidesWriteOutcome.ChangedOnDisk, generation);
+        }
+
+        if (!string.Equals(header.Groups["bootstrap"].Value, BootstrapHash, StringComparison.OrdinalIgnoreCase)
+            || !EntriesMatch(after, guides))
+        {
+            return null;
+        }
+
+        if (!string.Equals(InterfaceLine(File.ReadAllText(tocPath)), InterfaceLine(toc), StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return new StewardGuidesWriteResult(StewardGuidesWriteOutcome.Skipped, generation);
     }
 
-    [GeneratedRegex(@"^local generation = (\d+)\n")]
-    private static partial Regex GenerationLine();
+    private static bool EntriesMatch(
+        string after, IReadOnlyList<(string Name, string Text, string? Tag, long UpdatedAt)> guides)
+    {
+        var onDisk = GuideEntry().Matches(after)
+            .Select(m => (Name: m.Groups["name"].Value, UpdatedAt: long.Parse(m.Groups["updatedAt"].Value, CultureInfo.InvariantCulture)))
+            .ToHashSet();
+        var wanted = guides.Select(g => (Name: Quote(g.Name), g.UpdatedAt)).ToHashSet();
+        return onDisk.SetEquals(wanted);
+    }
+
+    private static string? InterfaceLine(string toc) => toc.ReplaceLineEndings("\n").Split('\n')
+        .FirstOrDefault(line => line.StartsWith("## Interface:", StringComparison.Ordinal));
+
+    private static string Sha256Hex(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
+
+    [GeneratedRegex(
+        """^local generation = (?<generation>\d+)\nlocal fingerprint = "(?<fingerprint>[0-9a-f]{64})"\n(?<after>local bootstrap = "(?<bootstrap>[0-9a-f]{64})"\n.*)""",
+        RegexOptions.Singleline)]
+    private static partial Regex HeaderLine();
+
+    [GeneratedRegex(
+        """\{ name = "(?<name>(?:[^"\\]|\\.)*)", text = \[==\[.*?\]==\](?:, tag = "(?:[^"\\]|\\.)*")?, updatedAt = (?<updatedAt>\d+) \},\n""",
+        RegexOptions.Singleline)]
+    private static partial Regex GuideEntry();
 
     private static string Quote(string value) =>
         value.Replace(@"\", @"\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
