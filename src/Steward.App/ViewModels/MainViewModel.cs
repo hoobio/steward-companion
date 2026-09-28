@@ -392,7 +392,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? LastMemberCatalogue => _lastMemberCatalogue;
 
-    public bool IsProfessionsOnlySync => HasSyncFeature && Role is not ("global" or "admin");
+    public bool IsProfessionsOnlySync => HasSyncFeature && !HasStewardFeature;
 
     private IReadOnlyList<ManagedAddon> VisibleAddons() =>
         [.. _addons.Where(addon => addon.Features.Any(_features.Contains))];
