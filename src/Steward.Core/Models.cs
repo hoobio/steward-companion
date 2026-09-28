@@ -58,6 +58,9 @@ public sealed record DesktopExchangeRequest(
 public sealed record DesktopToken(
     [property: JsonPropertyName("token")] string Token);
 
+public sealed record SelectedGuildRequest(
+    [property: JsonPropertyName("guild_id")] string GuildId);
+
 public sealed record RestedXpTokenResponse(
     [property: JsonPropertyName("access_token")] string? AccessToken = null,
     [property: JsonPropertyName("refresh_token")] string? RefreshToken = null,
@@ -198,4 +201,5 @@ public sealed record CharacterSyncState(
 [JsonSerializable(typeof(RestedXpTokenResponse))]
 [JsonSerializable(typeof(RestedXpTimestamps))]
 [JsonSerializable(typeof(RecipeCatalogueResponse))]
+[JsonSerializable(typeof(SelectedGuildRequest))]
 public sealed partial class CompanionJsonContext : JsonSerializerContext;

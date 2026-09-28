@@ -402,4 +402,47 @@ public sealed class GigagrugClientTests
         });
         Assert.Equal(HttpStatusCode.NotFound, exception.StatusCode);
     }
+
+    [Fact]
+    public async Task SetSelectedGuildAsync_Success_PutsTheGuildIdToTheMeGuildRoute()
+    {
+        var (client, handler) = ClientFor(HttpStatusCode.NoContent, "");
+
+        await client.SetSelectedGuildAsync("1", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpMethod.Put, handler.Request!.Method);
+        Assert.Equal("https://api.example.com/guild/api/me/guild", handler.RequestUrl);
+        var body = JsonSerializer.Deserialize(
+            handler.RequestContent!, CompanionJsonContext.Default.SelectedGuildRequest);
+        Assert.Equal("1", body?.GuildId);
+    }
+
+    [Fact]
+    public async Task SetSelectedGuildAsync_Unauthorized_ThrowsSessionExpired()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.Unauthorized, "{}");
+
+        await Assert.ThrowsAsync<SessionExpiredException>(
+            () => client.SetSelectedGuildAsync("1", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task SetSelectedGuildAsync_BadRequest_ThrowsGigagrugRequestException()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.BadRequest, "{}");
+
+        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+            () => client.SetSelectedGuildAsync("1", TestContext.Current.CancellationToken));
+        Assert.Equal(HttpStatusCode.BadRequest, exception.StatusCode);
+    }
+
+    [Fact]
+    public async Task SetSelectedGuildAsync_NotFound_ThrowsGigagrugRequestException()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.NotFound, "{}");
+
+        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+            () => client.SetSelectedGuildAsync("1", TestContext.Current.CancellationToken));
+        Assert.Equal(HttpStatusCode.NotFound, exception.StatusCode);
+    }
 }

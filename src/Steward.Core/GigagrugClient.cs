@@ -283,6 +283,27 @@ public sealed class GigagrugClient
         }
     }
 
+    public async Task SetSelectedGuildAsync(string guildId, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .PutAsJsonAsync(
+                $"{_baseUrl}/api/me/guild",
+                new SelectedGuildRequest(guildId),
+                CompanionJsonContext.Default.SelectedGuildRequest,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new GigagrugRequestException(response.StatusCode, null);
+        }
+    }
+
     public async Task<string> ExchangeDesktopCodeAsync(string code, string verifier, CancellationToken cancellationToken)
     {
         using var response = await _httpClient

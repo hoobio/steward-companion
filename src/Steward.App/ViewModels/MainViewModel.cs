@@ -69,18 +69,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private static readonly string[] SummaryNames =
     [
         nameof(InstallCount),
-        nameof(AddonCount),
-        nameof(UpdateCount),
-        nameof(HeaderSubtitle),
-        nameof(BannerGlyph),
-        nameof(BannerTitle),
-        nameof(BannerDetail),
-        nameof(BannerVisibility),
-        nameof(UpdateAllVisibility),
         nameof(NoInstallsVisibility),
         nameof(IsAnyRowBusy),
         nameof(InstallsDescription),
-        nameof(HiddenToggleVisibility),
         nameof(GuidesVisibility),
         nameof(SyncVisibility),
         nameof(HasSyncFeature),
@@ -1236,6 +1227,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         UpdateEventStream();
         RecomputeSummary();
         _ = SyncRosterAsync();
+        _ = NotifySelectedGuildAsync(value.Id);
+    }
+
+    private async Task NotifySelectedGuildAsync(string guildId)
+    {
+        try
+        {
+            await _gigagrugClient.SetSelectedGuildAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+            _logger.Info($"Told gigagrug the selected guild is {guildId}");
+        }
+        catch (Exception ex) when (ex is GigagrugRequestException or HttpRequestException or SessionExpiredException or OperationCanceledException)
+        {
+            _logger.Warn(ex, $"Could not tell gigagrug the selected guild is {guildId}");
+        }
     }
 
     private void UpdateGuildFeatures()
