@@ -122,3 +122,7 @@ Search is required for the Get addons dialog, so question 1 gates the release of
 5. Docs: `AGENTS.md` (Managed addons), `addon-manager.md` (phase 2 marked built, pointing here).
 
 Wago Addons is a later, separate source: its API keys are self-serve at https://addons.wago.io/account/apikeys with no approval step, and its terms have not been reviewed.
+
+## gigagrug status
+
+Build order step 1 is deployed (gigagrug d859c69 and 6229444, 29 Sep 2026). The routes above live under `https://api.hoobi.io/guild/api/addons/curseforge/`, need a `gg_session` and the `curseforge` feature (global admins by default, grantable to anyone), and are limited to 300 requests per user per 5 minutes (429 beyond). Search answers `{"results": [...]}`, discover `{"popular", "recentlyUpdated"}` and match a bare array of `{ folder, modId, fileId, folders, name, websiteUrl }`, `name` being the mod's CurseForge display name, which the app shows instead of the folder's TOC title (Questie's plain `Questie.toc` is a stub reading "game client not supported"). CurseForge 403 is 502 `curseforge_denied`, a timeout or 5xx is 503 `curseforge_unavailable`. Search answered 200 with Steward's key on 29 Sep 2026, so the 403 recorded under Verified API behaviour no longer holds; the `search_unavailable` mapping stays for the case it returns. An exact fingerprint match needs every module fingerprint of the file in the same request (Questie's `Questie` fingerprint alone is only a partial match), so the app sends all its folders' fingerprints in one `match` call.
