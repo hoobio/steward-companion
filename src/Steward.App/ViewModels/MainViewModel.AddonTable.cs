@@ -5,14 +5,19 @@ using CommunityToolkit.Mvvm.Input;
 
 using Steward.Core;
 
+using Steward.App.Services;
+
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 
 using Windows.Storage.Pickers;
 
 namespace Steward.App.ViewModels;
 
-public sealed record GameVersionOption(string Code, string Name)
+public sealed record GameVersionOption(string Code, string Name, ImageSource? Icon)
 {
+    public Visibility IconVisibility => Icon is null ? Visibility.Collapsed : Visibility.Visible;
+
     public override string ToString() => Name;
 }
 
@@ -49,7 +54,7 @@ public sealed partial class MainViewModel
     public ObservableCollection<IAddonTableRow> TableRows { get; } = [];
 
     public IReadOnlyList<GameVersionOption> GameVersions =>
-        [.. _supportedProducts.Select(product => new GameVersionOption(product.Key, WowInstallViewModel.ShortProductName(product.Value)))];
+        [.. _supportedProducts.Select(product => new GameVersionOption(product.Key, WowInstallViewModel.ShortProductName(product.Value), ProductIcon.For(product.Key)))];
 
     public Func<AddonChannelViewModel, Task>? ShowChannelDialog { get; set; }
 

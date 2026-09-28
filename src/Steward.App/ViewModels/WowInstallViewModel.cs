@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using Steward.Core;
 
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 
 namespace Steward.App.ViewModels;
 
@@ -93,6 +94,10 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     public string? UserLabel { get; }
 
     public bool HasGameVersion => GameVersionName is not null;
+
+    public ImageSource? ProductIcon => HasGameVersion ? Services.ProductIcon.For(Install.ProductCode) : null;
+
+    public Visibility ProductIconVisibility => When(ProductIcon is not null);
 
     public string Label => UserLabel ?? GameVersionName ?? Install.Flavour;
 

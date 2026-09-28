@@ -25,6 +25,7 @@
     <Content Include="Assets\Professions.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\GuildProfessions.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\GuildRoster.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Products\*.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />
     <Content Include="Assets\Square44x44Logo.scale-200.png" />

@@ -18,7 +18,7 @@
                     </StackPanel>
                 </controls:SettingsCard.Description>
                 <controls:SettingsCard.HeaderIcon>
-                    <FontIcon Glyph="&#xE8B7;" />
+                    <ImageIcon Source="{x:Bind ProductIcon}" />
                 </controls:SettingsCard.HeaderIcon>
                 <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
                     <Border

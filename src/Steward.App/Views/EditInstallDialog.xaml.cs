@@ -9,6 +9,7 @@ public sealed partial class EditInstallDialog : ContentDialog
 {
     private readonly MainViewModel _main;
     private readonly WowInstallViewModel _install;
+    private readonly IReadOnlyList<GameVersionOption> _gameVersions;
     private string _flavourPath;
 
     public EditInstallDialog(MainViewModel main, WowInstallViewModel install)
@@ -21,9 +22,10 @@ public sealed partial class EditInstallDialog : ContentDialog
         _flavourPath = install.FlavourPath;
         InitializeComponent();
 
+        _gameVersions = main.GameVersions;
         NameBox.Text = install.UserLabel ?? "";
-        GameVersionBox.ItemsSource = main.GameVersions;
-        GameVersionBox.SelectedItem = main.GameVersions.FirstOrDefault(option => option.Code == install.Install.ProductCode);
+        GameVersionBox.ItemsSource = _gameVersions;
+        GameVersionBox.SelectedItem = _gameVersions.FirstOrDefault(option => option.Code == install.Install.ProductCode);
         ShowFolder();
     }
 
@@ -62,7 +64,7 @@ public sealed partial class EditInstallDialog : ContentDialog
         _flavourPath = Path.TrimEndingDirectorySeparator(path);
         if (_main.DetectedProduct(_flavourPath) is { } detected)
         {
-            GameVersionBox.SelectedItem = _main.GameVersions.FirstOrDefault(option => option.Code == detected);
+            GameVersionBox.SelectedItem = _gameVersions.FirstOrDefault(option => option.Code == detected);
         }
 
         ShowFolder();

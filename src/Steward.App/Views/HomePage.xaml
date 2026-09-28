@@ -24,14 +24,14 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Border
-                        Width="24"
-                        Height="24"
-                        VerticalAlignment="Center"
-                        CornerRadius="6"
-                        Background="{ThemeResource ChipBrush}">
-                        <FontIcon Glyph="&#xE7FC;" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                    </Border>
+                    <Grid Width="32" Height="32" VerticalAlignment="Center">
+                        <FontIcon
+                            Glyph="&#xE7BA;"
+                            FontSize="14"
+                            Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                            Visibility="{x:Bind NoGameVersionVisibility}" />
+                        <Image Source="{x:Bind ProductIcon}" Stretch="Uniform" />
+                    </Grid>
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="{x:Bind Label}" FontSize="12.5" TextTrimming="CharacterEllipsis" />
@@ -547,6 +547,13 @@
                         FontSize="13"
                         Foreground="{ThemeResource SystemFillColorCautionBrush}"
                         Visibility="{x:Bind ViewModel.SelectedInstall.NoGameVersionVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
+                    <Image
+                        Width="20"
+                        Height="20"
+                        VerticalAlignment="Center"
+                        Stretch="Uniform"
+                        Source="{x:Bind ViewModel.SelectedInstall.ProductIcon, Mode=OneWay}"
+                        Visibility="{x:Bind ViewModel.SelectedInstall.ProductIconVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
                     <TextBlock
                         Grid.Column="1"
                         Text="{x:Bind ViewModel.SelectedInstall.Label, Mode=OneWay}"
@@ -595,7 +602,7 @@
                                 Click="OnAddInstallClick">
                                 <Grid ColumnSpacing="12">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="24" />
+                                        <ColumnDefinition Width="32" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <FontIcon Glyph="&#xE710;" FontSize="14" />
@@ -611,7 +618,7 @@
                                 Click="OnManageInstallsClick">
                                 <Grid ColumnSpacing="12">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="24" />
+                                        <ColumnDefinition Width="32" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <FontIcon Glyph="&#xE713;" FontSize="14" />
