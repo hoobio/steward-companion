@@ -29,6 +29,8 @@ public sealed partial class MainWindow : Window
         FlyoutOpener.TrackActivation(this, logger);
         FlyoutOpener.Attach(InstallPicker, InstallFlyout, "install-picker");
         FlyoutOpener.Attach(AccountButton, AccountFlyout, "account");
+        InstallFlyout.OverlayInputPassThroughElement = TitleBarButtons;
+        AccountFlyout.OverlayInputPassThroughElement = TitleBarButtons;
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;

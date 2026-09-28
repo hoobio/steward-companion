@@ -131,6 +131,7 @@
             </TitleBar.IconSource>
             <TitleBar.RightHeader>
                 <StackPanel
+                    x:Name="TitleBarButtons"
                     Orientation="Horizontal"
                     Height="48"
                     HorizontalAlignment="Right"
