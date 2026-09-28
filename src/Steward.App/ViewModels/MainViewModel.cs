@@ -919,7 +919,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void UpdateStoreAppInstalledState()
     {
-        if (!App.IsPackaged)
+        if (!App.IsPackaged && App.IsGitHubRelease)
         {
             IsStoreAppInstalled = new PackageManager().FindPackagesForUser(string.Empty, App.PackageFamilyName).Any();
         }
