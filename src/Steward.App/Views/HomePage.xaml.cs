@@ -14,12 +14,17 @@ public sealed partial class HomePage : Page
         ("version", 2, 2, 64, 0),
         ("channel", 3, 1.2, 64, 760),
         ("source", 4, 1, 56, 840),
-        ("status", 5, 1.5, 56, 0),
     ];
 
+    private const int StatusIndex = 5;
+    private const double StatusStars = 1.5;
+    private const double StatusMinWidth = 56;
+    private const string CompactColumnId = "channel";
+
     private readonly HashSet<Grid> _tableRows = [];
-    private double _actionsWidth = 32;
     private readonly Dictionary<string, ColumnResizeGrip> _grips;
+    private double _actionsWidth = 32;
+    private double _defaultSpace;
 
     public HomePage()
     {
@@ -30,7 +35,6 @@ public sealed partial class HomePage : Page
             ["version"] = VersionGrip,
             ["channel"] = ChannelGrip,
             ["source"] = SourceGrip,
-            ["status"] = StatusGrip,
         };
         foreach (var (id, grip) in _grips)
         {
@@ -54,13 +58,9 @@ public sealed partial class HomePage : Page
     {
         var column = TableColumns.First(column => column.Id == id);
         var width = TableHeader.ColumnDefinitions[column.Index].ActualWidth;
-        var filler = TableHeader.ColumnDefinitions[FillerIndex].ActualWidth - _actionsWidth;
-        return (width, column.MinWidth, width + Math.Max(0, filler));
+        var statusSlack = TableHeader.ColumnDefinitions[StatusIndex].ActualWidth - _actionsWidth - StatusMinWidth;
+        return (width, column.MinWidth, width + Math.Max(0, statusSlack));
     }
-
-    private static int FillerIndex => TableColumns[^1].Index + 1;
-
-    private const double DefaultShare = 0.85;
 
     private void ResizeColumn(string id, double width)
     {
@@ -89,10 +89,16 @@ public sealed partial class HomePage : Page
         var shown = TableColumns.Where(column => tableWidth >= column.MinTableWidth).ToList();
         var space = tableWidth - row.Padding.Left - row.Padding.Right - row.ColumnSpacing * (row.ColumnDefinitions.Count - 1)
             - row.ColumnDefinitions[0].Width.Value - _actionsWidth;
-        var stars = shown.Sum(column => column.Stars);
-        var widths = shown.ToDictionary(column => column.Id, column => ViewModel?.ColumnWidth(column.Id) ?? space * DefaultShare * column.Stars / stars);
+        if (_defaultSpace <= 0 && space > 0)
+        {
+            _defaultSpace = space;
+        }
+
+        var stars = TableColumns.Sum(column => column.Stars) + StatusStars;
+        var widths = shown.ToDictionary(column => column.Id, column => ViewModel?.ColumnWidth(column.Id) ?? _defaultSpace * column.Stars / stars);
         var total = widths.Values.Sum();
-        var scale = total > space && total > 0 ? Math.Max(0, space) / total : 1;
+        var available = Math.Max(0, space - StatusMinWidth);
+        var scale = total > available && total > 0 ? available / total : 1;
 
         foreach (var (id, index, _, minWidth, _) in TableColumns)
         {
@@ -109,8 +115,6 @@ public sealed partial class HomePage : Page
             item.IsCompact = !widths.ContainsKey(CompactColumnId);
         }
     }
-
-    private const string CompactColumnId = "channel";
 
     private void OnTableSizeChanged(object sender, SizeChangedEventArgs e) => ApplyColumnsToAll();
 

@@ -135,7 +135,6 @@
                     <ColumnDefinition Width="2*" />
                     <ColumnDefinition Width="1.2*" />
                     <ColumnDefinition Width="1*" />
-                    <ColumnDefinition Width="1.5*" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
@@ -408,7 +407,7 @@
 
                 <StackPanel
                     x:Name="Actions"
-                    Grid.Column="7"
+                    Grid.Column="6"
                     Orientation="Horizontal"
                     Spacing="6"
                     SizeChanged="OnActionsSizeChanged"
@@ -482,7 +481,6 @@
                     <ColumnDefinition Width="2*" />
                     <ColumnDefinition Width="1.2*" />
                     <ColumnDefinition Width="1*" />
-                    <ColumnDefinition Width="1.5*" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
@@ -594,7 +592,7 @@
 
                 <Button
                     x:Name="Actions"
-                    Grid.Column="7"
+                    Grid.Column="6"
                     SizeChanged="OnActionsSizeChanged"
                     Width="32"
                     Height="32"
@@ -1019,7 +1017,12 @@
                     Background="{ThemeResource LayerFillColorDefaultBrush}"
                     Visibility="{x:Bind ViewModel.TableVisibility, Mode=OneWay}">
                     <StackPanel x:Name="TableBody" SizeChanged="OnTableSizeChanged">
-                        <Grid x:Name="TableHeader" Padding="16,6" ColumnSpacing="12">
+                        <Grid
+                            x:Name="TableHeader"
+                            Padding="16,6"
+                            ColumnSpacing="12"
+                            CornerRadius="{StaticResource GroupTopCornerRadius}"
+                            Background="{ThemeResource LayerFillColorAltBrush}">
                             <Grid.Resources>
                                 <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
                                 <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
@@ -1031,7 +1034,6 @@
                                 <ColumnDefinition Width="2*" />
                                 <ColumnDefinition Width="1.2*" />
                                 <ColumnDefinition Width="1*" />
-                                <ColumnDefinition Width="1.5*" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
@@ -1093,7 +1095,6 @@
                             <views:ColumnResizeGrip x:Name="VersionGrip" Grid.Column="2" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Version column" />
                             <views:ColumnResizeGrip x:Name="ChannelGrip" Grid.Column="3" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Channel column" />
                             <views:ColumnResizeGrip x:Name="SourceGrip" Grid.Column="4" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Source column" />
-                            <views:ColumnResizeGrip x:Name="StatusGrip" Grid.Column="5" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Status column" />
                         </Grid>
 
                         <ItemsRepeater
