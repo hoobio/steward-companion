@@ -11,4 +11,8 @@ public interface IAddonTableRow
     bool IsHidden { get; set; }
 
     bool IsPendingUpdate { get; }
+
+    int StatusRank { get; }
+
+    DateTimeOffset? LastUpdated { get; }
 }

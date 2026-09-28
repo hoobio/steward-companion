@@ -11,8 +11,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
-using Windows.ApplicationModel.DataTransfer;
-
 namespace Steward.App.ViewModels;
 
 public enum AddonRowState
@@ -23,6 +21,20 @@ public enum AddonRowState
     Current,
     Updating,
     Failed,
+}
+
+public enum AddonRowStatus
+{
+    UpdateAvailable,
+    Updating,
+    Switch,
+    Failed,
+    NotInstalled,
+    UpToDate,
+    NoReleases,
+    Ignored,
+    Hidden,
+    Local,
 }
 
 public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
@@ -57,7 +69,14 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(ActionVisibility),
         nameof(UpToDateVisibility),
         nameof(IgnoredPillVisibility),
-        nameof(MemberPillVisibility),
+        nameof(Status),
+        nameof(StatusRank),
+        nameof(StatusText),
+        nameof(StatusBrush),
+        nameof(StatusTextVisibility),
+        nameof(Notes),
+        nameof(ChangelogVisibility),
+        nameof(ChangelogTitle),
         nameof(NoticeVisibility),
         nameof(OverflowVisibility),
         nameof(IgnoreVisibility),
@@ -85,6 +104,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     private readonly ILogger _logger;
 
     private AddonChannelStatus? _status;
+    private int _lastUpdatedGeneration;
 
     public ImageSource Icon { get; }
 
@@ -285,11 +305,62 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public Visibility ActionVisibility =>
         When(!IsHidden && IsAdmin && (State == AddonRowState.Missing || (!IsIgnored && State == AddonRowState.UpdateAvailable)));
 
-    public Visibility UpToDateVisibility => When(State == AddonRowState.Current);
+    public AddonRowStatus Status => true switch
+    {
+        _ when IsBusy => AddonRowStatus.Updating,
+        _ when HasFailed => AddonRowStatus.Failed,
+        _ when IsHidden => AddonRowStatus.Hidden,
+        _ when IsIgnoredUpdate => AddonRowStatus.Ignored,
+        _ => State switch
+        {
+            AddonRowState.Missing => AddonRowStatus.NotInstalled,
+            AddonRowState.NoReleases => AddonRowStatus.NoReleases,
+            AddonRowState.UpdateAvailable => RecordedChannelDiffers ? AddonRowStatus.Switch : AddonRowStatus.UpdateAvailable,
+            _ => AddonRowStatus.UpToDate,
+        },
+    };
 
-    public Visibility IgnoredPillVisibility => When(IsIgnoredUpdate);
+    public int StatusRank => (int)Status;
 
-    public Visibility MemberPillVisibility => When(!IsHidden && !IsIgnored && !IsAdmin && State == AddonRowState.UpdateAvailable);
+    public string StatusText => Status switch
+    {
+        AddonRowStatus.UpdateAvailable => "Update available",
+        AddonRowStatus.Switch => $"Switch to {Channel} pending",
+        AddonRowStatus.Updating => "Updating",
+        AddonRowStatus.Failed => "Failed",
+        AddonRowStatus.NotInstalled => "Not installed",
+        _ => "-",
+    };
+
+    public Brush StatusBrush => (Brush)Application.Current.Resources[Status switch
+    {
+        AddonRowStatus.UpdateAvailable or AddonRowStatus.Switch => "AvailableVersionBrush",
+        AddonRowStatus.Updating => "TextFillColorSecondaryBrush",
+        AddonRowStatus.Failed => "SystemFillColorCriticalBrush",
+        _ => "TextFillColorTertiaryBrush",
+    }];
+
+    public Visibility StatusTextVisibility => When(Status is not (AddonRowStatus.UpToDate or AddonRowStatus.Ignored or AddonRowStatus.Hidden));
+
+    public Visibility UpToDateVisibility => When(Status == AddonRowStatus.UpToDate);
+
+    public Visibility IgnoredPillVisibility => When(Status == AddonRowStatus.Ignored);
+
+    public IReadOnlyList<string> Notes => _status?.Release?.Notes ?? [];
+
+    public Visibility ChangelogVisibility =>
+        When(Notes.Count > 0 && (VersionPairVisibility == Visibility.Visible || State == AddonRowState.Current));
+
+    public string ChangelogTitle => $"{DisplayName} {AvailableVersion}";
+
+    [ObservableProperty]
+    public partial DateTimeOffset? LastUpdated { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVersionTip))]
+    public partial string? VersionTip { get; private set; }
+
+    public bool HasVersionTip => VersionTip is not null;
 
     public Visibility NoticeVisibility =>
         When(State != AddonRowState.Failed && !string.IsNullOrEmpty(StatusMessage));
@@ -323,7 +394,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility OverflowVisibility => When(CanIgnoreOrHide || IsInstalled || HasChannelChoice);
 
-    public Visibility HiddenPillVisibility => When(IsHidden);
+    public Visibility HiddenPillVisibility => When(Status == AddonRowStatus.Hidden);
 
     private bool RecordedChannelDiffers =>
         Record is { } record && Channel is not null && !string.Equals(record.Channel, Channel, StringComparison.OrdinalIgnoreCase);
@@ -342,6 +413,25 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     {
         var record = _stateStore.Load().Installs.GetValueOrDefault(Key);
         InstalledVersion = record?.Version ?? TocFile.ReadVersion(TocPath);
+        _ = RefreshLastUpdatedAsync(record);
+    }
+
+    private async Task RefreshLastUpdatedAsync(InstalledAddonRecord? record)
+    {
+        var generation = ++_lastUpdatedGeneration;
+        var at = record?.InstalledAt;
+        if (at is null && InstalledVersion is not null)
+        {
+            at = await Task.Run(() => TocTime.LastWrite(_install.AddOnsPath, _addon.FolderName)).ConfigureAwait(true);
+        }
+
+        if (generation != _lastUpdatedGeneration)
+        {
+            return;
+        }
+
+        LastUpdated = at;
+        VersionTip = TocTime.Describe(record is null ? "Installed" : "Updated", at);
     }
 
     public void Apply(AddonChannelStatus status)
@@ -391,7 +481,6 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         }
 
         UpdateCommand.NotifyCanExecuteChanged();
-        CopySha256Command.NotifyCanExecuteChanged();
         UninstallCommand.NotifyCanExecuteChanged();
     }
 
@@ -434,7 +523,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now);
             _stateStore.Save(state);
 
-            InstalledVersion = release.Version;
+            RefreshInstalledVersion();
             ReloadPendingSince = DateTimeOffset.Now;
             NeedsReload = IsClientRunning;
 
@@ -488,21 +577,6 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     {
         var path = Directory.Exists(AddonFolderPath) ? AddonFolderPath : _install.AddOnsPath;
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true })?.Dispose();
-    }
-
-    private bool CanCopySha256 => Record is not null;
-
-    [RelayCommand(CanExecute = nameof(CanCopySha256))]
-    private void CopySha256()
-    {
-        if (Record is not { } record)
-        {
-            return;
-        }
-
-        var package = new DataPackage();
-        package.SetText(record.Sha256);
-        Clipboard.SetContent(package);
     }
 
     [RelayCommand]

@@ -71,16 +71,41 @@
                 Padding="16,8"
                 MinHeight="{StaticResource CardRowMinHeight}"
                 ColumnSpacing="12"
+                Background="Transparent"
                 BorderThickness="0,1,0,0"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
                 SizeChanged="OnTableRowSizeChanged">
+                <Grid.Resources>
+                    <MenuFlyout x:Key="RowMenu" Placement="BottomEdgeAlignedRight">
+                        <MenuFlyoutItem Text="{x:Bind IgnoreLabel, Mode=OneWay}" Command="{x:Bind ToggleIgnoredCommand}" Visibility="{x:Bind IgnoreVisibility, Mode=OneWay}" />
+                        <MenuFlyoutItem Text="Change channel" Command="{x:Bind ChangeChannelCommand}" Visibility="{x:Bind ChannelChipVisibility, Mode=OneWay}" />
+                        <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" Visibility="{x:Bind HideVisibility}" />
+                        <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" Visibility="{x:Bind InstalledActionsVisibility, Mode=OneWay}" />
+                        <MenuFlyoutItem Text="Reinstall" Command="{x:Bind ReinstallCommand}" Visibility="{x:Bind ReleaseActionsVisibility, Mode=OneWay}" />
+                        <MenuFlyoutSeparator Visibility="{x:Bind UninstallVisibility, Mode=OneWay}" />
+                        <MenuFlyoutItem
+                            Text="Uninstall"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            Command="{x:Bind UninstallCommand}"
+                            Visibility="{x:Bind UninstallVisibility, Mode=OneWay}">
+                            <MenuFlyoutItem.Resources>
+                                <StaticResource x:Key="MenuFlyoutItemForegroundPointerOver" ResourceKey="SystemFillColorCriticalBrush" />
+                                <StaticResource x:Key="MenuFlyoutItemForegroundPressed" ResourceKey="SystemFillColorCriticalBrush" />
+                            </MenuFlyoutItem.Resources>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </Grid.Resources>
+                <Grid.ContextFlyout>
+                    <StaticResource ResourceKey="RowMenu" />
+                </Grid.ContextFlyout>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="30" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="200" />
-                    <ColumnDefinition Width="104" />
-                    <ColumnDefinition Width="64" />
-                    <ColumnDefinition Width="176" />
+                    <ColumnDefinition Width="3*" MinWidth="96" />
+                    <ColumnDefinition Width="2*" MinWidth="114" />
+                    <ColumnDefinition Width="1.2*" MinWidth="84" />
+                    <ColumnDefinition Width="1*" MinWidth="60" />
+                    <ColumnDefinition Width="1.5*" MinWidth="76" />
+                    <ColumnDefinition Width="184" />
                 </Grid.ColumnDefinitions>
 
                 <Border
@@ -170,42 +195,73 @@
                         Visibility="{x:Bind NoticeVisibility, Mode=OneWay}" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
-                    <TextBlock
-                        FontSize="12"
-                        TextWrapping="NoWrap"
-                        TextTrimming="CharacterEllipsis"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        ToolTipService.ToolTip="{x:Bind VersionPairTip, Mode=OneWay}"
-                        Visibility="{x:Bind VersionPairVisibility, Mode=OneWay}">
-                        <Run Text="{x:Bind NotInstalledRunText, Mode=OneWay}" /><Run Text="{x:Bind InstalledRunText, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" /><Run Text=" &#x2192; " /><Run Text="{x:Bind AvailableVersionShort, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" Foreground="{x:Bind NewVersionBrush, Mode=OneWay}" />
-                    </TextBlock>
-                    <TextBlock
-                        Text="{x:Bind ReleasedText, Mode=OneWay}"
-                        FontSize="11.5"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Visibility="{x:Bind ReleasedVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="{x:Bind InstalledVersionShort, Mode=OneWay}"
-                        FontFamily="Cascadia Mono"
-                        FontSize="11.5"
-                        TextTrimming="CharacterEllipsis"
-                        ToolTipService.ToolTip="{x:Bind InstalledVersion, Mode=OneWay}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind CurrentVersionVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="No releases yet"
-                        FontSize="12.5"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Visibility="{x:Bind NoReleasesVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="{x:Bind AvailableVersionShort, Mode=OneWay}"
-                        FontFamily="Cascadia Mono"
-                        FontSize="11.5"
-                        TextTrimming="CharacterEllipsis"
-                        Foreground="{ThemeResource AvailableVersionBrush}"
-                        Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
-                </StackPanel>
+                <ContentControl
+                    Grid.Column="2"
+                    IsTabStop="{x:Bind HasVersionTip, Mode=OneWay}"
+                    UseSystemFocusVisuals="True"
+                    VerticalAlignment="Center"
+                    HorizontalContentAlignment="Stretch"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="{x:Bind VersionTip, Mode=OneWay}"
+                    ToolTipService.ToolTip="{x:Bind VersionTip, Mode=OneWay}">
+                    <StackPanel Spacing="2">
+                        <Grid ColumnSpacing="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                FontSize="12"
+                                TextWrapping="NoWrap"
+                                TextTrimming="CharacterEllipsis"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                Visibility="{x:Bind VersionPairVisibility, Mode=OneWay}">
+                                <Run Text="{x:Bind NotInstalledRunText, Mode=OneWay}" /><Run Text="{x:Bind InstalledRunText, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" /><Run Text=" &#x2192; " /><Run Text="{x:Bind AvailableVersionShort, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" Foreground="{x:Bind NewVersionBrush, Mode=OneWay}" />
+                            </TextBlock>
+                            <TextBlock
+                                Text="{x:Bind InstalledVersionShort, Mode=OneWay}"
+                                FontFamily="Cascadia Mono"
+                                FontSize="11.5"
+                                TextTrimming="CharacterEllipsis"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Visibility="{x:Bind CurrentVersionVisibility, Mode=OneWay}" />
+                            <TextBlock
+                                Text="{x:Bind AvailableVersionShort, Mode=OneWay}"
+                                FontFamily="Cascadia Mono"
+                                FontSize="11.5"
+                                TextTrimming="CharacterEllipsis"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource AvailableVersionBrush}"
+                                Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
+                            <Button
+                                Grid.Column="1"
+                                Width="22"
+                                Height="22"
+                                MinHeight="0"
+                                Padding="0"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                AutomationProperties.Name="Changelog"
+                                ToolTipService.ToolTip="Changelog"
+                                Click="OnChangelogClick"
+                                Visibility="{x:Bind ChangelogVisibility, Mode=OneWay}">
+                                <FontIcon Glyph="&#xE8A5;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </Button>
+                        </Grid>
+                        <TextBlock
+                            Text="{x:Bind ReleasedText, Mode=OneWay}"
+                            FontSize="11.5"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Visibility="{x:Bind ReleasedVisibility, Mode=OneWay}" />
+                        <TextBlock
+                            Text="No releases yet"
+                            FontSize="12.5"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Visibility="{x:Bind NoReleasesVisibility, Mode=OneWay}" />
+                    </StackPanel>
+                </ContentControl>
 
                 <Button
                     Grid.Column="3"
@@ -247,8 +303,44 @@
                     VerticalAlignment="Center"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
+                <Grid Grid.Column="5" VerticalAlignment="Center">
+                    <TextBlock
+                        Text="{x:Bind StatusText, Mode=OneWay}"
+                        FontSize="12.5"
+                        TextTrimming="CharacterEllipsis"
+                        VerticalAlignment="Center"
+                        Foreground="{x:Bind StatusBrush, Mode=OneWay}"
+                        Visibility="{x:Bind StatusTextVisibility, Mode=OneWay}" />
+                    <StackPanel
+                        Orientation="Horizontal"
+                        Spacing="6"
+                        VerticalAlignment="Center"
+                        Visibility="{x:Bind UpToDateVisibility, Mode=OneWay}">
+                        <FontIcon Glyph="&#xE73E;" FontSize="13" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                        <TextBlock Text="Up to date" FontSize="12.5" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                    </StackPanel>
+                    <Border
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        CornerRadius="4"
+                        Padding="8,2"
+                        Background="{ThemeResource ChipBrush}"
+                        Visibility="{x:Bind IgnoredPillVisibility, Mode=OneWay}">
+                        <TextBlock Text="Ignored" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    </Border>
+                    <Border
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        CornerRadius="4"
+                        Padding="8,2"
+                        Background="{ThemeResource ChipBrush}"
+                        Visibility="{x:Bind HiddenPillVisibility, Mode=OneWay}">
+                        <TextBlock Text="Hidden" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Border>
+                </Grid>
+
                 <StackPanel
-                    Grid.Column="5"
+                    Grid.Column="6"
                     Orientation="Horizontal"
                     Spacing="6"
                     HorizontalAlignment="Right"
@@ -259,79 +351,21 @@
                         Style="{x:Bind ActionStyle, Mode=OneWay}"
                         Command="{x:Bind UpdateCommand}"
                         Visibility="{x:Bind ActionVisibility, Mode=OneWay}" />
-                    <Button
-                        Height="32"
-                        Content="Updating"
-                        IsEnabled="False"
-                        Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
                     <Button Height="32" Content="Retry" Command="{x:Bind UpdateCommand}" Visibility="{x:Bind FailedVisibility, Mode=OneWay}" />
                     <Button
                         Height="32"
                         Content="Sign in to RestedXP"
                         Command="{x:Bind RestedXpSignInCommand}"
                         Visibility="{x:Bind RestedXpSignInVisibility, Mode=OneWay}" />
-                    <StackPanel
-                        Height="32"
-                        Orientation="Horizontal"
-                        Spacing="6"
-                        VerticalAlignment="Center"
-                        Visibility="{x:Bind UpToDateVisibility, Mode=OneWay}">
-                        <FontIcon Glyph="&#xE73E;" FontSize="13" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-                        <TextBlock Text="Up to date" FontSize="12.5" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-                    </StackPanel>
-                    <Border
-                        VerticalAlignment="Center"
-                        CornerRadius="4"
-                        Padding="8,2"
-                        Background="{ThemeResource CautionTintBrush}"
-                        Visibility="{x:Bind MemberPillVisibility, Mode=OneWay}">
-                        <TextBlock Text="Update available" FontSize="12" />
-                    </Border>
-                    <Border
-                        VerticalAlignment="Center"
-                        CornerRadius="4"
-                        Padding="8,2"
-                        Background="{ThemeResource ChipBrush}"
-                        Visibility="{x:Bind IgnoredPillVisibility, Mode=OneWay}">
-                        <TextBlock Text="Ignored" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                    </Border>
-                    <Border
-                        VerticalAlignment="Center"
-                        CornerRadius="4"
-                        Padding="8,2"
-                        Background="{ThemeResource ChipBrush}"
-                        Visibility="{x:Bind HiddenPillVisibility, Mode=OneWay}">
-                        <TextBlock Text="Hidden" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </Border>
                     <Button
                         Width="32"
                         Height="32"
                         Padding="0"
                         AutomationProperties.Name="More options"
                         ToolTipService.ToolTip="More"
+                        Flyout="{StaticResource RowMenu}"
                         Visibility="{x:Bind OverflowVisibility, Mode=OneWay}">
                         <FontIcon Glyph="&#xE712;" FontSize="14" />
-                        <Button.Flyout>
-                            <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <MenuFlyoutItem Text="{x:Bind IgnoreLabel, Mode=OneWay}" Command="{x:Bind ToggleIgnoredCommand}" Visibility="{x:Bind IgnoreVisibility, Mode=OneWay}" />
-                                <MenuFlyoutItem Text="Change channel" Command="{x:Bind ChangeChannelCommand}" Visibility="{x:Bind ChannelChipVisibility, Mode=OneWay}" />
-                                <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" Visibility="{x:Bind HideVisibility}" />
-                                <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" Visibility="{x:Bind InstalledActionsVisibility, Mode=OneWay}" />
-                                <MenuFlyoutItem Text="Reinstall" Command="{x:Bind ReinstallCommand}" Visibility="{x:Bind ReleaseActionsVisibility, Mode=OneWay}" />
-                                <MenuFlyoutItem Text="Copy SHA-256" Command="{x:Bind CopySha256Command}" Visibility="{x:Bind ReleaseActionsVisibility, Mode=OneWay}" />
-                                <MenuFlyoutSeparator Visibility="{x:Bind UninstallVisibility, Mode=OneWay}" />
-                                <MenuFlyoutItem
-                                    Text="Uninstall"
-                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                    Command="{x:Bind UninstallCommand}"
-                                    Visibility="{x:Bind UninstallVisibility, Mode=OneWay}">
-                                    <MenuFlyoutItem.Resources>
-                                        <StaticResource x:Key="MenuFlyoutItemForegroundPointerOver" ResourceKey="SystemFillColorCriticalBrush" />
-                                        <StaticResource x:Key="MenuFlyoutItemForegroundPressed" ResourceKey="SystemFillColorCriticalBrush" />
-                                    </MenuFlyoutItem.Resources>
-                                </MenuFlyoutItem>
-                            </MenuFlyout>
-                        </Button.Flyout>
                     </Button>
                 </StackPanel>
             </Grid>
@@ -342,16 +376,38 @@
                 Padding="16,8"
                 MinHeight="{StaticResource CardRowMinHeight}"
                 ColumnSpacing="12"
+                Background="Transparent"
                 BorderThickness="0,1,0,0"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
                 SizeChanged="OnTableRowSizeChanged">
+                <Grid.Resources>
+                    <MenuFlyout x:Key="RowMenu" Placement="BottomEdgeAlignedRight">
+                        <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" />
+                        <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" />
+                        <MenuFlyoutSeparator Visibility="{x:Bind UninstallVisibility}" />
+                        <MenuFlyoutItem
+                            Text="Uninstall"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            Command="{x:Bind UninstallCommand}"
+                            Visibility="{x:Bind UninstallVisibility}">
+                            <MenuFlyoutItem.Resources>
+                                <StaticResource x:Key="MenuFlyoutItemForegroundPointerOver" ResourceKey="SystemFillColorCriticalBrush" />
+                                <StaticResource x:Key="MenuFlyoutItemForegroundPressed" ResourceKey="SystemFillColorCriticalBrush" />
+                            </MenuFlyoutItem.Resources>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </Grid.Resources>
+                <Grid.ContextFlyout>
+                    <StaticResource ResourceKey="RowMenu" />
+                </Grid.ContextFlyout>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="30" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="200" />
-                    <ColumnDefinition Width="104" />
-                    <ColumnDefinition Width="64" />
-                    <ColumnDefinition Width="176" />
+                    <ColumnDefinition Width="3*" MinWidth="96" />
+                    <ColumnDefinition Width="2*" MinWidth="114" />
+                    <ColumnDefinition Width="1.2*" MinWidth="84" />
+                    <ColumnDefinition Width="1*" MinWidth="60" />
+                    <ColumnDefinition Width="1.5*" MinWidth="76" />
+                    <ColumnDefinition Width="184" />
                 </Grid.ColumnDefinitions>
 
                 <Border
@@ -407,14 +463,21 @@
                         Visibility="{x:Bind FailedVisibility, Mode=OneWay}" />
                 </StackPanel>
 
-                <TextBlock
+                <ContentControl
                     Grid.Column="2"
-                    Text="{x:Bind Version}"
-                    FontFamily="Cascadia Mono"
-                    FontSize="11.5"
+                    IsTabStop="{x:Bind HasVersionTip, Mode=OneWay}"
+                    UseSystemFocusVisuals="True"
                     VerticalAlignment="Center"
-                    TextTrimming="CharacterEllipsis"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    HorizontalAlignment="Left"
+                    AutomationProperties.Name="{x:Bind VersionTip, Mode=OneWay}"
+                    ToolTipService.ToolTip="{x:Bind VersionTip, Mode=OneWay}">
+                    <TextBlock
+                        Text="{x:Bind Version}"
+                        FontFamily="Cascadia Mono"
+                        FontSize="11.5"
+                        TextTrimming="CharacterEllipsis"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </ContentControl>
 
                 <TextBlock
                     Grid.Column="3"
@@ -429,46 +492,35 @@
                     VerticalAlignment="Center"
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
 
-                <StackPanel
+                <TextBlock
                     Grid.Column="5"
-                    Orientation="Horizontal"
-                    Spacing="6"
+                    Text="-"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    Visibility="{x:Bind StatusDashVisibility, Mode=OneWay}" />
+                <Border
+                    Grid.Column="5"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    CornerRadius="4"
+                    Padding="8,2"
+                    Background="{ThemeResource ChipBrush}"
+                    Visibility="{x:Bind HiddenPillVisibility, Mode=OneWay}">
+                    <TextBlock Text="Hidden" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Border>
+
+                <Button
+                    Grid.Column="6"
+                    Width="32"
+                    Height="32"
+                    Padding="0"
                     HorizontalAlignment="Right"
-                    VerticalAlignment="Center">
-                    <Border
-                        VerticalAlignment="Center"
-                        CornerRadius="4"
-                        Padding="8,2"
-                        Background="{ThemeResource ChipBrush}"
-                        Visibility="{x:Bind HiddenPillVisibility, Mode=OneWay}">
-                        <TextBlock Text="Hidden" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </Border>
-                    <Button
-                        Width="32"
-                        Height="32"
-                        Padding="0"
-                        AutomationProperties.Name="More options"
-                        ToolTipService.ToolTip="More">
-                        <FontIcon Glyph="&#xE712;" FontSize="14" />
-                        <Button.Flyout>
-                            <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" />
-                                <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" />
-                                <MenuFlyoutSeparator Visibility="{x:Bind UninstallVisibility}" />
-                                <MenuFlyoutItem
-                                    Text="Uninstall"
-                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                    Command="{x:Bind UninstallCommand}"
-                                    Visibility="{x:Bind UninstallVisibility}">
-                                    <MenuFlyoutItem.Resources>
-                                        <StaticResource x:Key="MenuFlyoutItemForegroundPointerOver" ResourceKey="SystemFillColorCriticalBrush" />
-                                        <StaticResource x:Key="MenuFlyoutItemForegroundPressed" ResourceKey="SystemFillColorCriticalBrush" />
-                                    </MenuFlyoutItem.Resources>
-                                </MenuFlyoutItem>
-                            </MenuFlyout>
-                        </Button.Flyout>
-                    </Button>
-                </StackPanel>
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="More options"
+                    ToolTipService.ToolTip="More"
+                    Flyout="{StaticResource RowMenu}">
+                    <FontIcon Glyph="&#xE712;" FontSize="14" />
+                </Button>
             </Grid>
         </DataTemplate>
 
@@ -899,11 +951,12 @@
                             </Grid.Resources>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="30" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="200" />
-                                <ColumnDefinition Width="104" />
-                                <ColumnDefinition Width="64" />
-                                <ColumnDefinition Width="176" />
+                                <ColumnDefinition Width="3*" MinWidth="96" />
+                                <ColumnDefinition Width="2*" MinWidth="114" />
+                                <ColumnDefinition Width="1.2*" MinWidth="84" />
+                                <ColumnDefinition Width="1*" MinWidth="60" />
+                                <ColumnDefinition Width="1.5*" MinWidth="76" />
+                                <ColumnDefinition Width="184" />
                             </Grid.ColumnDefinitions>
                             <Button
                                 Grid.Column="1"
@@ -918,7 +971,20 @@
                                     <FontIcon Glyph="{x:Bind ViewModel.NameSortGlyph, Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
                             </Button>
-                            <TextBlock Grid.Column="2" Text="Version" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <Button
+                                Grid.Column="2"
+                                Height="26"
+                                MinHeight="0"
+                                Padding="4,0"
+                                Margin="-4,0,0,0"
+                                AutomationProperties.Name="Sort by last updated"
+                                Command="{x:Bind ViewModel.SortByCommand}"
+                                CommandParameter="version">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="Version" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <FontIcon Glyph="{x:Bind ViewModel.VersionSortGlyph, Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </Button>
                             <TextBlock Grid.Column="3" Text="Channel" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             <Button
                                 Grid.Column="4"
@@ -931,6 +997,19 @@
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Text="Source" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     <FontIcon Glyph="{x:Bind ViewModel.SourceSortGlyph, Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </Button>
+                            <Button
+                                Grid.Column="5"
+                                Height="26"
+                                MinHeight="0"
+                                Padding="4,0"
+                                Margin="-4,0,0,0"
+                                Command="{x:Bind ViewModel.SortByCommand}"
+                                CommandParameter="status">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="Status" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <FontIcon Glyph="{x:Bind ViewModel.StatusSortGlyph, Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
                             </Button>
                         </Grid>

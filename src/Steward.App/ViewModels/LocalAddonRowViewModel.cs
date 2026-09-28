@@ -39,6 +39,26 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
         OutOfDateTip = outOfDateTip;
         InitialsBrush = InitialsTile.Brush(addon.FolderName);
         _ = LoadIconAsync();
+        _ = LoadLastUpdatedAsync();
+    }
+
+    [ObservableProperty]
+    public partial DateTimeOffset? LastUpdated { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVersionTip))]
+    public partial string? VersionTip { get; private set; }
+
+    public bool HasVersionTip => VersionTip is not null;
+
+    public int StatusRank => (int)(IsHidden ? AddonRowStatus.Hidden : AddonRowStatus.Local);
+
+    public Visibility StatusDashVisibility => When(!IsHidden);
+
+    private async Task LoadLastUpdatedAsync()
+    {
+        LastUpdated = await Task.Run(() => TocTime.LastWrite(_install.AddOnsPath, _addon.FolderName)).ConfigureAwait(true);
+        VersionTip = TocTime.Describe("Installed", LastUpdated);
     }
 
     public Brush InitialsBrush { get; }
@@ -69,7 +89,7 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
     public Visibility OutOfDateVisibility => When(OutOfDateTip is not null);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HideLabel), nameof(HiddenPillVisibility))]
+    [NotifyPropertyChangedFor(nameof(HideLabel), nameof(HiddenPillVisibility), nameof(StatusDashVisibility), nameof(StatusRank))]
     public partial bool IsHidden { get; set; }
 
     [ObservableProperty]

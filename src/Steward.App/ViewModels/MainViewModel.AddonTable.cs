@@ -50,6 +50,7 @@ public sealed partial class MainViewModel
 
     private string? _sortKey;
     private bool _sortDescending;
+    private readonly Dictionary<IAddonTableRow, (int Status, DateTimeOffset? Updated)> _sortSnapshot = [];
 
     public ObservableCollection<IAddonTableRow> TableRows { get; } = [];
 
@@ -113,6 +114,10 @@ public sealed partial class MainViewModel
 
     public string SourceSortGlyph => SortGlyph("source");
 
+    public string StatusSortGlyph => SortGlyph("status");
+
+    public string VersionSortGlyph => SortGlyph("version");
+
     private string SortGlyph(string key) => _sortKey != key ? "" : _sortDescending ? "" : "";
 
     partial void OnSelectedInstallChanged(WowInstallViewModel? value)
@@ -127,12 +132,22 @@ public sealed partial class MainViewModel
             _stateStore.Save(_stateStore.Load() with { SelectedInstall = value.FlavourPath });
         }
 
+        _sortSnapshot.Clear();
         RecomputeSummary();
     }
 
-    partial void OnFilterTextChanged(string value) => RecomputeTable();
+    partial void OnFilterTextChanged(string value) => Resort();
 
-    partial void OnFilterIndexChanged(int value) => RecomputeTable();
+    partial void OnFilterIndexChanged(int value) => Resort();
+
+    private void Resort()
+    {
+        _sortSnapshot.Clear();
+        RecomputeTable();
+    }
+
+    private (int Status, DateTimeOffset? Updated) SortSnapshot(IAddonTableRow row) =>
+        _sortSnapshot.TryGetValue(row, out var key) ? key : _sortSnapshot[row] = (row.StatusRank, row.LastUpdated);
 
     public void SelectInstall(WowInstallViewModel install) => SelectedInstall = install;
 
@@ -170,13 +185,19 @@ public sealed partial class MainViewModel
             rows = rows.Where(row => row.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase));
         }
 
-        if (_sortKey is not null)
+        var byName = StringComparer.OrdinalIgnoreCase;
+        rows = (_sortKey, _sortDescending) switch
         {
-            Func<IAddonTableRow, string> key = _sortKey == "source" ? row => row.Source : row => row.DisplayName;
-            rows = _sortDescending
-                ? rows.OrderByDescending(key, StringComparer.OrdinalIgnoreCase).ThenByDescending(row => row.DisplayName, StringComparer.OrdinalIgnoreCase)
-                : rows.OrderBy(key, StringComparer.OrdinalIgnoreCase).ThenBy(row => row.DisplayName, StringComparer.OrdinalIgnoreCase);
-        }
+            (null, _) => rows,
+            ("status", false) => rows.OrderBy(row => SortSnapshot(row).Status).ThenBy(row => row.DisplayName, byName),
+            ("status", true) => rows.OrderByDescending(row => SortSnapshot(row).Status).ThenBy(row => row.DisplayName, byName),
+            ("version", false) => rows.OrderBy(row => SortSnapshot(row).Updated is null).ThenByDescending(row => SortSnapshot(row).Updated).ThenBy(row => row.DisplayName, byName),
+            ("version", true) => rows.OrderBy(row => SortSnapshot(row).Updated is null).ThenBy(row => SortSnapshot(row).Updated).ThenBy(row => row.DisplayName, byName),
+            ("source", false) => rows.OrderBy(row => row.Source, byName).ThenBy(row => row.DisplayName, byName),
+            ("source", true) => rows.OrderByDescending(row => row.Source, byName).ThenByDescending(row => row.DisplayName, byName),
+            (_, false) => rows.OrderBy(row => row.DisplayName, byName),
+            (_, true) => rows.OrderByDescending(row => row.DisplayName, byName),
+        };
 
         var wanted = rows.ToList();
         foreach (var gone in TableRows.Except(wanted).ToList())
@@ -205,6 +226,8 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(DefaultOrderVisibility));
         OnPropertyChanged(nameof(NameSortGlyph));
         OnPropertyChanged(nameof(SourceSortGlyph));
+        OnPropertyChanged(nameof(StatusSortGlyph));
+        OnPropertyChanged(nameof(VersionSortGlyph));
         UpdateAllCommand.NotifyCanExecuteChanged();
         UpdateAllInstallsCommand.NotifyCanExecuteChanged();
     }
@@ -213,7 +236,7 @@ public sealed partial class MainViewModel
     private void SortBy(string key)
     {
         (_sortKey, _sortDescending) = _sortKey != key ? (key, false) : !_sortDescending ? (key, true) : (null, false);
-        RecomputeTable();
+        Resort();
     }
 
     [RelayCommand]
@@ -221,7 +244,7 @@ public sealed partial class MainViewModel
     {
         _sortKey = null;
         _sortDescending = false;
-        RecomputeTable();
+        Resort();
     }
 
     private bool CanUpdateAll => IsAuthorized && SelectedUpdateCount > 0 && !IsAnyRowBusy;
