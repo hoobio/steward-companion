@@ -490,7 +490,8 @@
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     </Grid>
                     <Button.Flyout>
-                        <Flyout x:Name="GuildFlyout" Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False">
+                        <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
+                        <Flyout x:Name="GuildFlyout" Placement="BottomEdgeAlignedLeft" ShouldConstrainToRootBounds="False" AreOpenCloseAnimationsEnabled="False">
                             <Flyout.SystemBackdrop>
                                 <DesktopAcrylicBackdrop />
                             </Flyout.SystemBackdrop>
