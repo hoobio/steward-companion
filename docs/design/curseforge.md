@@ -12,6 +12,13 @@ Status: agreed direction, not implemented. Everything under "Verified API behavi
 - The key lives in gigagrug only and never ships in the app. Terms section 2.2: the key "is non-transferable and may not be shared with any third party", and a key compiled into a .NET Store package is recoverable with any decompiler whatever the obfuscation, so embedding it in Steward was rejected. (WowUp ships its key in its client, `AppConfig.curseforge.apiKey`; its agreement with CurseForge is not known here, so it is not a precedent for Steward's key.)
 - Every CurseForge call goes `Steward -> gigagrug -> api.curseforge.com` with the `x-api-key` header, except file downloads, which the app takes straight from the CDN URL gigagrug returns (the CDN needs no key).
 
+## Feature gate
+
+Everything CurseForge sits behind a `curseforge` feature flag, held by default only by users with role `global` (global admin) and grantable to individuals like `hoobiscripts`. It arrives in `/api/me` `user.features` and is user-level, not guild-scoped.
+
+- gigagrug: every `/api/addons/curseforge/*` route requires a signed-in `gg_session` and the `curseforge` feature; 401 without a session, 403 without the feature.
+- App: `MainViewModel` exposes `HasCurseForgeFeature` from the user-level `_features`. Without it there is no `Get addons` button, no CurseForge matching (folders that would match stay Local rows), no CurseForge rows, and no CurseForge manifest fetches. CurseForge addons already recorded in `state.json` behave like a feature-hidden configured addon: no row, never updated, auto-applied or removed, their folders untouched on disk. `curseforge` alone does not count towards the app's access gate (`GigagrugClient.IsAuthorizing`), since every default holder already has access. Gaining or losing the feature mid-session goes through `RecheckAuthorizationAsync` and `ReconcileFeatureGating` like every other feature, including the `accessChanged` event stream.
+
 ## Terms constraints
 
 From the CurseForge 3rd Party API Terms (https://support.curseforge.com/support/solutions/articles/9000207405-curse-forge-3rd-party-api-terms-and-conditions), quoted:
