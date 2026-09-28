@@ -42,6 +42,10 @@
     <AssemblyMetadata Include="StorePreRelease" Value="$(StorePreRelease)" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(StoreDisplayVersion)' != ''">
+    <AssemblyMetadata Include="StoreDisplayVersion" Value="$(StoreDisplayVersion)" />
+  </ItemGroup>
+
   <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <ProjectCapability Include="Msix" />
   </ItemGroup>

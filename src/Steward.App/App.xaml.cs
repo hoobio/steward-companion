@@ -26,6 +26,12 @@ public partial class App : Application
         .GetCustomAttributes<AssemblyMetadataAttribute>()
         .Any(attribute => attribute.Key == "StorePreRelease" && attribute.Value == "true");
 
+    public static readonly string? StoreDisplayVersion = typeof(App).Assembly
+        .GetCustomAttributes<AssemblyMetadataAttribute>()
+        .FirstOrDefault(attribute => attribute.Key == "StoreDisplayVersion")?.Value is { Length: > 0 } value
+            ? value
+            : null;
+
     public const string PackageFamilyName = "Hoobi.Steward_thayxpy3eqg0g";
 
     public const string MsiUpgradeCode = "{CCD0BF88-7A8E-4F74-9DB7-9B9272B3D503}";

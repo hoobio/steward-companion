@@ -513,7 +513,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public static string Channel => !App.IsGitHubRelease ? "dev" : App.IsPackaged ? "store" : "msi";
 
-    public string VersionLabel { get; } = $"Steward {InstalledVersion}{BuildSuffix}";
+    private static string DisplayedVersion => App.StoreDisplayVersion ?? InstalledVersion;
+
+    public string VersionLabel { get; } = $"Steward {DisplayedVersion}{BuildSuffix}";
 
     public static string WindowTitle => $"Steward{BuildSuffix}";
 
