@@ -204,6 +204,7 @@ jobs:
       && needs.release.result == 'success'
       && vars.AZURE_CLIENT_ID != ''
     runs-on: windows-latest
+    timeout-minutes: 90
     permissions:
       id-token: write
       contents: read
@@ -271,14 +272,23 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           . "$env:GITHUB_WORKSPACE\scripts\Get-StoreWhatsNew.ps1"
+          . "$env:GITHUB_WORKSPACE\scripts\Wait-StoreSubmissionClear.ps1"
           $package = (Get-ChildItem package -Filter *.msixupload | Select-Object -First 1).FullName
           if (-not $package) { throw 'No .msixupload artifact found' }
 
-          msstore submission delete $env:PRODUCT_ID --no-confirm
-          $global:LASTEXITCODE = 0
-
-          msstore publish $package -id $env:PRODUCT_ID --noCommit
-          if ($LASTEXITCODE -ne 0) { throw "msstore publish failed ($LASTEXITCODE)" }
+          $attempt = 0
+          do {
+            $attempt++
+            Wait-StoreSubmissionClear -ProductId $env:PRODUCT_ID
+            $publishOut = msstore publish $package -id $env:PRODUCT_ID --noCommit | Out-String
+            Write-Host $publishOut
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($publishOut -notmatch 'Error while creating submission' -or $attempt -ge 3) {
+              throw "msstore publish failed ($LASTEXITCODE)"
+            }
+            Write-Host "msstore publish failed creating the submission; retrying in 60 seconds (attempt $attempt of 3)."
+            Start-Sleep -Seconds 60
+          } while ($true)
 
           $whatsNewParams = @{ ChangelogPath = "$env:GITHUB_WORKSPACE\CHANGELOG.md"; Version = $env:VERSION }
           if ($env:SINCE_VERSION) { $whatsNewParams.SinceVersion = $env:SINCE_VERSION }
@@ -316,6 +326,7 @@ jobs:
       && vars.STORE_FLIGHT_ID != ''
       && vars.AZURE_CLIENT_ID != ''
     runs-on: windows-latest
+    timeout-minutes: 90
     permissions:
       id-token: write
       contents: read
@@ -324,6 +335,8 @@ jobs:
       STORE_PRODUCT_ID: 9PBKMZFKZHKX
       KEY_VAULT: hbicfgkvtaus01
     steps:
+      - uses: actions/checkout@v7
+
       - name: Download msixupload
         uses: actions/download-artifact@v8
         with:
@@ -359,14 +372,23 @@ jobs:
           FLIGHT_ID: ${{ vars.STORE_FLIGHT_ID }}
         run: |
           $ErrorActionPreference = 'Stop'
+          . "$env:GITHUB_WORKSPACE\scripts\Wait-StoreSubmissionClear.ps1"
           $package = (Get-ChildItem package -Filter *.msixupload | Select-Object -First 1).FullName
           if (-not $package) { throw 'No .msixupload artifact found' }
 
-          msstore flights submission delete $env:PRODUCT_ID $env:FLIGHT_ID --no-confirm
-          $global:LASTEXITCODE = 0
-
-          msstore publish $package -id $env:PRODUCT_ID --flightId $env:FLIGHT_ID --noCommit
-          if ($LASTEXITCODE -ne 0) { throw "msstore publish failed ($LASTEXITCODE)" }
+          $attempt = 0
+          do {
+            $attempt++
+            Wait-StoreSubmissionClear -ProductId $env:PRODUCT_ID -FlightId $env:FLIGHT_ID
+            $publishOut = msstore publish $package -id $env:PRODUCT_ID --flightId $env:FLIGHT_ID --noCommit | Out-String
+            Write-Host $publishOut
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($publishOut -notmatch 'Error while creating flight submission' -or $attempt -ge 3) {
+              throw "msstore publish failed ($LASTEXITCODE)"
+            }
+            Write-Host "msstore publish failed creating the flight submission; retrying in 60 seconds (attempt $attempt of 3)."
+            Start-Sleep -Seconds 60
+          } while ($true)
 
           $out = msstore flights submission get $env:PRODUCT_ID $env:FLIGHT_ID | Out-String
           if ($LASTEXITCODE -ne 0) { throw "flights submission get failed ($LASTEXITCODE)" }
