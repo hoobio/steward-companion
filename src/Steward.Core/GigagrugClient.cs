@@ -319,14 +319,15 @@ public sealed class GigagrugClient
     public const string ProfessionsFeature = "professions";
     public const string SignupsFeature = "signups";
     public const string HoobiScriptsFeature = "hoobiscripts";
+    public const string AddonsFeature = "addons";
 
     private static readonly IReadOnlySet<string> OfficerFeatures = new HashSet<string>(
-        [GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature, SignupsFeature],
+        [GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature, SignupsFeature, AddonsFeature],
         StringComparer.Ordinal);
 
-    // signups alone gives no in-app access today, so it does not authorize; hoobiscripts is grantable to anyone and authorizes on its own.
+    // signups alone gives no in-app access today, so it does not authorize; hoobiscripts and addons are each grantable to anyone and authorize on their own.
     private static readonly IReadOnlySet<string> AuthorizingFeatures = new HashSet<string>(
-        [GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature, HoobiScriptsFeature],
+        [GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature, HoobiScriptsFeature, AddonsFeature],
         StringComparer.Ordinal);
 
     public static bool IsAdmin(AdminMe me) =>
