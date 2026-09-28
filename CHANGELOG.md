@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.16.0](https://github.com/hoobio/steward-companion/compare/v0.15.0...v0.16.0) (2026-09-28)
+
+
+### Features
+
+* ✨ show Store update download and install progress ([b5c25ed](https://github.com/hoobio/steward-companion/commit/b5c25ed409684ae7738c39e7d14051a282250597))
+
+
+### Bug Fixes
+
+* 🐛 keep one instance of each page instead of rebuilding it per visit ([3a14412](https://github.com/hoobio/steward-companion/commit/3a14412a09b05b22e1c12f2808a72d4d5891606d))
+* 🐛 stop the Addons table crashing when a filter removes rows ([50e90f0](https://github.com/hoobio/steward-companion/commit/50e90f0a74219281efa99f918312177d7c3d7252))
+
 ## [0.15.0](https://github.com/hoobio/steward-companion/compare/v0.14.0...v0.15.0) (2026-09-28)
 
 
