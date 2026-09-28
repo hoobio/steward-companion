@@ -10,7 +10,7 @@ Phase 1 is implemented and this doc stays the source of truth for it; phase 2 (G
 
 Top to bottom:
 
-1. Header row, one line: `Addons` at 28/600 alone on the left; on the right, in order, the selected install's status text, "Checked {relative} ago", the install picker, an edit button, a refresh icon button and an open AddOns folder icon button. Phase 2 adds `Get addons` after them.
+1. Header row, one line: `Addons` at 28/600 alone on the left; on the right, in order, the selected install's status text, "Checked {relative} ago", the install picker, a refresh icon button and an open AddOns folder icon button. Phase 2 adds `Get addons` after them.
 2. `BannerList`, in its existing row between the header and the content.
 3. Toolbar: a filter box, a `Segmented` of `All`, `Updates {n}` and `Hidden {n}` (the Hidden segment only while at least one row is hidden), a `Default order` button while a column sort is active, and the `Update all` split button right-aligned.
 4. The table.
@@ -19,19 +19,19 @@ The summary banner and the per-install expanders go. The `Hidden addons` toggle 
 
 ## Install picker
 
-The picker is a button showing the selected install's label, opening a flyout of every install. A row holds more than a menu item can (label, game version, path), so it is a custom `Flyout` matching `MenuFlyout`, the same treatment as the guild switcher: `ShouldConstrainToRootBounds="False"`, a `DesktopAcrylicBackdrop`, the `MenuFlyoutPresenter*` brushes, `Placement="BottomEdgeAlignedRight"`. Each flyout row shows the label, the game version beneath it when the install has a user label, and the flavour path in mono; the selected row carries the accent selection bar. Below a separator: `Add install` (the existing folder picker, `AddedInstalls`) and `Manage installs` (navigates to the Installs card in Settings).
+The picker is a button showing the selected install's label, opening a flyout of every install. A row holds more than a menu item can (label, game version, path), so it is a custom `Flyout` matching `MenuFlyout`, the same treatment as the guild switcher: `ShouldConstrainToRootBounds="False"`, a `TintedAcrylicBackdrop`, the shared `TintedFlyoutPresenterStyle`, `AreOpenCloseAnimationsEnabled="False"`, `Placement="BottomEdgeAlignedRight"`. The open animation is off because a windowed `Flyout` animates its content inside a backdrop window already shown at full size: frames captured on 28 Sep 2026 showed an empty square box for about 90ms, then the content sliding down inside it, where a native `MenuFlyout` reveals backdrop and content together; with the animation off the flyout appears whole in one frame. Each flyout row shows the label, the game version beneath it when the install has a user label, and the flavour path in mono; the selected row carries the accent selection bar, and a trailing subtle pencil button ("Edit install", accessible name "Edit {label}") closes the flyout and opens the edit dialog on the Settings page. Clicking the row itself selects the install. Below a separator: `Add install` (the existing folder picker, `AddedInstalls`) and `Manage installs` (navigates to the Installs card in Settings).
 
 **Label.** The install's `SupportedProducts` display name with the `World of Warcraft: ` prefix dropped, so `World of Warcraft: Forever - Beta` reads `Forever - Beta`. A user label replaces it. The status text beside the picker reads `{client version}` plus the running dot and "Running" while `WowClient.IsRunning` holds; with a user label it leads with the game version, `Forever · 5.5.0.62422`, so a renamed install still says which game it runs. The install path is in the picker's tooltip, the flyout and the edit dialog, not on the page.
 
 **Icon.** Each install carries its game version's icon, `Assets/Products/{product code}.png` (`ProductIcon.For`), shown beside the install picker's own label, on each flyout row, in the edit dialog's game version options and on the Settings Installs cards. An install with no game version shows the caution glyph in its place instead.
 
-**Game version is required.** Discovery reads it from `.flavor.info`. Add install accepts a folder that has no `.flavor.info`, as long as it looks like a flavour folder (an underscore-wrapped name holding `Interface\AddOns`); a folder added by hand with no `.flavor.info` has none: its status text reads "Game version not set" in caution, and the page shows a centred prompt in place of the toolbar and table ("Choose a game version for this install", with a `Choose game version` button opening the edit dialog) until one is set. The options are the `SupportedProducts` values with the prefix dropped. Manifests carry one build per addon today, so in phase 1 the game version drives the RestedXP guide product gate (`RestedXp:ProductPrefixes`) and nothing else; phase 2 provider search is scoped by it.
+**Game version is required.** Discovery reads it from `.flavor.info`. Add install accepts a folder that has no `.flavor.info`, as long as it looks like a flavour folder (an underscore-wrapped name holding `Interface\AddOns`); a folder added by hand with no `.flavor.info` has none: its status text reads "Game version not set" in caution, and the page shows a centred prompt in place of the toolbar and table ("Choose a game version for this install", with a `Choose game version` button that opens the edit dialog on the Settings page) until one is set. The options are the `SupportedProducts` values with the prefix dropped. Manifests carry one build per addon today, so in phase 1 the game version drives the RestedXP guide product gate (`RestedXp:ProductPrefixes`) and nothing else; phase 2 provider search is scoped by it.
 
 **Selection** is remembered in `selected_install`, falling back to the first install.
 
 ### Edit install dialog
 
-A `ContentDialog` titled `Edit install`, opened from the edit button beside the picker:
+A `ContentDialog` titled `Edit install`, hosted by the Settings page. The picker's pencil, the `Choose game version` prompt and each Settings Installs card's `Edit` button all call `MainViewModel.RequestEditInstall`, which records the install's flavour path, navigates to Settings and raises `EditInstallRequested`; the Settings page takes the pending request once it is loaded and shows the dialog, so there is one path that opens it:
 
 - **Name**, a `TextBox` whose placeholder is the game version name. "Shown in the install picker. Leave empty to use the game version name." Empty clears the label.
 - **Game version**, a `ComboBox`. For a discovered install it is preselected with "Detected from .flavor.info. Change it only if detection is wrong." beneath. For an added install with none it starts empty with "Required. Decides which addon builds Steward installs here.", and Save with nothing chosen shows "Choose a game version so Steward installs the right addon builds." in critical under the field and keeps the dialog open.
@@ -52,32 +52,41 @@ Primary `Save`, close `Cancel`.
 | Column | Header | Content |
 | --- | --- | --- |
 | Icon | hidden | The manifest icon for a configured addon, falling back to the decoded local TOC icon and then an initials tile; an initials tile for a Local row. See Icons below. |
-| Name | `Name`, sortable | Display name, with the folder name in mono beneath, and the out of date glyph after the name when it applies. A row notice (below) takes the line under the folder name. |
-| Version | `Version` | See Version cell. |
-| Channel | `Channel` | A chip button opening the channel dialog, shown only when the addon has a release on two or more channels; with exactly one release, the channel name renders as plain text with a tooltip ("Only {channel} builds are published for {addon}.") and `Change channel` is left out of the overflow menu. A dim `-` for Local rows and addons with no release on any channel. |
-| Source | `Source`, sortable | `Steward`, `GitHub`, `Local`, and in phase 2 `CurseForge` or `Wago`. |
-| Actions | hidden | The action for the row's state, then the overflow button. |
+| Name | `Name`, sortable, resizable | Display name, with the folder name in mono beneath, and the out of date glyph after the name when it applies. A row notice (below) takes the line under the folder name. |
+| Version | `Version`, sortable by last updated, resizable | See Version cell. |
+| Channel | `Channel`, resizable | A chip button opening the channel dialog, shown only when the addon has a release on two or more channels; with exactly one release, the channel name renders as plain text with a tooltip ("Only {channel} builds are published for {addon}.") and `Change channel` is left out of the overflow menu. A dim `-` for Local rows and addons with no release on any channel. |
+| Source | `Source`, sortable, resizable | `Steward`, `GitHub`, `Local`, and in phase 2 `CurseForge` or `Wago`. |
+| Status | `Status`, sortable | `Update available` and `Switch to {channel} pending` in Accent hover, `Updating` in Text secondary, `Failed` in critical, `Not installed` in Text mute, the success tick and `Up to date`, the `Ignored` and `Hidden` pills, and a dim `-` for no releases and for Local rows (the Source column already says `Local`). |
+| Actions | hidden | The action button for the row's state (`Update`, `Switch to {channel}`, `Install`, `Retry`, `Sign in to RestedXP`), then the overflow button. |
+
+**Widths.** Name, Version, Channel and Source take pixel widths, each with a `ColumnResizeGrip` on its right edge in the header: a focus stop named "Resize {column} column" with the SizeWestEast cursor and a hairline shown on hover, focus or drag. Dragging, or Left and Right arrows in 8px steps, changes only that column; nothing to its left moves, the columns to its right shift, and Status absorbs the difference, stopping when Status reaches its minimum. The grip's automation peer exposes `RangeValue` for the same resize. Double-click resets the column to its default. User widths persist in `table_column_widths` in `state.json`, column id to pixels. A column without a stored width takes its share of the table width at first layout by the ratios Name 3, Version 2, Channel 1.2, Source 1, Status 1.5. Status fills the rest up to the actions column and has no grip; when the table narrows Status gives up space first, then the pixel columns shrink in proportion down to their minimums. Minimums are the header label plus sort arrow (Name 80, Version 64, Channel 64, Source 56, Status 56); cell text narrower than its column trims with an ellipsis and keeps the full text in a tooltip. The actions column is `Auto` in every row, and the width set aside for it is the widest realized action cell, measured when an action cell changes size rather than on every layout pass, so a table whose rows show only the overflow button reserves only that button. The header row sits on `LayerFillColorAltBrush` with the card's top corners, so it reads as the table's title bar. Header and rows share one width set applied from the page (`HomePage.ApplyColumns`) to the header and every realized row, driven by the table's own width rather than a row's, since a `Grid` whose columns exceed its slot is arranged at its desired width.
+
+**Narrow mode.** Below 760px of table width the Channel column and its grip collapse and the channel folds into the Version cell as a second line (the same chip, or the same plain text and tooltip; nothing for the dim `-` case). In that mode the "Released {relative}" line moves into the version tooltip, so the cell stays at two lines. Below 840px the Source column collapses.
 
 Source for a configured addon comes from a new `Source` field on its `Addons` entry: `Steward` for the `addon.hoobi.io` manifests, `GitHub` for the gigagrug mirrors (RestedXP, BugSack, BugGrabber).
 
 ### Version cell
 
-| State | Version cell | Action |
-| --- | --- | --- |
-| Update available | `installed -> available`, old in Text mute, new in Accent hover, and "Released {relative}" beneath from `AddonRelease.Released` | `Update`, accent |
-| Recorded channel differs | the same pair | `Switch to {channel}`, accent |
-| Not installed | `Not installed -> available` | `Install` |
-| Current | the installed version in Text dim | success tick and `Up to date` |
-| Ignored | `installed -> available`, both in Text mute | `Ignored` pill |
-| No releases | "No releases yet" | none |
-| Local | the TOC `## Version` | none |
-| Updating, failed | unchanged from today: target version, the 3px bar under the name, busy `Updating`; the failure line under the folder name and `Retry` | |
+| State | Version cell | Status | Action |
+| --- | --- | --- | --- |
+| Update available | `installed -> available`, old in Text mute, new in Accent hover, and "Released {relative}" beneath from `AddonRelease.Released` | `Update available` | `Update`, accent |
+| Recorded channel differs | the same pair | `Switch to {channel} pending` | `Switch to {channel}`, accent |
+| Not installed | `Not installed -> available` | `Not installed` | `Install` |
+| Current | the installed version in Text dim | success tick and `Up to date` | none |
+| Ignored | `installed -> available`, both in Text mute | `Ignored` pill | none |
+| Hidden | as its state | `Hidden` pill | none |
+| No releases | "No releases yet" | dim `-` | none |
+| Local | the TOC `## Version` | dim `-` | none |
+| Updating | the target version, the 3px bar under the name | `Updating` | none |
+| Failed | the failure line under the folder name | `Failed` | `Retry` |
+
+The cell is a focus stop with a tooltip: "Updated {relative} ({d MMM yyyy})" from the install record's `InstalledAt`, or "Installed {relative} ({date})" from the last write time of the addon's `<Folder>.toc` (or its flavour-suffixed TOC) when there is no record, which is the manual install case and every Local row. A row that is not installed has no tooltip. The time is read when the installed version is refreshed, with the file stat on a background thread, never in a getter.
+
+When the available release carries `notes`, a small changelog icon button (focus stop, tooltip "Changelog") sits beside the version and opens a `ContentDialog` titled "{addon} {version}" listing each note as a bullet line with a hanging indent, in a scroll area capped at 320px, close button `Close`. Manifests carry an optional `notes` string array, parsed into `AddonRelease.Notes`; without it there is no icon.
 
 Versions are mono. The version pair is one `TextBlock` of `Run`s rather than separate blocks, so the mono and proportional parts share a baseline. The RestedXP row keeps its `Sign in to RestedXP` button in the action cell while RXPGuides is installed with no RestedXP session, per `guides-page.md`.
 
 Row notices keep their current wording and move to the line under the folder name: the stale stored channel fallback, a newer build on a more stable channel, the `/reload` hint after an update applied while the client ran.
-
-The changelog tooltip on the available version is phase 2: `AddonRelease` has no notes field, so it needs a `notes` string array in the manifests first.
 
 The Updates count and `Update all` cover the Update available and channel switch states only; a missing addon does not count towards either.
 
@@ -91,21 +100,21 @@ A caution glyph after the name when the installed addon's TOC `## Interface:` ho
 
 ### Order and filter
 
-The default order is the configured addons in `Addons` array order (Steward, HoobiScripts, RestedXP Guides, BugSack, BugGrabber), then every other row by name. Clicking `Name` or `Source` sorts by that column, ascending then descending then back to the default, with the arrow glyph on the active header; `Default order` in the toolbar resets it. The sort lasts for the session. A background pass never re-orders rows, as today.
+The default order is the configured addons in `Addons` array order (Steward, HoobiScripts, RestedXP Guides, BugSack, BugGrabber), then every other row by name. Clicking `Name`, `Source`, `Status` or `Version` sorts by that column, first click then second click then back to the default, with the arrow glyph on the active header; `Default order` in the toolbar resets it. `Status` sorts Update available, Switch, Failed, Not installed, Up to date, Ignored, Hidden, Local on the first click and in reverse on the second. `Version` sorts by the last updated time behind its tooltip, newest first and then oldest first, rows with no time last either way. The sort lasts for the session. A row's status and time are captured when the sort, filter or install changes and reused until then (a new row gets its own on arrival), so a background pass never re-orders rows.
 
 The filter box matches the display name, case-insensitive. `Updates` shows rows in the Update available or channel switch state. `Hidden` shows hidden rows only; `All` and `Updates` exclude them. A filter with no match shows one row reading "No addons match".
 
-The table is full width, its edges aligned with the toolbar above it. Each row raises `SizeChanged`, since `AdaptiveTrigger` does not fire inside an `ItemsRepeater`; the handler collapses the Channel column below 700px of row width and the Source column below 780px.
+The table is full width, its edges aligned with the toolbar above it. Column widths and the narrow-mode collapse are applied from the table body's `SizeChanged` and from `ItemsRepeater.ElementPrepared`, since `AdaptiveTrigger` does not fire inside an `ItemsRepeater`.
 
 ## Row actions
 
-The overflow menu is a `MenuFlyout`, items shown only where they apply:
+The overflow menu is a `MenuFlyout` defined once in the row template's resources and used both as the overflow button's `Flyout` and as the row `Grid`'s `ContextFlyout`, so right-click, Shift+F10 and the context key open the same menu, on Local rows too. Items show only where they apply:
 
 1. `Ignore updates` or `Resume updates`, on an installed addon with a release.
 2. `Change channel`, opening the channel dialog.
 3. `Hide addon` or `Show addon`.
 4. `Open folder`.
-5. `Reinstall` and `Copy SHA-256`, on an installed addon with a release.
+5. `Reinstall`, on an installed addon with a release.
 6. A separator, then `Uninstall` in critical, on an installed row.
 
 Neither Ignore nor Hide is offered on an `AutoInstall` addon.
@@ -135,7 +144,7 @@ Saving writes `AppState.Channels` exactly as the Settings picker does today. Not
 
 ## Settings
 
-The Release channels expander and its cards are removed. The Installs cards show the install's label as their title, with the game version beneath when a label is set.
+The Release channels expander and its cards are removed. The Installs cards show the install's label as their title, with the game version beneath when a label is set, and an `Edit` button (accessible name "Edit {label}") beside `Remove` that opens the Edit install dialog for that install.
 
 ## Get addons (phase 2)
 
@@ -147,7 +156,7 @@ Blocked on gigagrug:
 
 - A search endpoint over the chosen providers, scoped to a product code.
 - A manifest per provider addon in the existing `latest-{channel}.json` shape, so `AddonUpdater` keeps one code path. CurseForge and Wago both need an API key issued to the app; serving them from gigagrug keeps the keys off the client and gives the caching the mirrors already have.
-- `notes` in the manifests, for the changelog tooltip.
+- `notes` in the manifests: the app already renders them in the changelog dialog once a manifest carries them.
 
 App side: installed provider addons persisted in `state.json` as `ManagedAddon`-shaped entries with their `Source`, shown only on the installs they were installed to and not feature-gated.
 
@@ -161,20 +170,22 @@ App side: installed provider addons persisted in `state.json` as `ManagedAddon`-
 | `ignored_addons` | list of `AppStateStore.Key` | Per-install ignored addons. |
 | `hidden_addons` | unchanged | |
 | `channels` | unchanged | Written from the channel dialog. |
+| `table_column_widths` | column id to pixels | User-resized widths of Name, Version, Channel and Source; a column without an entry keeps its proportional default. |
 
 ## Control mapping
 
 | Element | Control | Note |
 | --- | --- | --- |
-| Install picker | `Button` with a chevron + custom `Flyout` | Guild switcher treatment: `ShouldConstrainToRootBounds="False"`, `DesktopAcrylicBackdrop`, `MenuFlyoutPresenter*` brushes, explicit `Placement="BottomEdgeAlignedRight"`. |
-| Edit install, uninstall confirmation | `ContentDialog` | |
+| Install picker | `Button` with a chevron + custom `Flyout` | Guild switcher treatment: `ShouldConstrainToRootBounds="False"`, `TintedAcrylicBackdrop`, `TintedFlyoutPresenterStyle`, `AreOpenCloseAnimationsEnabled="False"`, explicit `Placement="BottomEdgeAlignedRight"`. A trailing pencil button per row. |
+| Edit install, uninstall confirmation, changelog | `ContentDialog` | Edit install is hosted by the Settings page. The changelog is a XAML dialog (`ChangelogDialog`); the code-built uninstall confirmation sets `DefaultContentDialogStyle`, so every dialog shares one template. |
 | Filter | `TextBox` with a search glyph | |
 | All / Updates / Hidden | `toolkit:Segmented` | |
-| Table | header `Grid` + `ItemsRepeater` of row `Grid`s sharing one set of `ColumnDefinitions` | Not a `ListView`: selection chrome fights the row buttons, as on the current page. |
+| Table | header `Grid` + `ItemsRepeater` of row `Grid`s whose `ColumnDefinitions` the page sets from one width set | Not a `ListView`: selection chrome fights the row buttons, as on the current page. |
 | Sortable headers | `Button` in the subtle style | Arrow glyph on the active column. |
+| Column resize | `ColumnResizeGrip` (a `ContentControl` with `ProtectedCursor`) | Focus stop, arrow keys, `RangeValue` automation, double-click reset. |
 | Channel chip | `Button` in the chip style | |
-| Changelog, out of date glyph | `ToolTip` | Both targets are focus stops. |
-| Row overflow | `MenuFlyout` | Ignore and Hide flip their label rather than using `ToggleMenuFlyoutItem`. |
+| Changelog button, version cell, out of date glyph | `ToolTip` | All three are focus stops. |
+| Row overflow | `MenuFlyout` in the row's resources | Button `Flyout` and row `ContextFlyout` share it. Ignore and Hide flip their label rather than using `ToggleMenuFlyoutItem`. |
 | Update all | Two `Button`s, accent | A main button and a narrower chevron button opening a `MenuFlyout`, in place of a `SplitButton`. |
 | Channel dialog | `ContentDialog` + `RadioButtons` | `IsEnabled` per item carries the no-release state. |
 | Get addons | `ContentDialog` + `AutoSuggestBox` + `ItemsRepeater` | Phase 2. Search debounced at 300ms. |
@@ -183,7 +194,7 @@ App side: installed provider addons persisted in `state.json` as `ManagedAddon`-
 
 **Phase 1, this repo only, implemented:** the header and install picker, the edit install dialog and its state, the table with every column and state above, Local rows, the out of date flag, ordering and filtering, Ignore, Hide moved to the segment, uninstall confirmation, the Update all buttons, the channel dialog, and the Release channels card removed from Settings. `AGENTS.md` and `home-and-settings.md` describe what is built.
 
-**Phase 2, after gigagrug:** Get addons, CurseForge and Wago sources, the changelog tooltip.
+**Phase 2, after gigagrug:** Get addons, CurseForge and Wago sources, and `notes` in the manifests, which the changelog dialog already renders.
 
 ## Open questions
 
