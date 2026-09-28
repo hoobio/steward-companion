@@ -9,6 +9,7 @@ using Steward.Core;
 using Steward.Core.Diagnostics;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
@@ -40,6 +41,8 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Func<string, string, string, Task<bool>> _confirmUninstall;
     private readonly Func<WowInstall, Task> _afterStewardInstalled;
     private readonly ILogger _logger;
+
+    private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
 
     private CancellationTokenSource? _watchCts;
     private int _scanGeneration;
@@ -270,15 +273,67 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             }
         }
 
-        RowsChanged?.Invoke(this, EventArgs.Empty);
+        RaiseRowsChanged();
     }
 
     public async Task RescanLocalAsync()
     {
-        var generation = ++_scanGeneration;
-        var scanned = HasGameVersion
-            ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, _excludedFolders, _logger)).ConfigureAwait(true)
-            : [];
+        var generation = Interlocked.Increment(ref _scanGeneration);
+        try
+        {
+            var scanned = HasGameVersion
+                ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, _excludedFolders, _logger)).ConfigureAwait(false)
+                : [];
+            await OnUiThreadAsync(() => ApplyLocalScan(generation, scanned)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, $"Local addon rescan failed for {FlavourPath}");
+        }
+    }
+
+    private Task OnUiThreadAsync(Action action)
+    {
+        if (_dispatcher is null || _dispatcher.HasThreadAccess)
+        {
+            action();
+            return Task.CompletedTask;
+        }
+
+        var done = new TaskCompletionSource();
+        if (!_dispatcher.TryEnqueue(() =>
+        {
+            try
+            {
+                action();
+                done.SetResult();
+            }
+            catch (Exception ex)
+            {
+                done.SetException(ex);
+            }
+        }))
+        {
+            done.SetException(new InvalidOperationException("The UI thread is no longer running."));
+        }
+
+        return done.Task;
+    }
+
+    private void RaiseRowsChanged()
+    {
+        if (_dispatcher is null || _dispatcher.HasThreadAccess)
+        {
+            RowsChanged?.Invoke(this, EventArgs.Empty);
+        }
+        else
+        {
+            _dispatcher.TryEnqueue(() => RowsChanged?.Invoke(this, EventArgs.Empty));
+        }
+    }
+
+    private void ApplyLocalScan(int generation, IReadOnlyList<LocalAddon> scanned)
+    {
         if (generation != _scanGeneration)
         {
             return;
@@ -306,7 +361,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             LocalRows.Add(row);
         }
 
-        RowsChanged?.Invoke(this, EventArgs.Empty);
+        RaiseRowsChanged();
     }
 
     private Task<bool> ConfirmUninstallAsync(string name, string folders) => _confirmUninstall(name, folders, Label);
@@ -317,7 +372,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     {
         if (e.PropertyName == nameof(LocalAddonRowViewModel.IsHidden))
         {
-            RowsChanged?.Invoke(this, EventArgs.Empty);
+            RaiseRowsChanged();
         }
     }
 
@@ -384,6 +439,6 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             return;
         }
 
-        RowsChanged?.Invoke(this, EventArgs.Empty);
+        RaiseRowsChanged();
     }
 }
