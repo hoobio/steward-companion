@@ -510,7 +510,8 @@ public sealed class StewardSavedVariablesTests : IDisposable
                 ["fp"] = "a1b2c3d4",
                 ["list"] = {
                 { ["recipeId"] = 11460, ["name"] = "Major Healing Potion", ["header"] = "Potions", ["itemId"] = 13446,
-                  ["tools"] = "", ["reagents"] = { { ["itemId"] = 13464, ["name"] = "Golden Sansam", ["count"] = 2 } } },
+                  ["tools"] = "", ["reagents"] = { { ["itemId"] = 13464, ["name"] = "Golden Sansam", ["count"] = 2 } },
+                  ["order"] = 3, ["grey"] = 320, ["orangeTo"] = 289, ["yellowFrom"] = 290, ["yellowTo"] = 300, ["greenFrom"] = 310 },
                 },
             },
             },
@@ -519,6 +520,8 @@ public sealed class StewardSavedVariablesTests : IDisposable
 
         Assert.Equal(0, snapshot.Skipped);
         var alchemy = snapshot.Catalogue["Alchemy"];
+        var levels = Assert.Single(alchemy.List!);
+        Assert.Equal<(int?, int?, int?, int?, int?, int?)>((3, 320, 289, 290, 300, 310), (levels.Order, levels.Grey, levels.OrangeTo, levels.YellowFrom, levels.YellowTo, levels.GreenFrom));
         Assert.Equal(1758260000, alchemy.ScannedAt);
         Assert.Equal("a1b2c3d4", alchemy.Fp);
         var recipe = Assert.Single(alchemy.List!);

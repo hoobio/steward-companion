@@ -209,7 +209,7 @@ public sealed class StewardSyncFileTests : IDisposable
                 ["Alchemy"] =
                 [
                     new CatalogueRecipe("Major Healing Potion", 11460, "Potions", 13446, string.Empty,
-                        [new ProfessionReagent("Golden Sansam", 13464, 2)]),
+                        [new ProfessionReagent("Golden Sansam", 13464, 2)], Order: 3, Grey: 320, YellowFrom: 290),
                 ],
             },
         };
@@ -225,6 +225,8 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Equal("Potions", recipe.GetString("header"));
         Assert.Equal(13446d, recipe.GetNumber("itemId"));
         Assert.Equal(string.Empty, recipe.GetString("tools"));
+        Assert.Equal<(double?, double?, double?)>((3d, 320d, 290d), (recipe.GetNumber("order"), recipe.GetNumber("grey"), recipe.GetNumber("yellowFrom")));
+        Assert.Null(recipe.GetNumber("greenFrom"));
 
         var reagent = Assert.Single(recipe.GetTable("reagents")!.Items);
         Assert.Equal(13464d, reagent.GetNumber("itemId"));

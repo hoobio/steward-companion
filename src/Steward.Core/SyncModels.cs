@@ -202,7 +202,13 @@ public sealed record CatalogueRecipe(
     [property: JsonPropertyName("header"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Header,
     [property: JsonPropertyName("itemId"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? ItemId,
     [property: JsonPropertyName("tools"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Tools,
-    [property: JsonPropertyName("reagents"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionReagent>? Reagents);
+    [property: JsonPropertyName("reagents"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionReagent>? Reagents,
+    [property: JsonPropertyName("order"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Order = null,
+    [property: JsonPropertyName("grey"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Grey = null,
+    [property: JsonPropertyName("orangeTo"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? OrangeTo = null,
+    [property: JsonPropertyName("yellowFrom"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? YellowFrom = null,
+    [property: JsonPropertyName("yellowTo"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? YellowTo = null,
+    [property: JsonPropertyName("greenFrom"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? GreenFrom = null);
 
 public sealed record RecipeCatalogueResponse(
     [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Catalogue);
@@ -237,7 +243,13 @@ public sealed record DirectoryRecipe(
     [property: JsonPropertyName("header")] string? Header,
     [property: JsonPropertyName("item_id")] int? ItemId,
     [property: JsonPropertyName("tools")] string? Tools,
-    [property: JsonPropertyName("reagents")] IReadOnlyList<DirectoryReagent>? Reagents);
+    [property: JsonPropertyName("reagents")] IReadOnlyList<DirectoryReagent>? Reagents,
+    [property: JsonPropertyName("order")] int? Order = null,
+    [property: JsonPropertyName("grey")] int? Grey = null,
+    [property: JsonPropertyName("orange_to")] int? OrangeTo = null,
+    [property: JsonPropertyName("yellow_from")] int? YellowFrom = null,
+    [property: JsonPropertyName("yellow_to")] int? YellowTo = null,
+    [property: JsonPropertyName("green_from")] int? GreenFrom = null);
 
 public sealed record DirectoryProfessions(
     [property: JsonPropertyName("guid")] string CharacterGuid,
@@ -278,7 +290,13 @@ public static class MemberCatalogueMapping
         recipe.Header,
         recipe.ItemId,
         recipe.Tools,
-        recipe.Reagents?.Select(r => new ProfessionReagent(r.Name, r.ItemId, r.Count)).ToList());
+        recipe.Reagents?.Select(r => new ProfessionReagent(r.Name, r.ItemId, r.Count)).ToList(),
+        recipe.Order,
+        recipe.Grey,
+        recipe.OrangeTo,
+        recipe.YellowFrom,
+        recipe.YellowTo,
+        recipe.GreenFrom);
 }
 
 public sealed record CharacterSyncRejection(

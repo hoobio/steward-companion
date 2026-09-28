@@ -306,7 +306,13 @@ public static class StewardSyncFile
         new LuaEntry(LuaValue.FromString("header"), OrNil(recipe.Header)),
         new LuaEntry(LuaValue.FromString("itemId"), OrNilNumber(recipe.ItemId)),
         new LuaEntry(LuaValue.FromString("tools"), OrNil(recipe.Tools)),
-        new LuaEntry(LuaValue.FromString("reagents"), LuaValue.Array((recipe.Reagents ?? []).Select(ReagentToLua))));
+        new LuaEntry(LuaValue.FromString("reagents"), LuaValue.Array((recipe.Reagents ?? []).Select(ReagentToLua))),
+        new LuaEntry(LuaValue.FromString("order"), OrNilNumber(recipe.Order)),
+        new LuaEntry(LuaValue.FromString("grey"), OrNilNumber(recipe.Grey)),
+        new LuaEntry(LuaValue.FromString("orangeTo"), OrNilNumber(recipe.OrangeTo)),
+        new LuaEntry(LuaValue.FromString("yellowFrom"), OrNilNumber(recipe.YellowFrom)),
+        new LuaEntry(LuaValue.FromString("yellowTo"), OrNilNumber(recipe.YellowTo)),
+        new LuaEntry(LuaValue.FromString("greenFrom"), OrNilNumber(recipe.GreenFrom)));
 
     private static LuaValue ReagentToLua(ProfessionReagent reagent) => LuaValue.FromTable(
         new LuaEntry(LuaValue.FromString("itemId"), OrNilNumber(reagent.ItemId)),

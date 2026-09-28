@@ -519,7 +519,13 @@ public static class StewardSavedVariables
             value.GetString("header"),
             ToNullableInt(value.GetNumber("itemId")),
             value.GetString("tools"),
-            MapReagents(value.GetTable("reagents"), ref skipped));
+            MapReagents(value.GetTable("reagents"), ref skipped),
+            ToNullableInt(value.GetNumber("order")),
+            ToNullableInt(value.GetNumber("grey")),
+            ToNullableInt(value.GetNumber("orangeTo")),
+            ToNullableInt(value.GetNumber("yellowFrom")),
+            ToNullableInt(value.GetNumber("yellowTo")),
+            ToNullableInt(value.GetNumber("greenFrom")));
     }
 
     private static int? ToNullableInt(double? value) => value is null ? null : (int)value.Value;

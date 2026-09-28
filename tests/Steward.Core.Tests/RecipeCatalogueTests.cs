@@ -59,7 +59,7 @@ public sealed class RecipeCatalogueTests
     {
         // gigagrug serves snake_case (recipe_id/item_id), not the camelCase CatalogueRecipe shape the app pushes back.
         var handler = new StubHandler(HttpStatusCode.OK, """
-            {"catalogue":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","header":"Potions","item_id":13446,"tools":"","reagents":[{"item_id":13464,"name":"Golden Sansam","count":2}]}]}}
+            {"catalogue":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","header":"Potions","item_id":13446,"tools":"","reagents":[{"item_id":13464,"name":"Golden Sansam","count":2}],"order":3,"grey":320,"orange_to":289,"yellow_from":290,"yellow_to":300,"green_from":310}]}}
             """);
         var client = new GigagrugClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
 
@@ -71,6 +71,7 @@ public sealed class RecipeCatalogueTests
         Assert.Equal(11460, recipe.RecipeId);
         Assert.Equal(13446, recipe.ItemId);
         Assert.Equal(13464, Assert.Single(recipe.Reagents!).ItemId);
+        Assert.Equal<(int?, int?, int?, int?, int?, int?)>((3, 320, 289, 290, 300, 310), (recipe.Order, recipe.Grey, recipe.OrangeTo, recipe.YellowFrom, recipe.YellowTo, recipe.GreenFrom));
     }
 
     [Fact]
