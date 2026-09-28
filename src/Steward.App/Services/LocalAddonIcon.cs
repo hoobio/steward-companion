@@ -2,7 +2,9 @@ using System.Collections.Concurrent;
 using System.Runtime.InteropServices.WindowsRuntime;
 
 using Steward.Core;
+using Steward.Core.Diagnostics;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
@@ -12,29 +14,42 @@ public static class LocalAddonIcon
 {
     private static readonly ConcurrentDictionary<string, (DateTime Stamp, DecodedImage? Image)> Cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public static async Task<ImageSource?> LoadAsync(string addOnsPath, string folderName)
+    public static async Task<ImageSource?> LoadAsync(string addOnsPath, string folderName, ILogger logger)
     {
-        var folder = Path.Combine(addOnsPath, folderName);
-        var stamp = Directory.GetLastWriteTimeUtc(folder);
-        if (!Cache.TryGetValue(folder, out var cached) || cached.Stamp != stamp)
+        try
         {
-            cached = (stamp, await Task.Run(() => AddonIcon.TryLoad(addOnsPath, folderName)).ConfigureAwait(true));
-            Cache[folder] = cached;
-        }
+            var folder = Path.Combine(addOnsPath, folderName);
+            var image = await Task.Run(() =>
+            {
+                var stamp = Directory.GetLastWriteTimeUtc(folder);
+                if (!Cache.TryGetValue(folder, out var cached) || cached.Stamp != stamp)
+                {
+                    cached = (stamp, AddonIcon.TryLoad(addOnsPath, folderName));
+                    Cache[folder] = cached;
+                }
 
-        if (cached.Image is not { } image)
+                return cached.Image;
+            }).ConfigureAwait(true);
+
+            if (image is not { Width: > 0, Height: > 0 })
+            {
+                return null;
+            }
+
+            var bitmap = new WriteableBitmap(image.Width, image.Height);
+            using (var stream = bitmap.PixelBuffer.AsStream())
+            {
+                await stream.WriteAsync(Premultiplied(image.Bgra)).ConfigureAwait(true);
+            }
+
+            bitmap.Invalidate();
+            return bitmap;
+        }
+        catch (Exception ex)
         {
+            logger.Warn(ex, $"Could not load the icon for {folderName} in {addOnsPath}");
             return null;
         }
-
-        var bitmap = new WriteableBitmap(image.Width, image.Height);
-        using (var stream = bitmap.PixelBuffer.AsStream())
-        {
-            await stream.WriteAsync(Premultiplied(image.Bgra)).ConfigureAwait(true);
-        }
-
-        bitmap.Invalidate();
-        return bitmap;
     }
 
     // WriteableBitmap expects premultiplied alpha; the decoder hands back straight BGRA.

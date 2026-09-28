@@ -277,7 +277,13 @@ public sealed partial class MainViewModel
             2 => "both installs",
             var n => $"all {n} installs",
         };
-        channel.Hint = $"Applies to {channel.Name} on {scope}. The new version installs when you click Switch on the row.";
+        var when = AppStateStore.ParseAutoUpdate(_stateStore.Load().AutoUpdate) switch
+        {
+            AutoUpdateMode.Never => "The new version installs when you click Switch on the row.",
+            AutoUpdateMode.Always => "The new version installs within a minute.",
+            _ => "The new version installs once the game is closed, or when you click Switch on the row.",
+        };
+        channel.Hint = $"Applies to {channel.Name} on {scope}. {when}";
         _ = show(channel);
     }
 
@@ -319,9 +325,22 @@ public sealed partial class MainViewModel
             : null;
     }
 
+    public static bool IsStructuralEdit(WowInstallViewModel install, string? productCode, string flavourPath)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+        return !string.Equals(flavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(productCode, install.Install.ProductCode, StringComparison.Ordinal);
+    }
+
     public void SaveInstallEdit(WowInstallViewModel install, string? label, string productCode, string flavourPath)
     {
         ArgumentNullException.ThrowIfNull(install);
+
+        var structural = IsStructuralEdit(install, productCode, flavourPath);
+        if (structural && install.IsAnyRowBusy)
+        {
+            throw new InvalidOperationException($"An update is running on {install.Label}; the game version and folder cannot change until it finishes.");
+        }
 
         var state = _stateStore.Load();
         if (!string.Equals(flavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase))
@@ -352,6 +371,13 @@ public sealed partial class MainViewModel
         }
 
         _stateStore.Save(state with { SelectedInstall = flavourPath });
+
+        if (!structural)
+        {
+            install.UserLabel = state.InstallLabels.GetValueOrDefault(flavourPath);
+            RecomputeSummary();
+            return;
+        }
 
         if (WowInstalls.FromFlavourPath(flavourPath, _supportedProducts, state.InstallProducts) is not { } rebuilt)
         {

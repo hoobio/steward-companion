@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Steward.App.Services;
 using Steward.Core;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
@@ -18,6 +19,7 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
     private readonly AppStateStore _stateStore;
     private readonly Func<string, string, Task<bool>> _confirmUninstall;
     private readonly Action<LocalAddonRowViewModel> _removed;
+    private readonly ILogger _logger;
 
     public LocalAddonRowViewModel(
         WowInstall install,
@@ -25,8 +27,10 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
         AppStateStore stateStore,
         string? outOfDateTip,
         Func<string, string, Task<bool>> confirmUninstall,
-        Action<LocalAddonRowViewModel> removed)
+        Action<LocalAddonRowViewModel> removed,
+        ILogger logger)
     {
+        _logger = logger;
         _install = install;
         _addon = addon;
         _stateStore = stateStore;
@@ -42,7 +46,7 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
     [ObservableProperty]
     public partial ImageSource? Icon { get; set; }
 
-    private async Task LoadIconAsync() => Icon = await LocalAddonIcon.LoadAsync(_install.AddOnsPath, _addon.FolderName).ConfigureAwait(true);
+    private async Task LoadIconAsync() => Icon = await LocalAddonIcon.LoadAsync(_install.AddOnsPath, _addon.FolderName, _logger).ConfigureAwait(true);
 
     public string DisplayName => _addon.Name;
 
@@ -78,6 +82,8 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     public Visibility FailedVisibility => When(FailureMessage is not null);
 
+    public Visibility UninstallVisibility => When(_addon.Removable);
+
     private string FolderPath => Path.Combine(_install.AddOnsPath, _addon.FolderName);
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
@@ -87,6 +93,7 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
         && addon.Name == _addon.Name
         && addon.Version == _addon.Version
         && addon.Interface == _addon.Interface
+        && addon.Removable == _addon.Removable
         && addon.FoldedFolders.SequenceEqual(_addon.FoldedFolders, StringComparer.OrdinalIgnoreCase);
 
     [RelayCommand]
@@ -121,20 +128,27 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
             return;
         }
 
+        var all = _addon.FoldedFolders.Prepend(_addon.FolderName).ToList();
+        if (all.Select(folder => AddonUpdater.RemovalRefusal(_install.AddOnsPath, folder)).FirstOrDefault(message => message is not null) is { } refusal)
+        {
+            FailureMessage = $"Uninstall failed, nothing was deleted: {refusal}";
+            return;
+        }
+
         try
         {
-            foreach (var folder in _addon.FoldedFolders.Prepend(_addon.FolderName))
+            foreach (var folder in all)
             {
                 AddonUpdater.RemoveExistingInstall(_install.AddOnsPath, folder);
             }
-
-            FailureMessage = null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             FailureMessage = $"Uninstall failed: {ex.Message}";
+            return;
         }
 
+        FailureMessage = null;
         _removed(this);
     }
 }

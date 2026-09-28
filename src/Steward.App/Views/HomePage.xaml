@@ -157,6 +157,12 @@
                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                         Visibility="{x:Bind FailedVisibility, Mode=OneWay}" />
                     <TextBlock
+                        Text="{x:Bind UninstallError, Mode=OneWay}"
+                        TextWrapping="Wrap"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Visibility="{x:Bind UninstallErrorVisibility, Mode=OneWay}" />
+                    <TextBlock
                         Text="{x:Bind StatusMessage, Mode=OneWay}"
                         TextWrapping="Wrap"
                         Style="{StaticResource CaptionTextBlockStyle}"
@@ -313,12 +319,12 @@
                                 <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" Visibility="{x:Bind InstalledActionsVisibility, Mode=OneWay}" />
                                 <MenuFlyoutItem Text="Reinstall" Command="{x:Bind ReinstallCommand}" Visibility="{x:Bind ReleaseActionsVisibility, Mode=OneWay}" />
                                 <MenuFlyoutItem Text="Copy SHA-256" Command="{x:Bind CopySha256Command}" Visibility="{x:Bind ReleaseActionsVisibility, Mode=OneWay}" />
-                                <MenuFlyoutSeparator Visibility="{x:Bind InstalledActionsVisibility, Mode=OneWay}" />
+                                <MenuFlyoutSeparator Visibility="{x:Bind UninstallVisibility, Mode=OneWay}" />
                                 <MenuFlyoutItem
                                     Text="Uninstall"
                                     Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                                     Command="{x:Bind UninstallCommand}"
-                                    Visibility="{x:Bind InstalledActionsVisibility, Mode=OneWay}">
+                                    Visibility="{x:Bind UninstallVisibility, Mode=OneWay}">
                                     <MenuFlyoutItem.Resources>
                                         <StaticResource x:Key="MenuFlyoutItemForegroundPointerOver" ResourceKey="SystemFillColorCriticalBrush" />
                                         <StaticResource x:Key="MenuFlyoutItemForegroundPressed" ResourceKey="SystemFillColorCriticalBrush" />
@@ -448,11 +454,12 @@
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
                                 <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" />
                                 <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" />
-                                <MenuFlyoutSeparator />
+                                <MenuFlyoutSeparator Visibility="{x:Bind UninstallVisibility}" />
                                 <MenuFlyoutItem
                                     Text="Uninstall"
                                     Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                    Command="{x:Bind UninstallCommand}">
+                                    Command="{x:Bind UninstallCommand}"
+                                    Visibility="{x:Bind UninstallVisibility}">
                                     <MenuFlyoutItem.Resources>
                                         <StaticResource x:Key="MenuFlyoutItemForegroundPointerOver" ResourceKey="SystemFillColorCriticalBrush" />
                                         <StaticResource x:Key="MenuFlyoutItemForegroundPressed" ResourceKey="SystemFillColorCriticalBrush" />

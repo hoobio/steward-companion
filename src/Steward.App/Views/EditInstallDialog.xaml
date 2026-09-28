@@ -87,5 +87,13 @@
                 Visibility="Collapsed"
                 Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
         </StackPanel>
+
+        <TextBlock
+            x:Name="BusyNote"
+            Text="An update is running on this install. Wait for it to finish before changing the game version or folder."
+            FontSize="12"
+            TextWrapping="Wrap"
+            Visibility="Collapsed"
+            Foreground="{ThemeResource SystemFillColorCautionBrush}" />
     </StackPanel>
 </ContentDialog>

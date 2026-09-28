@@ -27,7 +27,12 @@ public sealed partial class EditInstallDialog : ContentDialog
         GameVersionBox.ItemsSource = _gameVersions;
         GameVersionBox.SelectedItem = _gameVersions.FirstOrDefault(option => option.Code == install.Install.ProductCode);
         ShowFolder();
+        UpdateBusyState();
+        install.RowsChanged += OnRowsChanged;
+        Closed += (_, _) => install.RowsChanged -= OnRowsChanged;
     }
+
+    private void OnRowsChanged(object? sender, EventArgs e) => UpdateBusyState();
 
     private GameVersionOption? SelectedGameVersion => GameVersionBox.SelectedItem as GameVersionOption;
 
@@ -44,6 +49,16 @@ public sealed partial class EditInstallDialog : ContentDialog
     {
         NameBox.PlaceholderText = SelectedGameVersion?.Name ?? "";
         GameVersionError.Visibility = Visibility.Collapsed;
+        UpdateBusyState();
+    }
+
+    private bool IsBlockedByBusyRow =>
+        _install.IsAnyRowBusy && MainViewModel.IsStructuralEdit(_install, SelectedGameVersion?.Code, _flavourPath);
+
+    private void UpdateBusyState()
+    {
+        IsPrimaryButtonEnabled = !IsBlockedByBusyRow;
+        BusyNote.Visibility = IsBlockedByBusyRow ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void OnChangeFolderClick(object sender, RoutedEventArgs e)
@@ -68,6 +83,7 @@ public sealed partial class EditInstallDialog : ContentDialog
         }
 
         ShowFolder();
+        UpdateBusyState();
     }
 
     private void OnSaveClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
@@ -76,6 +92,13 @@ public sealed partial class EditInstallDialog : ContentDialog
         {
             args.Cancel = true;
             GameVersionError.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (IsBlockedByBusyRow)
+        {
+            args.Cancel = true;
+            UpdateBusyState();
             return;
         }
 

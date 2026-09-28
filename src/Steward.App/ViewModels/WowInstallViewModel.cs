@@ -6,7 +6,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using Steward.Core;
+using Steward.Core.Diagnostics;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
@@ -37,8 +39,10 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Action<string> _changeChannelRequested;
     private readonly Func<string, string, string, Task<bool>> _confirmUninstall;
     private readonly Func<WowInstall, Task> _afterStewardInstalled;
+    private readonly ILogger _logger;
 
     private CancellationTokenSource? _watchCts;
+    private int _scanGeneration;
 
     public WowInstallViewModel(
         WowInstall install,
@@ -54,7 +58,8 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         Func<string, string, string, Task<bool>> confirmUninstall,
         Action<WowInstallViewModel> remove,
         Action<WowInstallViewModel> clientExited,
-        Func<WowInstall, Task> afterStewardInstalled)
+        Func<WowInstall, Task> afterStewardInstalled,
+        ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(addons);
@@ -73,8 +78,10 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         _confirmUninstall = confirmUninstall;
         _afterStewardInstalled = afterStewardInstalled;
 
+        _logger = logger;
+
         SyncAddons(addons);
-        RescanLocal();
+        _ = RescanLocalAsync();
     }
 
     public event EventHandler? RowsChanged;
@@ -91,7 +98,11 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public string? GameVersionName { get; }
 
-    public string? UserLabel { get; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Label), nameof(StatusText), nameof(GameVersionLineVisibility))]
+    public partial string? UserLabel { get; set; }
+
+    public bool IsAnyRowBusy => AddonRows.Any(row => row.IsBusy);
 
     public bool HasGameVersion => GameVersionName is not null;
 
@@ -157,6 +168,19 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             : interfaceDirective;
         return $"Out of date for this client. Built for interface {built}. {Label} runs {client} ({TocFile.FormatInterface(client)}). "
             + "The game skips it unless Load out of date AddOns is ticked on the AddOns screen.";
+    }
+
+    private string? OutOfDateTipForToc(string tocPath)
+    {
+        try
+        {
+            return File.Exists(tocPath) ? OutOfDateTip(TocFile.ReadDirective(tocPath, "Interface")) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.Warn(ex, $"Could not read {tocPath} for the out of date check");
+            return null;
+        }
     }
 
     public void ApplyStatus(IReadOnlyDictionary<string, AddonChannelStatus> status, bool background)
@@ -247,13 +271,21 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         RowsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void RescanLocal()
+    public async Task RescanLocalAsync()
     {
-        var scanned = HasGameVersion ? LocalAddons.Scan(AddOnsPath, _excludedFolders) : [];
+        var generation = ++_scanGeneration;
+        var scanned = HasGameVersion
+            ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, _excludedFolders, _logger)).ConfigureAwait(true)
+            : [];
+        if (generation != _scanGeneration)
+        {
+            return;
+        }
+
         var hidden = _stateStore.Load().HiddenAddons.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var wanted = scanned.Select(addon =>
             LocalRows.FirstOrDefault(row => row.Matches(addon))
-            ?? new LocalAddonRowViewModel(Install, addon, _stateStore, OutOfDateTip(addon.Interface), ConfirmUninstallAsync, OnLocalRemoved))
+            ?? new LocalAddonRowViewModel(Install, addon, _stateStore, OutOfDateTip(addon.Interface), ConfirmUninstallAsync, OnLocalRemoved, _logger))
             .ToList();
         foreach (var row in wanted)
         {
@@ -277,7 +309,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     private Task<bool> ConfirmUninstallAsync(string name, string folders) => _confirmUninstall(name, folders, Label);
 
-    private void OnLocalRemoved(LocalAddonRowViewModel row) => RescanLocal();
+    private void OnLocalRemoved(LocalAddonRowViewModel row) => _ = RescanLocalAsync();
 
     private void OnLocalRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -298,8 +330,9 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             async ct => features.Any(_hasFeature) && await _ensureAuthorized(ct).ConfigureAwait(true),
             _changeChannelRequested,
             ConfirmUninstallAsync,
-            OutOfDateTip,
-            _afterStewardInstalled);
+            OutOfDateTipForToc,
+            _afterStewardInstalled,
+            _logger);
     }
 
     [RelayCommand]
@@ -345,7 +378,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
         if (e.PropertyName == nameof(AddonRowViewModel.InstalledVersion))
         {
-            RescanLocal();
+            _ = RescanLocalAsync();
             return;
         }
 

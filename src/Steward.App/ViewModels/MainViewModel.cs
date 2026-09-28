@@ -737,7 +737,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         foreach (var install in Installs)
         {
-            install.RescanLocal();
+            _ = install.RescanLocalAsync();
         }
 
         foreach (var install in WowInstalls.Discover(_supportedProducts, _stateStore.Load().InstallProducts))
@@ -788,7 +788,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             foreach (var install in Installs)
             {
-                install.RescanLocal();
+                _ = install.RescanLocalAsync();
             }
 
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
@@ -1994,7 +1994,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var mode = AppStateStore.ParseAutoUpdate(_stateStore.Load().AutoUpdate);
+        var state = _stateStore.Load();
+        var mode = AppStateStore.ParseAutoUpdate(state.AutoUpdate);
         if (mode == AutoUpdateMode.Never)
         {
             return;
@@ -2012,7 +2013,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
                 foreach (var row in install.AddonRows.ToList())
                 {
-                    if (row.CanAutoApply)
+                    if (row.CanAutoApply && !AppStateStore.IsExcludedFromUpdates(state, install.FlavourPath, row.AddonId))
                     {
                         await row.UpdateCommand.ExecuteAsync(null).ConfigureAwait(true);
                     }
@@ -2219,7 +2220,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ConfirmUninstallAsync,
             RemoveInstall,
             OnClientExited,
-            wowInstall => AfterStewardInstalled?.Invoke(wowInstall) ?? Task.CompletedTask)
+            wowInstall => AfterStewardInstalled?.Invoke(wowInstall) ?? Task.CompletedTask,
+            _logger)
         {
             IsAddedByUser = isAddedByUser,
         };

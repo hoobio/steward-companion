@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Steward.App.Services;
 using Steward.Core;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
@@ -63,7 +64,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(IgnoreLabel),
         nameof(ReleaseActionsVisibility),
         nameof(InstalledActionsVisibility),
-        nameof(OutOfDateTip),
+        nameof(UninstallVisibility),
+        nameof(UninstallErrorVisibility),
         nameof(OutOfDateVisibility),
         nameof(CanAutoApply),
         nameof(HideLabel),
@@ -78,8 +80,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     private readonly Func<CancellationToken, Task<bool>> _ensureAuthorized;
     private readonly Action<string> _changeChannelRequested;
     private readonly Func<string, string, Task<bool>> _confirmUninstall;
-    private readonly Func<string?, string?> _outOfDateTip;
+    private readonly Func<string, string?> _outOfDateTip;
     private readonly Func<WowInstall, Task> _afterStewardInstalled;
+    private readonly ILogger _logger;
 
     private AddonChannelStatus? _status;
 
@@ -93,9 +96,11 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         Func<CancellationToken, Task<bool>> ensureAuthorized,
         Action<string> changeChannelRequested,
         Func<string, string, Task<bool>> confirmUninstall,
-        Func<string?, string?> outOfDateTip,
-        Func<WowInstall, Task> afterStewardInstalled)
+        Func<string, string?> outOfDateTip,
+        Func<WowInstall, Task> afterStewardInstalled,
+        ILogger logger)
     {
+        _logger = logger;
         _install = install;
         _addon = addon;
         _updater = updater;
@@ -129,7 +134,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     partial void OnManifestIconFailedChanged(bool value) => _ = LoadFallbackIconAsync();
 
     private async Task LoadFallbackIconAsync() =>
-        FallbackIcon = await LocalAddonIcon.LoadAsync(_install.AddOnsPath, _addon.FolderName).ConfigureAwait(true);
+        FallbackIcon = await LocalAddonIcon.LoadAsync(_install.AddOnsPath, _addon.FolderName, _logger).ConfigureAwait(true);
 
     public string AddonId => _addon.Id;
 
@@ -206,7 +211,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility ReloadHintVisibility => When(NeedsReload);
 
-    public bool CanAutoApply => !IsHidden && !IsIgnored && IsAdmin
+    public bool CanAutoApply => IsAdmin
         && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
 
     public bool HasUpdateAvailable =>
@@ -252,7 +257,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         : "";
 
     public Brush NewVersionBrush => (Brush)Application.Current.Resources[
-        IsIgnored ? "TextFillColorTertiaryBrush" : "AvailableVersionBrush"];
+        IsIgnoredUpdate ? "TextFillColorTertiaryBrush" : "AvailableVersionBrush"];
 
     public Visibility VersionPairVisibility =>
         When(State is AddonRowState.UpdateAvailable or AddonRowState.Missing || (State == AddonRowState.Failed && HasUpdateAvailable));
@@ -278,7 +283,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public Visibility NoChannelVisibility => When(Channel is null);
 
     public Visibility ActionVisibility =>
-        When(!IsHidden && !IsIgnored && IsAdmin && State is AddonRowState.UpdateAvailable or AddonRowState.Missing);
+        When(!IsHidden && IsAdmin && (State == AddonRowState.Missing || (!IsIgnored && State == AddonRowState.UpdateAvailable)));
 
     public Visibility UpToDateVisibility => When(State == AddonRowState.Current);
 
@@ -289,15 +294,22 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public Visibility NoticeVisibility =>
         When(State != AddonRowState.Failed && !string.IsNullOrEmpty(StatusMessage));
 
-    public string? OutOfDateTip => IsInstalled && File.Exists(TocPath)
-        ? _outOfDateTip(TocFile.ReadDirective(TocPath, "Interface"))
-        : null;
+    [ObservableProperty]
+    public partial string? OutOfDateTip { get; private set; }
 
     public Visibility OutOfDateVisibility => When(OutOfDateTip is not null);
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UninstallErrorVisibility))]
+    public partial string? UninstallError { get; private set; }
+
+    public Visibility UninstallErrorVisibility => When(UninstallError is not null && State != AddonRowState.Failed);
+
+    public Visibility UninstallVisibility => When(IsInstalled && !IsBusy && !_addon.AutoInstall);
+
     private bool CanIgnoreOrHide => !_addon.AutoInstall;
 
-    public Visibility IgnoreVisibility => When(CanIgnoreOrHide && IsInstalled && HasRelease);
+    public Visibility IgnoreVisibility => When(CanIgnoreOrHide && (IsIgnored || (IsInstalled && HasRelease)));
 
     public string IgnoreLabel => IsIgnored ? "Resume updates" : "Ignore updates";
 
@@ -351,7 +363,11 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     partial void OnChannelChanged(string? value) => NotifyDerived();
 
-    partial void OnInstalledVersionChanged(string? value) => NotifyDerived();
+    partial void OnInstalledVersionChanged(string? value)
+    {
+        OutOfDateTip = value is null ? null : _outOfDateTip(TocPath);
+        NotifyDerived();
+    }
 
     partial void OnAvailableVersionChanged(string? value) => NotifyDerived();
 
@@ -376,9 +392,10 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
         UpdateCommand.NotifyCanExecuteChanged();
         CopySha256Command.NotifyCanExecuteChanged();
+        UninstallCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanUpdate => !IsHidden && !IsIgnored && IsAdmin && HasUpdateAvailable;
+    private bool CanUpdate => !IsHidden && (!IsIgnored || !IsInstalled) && IsAdmin && HasUpdateAvailable;
 
     [RelayCommand(CanExecute = nameof(CanUpdate))]
     private Task UpdateAsync() => RunInstallAsync();
@@ -397,6 +414,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
         HasFailed = false;
         StatusMessage = null;
+        UninstallError = null;
         IsBusy = true;
         UpdateProgress = 0;
         try
@@ -436,10 +454,12 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         }
     }
 
-    [RelayCommand]
+    private bool CanUninstall => !IsBusy;
+
+    [RelayCommand(CanExecute = nameof(CanUninstall))]
     private async Task UninstallAsync()
     {
-        if (!await _confirmUninstall(DisplayName, _addon.FolderName).ConfigureAwait(true))
+        if (!await _confirmUninstall(DisplayName, _addon.FolderName).ConfigureAwait(true) || IsBusy)
         {
             return;
         }
@@ -453,12 +473,13 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             _stateStore.Save(state);
             IsIgnored = false;
             NeedsReload = false;
+            HasFailed = false;
+            UninstallError = null;
             RefreshInstalledVersion();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            HasFailed = true;
-            StatusMessage = $"Uninstall failed: {ex.Message}";
+            UninstallError = $"Uninstall failed: {ex.Message}";
         }
     }
 
