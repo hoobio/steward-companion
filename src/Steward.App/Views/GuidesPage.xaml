@@ -137,6 +137,24 @@
                                 NavigateUri="https://shop.restedxp.com/guides/" />
                         </StackPanel>
                     </Border>
+
+                    <Border
+                        Padding="16,14"
+                        BorderThickness="0,1,0,0"
+                        BorderBrush="{ThemeResource RowHairlineBrush}"
+                        Visibility="{x:Bind RowsVisibility, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ProgressRing
+                                Width="16"
+                                Height="16"
+                                VerticalAlignment="Center"
+                                IsActive="{x:Bind WriteAgainCommand.IsRunning, Mode=OneWay}" />
+                            <Button
+                                Height="32"
+                                Content="Write again"
+                                Command="{x:Bind WriteAgainCommand}" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Expander>
         </DataTemplate>

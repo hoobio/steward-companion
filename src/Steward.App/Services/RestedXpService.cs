@@ -235,7 +235,7 @@ public sealed class RestedXpService : IDisposable
     }
 
     public async Task<IReadOnlyDictionary<string, GuideSyncResult>> SyncAsync(
-        WowInstall install, IReadOnlyList<string> products, CancellationToken cancellationToken)
+        WowInstall install, IReadOnlyList<string> products, CancellationToken cancellationToken, bool force = false)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(products);
@@ -243,7 +243,7 @@ public sealed class RestedXpService : IDisposable
         await _syncGate.WaitAsync(cancellationToken).ConfigureAwait(true);
         try
         {
-            return await SyncCoreAsync(install, products, cancellationToken).ConfigureAwait(true);
+            return await SyncCoreAsync(install, products, force, cancellationToken).ConfigureAwait(true);
         }
         finally
         {
@@ -252,7 +252,7 @@ public sealed class RestedXpService : IDisposable
     }
 
     private async Task<IReadOnlyDictionary<string, GuideSyncResult>> SyncCoreAsync(
-        WowInstall install, IReadOnlyList<string> products, CancellationToken cancellationToken)
+        WowInstall install, IReadOnlyList<string> products, bool force, CancellationToken cancellationToken)
     {
         var results = new Dictionary<string, GuideSyncResult>(StringComparer.Ordinal);
         var strings = new List<(string Name, string Text, string? Tag, long UpdatedAt)>();
@@ -298,7 +298,7 @@ public sealed class RestedXpService : IDisposable
         StewardGuidesWriteResult writeResult;
         try
         {
-            writeResult = StewardGuidesAddon.Write(install.AddOnsPath, strings, generation);
+            writeResult = StewardGuidesAddon.Write(install.AddOnsPath, strings, generation, force);
             generation = writeResult.Generation;
             var descriptor = writeResult.Outcome switch
             {

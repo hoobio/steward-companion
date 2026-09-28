@@ -170,12 +170,15 @@ public sealed partial class GuideRowViewModel : ObservableObject
 public sealed partial class RestedXpInstallViewModel : ObservableObject
 {
     private readonly Func<RestedXpInstallViewModel, Task> _choiceChanged;
+    private readonly Func<RestedXpInstallViewModel, Task> _writeAgain;
     private bool _isLoading;
 
-    public RestedXpInstallViewModel(WowInstall install, Func<RestedXpInstallViewModel, Task> choiceChanged)
+    public RestedXpInstallViewModel(
+        WowInstall install, Func<RestedXpInstallViewModel, Task> choiceChanged, Func<RestedXpInstallViewModel, Task> writeAgain)
     {
         Install = install;
         _choiceChanged = choiceChanged;
+        _writeAgain = writeAgain;
     }
 
     public WowInstall Install { get; }
@@ -239,6 +242,9 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
     }
 
     public Task ResyncAsync() => _choiceChanged(this);
+
+    [RelayCommand]
+    private Task WriteAgainAsync() => _writeAgain(this);
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 }
@@ -350,7 +356,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
             var card = Guides.FirstOrDefault(g => string.Equals(g.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase));
             if (card is null)
             {
-                card = new RestedXpInstallViewModel(install.Install, OnChoiceChangedAsync);
+                card = new RestedXpInstallViewModel(install.Install, OnChoiceChangedAsync, OnWriteAgainAsync);
                 LoadProducts(card);
                 Guides.Add(card);
             }
@@ -595,7 +601,9 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         await SyncAsync(card).ConfigureAwait(true);
     }
 
-    private async Task SyncAsync(RestedXpInstallViewModel card)
+    private Task OnWriteAgainAsync(RestedXpInstallViewModel card) => SyncAsync(card, force: true);
+
+    private async Task SyncAsync(RestedXpInstallViewModel card, bool force = false)
     {
         if (IsPreview)
         {
@@ -610,7 +618,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
 
         try
         {
-            var results = await _service.SyncAsync(card.Install, card.SelectedProducts, CancellationToken.None).ConfigureAwait(true);
+            var results = await _service.SyncAsync(card.Install, card.SelectedProducts, CancellationToken.None, force).ConfigureAwait(true);
             foreach (var row in rows)
             {
                 row.FailureText = null;
