@@ -68,4 +68,33 @@ public sealed class TocFileTests : IDisposable
         Assert.True(TocFile.HasUpdate("0.4.0", "0.5.0-beta.1"));
         Assert.False(TocFile.HasUpdate("0.4.0", "0.4.0"));
     }
+
+    [Theory]
+    [InlineData("1.60.1.70009", 16001)]
+    [InlineData("5.5.1.63538", 50501)]
+    [InlineData("1.60.1", 16001)]
+    [InlineData(null, null)]
+    [InlineData("garbage", null)]
+    public void InterfaceNumber_ParsesMajorMinorPatch(string? clientVersion, int? expected)
+    {
+        Assert.Equal(expected, TocFile.InterfaceNumber(clientVersion));
+    }
+
+    [Theory]
+    [InlineData("16001", 16001, true)]
+    [InlineData("11509, 50504, 120100, 16001", 16001, true)]
+    [InlineData("11509, 50504", 16001, false)]
+    [InlineData(null, 16001, false)]
+    public void MatchesInterface_ReadsCommaSeparatedList(string? directive, int clientInterface, bool expected)
+    {
+        Assert.Equal(expected, TocFile.MatchesInterface(directive, clientInterface));
+    }
+
+    [Theory]
+    [InlineData(16001, "1.60.1")]
+    [InlineData(50500, "5.5.0")]
+    public void FormatInterface_FormatsAsDottedVersion(int value, string expected)
+    {
+        Assert.Equal(expected, TocFile.FormatInterface(value));
+    }
 }

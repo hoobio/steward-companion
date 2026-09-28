@@ -98,6 +98,18 @@ public sealed class AppStateStore
             CharacterSyncBatches = (state.CharacterSyncBatches ?? [])
                 .Where(entry => !entry.Key.EndsWith("|" + flavourPath, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
+            InstallLabels = (state.InstallLabels ?? [])
+                .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
+            InstallProducts = (state.InstallProducts ?? [])
+                .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
+            IgnoredAddons = (state.IgnoredAddons ?? [])
+                .Where(entry => !entry.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .ToList(),
+            SelectedInstall = string.Equals(state.SelectedInstall, flavourPath, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : state.SelectedInstall,
         };
     }
 
@@ -113,9 +125,16 @@ public sealed class AppStateStore
         GuildRosterSync = new Dictionary<string, string>(state.GuildRosterSync ?? [], StringComparer.OrdinalIgnoreCase),
         CharacterSync = new Dictionary<string, CharacterPushRecord>(state.CharacterSync ?? [], StringComparer.OrdinalIgnoreCase),
         CharacterSyncBatches = new Dictionary<string, CharacterSyncBatch>(state.CharacterSyncBatches ?? [], StringComparer.OrdinalIgnoreCase),
+        InstallLabels = new Dictionary<string, string>(state.InstallLabels ?? [], StringComparer.OrdinalIgnoreCase),
+        InstallProducts = new Dictionary<string, string>(state.InstallProducts ?? [], StringComparer.OrdinalIgnoreCase),
+        IgnoredAddons = state.IgnoredAddons ?? [],
         LegacyRestedXpGuideChoice = null,
         DismissedBanners = new Dictionary<string, int>(state.DismissedBanners ?? [], StringComparer.Ordinal),
     };
+
+    public static bool IsExcludedFromUpdates(AppState state, string flavourPath, string addonId) =>
+        (state.HiddenAddons ?? []).Any(id => string.Equals(id, addonId, StringComparison.OrdinalIgnoreCase))
+        || (state.IgnoredAddons ?? []).Any(key => string.Equals(key, Key(flavourPath, addonId), StringComparison.OrdinalIgnoreCase));
 
     private static Dictionary<string, List<string>> MergeGuideChoices(AppState state)
     {

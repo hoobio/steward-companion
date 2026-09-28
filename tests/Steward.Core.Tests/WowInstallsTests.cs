@@ -106,4 +106,20 @@ public sealed class WowInstallsTests : IDisposable
         Assert.Equal("World of Warcraft: Forever - Beta", WowInstalls.FromFlavourPath(supported, SupportedProducts)!.DisplayName);
         Assert.Equal("_retail_", WowInstalls.FromFlavourPath(unsupported, SupportedProducts)!.DisplayName);
     }
+
+    [Fact]
+    public void FromFlavourPath_ProductOverride_ReplacesTheMissingFlavorInfo()
+    {
+        var flavourPath = Path.Combine(_root, "_beta_");
+        Directory.CreateDirectory(Path.Combine(flavourPath, "Interface", "AddOns"));
+        WriteBuildInfo("wow_classic_beta", "1.15.7.60000");
+
+        var overrides = new Dictionary<string, string> { [flavourPath] = "wow_classic_beta" };
+        var install = WowInstalls.FromFlavourPath(flavourPath, SupportedProducts, overrides);
+
+        Assert.NotNull(install);
+        Assert.Equal("wow_classic_beta", install.ProductCode);
+        Assert.Equal("World of Warcraft: Forever - Beta", install.DisplayName);
+        Assert.Equal("1.15.7.60000", install.ClientVersion);
+    }
 }

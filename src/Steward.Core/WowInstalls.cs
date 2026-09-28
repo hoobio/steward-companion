@@ -4,14 +4,16 @@ namespace Steward.Core;
 
 public static class WowInstalls
 {
-    public static IReadOnlyList<WowInstall> Discover(IReadOnlyDictionary<string, string> supportedProducts)
+    public static IReadOnlyList<WowInstall> Discover(
+        IReadOnlyDictionary<string, string> supportedProducts,
+        IReadOnlyDictionary<string, string>? productOverrides = null)
     {
         var installs = new List<WowInstall>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var root in CandidateRoots())
         {
-            foreach (var install in DiscoverAt(root, supportedProducts))
+            foreach (var install in DiscoverAt(root, supportedProducts, productOverrides))
             {
                 if (seen.Add(install.FlavourPath))
                 {
@@ -23,7 +25,10 @@ public static class WowInstalls
         return installs;
     }
 
-    internal static IEnumerable<WowInstall> DiscoverAt(string root, IReadOnlyDictionary<string, string> supportedProducts)
+    internal static IEnumerable<WowInstall> DiscoverAt(
+        string root,
+        IReadOnlyDictionary<string, string> supportedProducts,
+        IReadOnlyDictionary<string, string>? productOverrides = null)
     {
         if (!Directory.Exists(root))
         {
@@ -32,7 +37,7 @@ public static class WowInstalls
 
         foreach (var flavourPath in ValidFlavourDirectories(root))
         {
-            var install = BuildInstall(root, flavourPath, supportedProducts);
+            var install = BuildInstall(root, flavourPath, supportedProducts, productOverrides);
             if (install.ProductCode is not null && supportedProducts.ContainsKey(install.ProductCode))
             {
                 yield return install;
@@ -40,7 +45,10 @@ public static class WowInstalls
         }
     }
 
-    public static WowInstall? FromFlavourPath(string flavourPath, IReadOnlyDictionary<string, string> supportedProducts)
+    public static WowInstall? FromFlavourPath(
+        string flavourPath,
+        IReadOnlyDictionary<string, string> supportedProducts,
+        IReadOnlyDictionary<string, string>? productOverrides = null)
     {
         if (!IsValidFlavourDirectory(flavourPath))
         {
@@ -48,7 +56,7 @@ public static class WowInstalls
         }
 
         var root = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(flavourPath)) ?? flavourPath;
-        return BuildInstall(root, flavourPath, supportedProducts);
+        return BuildInstall(root, flavourPath, supportedProducts, productOverrides);
     }
 
     private static IEnumerable<string> CandidateRoots()
@@ -117,11 +125,15 @@ public static class WowInstalls
         return Directory.Exists(Path.Combine(flavourPath, "Interface", "AddOns"));
     }
 
-    private static WowInstall BuildInstall(string root, string flavourPath, IReadOnlyDictionary<string, string> supportedProducts)
+    private static WowInstall BuildInstall(
+        string root,
+        string flavourPath,
+        IReadOnlyDictionary<string, string> supportedProducts,
+        IReadOnlyDictionary<string, string>? productOverrides)
     {
         var flavour = Path.GetFileName(Path.TrimEndingDirectorySeparator(flavourPath));
         var addOnsPath = Path.Combine(flavourPath, "Interface", "AddOns");
-        var productCode = ReadProductCode(flavourPath);
+        var productCode = productOverrides?.GetValueOrDefault(flavourPath) ?? ReadProductCode(flavourPath);
         var clientVersion = ReadClientVersion(root, productCode);
         var displayName = productCode is not null && supportedProducts.TryGetValue(productCode, out var name)
             ? name

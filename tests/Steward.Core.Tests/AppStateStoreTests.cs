@@ -340,6 +340,105 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_MissingInstallManagerKeys_ReturnsEmptyDefaults()
+    {
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
+
+        var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
+
+        Assert.Empty(state.InstallLabels);
+        Assert.Empty(state.InstallProducts);
+        Assert.Empty(state.IgnoredAddons);
+        Assert.Null(state.SelectedInstall);
+    }
+
+    [Fact]
+    public void Save_InstallManagerKeys_RoundTrip()
+    {
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+        var state = store.Load() with
+        {
+            InstallLabels = new Dictionary<string, string> { [@"C:\wow\_retail_"] = "Main" },
+            InstallProducts = new Dictionary<string, string> { [@"C:\wow\_retail_"] = "wow_classic_beta" },
+            SelectedInstall = @"C:\wow\_retail_",
+            IgnoredAddons = [AppStateStore.Key(@"C:\wow\_retail_", "restedxp")],
+        };
+        store.Save(state);
+
+        var loaded = store.Load();
+
+        Assert.Equal("Main", loaded.InstallLabels[@"C:\wow\_retail_"]);
+        Assert.Equal("wow_classic_beta", loaded.InstallProducts[@"C:\wow\_retail_"]);
+        Assert.Equal(@"C:\wow\_retail_", loaded.SelectedInstall);
+        Assert.Equal([AppStateStore.Key(@"C:\wow\_retail_", "restedxp")], loaded.IgnoredAddons);
+    }
+
+    [Fact]
+    public void RemoveInstall_DropsLabelProductIgnoredAndSelection_ForThatPathOnly()
+    {
+        var state = new AppState([], [], null, [@"C:\wow\_retail_", @"C:\wow\_classic_era_"])
+        {
+            InstallLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [@"C:\wow\_retail_"] = "Main",
+                [@"C:\wow\_classic_era_"] = "Alt",
+            },
+            InstallProducts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [@"C:\wow\_retail_"] = "wow",
+                [@"C:\wow\_classic_era_"] = "wow_classic_era",
+            },
+            SelectedInstall = @"C:\wow\_retail_",
+            IgnoredAddons =
+            [
+                AppStateStore.Key(@"C:\wow\_retail_", "restedxp"),
+                AppStateStore.Key(@"C:\wow\_classic_era_", "restedxp"),
+            ],
+        };
+
+        var result = AppStateStore.RemoveInstall(state, @"C:\wow\_retail_");
+
+        Assert.Equal([@"C:\wow\_classic_era_"], result.InstallLabels.Keys);
+        Assert.Equal([@"C:\wow\_classic_era_"], result.InstallProducts.Keys);
+        Assert.Null(result.SelectedInstall);
+        Assert.Equal([AppStateStore.Key(@"C:\wow\_classic_era_", "restedxp")], result.IgnoredAddons);
+    }
+
+    [Fact]
+    public void RemoveInstall_KeepsSelection_WhenADifferentInstallWasSelected()
+    {
+        var state = new AppState([], [], null, [@"C:\wow\_retail_", @"C:\wow\_classic_era_"])
+        {
+            SelectedInstall = @"C:\wow\_classic_era_",
+        };
+
+        var result = AppStateStore.RemoveInstall(state, @"C:\wow\_retail_");
+
+        Assert.Equal(@"C:\wow\_classic_era_", result.SelectedInstall);
+    }
+
+    [Fact]
+    public void IsExcludedFromUpdates_Ignored_OnlyExcludesOnItsOwnInstall()
+    {
+        var state = new AppState([], [], null, [], true, []) with
+        {
+            IgnoredAddons = [AppStateStore.Key(@"C:\wow\_retail_", "restedxp")],
+        };
+
+        Assert.True(AppStateStore.IsExcludedFromUpdates(state, @"C:\wow\_retail_", "restedxp"));
+        Assert.False(AppStateStore.IsExcludedFromUpdates(state, @"C:\wow\_classic_era_", "restedxp"));
+    }
+
+    [Fact]
+    public void IsExcludedFromUpdates_Hidden_ExcludesOnEveryInstall()
+    {
+        var state = new AppState([], [], null, [], true, ["restedxp"]);
+
+        Assert.True(AppStateStore.IsExcludedFromUpdates(state, @"C:\wow\_retail_", "restedxp"));
+        Assert.True(AppStateStore.IsExcludedFromUpdates(state, @"C:\wow\_classic_era_", "restedxp"));
+    }
+
+    [Fact]
     public void Load_CorruptFile_ReturnsEmptyState()
     {
         File.WriteAllText(StatePath, """{"channels":{"hoobiscripts":"be""");

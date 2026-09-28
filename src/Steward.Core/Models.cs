@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Steward.Core;
 
-public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? Name = null, IReadOnlyList<string>? Features = null)
+public sealed record ManagedAddon(string Id, string FolderName, string? ManifestBaseUrl = null, bool AutoInstall = false, string? Name = null, IReadOnlyList<string>? Features = null, string Source = "Steward")
 {
     public IReadOnlyList<string> Features { get; init; } = Features ?? [];
 
@@ -148,7 +148,11 @@ public sealed record AppState(
     [property: JsonPropertyName("close_to_tray")] bool CloseToTray = false,
     [property: JsonPropertyName("auto_update")] string AutoUpdate = "out-of-game",
     [property: JsonPropertyName("character_sync"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Dictionary<string, CharacterPushRecord> CharacterSync = null!,
-    [property: JsonPropertyName("character_sync_batches"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Dictionary<string, CharacterSyncBatch> CharacterSyncBatches = null!)
+    [property: JsonPropertyName("character_sync_batches"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Dictionary<string, CharacterSyncBatch> CharacterSyncBatches = null!,
+    [property: JsonPropertyName("install_labels")] Dictionary<string, string> InstallLabels = null!,
+    [property: JsonPropertyName("install_products")] Dictionary<string, string> InstallProducts = null!,
+    [property: JsonPropertyName("selected_install")] string? SelectedInstall = null,
+    [property: JsonPropertyName("ignored_addons")] List<string> IgnoredAddons = null!)
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

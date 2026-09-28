@@ -161,7 +161,7 @@ public sealed class AddonUpdater
         }
     }
 
-    internal static void RemoveExistingInstall(string addOnsPath, string folderName)
+    public static void RemoveExistingInstall(string addOnsPath, string folderName)
     {
         var existingPath = Path.Combine(addOnsPath, folderName);
         if (!Directory.Exists(existingPath))
