@@ -234,6 +234,16 @@ internal static class Native
     [DllImport("kernel32.dll")]
     private static extern uint GetCurrentThreadId();
 
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(nint hWnd);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern int RegisterApplicationRestart([MarshalAs(UnmanagedType.LPWStr)] string? pwzCommandline, int dwFlags);
+
+    // Windows closes the app to apply a Store update and relaunches it under this registration; --tray keeps it from popping the window back up when it was hidden.
+    public static int RegisterRestartForStoreUpdate(nint handle) =>
+        RegisterApplicationRestart(IsWindowVisible(handle) ? null : "--tray", 0);
+
     // Windows refuses SetForegroundWindow to a process that did not receive the last input event; a tray click goes to explorer, so borrow its input queue for the call.
     public static void ForceForeground(nint handle)
     {

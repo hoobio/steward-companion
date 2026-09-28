@@ -5,6 +5,8 @@ namespace Steward.Core;
 
 public sealed class AppUpdater(string storeProductId)
 {
+    public string StoreProductId { get; } = storeProductId;
+
     public Uri StoreListingUri { get; } = new($"ms-windows-store://pdp/?productid={storeProductId}");
 
     public Uri StoreUpdatesUri { get; } = new("ms-windows-store://downloadsandupdates");

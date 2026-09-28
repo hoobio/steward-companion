@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using Steward.App.Services;
+using Steward.App.Views;
 using Steward.Core;
 using Steward.Core.Diagnostics;
 
@@ -21,6 +22,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.ApplicationModel.Store.Preview.InstallControl;
 using Windows.Management.Deployment;
 using Windows.Services.Store;
 using Windows.Storage.Pickers;
@@ -109,6 +111,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastPass;
     private DateTimeOffset _lastGuideCheck;
     private DateTimeOffset _lastStoreCheck;
+    private StoreContext? _storeContext;
+    private IReadOnlyList<StorePackageUpdate>? _storeUpdates;
     private DateTimeOffset _lastGuildSync;
     private DateTimeOffset _lastDirectorySync;
     private DateTimeOffset _lastBannersSync;
@@ -718,7 +722,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await PushCharacterSyncAsync().ConfigureAwait(true);
             _lastDirectorySync = DateTimeOffset.Now;
             await SyncDirectoryAsync().ConfigureAwait(true);
-            await CheckAppUpdateAsync().ConfigureAwait(true);
+            await CheckAppUpdateAsync(forceStoreScan: true).ConfigureAwait(true);
             await CheckGuidesAsync().ConfigureAwait(true);
 
             StartRecheckTimer();
@@ -849,14 +853,37 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task CheckAppUpdateAsync()
+    private async Task CheckAppUpdateAsync(bool forceStoreScan = false)
     {
+        if (forceStoreScan && App.IsPackaged && App.IsGitHubRelease)
+        {
+            await ForceStoreScanAsync().ConfigureAwait(true);
+        }
+
         AppUpdate = App.IsPackaged && App.IsGitHubRelease
             ? await CheckStoreUpdateAsync().ConfigureAwait(true)
             : null;
         if (AppUpdate is not null)
         {
             IsLatestConfirmed = false;
+        }
+    }
+
+    private async Task ForceStoreScanAsync()
+    {
+        try
+        {
+            Native.RegisterRestartForStoreUpdate(OwnerWindowHandle);
+            var manager = new AppInstallManager();
+            // SearchForUpdatesAsync is documented as needing a Microsoft-only private capability, but it runs unelevated from this full-trust process with no capability declared (verified 28 Sep 2026).
+            var item = await manager.SearchForUpdatesAsync(_appUpdater.StoreProductId, string.Empty);
+            _logger.Info(item is null
+                ? "Store scan for Steward: no install item returned"
+                : $"Store scan for Steward: {item.GetCurrentStatus().InstallState}");
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "Store scan for Steward failed");
         }
     }
 
@@ -877,6 +904,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             WinRT.Interop.InitializeWithWindow.Initialize(context, OwnerWindowHandle);
             var updates = await context.GetAppAndOptionalStorePackageUpdatesAsync();
             _logger.Info($"Store update check: {updates.Count} update(s) available");
+            _storeContext = context;
+            _storeUpdates = updates;
+            if (updates.Count > 0 && context.CanSilentlyDownloadStorePackageUpdates && !IsAnyRowBusy)
+            {
+                _ = TrySilentInstallAsync(context, updates);
+            }
+
             return updates.Count == 0 ? null : new AddonRelease(string.Empty, _appUpdater.StoreListingUri.OriginalString, string.Empty, 0, DateTimeOffset.Now);
         }
         catch (Exception ex)
@@ -884,6 +918,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _logger.Warn(ex, "Store update check failed");
             StatusMessage = $"Could not check the Microsoft Store for an update: {ex.Message}";
             return null;
+        }
+    }
+
+    private async Task TrySilentInstallAsync(StoreContext context, IReadOnlyList<StorePackageUpdate> updates)
+    {
+        try
+        {
+            Native.RegisterRestartForStoreUpdate(OwnerWindowHandle);
+            _logger.Info("Store silent update install starting");
+            var result = await context.TrySilentDownloadAndInstallStorePackageUpdatesAsync(updates);
+            _logger.Info($"Store silent update install result: {result.OverallState}");
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "Store silent update install failed");
+            StatusMessage = $"Could not install the Microsoft Store update: {ex.Message}";
         }
     }
 
@@ -950,8 +1000,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (App.IsPackaged && App.IsGitHubRelease)
         {
-            // StoreContext only sees an update once the Store app has scanned for it; no capability-free call forces that scan.
-            OpenUri(_appUpdater.StoreUpdatesUri);
+            if (AppUpdate is not null)
+            {
+                await InstallAppUpdateAsync().ConfigureAwait(true);
+            }
+            else
+            {
+                await CheckAndConfirmAppUpdateAsync().ConfigureAwait(true);
+            }
+
             return;
         }
 
@@ -963,7 +1020,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsCheckingAppUpdate = true;
         try
         {
-            await CheckAppUpdateAsync().ConfigureAwait(true);
+            await CheckAppUpdateAsync(forceStoreScan: true).ConfigureAwait(true);
             IsLatestConfirmed = AppUpdate is null;
         }
         finally
@@ -975,10 +1032,45 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool CanInstallAppUpdate => AppUpdate is not null;
 
     [RelayCommand(CanExecute = nameof(CanInstallAppUpdate))]
-    private void InstallAppUpdate()
+    private async Task InstallAppUpdateAsync()
     {
-        if (AppUpdate is not null)
+        if (AppUpdate is null)
         {
+            return;
+        }
+
+        if (_storeContext is null || _storeUpdates is null || _storeUpdates.Count == 0)
+        {
+            await CheckStoreUpdateAsync().ConfigureAwait(true);
+        }
+
+        if (_storeContext is null || _storeUpdates is null || _storeUpdates.Count == 0)
+        {
+            OpenUri(_appUpdater.StoreUpdatesUri);
+            return;
+        }
+
+        try
+        {
+            Native.RegisterRestartForStoreUpdate(OwnerWindowHandle);
+            _logger.Info("Store update install requested by the user");
+            var result = await _storeContext.RequestDownloadAndInstallStorePackageUpdatesAsync(_storeUpdates);
+            _logger.Info($"Store update install result: {result.OverallState}");
+            if (result.OverallState is StorePackageUpdateState.Canceled)
+            {
+                return;
+            }
+
+            if (result.OverallState is not StorePackageUpdateState.Completed)
+            {
+                StatusMessage = $"Could not install the Microsoft Store update: {result.OverallState}";
+                OpenUri(_appUpdater.StoreUpdatesUri);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "Store update install failed");
+            StatusMessage = $"Could not install the Microsoft Store update: {ex.Message}";
             OpenUri(_appUpdater.StoreUpdatesUri);
         }
     }
@@ -1262,7 +1354,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             switch (BannerActions.Parse(action.Type))
             {
                 case BannerActionKind.StoreUpdate:
-                    actions.Add(new BannerActionViewModel { Label = action.Label, Command = new RelayCommand(() => OpenUri(_appUpdater.StoreUpdatesUri)) });
+                    actions.Add(new BannerActionViewModel { Label = action.Label, Command = new AsyncRelayCommand(InstallAppUpdateAsync) });
                     break;
                 case BannerActionKind.OpenUrl when BannerActions.IsAllowedUrl(action.Url):
                     actions.Add(new BannerActionViewModel { Label = action.Label, Command = new RelayCommand(() => OpenUri(new Uri(action.Url!))) });
