@@ -148,6 +148,8 @@ The Release channels expander and its cards are removed. The Installs cards show
 
 ## Get addons (phase 2)
 
+`curseforge.md` is the source of truth for the CurseForge source: key handling, the gigagrug routes, the terms constraints, matching existing folders by declared ID and fingerprint, and what the verified API allows today.
+
 `Get addons` in the header opens a `ContentDialog`: "Searching addons built for {game version}." above a search box and a source `ComboBox` (`All sources`, `CurseForge`, `Wago`). With an empty query it lists popular addons for that game version; otherwise "{n} results for "{query}"". Each result shows the icon, name, "by {author}", a one-line description, "{source} · {latest version}", and `Install` or an Installed tick. Installing adds the row to the table behind the dialog without closing it. No match reads "No addons for {game version} match. Check the spelling or try another source." Close button `Done`.
 
 There is no add-by-URL field. The unauthenticated GitHub API allows 60 requests an hour per IP, which a 5-minute check across several addons exhausts; a GitHub-only addon is added to gigagrug's mirror, the way RestedXP, BugSack and BugGrabber are.
