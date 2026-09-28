@@ -54,6 +54,13 @@ public sealed partial class HomePage : Page
         Bindings.Update();
     }
 
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        // A left page's repeater stays subscribed to the shared TableRows and throws E_FAIL on the next row removal.
+        TableRepeater.ItemsSource = null;
+    }
+
     private (double Width, double Minimum, double Maximum) MeasureColumn(string id)
     {
         var column = TableColumns.First(column => column.Id == id);

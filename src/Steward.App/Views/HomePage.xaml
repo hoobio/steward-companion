@@ -913,6 +913,7 @@
                         </Grid>
 
                         <ItemsRepeater
+                            x:Name="TableRepeater"
                             ItemsSource="{x:Bind ViewModel.TableRows}"
                             ItemTemplate="{StaticResource AddonTableTemplateSelector}"
                             ElementPrepared="OnTableRowPrepared"
