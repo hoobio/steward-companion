@@ -93,6 +93,31 @@ public sealed class LocalAddonsTests : IDisposable
     }
 
     [Fact]
+    public void Scan_LockedToc_SkipsThatFolderOnly()
+    {
+        WriteAddon("Locked", "## Title: Locked\n");
+        WriteAddon("Open", "## Title: Open\n");
+
+        using var lockHandle = File.Open(Path.Combine(_addOnsPath, "Locked", "Locked.toc"), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        var addon = Assert.Single(LocalAddons.Scan(_addOnsPath, []));
+        Assert.Equal("Open", addon.FolderName);
+    }
+
+    [Fact]
+    public void Scan_Removable_OnlyWhenEveryFolderHasAnExactToc()
+    {
+        WriteAddon("Suite", "## Title: Suite\n");
+        WriteAddon("Suite-Module", "## Title: Module\n## Dependencies: Suite\n", "Suite-Module_Vanilla.toc");
+        WriteAddon("Plain", "## Title: Plain\n");
+
+        var addons = LocalAddons.Scan(_addOnsPath, []);
+
+        Assert.False(addons.Single(a => a.FolderName == "Suite").Removable);
+        Assert.True(addons.Single(a => a.FolderName == "Plain").Removable);
+    }
+
+    [Fact]
     public void Scan_StripsColourCodesFromTitle()
     {
         WriteAddon("Colourful", "## Title: |cff00ccffColourful|r Addon\n");

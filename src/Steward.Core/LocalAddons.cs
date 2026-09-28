@@ -1,12 +1,18 @@
 using System.Text.RegularExpressions;
 
+using Steward.Core.Diagnostics;
+
+using Microsoft.Extensions.Logging;
+
 namespace Steward.Core;
 
-public sealed record LocalAddon(string FolderName, string Name, string? Version, string? Interface, IReadOnlyList<string> FoldedFolders);
+public sealed record LocalAddon(string FolderName, string Name, string? Version, string? Interface, IReadOnlyList<string> FoldedFolders, bool Removable);
 
 public static class LocalAddons
 {
-    public static IReadOnlyList<LocalAddon> Scan(string addOnsPath, IEnumerable<string> excludedFolders)
+    private sealed record Candidate(string FolderName, string Name, string? Version, string? Interface, bool HasOwnToc, IReadOnlyList<string> Deps);
+
+    public static IReadOnlyList<LocalAddon> Scan(string addOnsPath, IEnumerable<string> excludedFolders, ILogger? logger = null)
     {
         if (!Directory.Exists(addOnsPath))
         {
@@ -14,9 +20,20 @@ public static class LocalAddons
         }
 
         var excluded = new HashSet<string>(excludedFolders, StringComparer.OrdinalIgnoreCase);
-        var candidates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var candidates = new Dictionary<string, Candidate>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var dir in Directory.EnumerateDirectories(addOnsPath))
+        List<string> dirs;
+        try
+        {
+            dirs = [.. Directory.EnumerateDirectories(addOnsPath)];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger?.Warn(ex, $"Local addon scan skipped {addOnsPath}");
+            return [];
+        }
+
+        foreach (var dir in dirs)
         {
             var folderName = Path.GetFileName(Path.TrimEndingDirectorySeparator(dir));
             if (excluded.Contains(folderName))
@@ -24,15 +41,22 @@ public static class LocalAddons
                 continue;
             }
 
-            if (FindOwnToc(dir, folderName) is { } tocPath)
+            try
             {
-                candidates[folderName] = tocPath;
+                if (ReadCandidate(dir, folderName) is { } candidate)
+                {
+                    candidates[folderName] = candidate;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger?.Warn(ex, $"Local addon scan skipped {dir}");
             }
         }
 
         var targets = candidates.ToDictionary(
             entry => entry.Key,
-            entry => ImmediateTarget(entry.Value, candidates.Keys),
+            entry => entry.Value.Deps.Where(candidates.ContainsKey).Select(dep => candidates[dep].FolderName).FirstOrDefault(),
             StringComparer.OrdinalIgnoreCase);
 
         var roots = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -53,48 +77,40 @@ public static class LocalAddons
 
         var results = roots.Select(entry =>
         {
-            var (folderName, folded) = (entry.Key, entry.Value);
-            var tocPath = candidates[folderName];
-            var name = StripColourCodes(TocFile.ReadDirective(tocPath, "Title")) ?? folderName;
+            var (candidate, folded) = (candidates[entry.Key], entry.Value);
             return new LocalAddon(
-                folderName,
-                name,
-                TocFile.ReadDirective(tocPath, "Version"),
-                TocFile.ReadDirective(tocPath, "Interface"),
-                folded.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList());
+                candidate.FolderName,
+                candidate.Name,
+                candidate.Version,
+                candidate.Interface,
+                folded.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList(),
+                candidate.HasOwnToc && folded.All(f => candidates[f].HasOwnToc));
         });
 
         return results.OrderBy(addon => addon.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private static string? FindOwnToc(string folderPath, string folderName)
+    private static Candidate? ReadCandidate(string folderPath, string folderName)
     {
         var exact = Path.Combine(folderPath, folderName + ".toc");
-        if (File.Exists(exact))
+        var hasOwnToc = File.Exists(exact);
+        var tocPath = hasOwnToc
+            ? exact
+            : Directory.EnumerateFiles(folderPath, folderName + "_*.toc")
+                .OrderBy(Path.GetFileName, StringComparer.Ordinal)
+                .FirstOrDefault();
+        if (tocPath is null)
         {
-            return exact;
+            return null;
         }
 
-        return Directory.EnumerateFiles(folderPath, folderName + "_*.toc")
-            .OrderBy(Path.GetFileName, StringComparer.Ordinal)
-            .FirstOrDefault();
-    }
-
-    private static string? ImmediateTarget(string tocPath, IEnumerable<string> candidateNames)
-    {
-        var deps = SplitDeps(TocFile.ReadDirective(tocPath, "Dependencies"))
-            .Concat(SplitDeps(TocFile.ReadDirective(tocPath, "RequiredDeps")));
-
-        foreach (var dep in deps)
-        {
-            var match = candidateNames.FirstOrDefault(name => string.Equals(name, dep, StringComparison.OrdinalIgnoreCase));
-            if (match is not null)
-            {
-                return match;
-            }
-        }
-
-        return null;
+        return new Candidate(
+            folderName,
+            StripColourCodes(TocFile.ReadDirective(tocPath, "Title")) ?? folderName,
+            TocFile.ReadDirective(tocPath, "Version"),
+            TocFile.ReadDirective(tocPath, "Interface"),
+            hasOwnToc,
+            [.. SplitDeps(TocFile.ReadDirective(tocPath, "Dependencies")), .. SplitDeps(TocFile.ReadDirective(tocPath, "RequiredDeps"))]);
     }
 
     private static IEnumerable<string> SplitDeps(string? value) =>

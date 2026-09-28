@@ -169,11 +169,9 @@ public sealed class AddonUpdater
             return;
         }
 
-        var tocFileName = $"{folderName}.toc";
-        if (!File.Exists(Path.Combine(existingPath, tocFileName)))
+        if (RemovalRefusal(addOnsPath, folderName) is { } refusal)
         {
-            throw new InvalidOperationException(
-                $"{existingPath} exists but has no {tocFileName}; refusing to delete it");
+            throw new InvalidOperationException(refusal);
         }
 
         foreach (var file in Directory.EnumerateFiles(existingPath, "*", SearchOption.AllDirectories))
@@ -182,6 +180,15 @@ public sealed class AddonUpdater
         }
 
         Directory.Delete(existingPath, recursive: true);
+    }
+
+    public static string? RemovalRefusal(string addOnsPath, string folderName)
+    {
+        var existingPath = Path.Combine(addOnsPath, folderName);
+        var tocFileName = $"{folderName}.toc";
+        return !Directory.Exists(existingPath) || File.Exists(Path.Combine(existingPath, tocFileName))
+            ? null
+            : $"{existingPath} exists but has no {tocFileName}; refusing to delete it";
     }
 
     internal static void ExtractZip(string zipPath, string addOnsPath)
