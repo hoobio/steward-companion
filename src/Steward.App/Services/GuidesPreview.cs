@@ -53,7 +53,7 @@ public static class GuidesPreview
             entry => DateTimeOffset.Now.Subtract(entry.Age).ToUnixTimeMilliseconds(),
             StringComparer.Ordinal);
 
-        var card = new RestedXpInstallViewModel(Install, _ => Task.CompletedTask, _ => Task.CompletedTask)
+        var card = new RestedXpInstallViewModel(Install, _ => Task.CompletedTask)
         {
             AddonVersion = "v4.11.4",
             IsSessionActive = scenario != "expired",

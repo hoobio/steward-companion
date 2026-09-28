@@ -120,22 +120,6 @@
                         ItemsSource="{x:Bind Rows}"
                         ItemTemplate="{StaticResource GuideRowTemplate}"
                         IsEnabled="{x:Bind IsSessionActive, Mode=OneWay}" />
-                    <StackPanel
-                        Orientation="Horizontal"
-                        Spacing="8"
-                        Margin="16,10,16,14"
-                        HorizontalAlignment="Right"
-                        Visibility="{x:Bind RowsVisibility, Mode=OneWay}">
-                        <ProgressRing
-                            Width="16"
-                            Height="16"
-                            VerticalAlignment="Center"
-                            IsActive="{x:Bind WriteAgainCommand.IsRunning, Mode=OneWay}" />
-                        <Button
-                            Height="32"
-                            Content="Write again"
-                            Command="{x:Bind WriteAgainCommand}" />
-                    </StackPanel>
                     <Border
                         Padding="16,14"
                         BorderThickness="0,1,0,0"
@@ -261,6 +245,18 @@
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
             </ItemsControl>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <ProgressRing
+                    Width="16"
+                    Height="16"
+                    VerticalAlignment="Center"
+                    IsActive="{x:Bind ViewModel.RestedXp.WriteAgainCommand.IsRunning, Mode=OneWay}" />
+                <Button
+                    Height="32"
+                    Content="Write again"
+                    Command="{x:Bind ViewModel.RestedXp.WriteAgainCommand, Mode=OneWay}" />
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

@@ -170,15 +170,12 @@ public sealed partial class GuideRowViewModel : ObservableObject
 public sealed partial class RestedXpInstallViewModel : ObservableObject
 {
     private readonly Func<RestedXpInstallViewModel, Task> _choiceChanged;
-    private readonly Func<RestedXpInstallViewModel, Task> _writeAgain;
     private bool _isLoading;
 
-    public RestedXpInstallViewModel(
-        WowInstall install, Func<RestedXpInstallViewModel, Task> choiceChanged, Func<RestedXpInstallViewModel, Task> writeAgain)
+    public RestedXpInstallViewModel(WowInstall install, Func<RestedXpInstallViewModel, Task> choiceChanged)
     {
         Install = install;
         _choiceChanged = choiceChanged;
-        _writeAgain = writeAgain;
     }
 
     public WowInstall Install { get; }
@@ -242,9 +239,6 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
     }
 
     public Task ResyncAsync() => _choiceChanged(this);
-
-    [RelayCommand]
-    private Task WriteAgainAsync() => _writeAgain(this);
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 }
@@ -356,7 +350,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
             var card = Guides.FirstOrDefault(g => string.Equals(g.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase));
             if (card is null)
             {
-                card = new RestedXpInstallViewModel(install.Install, OnChoiceChangedAsync, OnWriteAgainAsync);
+                card = new RestedXpInstallViewModel(install.Install, OnChoiceChangedAsync);
                 LoadProducts(card);
                 Guides.Add(card);
             }
@@ -601,7 +595,14 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         await SyncAsync(card).ConfigureAwait(true);
     }
 
-    private Task OnWriteAgainAsync(RestedXpInstallViewModel card) => SyncAsync(card, force: true);
+    [RelayCommand]
+    private async Task WriteAgainAsync()
+    {
+        foreach (var card in Guides.Where(card => card.SelectedProducts.Count > 0))
+        {
+            await SyncAsync(card, force: true).ConfigureAwait(true);
+        }
+    }
 
     private async Task SyncAsync(RestedXpInstallViewModel card, bool force = false)
     {
