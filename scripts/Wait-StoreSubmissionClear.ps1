@@ -1,5 +1,5 @@
 function Test-StoreSubmissionBusy {
-    param([Parameter(Mandatory)][string]$StatusOutput)
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$StatusOutput)
 
     if ($StatusOutput -notmatch 'Submission Status = (\S+)') { return $false }
     $busyStates = 'CommitStarted', 'PreProcessing', 'PendingPublication', 'Publishing', 'Release'
@@ -7,7 +7,7 @@ function Test-StoreSubmissionBusy {
 }
 
 function Get-StoreApiOnlySubmissionId {
-    param([Parameter(Mandatory)][string]$Output)
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Output)
 
     if ($Output -notmatch 'can only update, delete, and commit submissions that are created through the API') { return $null }
     if ($Output -match "Found (?:Flight )?Submission with Id '([^']+)'") { return $Matches[1] }
@@ -81,6 +81,8 @@ if ($MyInvocation.InvocationName -ne '.') {
     $flightError = "Found Flight Submission with Id 'abc-123'`nIngestion API can only update, delete, and commit submissions that are created through the API."
     if ((Get-StoreApiOnlySubmissionId -Output $flightError) -ne 'abc-123') { throw 'self-check failed: expected to extract the flight submission id' }
     if (Get-StoreApiOnlySubmissionId -Output 'Existing submission deleted!') { throw 'self-check failed: normal delete output should not match' }
+    if (Get-StoreApiOnlySubmissionId -Output '') { throw 'self-check failed: an empty delete output (nothing pending) should not match' }
+    if (Test-StoreSubmissionBusy -StatusOutput '') { throw 'self-check failed: an empty status output should not be busy' }
 
     Write-Host 'Wait-StoreSubmissionClear self-check passed.'
 }
