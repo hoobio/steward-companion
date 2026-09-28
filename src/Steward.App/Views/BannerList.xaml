@@ -22,15 +22,14 @@
 
                     <FontIcon
                         Grid.Column="0"
-                        VerticalAlignment="Top"
-                        Margin="0,2,0,0"
+                        VerticalAlignment="Center"
                         Glyph="{x:Bind IconGlyph}"
                         FontSize="16"
                         Foreground="{x:Bind IconForeground}" />
 
                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                         <TextBlock Text="{x:Bind Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock Text="{x:Bind Message}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Text="{x:Bind Message}" Visibility="{x:Bind HasMessage}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
 
                     <ItemsControl Grid.Column="2" VerticalAlignment="Center" ItemsSource="{x:Bind Actions}" ItemTemplate="{StaticResource BannerActionTemplate}">

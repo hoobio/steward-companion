@@ -1416,7 +1416,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Message = string.Empty,
             Background = (Brush)Application.Current.Resources["InfoTintBrush"],
             IconForeground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"],
-            IconGlyph = string.Empty,
+            IconGlyph = "",
             IsDismissible = true,
             Actions = [],
             DismissCommand = dismiss,

@@ -21,6 +21,8 @@ public sealed class BannerViewModel
 
     public required string Message { get; init; }
 
+    public bool HasMessage => Message.Length > 0;
+
     public required Brush Background { get; init; }
 
     public required Brush IconForeground { get; init; }
