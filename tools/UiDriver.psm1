@@ -136,6 +136,14 @@ function Exit-UiPointer {
     Send-UiPen -X $X -Y $Y -Flags 0x20000
 }
 
+function Invoke-UiPenTap {
+    param([int]$X, [int]$Y)
+    Send-UiPen -X $X -Y $Y -Flags 0x20002
+    Send-UiPen -X $X -Y $Y -Flags 0x10006
+    Send-UiPen -X $X -Y $Y -Flags 0x40002
+    Send-UiPen -X $X -Y $Y -Flags 0x20000
+}
+
 function Copy-UiWindow {
     param([Parameter(Mandatory)]$Window)
     $handle = [IntPtr]$Window.Current.NativeWindowHandle
@@ -207,4 +215,4 @@ function Measure-UiTransition {
     }
 }
 
-Export-ModuleMember -Function Start-UiApp, Get-UiPopup, Find-UiElement, Get-UiCentre, Invoke-UiClick, Write-UiValue, Show-UiElement, Move-UiScroll, Move-UiPointer, Exit-UiPointer, Copy-UiWindow, Save-UiScreenshot, Measure-UiTransition
+Export-ModuleMember -Function Start-UiApp, Get-UiPopup, Find-UiElement, Get-UiCentre, Invoke-UiClick, Write-UiValue, Show-UiElement, Move-UiScroll, Move-UiPointer, Exit-UiPointer, Invoke-UiPenTap, Copy-UiWindow, Save-UiScreenshot, Measure-UiTransition
