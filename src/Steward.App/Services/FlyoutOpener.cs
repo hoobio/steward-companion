@@ -13,6 +13,7 @@ namespace Steward.App.Services;
 internal static class FlyoutOpener
 {
     private static readonly TimeSpan ActivationSettle = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan ReopenGuard = TimeSpan.FromMilliseconds(300);
     private static ILogger? _logger;
     private static bool _windowActive;
     private static long _activatedAt;
@@ -40,13 +41,33 @@ internal static class FlyoutOpener
 
     public static void Attach(ButtonBase button, FlyoutBase flyout, string name)
     {
+        long closedAt = 0;
         button.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) => _pressedWhileActivating = IsActivating), true);
-        button.Click += (_, _) => Open(button, flyout, name);
+        button.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(ClearPress), true);
+        button.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(ClearPress), true);
+        button.Click += (_, _) =>
+        {
+            // The overlay passes the dismissing press through to this button, so the same click that closed the flyout would reopen it.
+            if (closedAt != 0 && Stopwatch.GetElapsedTime(closedAt) < ReopenGuard)
+            {
+                _pressedWhileActivating = false;
+                Log(name, "Reopen suppressed");
+                return;
+            }
+
+            Open(button, flyout, name);
+        };
         flyout.Opening += (_, _) => Log(name, "Opening");
         flyout.Opened += (_, _) => Log(name, "Opened");
         flyout.Closing += (_, _) => Log(name, "Closing");
-        flyout.Closed += (_, _) => Log(name, "Closed");
+        flyout.Closed += (_, _) =>
+        {
+            closedAt = Stopwatch.GetTimestamp();
+            Log(name, "Closed");
+        };
     }
+
+    private static void ClearPress(object sender, PointerRoutedEventArgs e) => _pressedWhileActivating = false;
 
     private static void Open(FrameworkElement target, FlyoutBase flyout, string name)
     {

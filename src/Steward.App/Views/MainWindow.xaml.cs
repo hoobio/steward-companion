@@ -12,12 +12,15 @@ using Microsoft.Extensions.Logging;
 using Steward.App.Services;
 using Steward.App.ViewModels;
 
+using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
+
+using Windows.Graphics;
 
 namespace Steward.App.Views;
 
@@ -26,6 +29,7 @@ public sealed partial class MainWindow : Window
     private readonly IServiceProvider _services;
     private bool _quitting;
     private Native.SubclassProc? _sessionEndSubclass;
+    private RectInt32 _passthrough;
 
     public MainWindow(MainViewModel viewModel, IServiceProvider services, ILogger<MainWindow> logger)
     {
@@ -38,6 +42,8 @@ public sealed partial class MainWindow : Window
         AccountFlyout.OverlayInputPassThroughElement = TitleBarButtons;
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+        TitleBarButtons.LayoutUpdated += (_, _) => ApplyTitleBarPassthrough(force: false);
+        Activated += (_, _) => ApplyTitleBarPassthrough(force: true);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppWindow.SetIcon(App.IconPath);
         ViewModel = viewModel;
@@ -83,6 +89,33 @@ public sealed partial class MainWindow : Window
     }
 
     public MainViewModel ViewModel { get; }
+
+    // The TitleBar control only recomputes this hole on its own SizeChanged, so it goes stale on sign-in, username and picker changes.
+    private void ApplyTitleBarPassthrough(bool force)
+    {
+        if (TitleBarButtons.XamlRoot is not { } root)
+        {
+            return;
+        }
+
+        var rect = default(RectInt32);
+        if (TitleBarButtons.Visibility == Visibility.Visible && TitleBarButtons.ActualWidth > 0 && TitleBarButtons.ActualHeight > 0)
+        {
+            var scale = root.RasterizationScale;
+            var bounds = TitleBarButtons.TransformToVisual(null)
+                .TransformBounds(new Windows.Foundation.Rect(0, 0, TitleBarButtons.ActualWidth, TitleBarButtons.ActualHeight));
+            rect = new RectInt32((int)(bounds.X * scale), (int)(bounds.Y * scale), (int)(bounds.Width * scale), (int)(bounds.Height * scale));
+        }
+
+        if (!force && rect == _passthrough)
+        {
+            return;
+        }
+
+        _passthrough = rect;
+        InputNonClientPointerSource.GetForWindowId(AppWindow.Id)
+            .SetRegionRects(NonClientRegionKind.Passthrough, rect.Width == 0 ? [] : [rect]);
+    }
 
     private void SelectAllSignInUrl(object sender, RoutedEventArgs e) => SignInUrlBox.SelectAll();
 
