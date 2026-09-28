@@ -402,6 +402,16 @@ public static class CharacterSyncMapping
     public static IReadOnlyList<CharacterObservation> FilterToProfessionsOnly(SavedVariablesSnapshot snapshot) =>
         [.. snapshot.Characters.Where(c => snapshot.Professions.ContainsKey(c.CharacterGuid))];
 
+    public static string? EffectiveLinkedUserId(CharacterObservation observation, IReadOnlyList<DirectoryCharacter>? rosterCharacters)
+    {
+        var pin = rosterCharacters?.FirstOrDefault(r => r.CharacterGuid == observation.CharacterGuid);
+        return pin is not null ? pin.LinkedUserId : observation.LinkedUserId;
+    }
+
+    public static bool IsOwnCharacter(CharacterObservation observation, IReadOnlyList<DirectoryCharacter>? rosterCharacters, string? myUserId) =>
+        myUserId is not null
+        && string.Equals(EffectiveLinkedUserId(observation, rosterCharacters), myUserId, StringComparison.Ordinal);
+
     // observedAt and scannedAt are restamped on every roster rebuild, so they are left out or every /reload would push unchanged data.
     public static string Fingerprint(
         IReadOnlyList<CharacterObservation> characters,

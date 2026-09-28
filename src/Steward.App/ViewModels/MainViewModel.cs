@@ -394,6 +394,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public SyncPayload? LastOfficerPayload => _lastOfficerPayload;
 
+    public string? UserId => _userId;
+
     public bool IsProfessionsOnlySync => HasSyncFeature && !HasStewardFeature;
 
     private IReadOnlyList<ManagedAddon> VisibleAddons() =>

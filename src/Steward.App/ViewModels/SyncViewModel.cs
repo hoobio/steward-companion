@@ -168,11 +168,11 @@ public sealed partial class SyncViewModel : ObservableObject
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
-    public async Task ReloadAsync()
+    public Task ReloadAsync()
     {
         if (_isReloading)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         _isReloading = true;
@@ -181,13 +181,7 @@ public sealed partial class SyncViewModel : ObservableObject
             IsUnreachable = !_main.IsApiReachable;
             WatchSavedVariables();
 
-            var selected = _main.Installs.Where(install => install == _main.SelectedInstall).ToList();
-            var ownFolders = await Task.Run(() => selected.ToDictionary(
-                install => install.FlavourPath,
-                install => OwnCharacterKeys(install.FlavourPath),
-                StringComparer.OrdinalIgnoreCase)).ConfigureAwait(true);
-
-            var fresh = selected.Select(install => Build(install, ownFolders[install.FlavourPath])).ToList();
+            var fresh = _main.Installs.Where(install => install == _main.SelectedInstall).Select(Build).ToList();
             if (fresh.Select(view => view.Shape).SequenceEqual(Installs.Select(view => view.Shape)))
             {
                 for (var i = 0; i < fresh.Count; i++)
@@ -206,6 +200,7 @@ public sealed partial class SyncViewModel : ObservableObject
 
             SyncCharacterPushRows();
             Recompute();
+            return Task.CompletedTask;
         }
         finally
         {
@@ -260,15 +255,7 @@ public sealed partial class SyncViewModel : ObservableObject
         Recompute();
     }
 
-    private static HashSet<(string Realm, string Name)> OwnCharacterKeys(string flavourPath) =>
-        StewardSavedVariables.FindCharacterFolders(flavourPath)
-            .Select(folder => OwnKey(folder.Realm, folder.Character))
-            .ToHashSet();
-
-    private static (string Realm, string Name) OwnKey(string realm, string name) =>
-        (realm.Replace(" ", "", StringComparison.Ordinal).ToUpperInvariant(), name.ToUpperInvariant());
-
-    private SyncInstallViewModel Build(WowInstallViewModel install, HashSet<(string Realm, string Name)> ownCharacters)
+    private SyncInstallViewModel Build(WowInstallViewModel install)
     {
         var addonMissing = !Directory.Exists(
             Path.Combine(install.AddOnsPath, StewardSavedVariables.AddonName));
@@ -309,9 +296,11 @@ public sealed partial class SyncViewModel : ObservableObject
         var coveredCharacters = covered
             .Select(c => (Observation: c, View: Character(c, snapshot!.Professions, outcomes, professionsOnly, batchCurrent)))
             .ToList();
+        var rosterCharacters = _main.LastDirectory?.Characters;
+        var myUserId = _main.UserId;
         var shown = professionsOnly
             ? coveredCharacters
-            : coveredCharacters.Where(c => ownCharacters.Contains(OwnKey(c.Observation.Realm, c.Observation.Name))).ToList();
+            : coveredCharacters.Where(c => CharacterSyncMapping.IsOwnCharacter(c.Observation, rosterCharacters, myUserId)).ToList();
         foreach (var character in shown
             .Select(c => c.View)
             .OrderBy(c => c.State)

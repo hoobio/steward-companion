@@ -229,6 +229,27 @@ public sealed class CharacterProfessionsTests
     }
 
     [Fact]
+    public void IsOwnCharacter_PrefersTheRosterPinOverTheSavedVariableLink()
+    {
+        var observation = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, "999", false, null);
+        var roster = new[] { new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "123") };
+
+        Assert.True(CharacterSyncMapping.IsOwnCharacter(observation, roster, "123"));
+        Assert.False(CharacterSyncMapping.IsOwnCharacter(observation, roster, "999"));
+    }
+
+    [Fact]
+    public void IsOwnCharacter_FallsBackToTheSavedVariableLink_WhenNoRosterPull()
+    {
+        var observation = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, "123", false, null);
+
+        Assert.True(CharacterSyncMapping.IsOwnCharacter(observation, null, "123"));
+        Assert.False(CharacterSyncMapping.IsOwnCharacter(observation, null, "999"));
+    }
+
+    [Fact]
     public void Fingerprint_IgnoresCatalogueAndGuildRanks_WhenOmitted()
     {
         var observation = new CharacterObservation(
