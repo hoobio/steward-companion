@@ -109,6 +109,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private StoreContext? _storeContext;
     private IReadOnlyList<StorePackageUpdate>? _storeUpdates;
     private Task? _storeInstall;
+    private StoreQueueItem? _storeQueueItem;
+    private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
+    private readonly Lock _progressGate = new();
+    private AppUpdatePhase _reportedPhase;
+    private long _reportedAt;
+    private int _progressGeneration;
     private DateTimeOffset _lastGuildSync;
     private DateTimeOffset _lastDirectorySync;
     private DateTimeOffset _lastBannersSync;
@@ -355,13 +361,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(AboutDescription))]
     public partial AppUpdateCheck? LastAppUpdateCheck { get; set; }
 
-    public Visibility AppUpdateVisibility => When(AppUpdate is not null);
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AppUpdateVisibility), nameof(AppUpdateIdleVisibility), nameof(AppUpdateProgressVisibility), nameof(IsAppUpdateInProgress), nameof(AppUpdateActionLabel), nameof(AboutDescription), nameof(AboutActionLabel))]
+    [NotifyCanExecuteChangedFor(nameof(InstallAppUpdateCommand), nameof(CheckOrInstallAppUpdateCommand))]
+    public partial StoreUpdateProgress AppUpdateProgress { get; set; } = StoreUpdateProgress.None;
+
+    public bool IsAppUpdateInProgress => AppUpdateProgress.IsActive;
+
+    public Visibility AppUpdateVisibility => When(AppUpdate is not null || IsAppUpdateInProgress);
+
+    public Visibility AppUpdateIdleVisibility => When(!IsAppUpdateInProgress);
+
+    public Visibility AppUpdateProgressVisibility => When(IsAppUpdateInProgress);
 
 #pragma warning disable CA1822 // x:Bind resolves these through a ViewModel instance
     public string AppUpdateTitle => "A Steward update is available in the Microsoft Store";
-
-    public string AppUpdateActionLabel => "Install update";
 #pragma warning restore CA1822
+
+    public string AppUpdateActionLabel => IsAppUpdateInProgress ? "Installing…" : "Install update";
 
     public Uri? AppUpdateChangelogUri => AppUpdate is null ? null
         : new Uri("https://github.com/hoobio/steward-companion/releases/latest");
@@ -374,7 +391,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Visibility CheckForUpdatesVisibility => When(App.IsGitHubRelease);
 #pragma warning restore CA1822
 
-    public string AboutActionLabel => IsCheckingAppUpdate ? "Checking" : AppUpdate is null ? "Check for a new version" : "Install update";
+    public string AboutActionLabel => IsAppUpdateInProgress ? "Installing…" : IsCheckingAppUpdate ? "Checking" : AppUpdate is null ? "Check for a new version" : "Install update";
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["release", "pre-release"];
 
@@ -523,6 +540,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private string AppUpdateStatus => App.BuildName switch
     {
+        _ when IsAppUpdateInProgress => AppUpdateProgress.Text,
         "debug" => "Debug build, not updated automatically",
         "dev" => "Development build, rebuilt on every push",
         "msi" => "Updates come from the Microsoft Store version",
@@ -544,6 +562,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _accessEventsCts?.Dispose();
         _signInCts?.Dispose();
         _signInCts = null;
+        if (_storeQueueItem is not null)
+        {
+            _storeQueueItem.StatusChanged -= OnStoreQueueItemStatusChanged;
+        }
+
         DisposeInstalls();
         RestedXp.Dispose();
     }
@@ -935,6 +958,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 _storeInstall = TrySilentInstallAsync(context, updates);
             }
 
+            if (_storeInstall is not { IsCompleted: false })
+            {
+                _ = WatchStoreQueueAsync(context);
+            }
+
             return updates.Count == 0 ? null : new AddonRelease(string.Empty, _appUpdater.StoreListingUri.OriginalString, string.Empty, 0, DateTimeOffset.Now);
         }
         catch (Exception ex)
@@ -951,13 +979,145 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             Native.RegisterRestartForStoreUpdate(OwnerWindowHandle);
             _logger.Info("Store silent update install starting");
-            var result = await context.TrySilentDownloadAndInstallStorePackageUpdatesAsync(updates);
-            _logger.Info($"Store silent update install result: {result.OverallState}");
+            SetStoreProgress(StoreUpdateProgress.From(AppUpdatePhase.Pending, 0, 0, 0));
+            var operation = context.TrySilentDownloadAndInstallStorePackageUpdatesAsync(updates);
+            operation.Progress = (_, status) => ReportStoreProgress(status);
+            var result = await operation;
+            FinishStoreProgress(result.OverallState.ToString(), result.OverallState is StorePackageUpdateState.Completed);
+            if (result.OverallState is not (StorePackageUpdateState.Completed or StorePackageUpdateState.Canceled))
+            {
+                StatusMessage = $"Could not install the Microsoft Store update: {result.OverallState}";
+            }
         }
         catch (Exception ex)
         {
             _logger.Warn(ex, "Store silent update install failed");
+            FinishStoreProgress("with an error", completed: false);
             StatusMessage = $"Could not install the Microsoft Store update: {ex.Message}";
+        }
+    }
+
+    private async Task WatchStoreQueueAsync(StoreContext context)
+    {
+        if (_storeQueueItem is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            var items = await context.GetAssociatedStoreQueueItemsAsync();
+            if (_storeQueueItem is not null || items.FirstOrDefault(item => item.InstallKind == StoreQueueItemKind.Update) is not { } item)
+            {
+                return;
+            }
+
+            _storeQueueItem = item;
+            item.StatusChanged += OnStoreQueueItemStatusChanged;
+            _logger.Info("Store update: following an update the Microsoft Store queued");
+            OnStoreQueueItemStatusChanged(item, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "Store update queue check failed");
+        }
+    }
+
+    private void OnStoreQueueItemStatusChanged(StoreQueueItem item, object? args)
+    {
+        var status = item.GetCurrentStatus();
+        switch (status.PackageInstallState)
+        {
+            case StoreQueueItemState.Active:
+                ReportStoreProgress(status.UpdateStatus);
+                return;
+            case StoreQueueItemState.Paused:
+                ReportStoreProgress(StoreUpdateProgress.From(AppUpdatePhase.Pending, 0, 0, 0));
+                return;
+        }
+
+        item.StatusChanged -= OnStoreQueueItemStatusChanged;
+        RunOnUi(() =>
+        {
+            _storeQueueItem = null;
+            FinishStoreProgress(status.PackageInstallExtendedState.ToString(), status.PackageInstallState is StoreQueueItemState.Completed);
+            if (status.PackageInstallState is StoreQueueItemState.Error)
+            {
+                StatusMessage = $"Could not install the Microsoft Store update: {status.PackageInstallExtendedState}";
+            }
+        });
+    }
+
+    public void ReportStoreProgress(StorePackageUpdateStatus status) =>
+        ReportStoreProgress(StoreUpdateProgress.From(
+            status.PackageUpdateState switch
+            {
+                StorePackageUpdateState.Pending => AppUpdatePhase.Pending,
+                StorePackageUpdateState.Downloading => AppUpdatePhase.Downloading,
+                StorePackageUpdateState.Deploying or StorePackageUpdateState.Completed => AppUpdatePhase.Installing,
+                StorePackageUpdateState.Canceled => AppUpdatePhase.None,
+                _ => AppUpdatePhase.Failed,
+            },
+            status.PackageDownloadProgress,
+            status.PackageBytesDownloaded,
+            status.PackageDownloadSizeInBytes));
+
+    private void ReportStoreProgress(StoreUpdateProgress progress)
+    {
+        var now = Environment.TickCount64;
+        int generation;
+        lock (_progressGate)
+        {
+            if (progress.Phase == _reportedPhase && now - _reportedAt < 250)
+            {
+                return;
+            }
+
+            _reportedPhase = progress.Phase;
+            _reportedAt = now;
+            generation = _progressGeneration;
+        }
+
+        RunOnUi(() =>
+        {
+            if (generation == Volatile.Read(ref _progressGeneration))
+            {
+                SetStoreProgress(progress);
+            }
+        });
+    }
+
+    private void SetStoreProgress(StoreUpdateProgress progress)
+    {
+        if (progress.Phase != AppUpdateProgress.Phase && progress.Phase is not AppUpdatePhase.None)
+        {
+            _logger.Info($"Store update: {progress.Phase.ToString().ToLowerInvariant()}");
+        }
+
+        AppUpdateProgress = progress;
+    }
+
+    private void FinishStoreProgress(string outcome, bool completed)
+    {
+        lock (_progressGate)
+        {
+            _progressGeneration++;
+            _reportedPhase = AppUpdatePhase.None;
+        }
+
+        _logger.Info($"Store update: finished {outcome}");
+        AppUpdateProgress = completed ? StoreUpdateProgress.From(AppUpdatePhase.Installing, 1, 0, 0) : StoreUpdateProgress.None;
+    }
+
+    private void RunOnUi(Action action)
+    {
+        if (_dispatcher is null || _dispatcher.HasThreadAccess)
+        {
+            action();
+        }
+        else
+        {
+            _dispatcher.TryEnqueue(() => action());
         }
     }
 
@@ -1034,7 +1194,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return task.State;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanCheckOrInstallAppUpdate))]
     private async Task CheckOrInstallAppUpdateAsync()
     {
         if (App.IsPackaged && App.IsGitHubRelease)
@@ -1078,12 +1238,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private bool CanInstallAppUpdate => AppUpdate is not null;
+    private bool CanInstallAppUpdate => AppUpdate is not null && !IsAppUpdateInProgress;
+
+    private bool CanCheckOrInstallAppUpdate => !IsAppUpdateInProgress;
 
     [RelayCommand(CanExecute = nameof(CanInstallAppUpdate))]
     private async Task InstallAppUpdateAsync()
     {
-        if (AppUpdate is null)
+        if (AppUpdate is null || (IsAppUpdateInProgress && _storeInstall is not { IsCompleted: false }))
         {
             return;
         }
@@ -1115,8 +1277,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             Native.RegisterRestartForStoreUpdate(OwnerWindowHandle);
             _logger.Info("Store update install requested by the user");
-            var result = await context.RequestDownloadAndInstallStorePackageUpdatesAsync(updates);
-            _logger.Info($"Store update install result: {result.OverallState}");
+            SetStoreProgress(StoreUpdateProgress.From(AppUpdatePhase.Pending, 0, 0, 0));
+            var operation = context.RequestDownloadAndInstallStorePackageUpdatesAsync(updates);
+            operation.Progress = (_, status) => ReportStoreProgress(status);
+            var result = await operation;
+            FinishStoreProgress(result.OverallState.ToString(), result.OverallState is StorePackageUpdateState.Completed);
             if (result.OverallState is StorePackageUpdateState.Canceled)
             {
                 return;
@@ -1131,6 +1296,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.Warn(ex, "Store update install failed");
+            FinishStoreProgress("with an error", completed: false);
             StatusMessage = $"Could not install the Microsoft Store update: {ex.Message}";
             OpenUri(_appUpdater.StoreUpdatesUri);
         }
