@@ -169,7 +169,16 @@ public sealed record AppState(
     [JsonPropertyName("dismissed_banners")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, int>? DismissedBanners { get; init; }
+
+    [JsonPropertyName("app_update_check")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AppUpdateCheck? AppUpdateCheck { get; init; }
 }
+
+public sealed record AppUpdateCheck(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("update_available")] bool UpdateAvailable,
+    [property: JsonPropertyName("checked_at")] DateTimeOffset CheckedAt);
 
 public sealed record CharacterSyncState(
     [property: JsonPropertyName("character_sync")] Dictionary<string, CharacterPushRecord> CharacterSync,

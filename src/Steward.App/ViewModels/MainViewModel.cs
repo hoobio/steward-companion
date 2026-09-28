@@ -155,6 +155,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _addonUpdater = addonUpdater;
         _appUpdater = appUpdater;
         _stateStore = stateStore;
+        LastAppUpdateCheck = stateStore.Load().AppUpdateCheck;
         _addons = addons;
         _supportedProducts = supportedProducts;
         _logger = logger;
@@ -338,7 +339,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AboutDescription))]
-    public partial bool IsLatestConfirmed { get; set; }
+    public partial AppUpdateCheck? LastAppUpdateCheck { get; set; }
 
     public Visibility AppUpdateVisibility => When(AppUpdate is not null);
 
@@ -483,7 +484,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string StatePath => Path.Combine(DataFolder, "state.json");
 
     public string AboutDescription =>
-        $"{VersionLabel}, installed to {App.DisplayDataFolder(DataFolder)}{(AppUpdate is null ? "" : ", an update is available")}{(IsLatestConfirmed && AppUpdate is null ? ", up to date" : "")}";
+        $"{VersionLabel}\n{AppUpdateStatus}";
+
+    private string AppUpdateStatus => App.BuildName switch
+    {
+        "debug" => "Debug build, not updated automatically",
+        "dev" => "Development build, rebuilt on every push",
+        "msi" => "Updates come from the Microsoft Store version",
+        _ when AppUpdate is not null => "An update is available",
+        _ when IsCheckingAppUpdate => "Checking for updates",
+        _ when LastAppUpdateCheck is { } check && check.Version == DisplayedVersion =>
+            check.UpdateAvailable ? "An update is available" : "Up to date",
+        _ => "Not checked for updates yet",
+    };
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
@@ -815,10 +828,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AppUpdate = App.IsPackaged && App.IsGitHubRelease
             ? await CheckStoreUpdateAsync().ConfigureAwait(true)
             : null;
-        if (AppUpdate is not null)
-        {
-            IsLatestConfirmed = false;
-        }
     }
 
     private async Task ForceStoreScanAsync()
@@ -883,6 +892,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _logger.Info($"Store update check: {updates.Count} update(s) available");
             _storeContext = context;
             _storeUpdates = updates;
+            LastAppUpdateCheck = new AppUpdateCheck(DisplayedVersion, updates.Count > 0, DateTimeOffset.Now);
+            _stateStore.Save(_stateStore.Load() with { AppUpdateCheck = LastAppUpdateCheck });
             if (updates.Count > 0 && context.CanSilentlyDownloadStorePackageUpdates && !IsAnyRowBusy
                 && _storeInstall is not { IsCompleted: false })
             {
@@ -1025,7 +1036,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             await CheckAppUpdateAsync(forceStoreScan: true).ConfigureAwait(true);
-            IsLatestConfirmed = AppUpdate is null;
         }
         finally
         {
