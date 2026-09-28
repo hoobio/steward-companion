@@ -105,19 +105,6 @@ public sealed class LocalAddonsTests : IDisposable
     }
 
     [Fact]
-    public void Scan_Removable_OnlyWhenEveryFolderHasAnExactToc()
-    {
-        WriteAddon("Suite", "## Title: Suite\n");
-        WriteAddon("Suite-Module", "## Title: Module\n## Dependencies: Suite\n", "Suite-Module_Vanilla.toc");
-        WriteAddon("Plain", "## Title: Plain\n");
-
-        var addons = LocalAddons.Scan(_addOnsPath, []);
-
-        Assert.False(addons.Single(a => a.FolderName == "Suite").Removable);
-        Assert.True(addons.Single(a => a.FolderName == "Plain").Removable);
-    }
-
-    [Fact]
     public void Scan_StripsColourCodesFromTitle()
     {
         WriteAddon("Colourful", "## Title: |cff00ccffColourful|r Addon\n");

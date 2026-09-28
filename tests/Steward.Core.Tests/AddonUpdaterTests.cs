@@ -171,6 +171,32 @@ public sealed class AddonUpdaterTests : IDisposable
         Assert.False(Directory.Exists(existing));
     }
 
+    [Fact]
+    public void RemoveExistingInstall_Deletes_WhenOnlyAFlavourTocPresent()
+    {
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        var existing = Path.Combine(addOnsPath, FolderName);
+        Directory.CreateDirectory(existing);
+        File.WriteAllText(Path.Combine(existing, $"{FolderName}_Forever.toc"), "## Version: 0.9.0");
+
+        AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName);
+
+        Assert.False(Directory.Exists(existing));
+    }
+
+    [Fact]
+    public void RemoveExistingInstall_Throws_WhenOnlyAnotherFoldersTocPresent()
+    {
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        var existing = Path.Combine(addOnsPath, FolderName);
+        Directory.CreateDirectory(existing);
+        File.WriteAllText(Path.Combine(existing, "Other_Forever.toc"), "## Version: 0.9.0");
+        File.WriteAllText(Path.Combine(existing, "Other.toc"), "## Version: 0.9.0");
+
+        Assert.Throws<InvalidOperationException>(() => AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName));
+        Assert.True(Directory.Exists(existing));
+    }
+
     private sealed class ZipBytesStubHandler(Uri expectedUri, byte[] zipBytes) : HttpMessageHandler
     {
         public Uri? RequestedUri { get; private set; }
@@ -357,7 +383,7 @@ public sealed class AddonUpdaterTests : IDisposable
     {
         var addOnsPath = Path.Combine(_tempDir, "AddOns");
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
-        WriteInstalled(addOnsPath, "QuestieDB", "QuestieDB_Forever.toc");
+        WriteInstalled(addOnsPath, "QuestieDB", "Questie_Forever.toc");
 
         Assert.Throws<InvalidOperationException>(() => AddonUpdater.Uninstall(addOnsPath, ["Questie", "QuestieDB"]));
 

@@ -247,10 +247,9 @@ public sealed class AddonUpdater
     public static string? RemovalRefusal(string addOnsPath, string folderName)
     {
         var existingPath = Path.Combine(addOnsPath, folderName);
-        var tocFileName = $"{folderName}.toc";
-        return !Directory.Exists(existingPath) || File.Exists(Path.Combine(existingPath, tocFileName))
+        return !Directory.Exists(existingPath) || LocalAddons.TopLevelToc(existingPath, folderName) is not null
             ? null
-            : $"{existingPath} exists but has no {tocFileName}; refusing to delete it";
+            : $"{existingPath} exists but has no {folderName}.toc or {folderName}_<flavour>.toc; refusing to delete it";
     }
 
     internal static void ExtractZip(string zipPath, string addOnsPath)

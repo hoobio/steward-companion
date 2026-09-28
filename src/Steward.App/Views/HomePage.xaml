@@ -378,12 +378,11 @@
                         </MenuFlyout.SystemBackdrop>
                         <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" />
                         <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" />
-                        <MenuFlyoutSeparator Visibility="{x:Bind UninstallVisibility}" />
+                        <MenuFlyoutSeparator />
                         <MenuFlyoutItem
                             Text="Uninstall"
                             Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                            Command="{x:Bind UninstallCommand}"
-                            Visibility="{x:Bind UninstallVisibility}">
+                            Command="{x:Bind UninstallCommand}">
                             <MenuFlyoutItem.Resources>
                                 <StaticResource x:Key="MenuFlyoutItemForegroundPointerOver" ResourceKey="SystemFillColorCriticalBrush" />
                                 <StaticResource x:Key="MenuFlyoutItemForegroundPressed" ResourceKey="SystemFillColorCriticalBrush" />

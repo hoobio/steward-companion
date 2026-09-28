@@ -104,8 +104,6 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     public Visibility FailedVisibility => When(FailureMessage is not null);
 
-    public Visibility UninstallVisibility => When(_addon.Removable);
-
     private string FolderPath => Path.Combine(_install.AddOnsPath, _addon.FolderName);
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
@@ -115,7 +113,6 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
         && addon.Name == _addon.Name
         && addon.Version == _addon.Version
         && addon.Interface == _addon.Interface
-        && addon.Removable == _addon.Removable
         && addon.FoldedFolders.SequenceEqual(_addon.FoldedFolders, StringComparer.OrdinalIgnoreCase);
 
     [RelayCommand]

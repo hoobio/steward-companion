@@ -6,13 +6,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Steward.Core;
 
-public sealed record LocalAddon(string FolderName, string Name, string? Version, string? Interface, IReadOnlyList<string> FoldedFolders, bool Removable);
+public sealed record LocalAddon(string FolderName, string Name, string? Version, string? Interface, IReadOnlyList<string> FoldedFolders);
 
 public sealed record DeclaredAddonIds(int? CurseProjectId, string? WagoId, string? WowInterfaceId);
 
 public static class LocalAddons
 {
-    private sealed record Candidate(string FolderName, string Name, string? Version, string? Interface, bool HasOwnToc, IReadOnlyList<string> Deps);
+    private sealed record Candidate(string FolderName, string Name, string? Version, string? Interface, IReadOnlyList<string> Deps);
 
     public static IReadOnlyList<LocalAddon> Scan(string addOnsPath, IEnumerable<string> excludedFolders, ILogger? logger = null)
     {
@@ -85,8 +85,7 @@ public static class LocalAddons
                 candidate.Name,
                 candidate.Version,
                 candidate.Interface,
-                folded.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList(),
-                candidate.HasOwnToc && folded.All(f => candidates[f].HasOwnToc));
+                folded.OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList());
         });
 
         return results.OrderBy(addon => addon.Name, StringComparer.OrdinalIgnoreCase).ToList();
@@ -128,7 +127,6 @@ public static class LocalAddons
             StripColourCodes(TocFile.ReadDirective(tocPath, "Title")) ?? folderName,
             TocFile.ReadDirective(tocPath, "Version"),
             TocFile.ReadDirective(tocPath, "Interface"),
-            string.Equals(tocPath, Path.Combine(folderPath, folderName + ".toc"), StringComparison.Ordinal),
             [.. SplitDeps(TocFile.ReadDirective(tocPath, "Dependencies")), .. SplitDeps(TocFile.ReadDirective(tocPath, "RequiredDeps"))]);
     }
 
