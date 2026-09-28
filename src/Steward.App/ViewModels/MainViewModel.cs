@@ -397,6 +397,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasGuidesFeature => _features.Contains(GigagrugClient.GuidesFeature);
 
+    public bool HasCurseForgeFeature => _features.Contains(GigagrugClient.CurseForgeFeature);
+
     public bool HasStewardFeature => _guildFeatures.Contains(GigagrugClient.StewardFeature);
 
     public bool HasSyncFeature => _guildFeatures.Contains(GigagrugClient.SyncFeature);
@@ -2279,6 +2281,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RebuildAddonChannels();
         SyncRestedXpRows();
         SyncCharacterSyncRows();
+        OnPropertyChanged(nameof(HasCurseForgeFeature));
     }
 
     private void SyncCharacterSyncRows()
@@ -2705,6 +2708,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastMemberCatalogue = null;
         _lastDirectorySync = default;
         _lastOfficerPayload = null;
+        OnPropertyChanged(nameof(HasCurseForgeFeature));
     }
 
     private void PropagateAuthorized()

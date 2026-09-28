@@ -341,6 +341,7 @@ public sealed class GigagrugClient
     public const string SignupsFeature = "signups";
     public const string HoobiScriptsFeature = "hoobiscripts";
     public const string AddonsFeature = "addons";
+    public const string CurseForgeFeature = "curseforge";
 
     private static readonly IReadOnlySet<string> OfficerFeatures = new HashSet<string>(
         [GuidesFeature, StewardFeature, SyncFeature, RosterFeature, ProfessionsFeature, SignupsFeature, AddonsFeature],

@@ -26,6 +26,10 @@ public sealed class CharacterSyncGatingTests
     }
 
     [Fact]
+    public void IsAuthorizing_IsFalse_WhenCurseForgeIsTheOnlyFeature() =>
+        Assert.False(GigagrugClient.IsAuthorizing(new HashSet<string>([GigagrugClient.CurseForgeFeature], StringComparer.Ordinal)));
+
+    [Fact]
     public void IsAuthorizing_IsTrue_WhenRosterIsTheOnlyFeature()
     {
         var features = new HashSet<string>([GigagrugClient.RosterFeature], StringComparer.Ordinal);
