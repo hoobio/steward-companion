@@ -40,6 +40,7 @@
                         Visibility="{x:Bind AddedByYouVisibility, Mode=OneWay}">
                         <TextBlock Text="Added by you" FontSize="12" />
                     </Border>
+                    <Button Content="Edit" Tag="{x:Bind}" AutomationProperties.Name="{x:Bind EditAccessibleName, Mode=OneWay}" Click="OnEditInstallClick" />
                     <Button Content="Remove" Command="{x:Bind RemoveCommand}" />
                 </StackPanel>
             </controls:SettingsCard>

@@ -10,9 +10,26 @@ namespace Steward.App.Views;
 
 public sealed partial class SettingsPage : Page
 {
+    private bool _editing;
+
     public SettingsPage()
     {
         InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            if (ViewModel is { } viewModel)
+            {
+                viewModel.EditInstallRequested += OnEditInstallRequested;
+                _ = ShowPendingEditAsync();
+            }
+        };
+        Unloaded += (_, _) =>
+        {
+            if (ViewModel is { } viewModel)
+            {
+                viewModel.EditInstallRequested -= OnEditInstallRequested;
+            }
+        };
     }
 
     public MainViewModel? ViewModel { get; private set; }
@@ -22,6 +39,34 @@ public sealed partial class SettingsPage : Page
         base.OnNavigatedTo(e);
         ViewModel = e.Parameter as MainViewModel;
         Bindings.Update();
+    }
+
+    private void OnEditInstallRequested(object? sender, EventArgs e) => _ = ShowPendingEditAsync();
+
+    private async Task ShowPendingEditAsync()
+    {
+        if (_editing || ViewModel?.TakeEditInstallRequest() is not { } install)
+        {
+            return;
+        }
+
+        _editing = true;
+        try
+        {
+            await new EditInstallDialog(ViewModel, install) { XamlRoot = XamlRoot }.ShowAsync();
+        }
+        finally
+        {
+            _editing = false;
+        }
+    }
+
+    private void OnEditInstallClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is WowInstallViewModel install)
+        {
+            ViewModel?.RequestEditInstall(install);
+        }
     }
 
     private void OnSizeChanged(object sender, SizeChangedEventArgs e) =>

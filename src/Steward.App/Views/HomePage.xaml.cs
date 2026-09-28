@@ -80,6 +80,15 @@ public sealed partial class HomePage : Page
         }
     }
 
+    private void OnEditInstallOptionClick(object sender, RoutedEventArgs e)
+    {
+        InstallFlyout.Hide();
+        if (((FrameworkElement)sender).DataContext is WowInstallViewModel install)
+        {
+            ViewModel?.RequestEditInstall(install);
+        }
+    }
+
     private void OnAddInstallClick(object sender, RoutedEventArgs e)
     {
         InstallFlyout.Hide();

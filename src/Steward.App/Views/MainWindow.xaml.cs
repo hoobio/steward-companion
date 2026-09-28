@@ -43,7 +43,6 @@ public sealed partial class MainWindow : Window
         };
         ViewModel.ShowRestedXpSignIn = () => _ = ShowRestedXpSignInAsync();
         ViewModel.ShowChannelDialog = channel => ShowDialogAsync(new ReleaseChannelDialog(channel));
-        ViewModel.ShowEditInstallDialog = install => ShowDialogAsync(new EditInstallDialog(ViewModel, install));
         ViewModel.ShowConfirmDialog = ConfirmAsync;
         ViewModel.QuitRequested = QuitCompletely;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;

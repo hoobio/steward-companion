@@ -59,7 +59,9 @@ public sealed partial class MainViewModel
 
     public Func<AddonChannelViewModel, Task>? ShowChannelDialog { get; set; }
 
-    public Func<WowInstallViewModel, Task>? ShowEditInstallDialog { get; set; }
+    public event EventHandler? EditInstallRequested;
+
+    private string? _pendingEditInstall;
 
     public Func<string, string, string, Task<bool>>? ShowConfirmDialog { get; set; }
 
@@ -276,12 +278,27 @@ public sealed partial class MainViewModel
     private void OpenSettings() => NavigateToPageTag?.Invoke("settings");
 
     [RelayCommand]
-    private async Task EditInstallAsync()
+    private void EditInstall()
     {
-        if (SelectedInstall is { } install && ShowEditInstallDialog is { } show)
+        if (SelectedInstall is { } install)
         {
-            await show(install).ConfigureAwait(true);
+            RequestEditInstall(install);
         }
+    }
+
+    public void RequestEditInstall(WowInstallViewModel install)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+        _pendingEditInstall = install.FlavourPath;
+        NavigateToPageTag?.Invoke("settings");
+        EditInstallRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    public WowInstallViewModel? TakeEditInstallRequest()
+    {
+        var path = _pendingEditInstall;
+        _pendingEditInstall = null;
+        return Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, path, StringComparison.OrdinalIgnoreCase));
     }
 
     private void ShowChannelDialogFor(string addonId)

@@ -99,7 +99,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     public string? GameVersionName { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Label), nameof(StatusText), nameof(GameVersionLineVisibility))]
+    [NotifyPropertyChangedFor(nameof(Label), nameof(EditAccessibleName), nameof(StatusText), nameof(GameVersionLineVisibility))]
     public partial string? UserLabel { get; set; }
 
     public bool IsAnyRowBusy => AddonRows.Any(row => row.IsBusy);
@@ -111,6 +111,8 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     public Visibility ProductIconVisibility => When(ProductIcon is not null);
 
     public string Label => UserLabel ?? GameVersionName ?? Install.Flavour;
+
+    public string EditAccessibleName => $"Edit {Label}";
 
     public string StatusText => UserLabel is not null ? $"{GameVersionName} · {ClientVersion}" : ClientVersion ?? "";
 
