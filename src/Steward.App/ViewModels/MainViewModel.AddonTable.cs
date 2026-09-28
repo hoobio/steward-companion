@@ -47,6 +47,7 @@ public sealed partial class MainViewModel
         nameof(GameVersionPromptVisibility),
         nameof(InstallPickerVisibility),
         nameof(UpdateAllEnabled),
+        nameof(GetAddonsVisibility),
     ];
 
     private string? _sortKey;

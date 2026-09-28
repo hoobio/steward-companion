@@ -168,6 +168,18 @@ public sealed partial class HomePage : Page
         await new ChangelogDialog(row.ChangelogTitle, row.Notes) { XamlRoot = XamlRoot }.ShowAsync();
     }
 
+    private async void OnGetAddonsClick(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.CreateGetAddons() is not { } getAddons)
+        {
+            return;
+        }
+
+        var dialog = new GetAddonsDialog(getAddons) { XamlRoot = XamlRoot };
+        _ = getAddons.LoadAsync();
+        await dialog.ShowAsync();
+    }
+
     private void OnManifestIconFailed(object sender, ExceptionRoutedEventArgs e)
     {
         if (TaggedItem<AddonRowViewModel>(sender, nameof(OnManifestIconFailed)) is { } row)

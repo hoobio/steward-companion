@@ -2290,6 +2290,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SyncRestedXpRows();
         SyncCharacterSyncRows();
         OnPropertyChanged(nameof(HasCurseForgeFeature));
+        OnPropertyChanged(nameof(GetAddonsVisibility));
     }
 
     private void SyncCharacterSyncRows()
@@ -2731,6 +2732,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastDirectorySync = default;
         _lastOfficerPayload = null;
         OnPropertyChanged(nameof(HasCurseForgeFeature));
+        OnPropertyChanged(nameof(GetAddonsVisibility));
     }
 
     private void PropagateAuthorized()

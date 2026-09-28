@@ -3,6 +3,8 @@ using System.Text.Json;
 using Steward.Core;
 using Steward.Core.Diagnostics;
 
+using Microsoft.UI.Xaml;
+
 namespace Steward.App.ViewModels;
 
 public sealed partial class MainViewModel
@@ -31,12 +33,7 @@ public sealed partial class MainViewModel
 
     private IReadOnlyList<ManagedAddon> AllVisibleAddons() => [.. VisibleAddons(), .. AllProviderAddons()];
 
-    private IReadOnlyList<string> ExcludedFolders(WowInstallViewModel install) =>
-    [
-        .. _addons.Select(addon => addon.FolderName),
-        StewardGuidesAddon.FolderName,
-        .. ProviderRecords(install.FlavourPath).SelectMany(CurseForgeAddons.Folders),
-    ];
+    private IReadOnlyList<string> ExcludedFolders(WowInstallViewModel install) => ExcludedFoldersForOthers(install, "");
 
     private async Task<IReadOnlyList<ProviderAddonRecord>> IdentifyCurseForgeAsync(WowInstallViewModel install, IReadOnlyList<LocalAddon> scanned)
     {
@@ -159,6 +156,80 @@ public sealed partial class MainViewModel
 
         return true;
     }
+
+    public Visibility GetAddonsVisibility =>
+        HasCurseForgeFeature && SelectedInstall is { } install && CurseForgeVersionType(install.Install) is not null ? Visibility.Visible : Visibility.Collapsed;
+
+    public GetAddonsViewModel? CreateGetAddons() =>
+        SelectedInstall is { } install && CurseForgeVersionType(install.Install) is { } versionType
+            ? new GetAddonsViewModel(this, install, versionType, _gigagrugClient, _logger)
+            : null;
+
+    public static bool IsCurseForgeInstalled(WowInstallViewModel install, int modId, int versionType) =>
+        install.AddonRows.Any(row => string.Equals(row.AddonId, CurseForgeAddons.Id(modId, versionType), StringComparison.OrdinalIgnoreCase) && row.IsInstalled);
+
+    public async Task<string?> InstallCurseForgeAsync(WowInstallViewModel install, CurseForgeResult result, int versionType)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+        ArgumentNullException.ThrowIfNull(result);
+        if (!HasCurseForgeFeature)
+        {
+            return "CurseForge is not enabled for your account.";
+        }
+
+        var id = CurseForgeAddons.Id(result.Id, versionType);
+        var draft = new ProviderAddonRecord(id, result.Name, result.Name, CurseForgeAddons.Source, result.Id, versionType, [], result.IconUrl);
+        var probe = CurseForgeAddons.ToManagedAddon(draft, _gigagrugClient.CurseForgeManifestBaseUrl(result.Id, versionType));
+        IReadOnlyDictionary<string, AddonRelease?> releases;
+        try
+        {
+            releases = await _addonUpdater.ProbeChannelsAsync(probe, VisibleChannels, CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (SessionExpiredException)
+        {
+            SignOutTo(GateFailure.SessionExpired);
+            return "Your session has expired.";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or OperationCanceledException)
+        {
+            _logger.Warn(ex, $"CurseForge manifest for {id} failed");
+            return $"Could not reach CurseForge: {ex.Message}";
+        }
+
+        var status = AddonChannelStatus.Resolve(_stateStore.Load().Channels.GetValueOrDefault(id), releases, probe.Channels, probe.DefaultPreference);
+        if (status.Release is not { Folders: { Count: > 0 } folders })
+        {
+            return $"No {install.GameVersionName} build of {result.Name} is on CurseForge.";
+        }
+
+        if (folders.FirstOrDefault(folder => ExcludedFoldersForOthers(install, id).Contains(folder, StringComparer.OrdinalIgnoreCase)) is { } taken)
+        {
+            return $"{taken} is already managed by another row.";
+        }
+
+        var state = _stateStore.Load();
+        var records = (state.ProviderAddons.GetValueOrDefault(install.FlavourPath) ?? []).Where(record => record.Id != id).ToList();
+        records.Add(draft with { FolderName = CurseForgeAddons.PrimaryFolder(folders), Folders = folders });
+        SaveProviderRecords(state, install.FlavourPath, records);
+        _releases[id] = releases;
+        _status[id] = status;
+        SyncProviderRows(install);
+
+        if (install.AddonRows.FirstOrDefault(row => row.AddonId == id) is not { } row || !row.UpdateCommand.CanExecute(null))
+        {
+            return "Could not start the install.";
+        }
+
+        await row.UpdateCommand.ExecuteAsync(null).ConfigureAwait(true);
+        return row.HasFailed ? row.StatusMessage ?? "Install failed." : null;
+    }
+
+    private IReadOnlyList<string> ExcludedFoldersForOthers(WowInstallViewModel install, string id) =>
+    [
+        .. _addons.Select(addon => addon.FolderName),
+        StewardGuidesAddon.FolderName,
+        .. ProviderRecords(install.FlavourPath).Where(record => record.Id != id).SelectMany(CurseForgeAddons.Folders),
+    ];
 
     private Task<bool> CheckProviderAddonsAsync(bool background)
     {
