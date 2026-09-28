@@ -89,6 +89,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly AppStateStore _stateStore;
     private readonly IReadOnlyList<ManagedAddon> _addons;
     private readonly IReadOnlyDictionary<string, string> _supportedProducts;
+    private readonly IReadOnlyDictionary<string, int> _curseForgeVersionTypes;
     private readonly ILogger<MainViewModel> _logger;
     private readonly Dictionary<string, AddonChannelStatus> _status = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyDictionary<string, AddonRelease?>> _releases =
@@ -153,11 +154,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AppStateStore stateStore,
         IReadOnlyList<ManagedAddon> addons,
         IReadOnlyDictionary<string, string> supportedProducts,
+        IReadOnlyDictionary<string, int> curseForgeVersionTypes,
         RestedXpService restedXpService,
         ILogger<MainViewModel> logger)
     {
         ArgumentNullException.ThrowIfNull(addons);
         ArgumentNullException.ThrowIfNull(supportedProducts);
+
+        _curseForgeVersionTypes = curseForgeVersionTypes;
 
         _sessionService = sessionService;
         _gigagrugClient = gigagrugClient;
@@ -1325,6 +1329,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             succeeded = false;
         }
 
+        if (!await CheckProviderAddonsAsync(background).ConfigureAwait(true))
+        {
+            return;
+        }
+
         ApplyStatus(background);
 
         if (succeeded)
@@ -2261,8 +2270,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void ReconcileFeatureGating()
     {
-        var visible = VisibleAddons();
-        var visibleIds = visible.Select(addon => addon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var visibleIds = AllVisibleAddons().Select(addon => addon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var id in _status.Keys.Where(id => !visibleIds.Contains(id)).ToList())
         {
             _status.Remove(id);
@@ -2275,7 +2283,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         foreach (var install in Installs)
         {
-            install.SyncAddons(visible);
+            install.SyncAddons(AddonsFor(install.FlavourPath));
         }
 
         RebuildAddonChannels();
@@ -2327,13 +2335,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void RebuildAddonChannels()
     {
-        var visibleIds = VisibleAddons().Select(addon => addon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var visible = AllVisibleAddons();
+        var visibleIds = visible.Select(addon => addon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var gone in AddonChannels.Where(channel => !visibleIds.Contains(channel.AddonId)).ToList())
         {
             AddonChannels.Remove(gone);
         }
 
-        foreach (var addon in VisibleAddons())
+        foreach (var addon in visible)
         {
             if (!AddonChannels.Any(channel => string.Equals(channel.AddonId, addon.Id, StringComparison.OrdinalIgnoreCase)))
             {
@@ -2410,7 +2419,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var addon = _addons.First(a => string.Equals(a.Id, addonId, StringComparison.OrdinalIgnoreCase));
+        if (AllVisibleAddons().FirstOrDefault(a => string.Equals(a.Id, addonId, StringComparison.OrdinalIgnoreCase)) is not { } addon)
+        {
+            return;
+        }
+
         _status[addonId] = AddonChannelStatus.Resolve(channel, releases, addon.Channels, addon.DefaultPreference);
         ApplyStatus(background: false);
         RecomputeSummary();
@@ -2422,8 +2435,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             install,
             install.ProductCode is { } product && _supportedProducts.TryGetValue(product, out var productName) ? productName : null,
             _stateStore.Load().InstallLabels.GetValueOrDefault(install.FlavourPath),
-            VisibleAddons(),
-            [.. _addons.Select(addon => addon.FolderName), StewardGuidesAddon.FolderName],
+            AddonsFor(install.FlavourPath),
+            ExcludedFolders,
+            IdentifyCurseForgeAsync,
+            ReconcileProviderAddons,
             _addonUpdater,
             _stateStore,
             EnsureAuthorizedForActionAsync,
@@ -2593,6 +2608,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (!previousFeatures.SetEquals(_features))
             {
                 ReconcileFeatureGating();
+                if (previousFeatures.Contains(GigagrugClient.CurseForgeFeature) != HasCurseForgeFeature)
+                {
+                    foreach (var install in Installs)
+                    {
+                        _ = install.RescanLocalAsync();
+                    }
+                }
             }
 
             UserName = me.User.Name;

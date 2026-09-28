@@ -109,7 +109,7 @@
                         </Button>
                     </Grid>
                     <TextBlock
-                        Text="{x:Bind FolderName}"
+                        Text="{x:Bind FolderLine, Mode=OneWay}"
                         FontFamily="Cascadia Mono"
                         FontSize="11"
                         TextTrimming="CharacterEllipsis"

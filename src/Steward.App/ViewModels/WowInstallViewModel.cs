@@ -34,7 +34,9 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Action<WowInstallViewModel> _clientExited;
     private readonly AddonUpdater _updater;
     private readonly AppStateStore _stateStore;
-    private readonly IReadOnlyList<string> _excludedFolders;
+    private readonly Func<WowInstallViewModel, IReadOnlyList<string>> _excludedFolders;
+    private readonly Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> _identifyProviderAddons;
+    private readonly Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> _reconcileProviderAddons;
     private readonly Func<CancellationToken, Task<bool>> _ensureAuthorized;
     private readonly Func<string, bool> _hasFeature;
     private readonly Action<string> _changeChannelRequested;
@@ -52,7 +54,9 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         string? gameVersionName,
         string? userLabel,
         IReadOnlyList<ManagedAddon> addons,
-        IReadOnlyList<string> excludedFolders,
+        Func<WowInstallViewModel, IReadOnlyList<string>> excludedFolders,
+        Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> identifyProviderAddons,
+        Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> reconcileProviderAddons,
         AddonUpdater updater,
         AppStateStore stateStore,
         Func<CancellationToken, Task<bool>> ensureAuthorized,
@@ -71,6 +75,8 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         GameVersionName = gameVersionName is null ? null : ShortProductName(gameVersionName);
         UserLabel = string.IsNullOrWhiteSpace(userLabel) ? null : userLabel;
         _excludedFolders = excludedFolders;
+        _identifyProviderAddons = identifyProviderAddons;
+        _reconcileProviderAddons = reconcileProviderAddons;
         _remove = remove;
         _clientExited = clientExited;
         _updater = updater;
@@ -281,9 +287,23 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         var generation = Interlocked.Increment(ref _scanGeneration);
         try
         {
+            var excluded = _excludedFolders(this);
+            var identify = _hasFeature(GigagrugClient.CurseForgeFeature);
             var scanned = HasGameVersion
-                ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, _excludedFolders, _logger)).ConfigureAwait(false)
+                ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, excluded, _logger)).ConfigureAwait(false)
                 : [];
+            var identified = HasGameVersion && identify ? await _identifyProviderAddons(this, scanned).ConfigureAwait(false) : [];
+            var adopted = false;
+            await OnUiThreadAsync(() =>
+            {
+                adopted = generation == _scanGeneration && _reconcileProviderAddons(this, identified);
+                excluded = _excludedFolders(this);
+            }).ConfigureAwait(false);
+            if (adopted)
+            {
+                scanned = await Task.Run(() => LocalAddons.Scan(AddOnsPath, excluded, _logger)).ConfigureAwait(false);
+            }
+
             await OnUiThreadAsync(() => ApplyLocalScan(generation, scanned)).ConfigureAwait(false);
         }
         catch (Exception ex)

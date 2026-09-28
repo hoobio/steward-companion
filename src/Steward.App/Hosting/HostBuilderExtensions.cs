@@ -75,6 +75,9 @@ internal static class HostBuilderExtensions
         builder.Services.AddSingleton<IReadOnlyList<ManagedAddon>>(addons);
         builder.Services.AddSingleton<IReadOnlyDictionary<string, string>>(
             new Dictionary<string, string>(supportedProducts, StringComparer.OrdinalIgnoreCase));
+        builder.Services.AddSingleton<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>(
+            builder.Configuration.GetSection("CurseForge:GameVersionTypes").Get<Dictionary<string, int>>() ?? [],
+            StringComparer.OrdinalIgnoreCase));
         builder.Services.AddSingleton(sp => new AppStateStore([.. sp.GetRequiredService<IReadOnlyList<ManagedAddon>>().Select(a => a.Id)]));
         builder.Services.AddSingleton(sp => new GigagrugClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gigagrug"),
@@ -88,7 +91,8 @@ internal static class HostBuilderExtensions
             sp.GetRequiredService<ILogger<SessionService>>()));
         builder.Services.AddSingleton(sp => new AddonUpdater(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"),
-            sp.GetRequiredService<ILogger<AddonUpdater>>()));
+            sp.GetRequiredService<ILogger<AddonUpdater>>(),
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gigagrug")));
         builder.Services.AddSingleton(sp => new AppUpdater(storeProductId));
 
         builder.Services.AddSingleton(sp => new RestedXpClient(

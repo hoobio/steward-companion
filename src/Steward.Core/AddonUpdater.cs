@@ -15,16 +15,22 @@ namespace Steward.Core;
 public sealed class AddonUpdater
 {
     private readonly HttpClient _httpClient;
+    private readonly HttpClient? _sessionClient;
     private readonly ILogger _logger;
 
-    public AddonUpdater(HttpClient httpClient, ILogger<AddonUpdater>? logger = null)
+    public AddonUpdater(HttpClient httpClient, ILogger<AddonUpdater>? logger = null, HttpClient? sessionClient = null)
     {
         _httpClient = httpClient;
+        _sessionClient = sessionClient;
         _logger = logger ?? NullLogger<AddonUpdater>.Instance;
     }
 
-    public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken) =>
-        await FetchManifestAsync(_httpClient, ManifestUri(addon, channel), cancellationToken).ConfigureAwait(false);
+    public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(addon);
+        var client = addon.Source == CurseForgeAddons.Source ? _sessionClient ?? _httpClient : _httpClient;
+        return await FetchManifestAsync(client, ManifestUri(addon, channel), cancellationToken).ConfigureAwait(false);
+    }
 
     public static async Task<AddonRelease?> FetchManifestAsync(HttpClient httpClient, Uri manifestUri, CancellationToken cancellationToken)
     {
@@ -35,6 +41,11 @@ public sealed class AddonUpdater
         request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
 
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
         response.EnsureSuccessStatusCode();
 
         // A channel with no releases publishes the literal JSON `null`, so null here means an empty channel rather than a fault.
@@ -184,7 +195,9 @@ public sealed class AddonUpdater
     public static IReadOnlyList<string> InstallFolders(ManagedAddon addon, AddonRelease? release)
     {
         ArgumentNullException.ThrowIfNull(addon);
-        var folders = release?.Folders is { Count: > 0 } listed ? listed : [addon.FolderName];
+        var folders = release?.Folders is { Count: > 0 } listed ? listed
+            : addon.Folders is { Count: > 0 } known ? known
+            : [addon.FolderName];
         foreach (var folder in folders)
         {
             if (string.IsNullOrWhiteSpace(folder) || folder is "." or ".." || folder.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)

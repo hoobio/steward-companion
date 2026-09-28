@@ -13,8 +13,59 @@ public sealed record ManagedAddon(string Id, string FolderName, string? Manifest
 
     public IReadOnlyList<string> DefaultPreference { get; } = AddonChannelStatus.DefaultPreference;
 
-    public Uri IconUri => new(new Uri(ManifestBaseUrl ?? throw new InvalidOperationException($"{Id} has no ManifestBaseUrl")), "icon.png");
+    public string? IconUrl { get; init; }
+
+    public IReadOnlyList<string>? Folders { get; init; }
+
+    public Uri IconUri => IconUrl is not null
+        ? new Uri(IconUrl)
+        : new(new Uri(ManifestBaseUrl ?? throw new InvalidOperationException($"{Id} has no ManifestBaseUrl")), "icon.png");
 }
+
+public sealed record ProviderAddonRecord(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("folder_name")] string FolderName,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("source")] string Source,
+    [property: JsonPropertyName("mod_id")] int ModId,
+    [property: JsonPropertyName("version_type")] int VersionType,
+    [property: JsonPropertyName("folders")] IReadOnlyList<string> Folders,
+    [property: JsonPropertyName("icon_url")] string? IconUrl = null);
+
+public sealed record CurseForgeResult(
+    [property: JsonPropertyName("id")] int Id,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("summary")] string? Summary,
+    [property: JsonPropertyName("author")] string? Author,
+    [property: JsonPropertyName("iconUrl")] string? IconUrl,
+    [property: JsonPropertyName("websiteUrl")] string? WebsiteUrl,
+    [property: JsonPropertyName("latestVersion")] string? LatestVersion,
+    [property: JsonPropertyName("allowDistribution")] bool AllowDistribution = true);
+
+public sealed record CurseForgeDiscover(
+    [property: JsonPropertyName("popular")] IReadOnlyList<CurseForgeResult>? Popular,
+    [property: JsonPropertyName("recentlyUpdated")] IReadOnlyList<CurseForgeResult>? RecentlyUpdated);
+
+public sealed record CurseForgeSearch(
+    [property: JsonPropertyName("results")] IReadOnlyList<CurseForgeResult>? Results);
+
+public sealed record CurseForgeDeclared(
+    [property: JsonPropertyName("folder")] string Folder,
+    [property: JsonPropertyName("modId")] int ModId);
+
+public sealed record CurseForgeFolderFingerprint(
+    [property: JsonPropertyName("folder")] string Folder,
+    [property: JsonPropertyName("fingerprint")] uint Fingerprint);
+
+public sealed record CurseForgeMatchRequest(
+    [property: JsonPropertyName("declared")] IReadOnlyList<CurseForgeDeclared> Declared,
+    [property: JsonPropertyName("fingerprints")] IReadOnlyList<CurseForgeFolderFingerprint> Fingerprints);
+
+public sealed record CurseForgeMatch(
+    [property: JsonPropertyName("folder")] string Folder,
+    [property: JsonPropertyName("modId")] int ModId,
+    [property: JsonPropertyName("fileId")] long? FileId,
+    [property: JsonPropertyName("folders")] IReadOnlyList<string>? Folders);
 
 public sealed record AddonRelease(
     [property: JsonPropertyName("version")] string Version,
@@ -181,6 +232,9 @@ public sealed record AppState(
 
     [JsonPropertyName("table_column_widths")]
     public Dictionary<string, double> TableColumnWidths { get; init; } = null!;
+
+    [JsonPropertyName("provider_addons")]
+    public Dictionary<string, List<ProviderAddonRecord>> ProviderAddons { get; init; } = null!;
 }
 
 public sealed record AppUpdateCheck(
@@ -202,6 +256,10 @@ public sealed record CharacterSyncState(
 [JsonSerializable(typeof(CharacterSyncRequest))]
 [JsonSerializable(typeof(CharacterSyncResponse))]
 [JsonSerializable(typeof(CharacterSyncState))]
+[JsonSerializable(typeof(CurseForgeDiscover))]
+[JsonSerializable(typeof(CurseForgeMatch[]))]
+[JsonSerializable(typeof(CurseForgeMatchRequest))]
+[JsonSerializable(typeof(CurseForgeSearch))]
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]
 [JsonSerializable(typeof(DiscordMembersResponse))]

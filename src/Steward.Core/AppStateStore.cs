@@ -107,6 +107,9 @@ public sealed class AppStateStore
             IgnoredAddons = (state.IgnoredAddons ?? [])
                 .Where(entry => !entry.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .ToList(),
+            ProviderAddons = (state.ProviderAddons ?? [])
+                .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
             SelectedInstall = string.Equals(state.SelectedInstall, flavourPath, StringComparison.OrdinalIgnoreCase)
                 ? null
                 : state.SelectedInstall,
@@ -131,6 +134,7 @@ public sealed class AppStateStore
         LegacyRestedXpGuideChoice = null,
         DismissedBanners = new Dictionary<string, int>(state.DismissedBanners ?? [], StringComparer.Ordinal),
         TableColumnWidths = new Dictionary<string, double>(state.TableColumnWidths ?? [], StringComparer.OrdinalIgnoreCase),
+        ProviderAddons = new Dictionary<string, List<ProviderAddonRecord>>(state.ProviderAddons ?? [], StringComparer.OrdinalIgnoreCase),
     };
 
     public static bool IsExcludedFromUpdates(AppState state, string flavourPath, string addonId) =>

@@ -191,7 +191,7 @@ public sealed partial class MainViewModel
         var byName = StringComparer.OrdinalIgnoreCase;
         rows = (_sortKey, _sortDescending) switch
         {
-            (null, _) => rows,
+            (null, _) => rows.OrderBy(row => IsConfigured(row) ? 0 : 1).ThenBy(row => IsConfigured(row) ? "" : row.DisplayName, byName),
             ("status", false) => rows.OrderBy(row => SortSnapshot(row).Status).ThenBy(row => row.DisplayName, byName),
             ("status", true) => rows.OrderByDescending(row => SortSnapshot(row).Status).ThenBy(row => row.DisplayName, byName),
             ("version", false) => rows.OrderBy(row => SortSnapshot(row).Updated is null).ThenByDescending(row => SortSnapshot(row).Updated).ThenBy(row => row.DisplayName, byName),
@@ -234,6 +234,9 @@ public sealed partial class MainViewModel
         UpdateAllCommand.NotifyCanExecuteChanged();
         UpdateAllInstallsCommand.NotifyCanExecuteChanged();
     }
+
+    private bool IsConfigured(IAddonTableRow row) =>
+        row is AddonRowViewModel addon && _addons.Any(configured => string.Equals(configured.Id, addon.AddonId, StringComparison.OrdinalIgnoreCase));
 
     [RelayCommand]
     private void SortBy(string key)

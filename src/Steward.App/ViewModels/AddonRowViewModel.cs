@@ -94,6 +94,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(HideLabel),
         nameof(HiddenPillVisibility),
         nameof(RestedXpSignInVisibility),
+        nameof(FolderLine),
+        nameof(IsDistributable),
     ];
 
     private readonly WowInstall _install;
@@ -168,6 +170,12 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public string FolderName => _addon.FolderName;
 
+    public string FolderLine => (_addon.Folders ?? _status?.Release?.Folders ?? []).Count(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)) is var others and > 0
+        ? $"{FolderName} + {others} folder{(others == 1 ? "" : "s")}"
+        : FolderName;
+
+    public bool IsDistributable => _status?.Release?.Distributable ?? true;
+
     public string Source => _addon.Source;
 
     public string InstalledRunText => InstalledVersionShort ?? "";
@@ -235,13 +243,13 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility ReloadHintVisibility => When(NeedsReload);
 
-    public bool CanAutoApply => IsAdmin
+    public bool CanAutoApply => IsAdmin && IsDistributable
         && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
 
     public bool HasUpdateAvailable =>
         _status?.Release is { } release && Channel is not null && TocFile.HasUpdate(release.Version, InstalledVersion);
 
-    public bool IsPendingUpdate => !IsHidden && !IsIgnored && State == AddonRowState.UpdateAvailable;
+    public bool IsPendingUpdate => !IsHidden && !IsIgnored && IsDistributable && State == AddonRowState.UpdateAvailable;
 
     public bool IsInstalled => InstalledVersion is not null;
 
@@ -264,6 +272,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public string ActionLabel => true switch
     {
         _ when IsBusy => "Updating",
+        _ when !IsDistributable => $"{(State == AddonRowState.Missing ? "Get" : "Update")} on {Source}",
         _ when State == AddonRowState.Missing => "Install",
         _ when RecordedChannelDiffers && Channel is { } channel => $"Switch to {channel}",
         _ => "Update",
@@ -404,7 +413,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public string HideLabel => IsHidden ? "Show addon" : "Hide addon";
 
-    public Visibility ReleaseActionsVisibility => When(IsInstalled && HasRelease);
+    public Visibility ReleaseActionsVisibility => When(IsInstalled && HasRelease && IsDistributable);
 
     public Visibility InstalledActionsVisibility => When(IsInstalled);
 
@@ -421,14 +430,16 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     private string AddonFolderPath => Path.Combine(_install.AddOnsPath, _addon.FolderName);
 
-    private string TocPath => Path.Combine(AddonFolderPath, $"{_addon.FolderName}.toc");
+    private string TocPath => (Directory.Exists(AddonFolderPath) ? LocalAddons.TopLevelToc(AddonFolderPath, _addon.FolderName) : null)
+        ?? Path.Combine(AddonFolderPath, $"{_addon.FolderName}.toc");
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
     public void RefreshInstalledVersion()
     {
         var record = _stateStore.Load().Installs.GetValueOrDefault(Key);
-        InstalledVersion = record?.Version ?? TocFile.ReadVersion(TocPath);
+        InstalledVersion = record?.Version ?? TocFile.ReadVersion(TocPath)
+            ?? (Source == CurseForgeAddons.Source && Directory.Exists(AddonFolderPath) ? "unknown" : null);
         _ = RefreshLastUpdatedAsync(record);
     }
 
@@ -519,6 +530,16 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             return;
         }
 
+        if (!release.Distributable)
+        {
+            if (Uri.TryCreate(release.Website, UriKind.Absolute, out var website) && website.Scheme == Uri.UriSchemeHttps)
+            {
+                Process.Start(new ProcessStartInfo(website.AbsoluteUri) { UseShellExecute = true })?.Dispose();
+            }
+
+            return;
+        }
+
         HasFailed = false;
         StatusMessage = null;
         UninstallError = null;
@@ -568,7 +589,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     {
         try
         {
-            var folders = AddonUpdater.InstallFolders(_addon, _status?.Release);
+            var folders = AddonUpdater.InstallFolders(_addon, _status?.Release).OrderBy(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)).ToList();
             var described = folders.Count == 1 ? folders[0] : $"{folders[0]} and {folders.Count - 1} more folder{(folders.Count == 2 ? "" : "s")}";
             if (!await _confirmUninstall(DisplayName, described).ConfigureAwait(true) || IsBusy)
             {

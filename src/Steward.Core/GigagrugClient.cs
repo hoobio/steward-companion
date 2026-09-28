@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Steward.Core;
 
@@ -369,6 +370,67 @@ public sealed class GigagrugClient
     // steward/sync/roster/professions gate per guild, since an officer of one guild is a plain member of another; a guild entry with no features (an older gigagrug, or /api/admin/me) falls back to the user-level set.
     public static IReadOnlySet<string> ResolveGuildFeatures(AdminGuild? guild, IReadOnlySet<string> userFeatures) =>
         guild?.Features is { } features ? new HashSet<string>(features, StringComparer.Ordinal) : userFeatures;
+
+    public string CurseForgeManifestBaseUrl(int modId, int versionType) =>
+        $"{_baseUrl}/api/addons/curseforge/{modId}/{versionType}/";
+
+    public async Task<IReadOnlyList<CurseForgeResult>> GetCurseForgeDiscoverAsync(int versionType, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/api/addons/curseforge/discover?versionType={versionType}");
+        var discover = await SendCurseForgeAsync(request, CompanionJsonContext.Default.CurseForgeDiscover, cancellationToken).ConfigureAwait(false);
+        return [.. (discover.Popular ?? []).Concat(discover.RecentlyUpdated ?? []).DistinctBy(result => result.Id)];
+    }
+
+    public async Task<IReadOnlyList<CurseForgeResult>?> SearchCurseForgeAsync(int versionType, string query, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"{_baseUrl}/api/addons/curseforge/search?versionType={versionType}&q={Uri.EscapeDataString(query)}");
+        try
+        {
+            return (await SendCurseForgeAsync(request, CompanionJsonContext.Default.CurseForgeSearch, cancellationToken).ConfigureAwait(false)).Results ?? [];
+        }
+        catch (GigagrugRequestException ex) when (ex.StatusCode == HttpStatusCode.ServiceUnavailable && ex.Body?.Contains("search_unavailable", StringComparison.Ordinal) == true)
+        {
+            return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<CurseForgeMatch>> MatchCurseForgeAsync(int versionType, CurseForgeMatchRequest match, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/api/addons/curseforge/match?versionType={versionType}")
+        {
+            Content = JsonContent.Create(match, CompanionJsonContext.Default.CurseForgeMatchRequest),
+        };
+        return await SendCurseForgeAsync(request, CompanionJsonContext.Default.CurseForgeMatchArray, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<string?> GetCurseForgeIconUrlAsync(int modId, int versionType, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .GetAsync($"{CurseForgeManifestBaseUrl(modId, versionType)}icon.png", HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+        var landed = response.RequestMessage?.RequestUri;
+        return response.IsSuccessStatusCode && landed is not null && !landed.AbsoluteUri.StartsWith(_baseUrl, StringComparison.OrdinalIgnoreCase)
+            ? landed.AbsoluteUri
+            : null;
+    }
+
+    private async Task<T> SendCurseForgeAsync<T>(HttpRequestMessage request, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new GigagrugRequestException(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        }
+
+        return await response.Content.ReadFromJsonAsync(typeInfo, cancellationToken).ConfigureAwait(false)
+            ?? throw new HttpRequestException($"{request.Method} {request.RequestUri?.AbsolutePath} returned an empty body");
+    }
 
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> GetRecipeCatalogueAsync(
         string guildId, CancellationToken cancellationToken)
