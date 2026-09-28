@@ -119,6 +119,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastDirectorySync;
     private DateTimeOffset _lastBannersSync;
     private IReadOnlyList<Banner> _allBanners = [];
+    private readonly List<BannerViewModel> _localBanners = [];
     private SyncDirectory? _lastDirectory;
     private IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? _lastMemberCatalogue;
     private SyncPayload? _lastOfficerPayload;
@@ -1387,10 +1388,41 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var active = BannerFilter.Active(_allBanners, InstalledVersion, Channel, dismissed)
             .OrderByDescending(banner => BannerLevels.Parse(banner.Level));
         Banners.Clear();
+        foreach (var banner in _localBanners)
+        {
+            Banners.Add(banner);
+        }
+
         foreach (var banner in active)
         {
             Banners.Add(BuildBanner(banner));
         }
+    }
+
+    // No server banner backs this, so it skips BannerFilter's id/revision dismissal bookkeeping and is never persisted.
+    public void ShowLocalInfoBanner(string message)
+    {
+        BannerViewModel? banner = null;
+        var dismiss = new RelayCommand(() =>
+        {
+            _localBanners.Remove(banner!);
+            RefreshBanners();
+        });
+        banner = new BannerViewModel
+        {
+            Id = Guid.NewGuid().ToString(),
+            Revision = 0,
+            Title = message,
+            Message = string.Empty,
+            Background = (Brush)Application.Current.Resources["InfoTintBrush"],
+            IconForeground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"],
+            IconGlyph = string.Empty,
+            IsDismissible = true,
+            Actions = [],
+            DismissCommand = dismiss,
+        };
+        _localBanners.Add(banner);
+        RefreshBanners();
     }
 
     private void DismissBanner(Banner banner)

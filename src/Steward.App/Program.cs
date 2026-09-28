@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Threading;
 
+using Steward.App.Services;
+
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 
@@ -11,9 +13,7 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        const string mutexName = "Local\\Steward.App";
-        using var instanceLock = new Mutex(initiallyOwned: true, mutexName, out var createdNew);
-        if (!createdNew)
+        if (!InstanceCoordination.TryAcquire(out var coordination))
         {
             return 0;
         }
@@ -26,10 +26,11 @@ public static class Program
             var context = new DispatcherQueueSynchronizationContext(dispatcherQueue);
             SynchronizationContext.SetSynchronizationContext(context);
 
-            var app = new App();
+            var app = new App(coordination!);
             GC.KeepAlive(app);
         });
 
+        coordination!.Dispose();
         return 0;
     }
 }

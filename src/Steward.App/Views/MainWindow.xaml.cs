@@ -19,6 +19,7 @@ namespace Steward.App.Views;
 public sealed partial class MainWindow : Window
 {
     private bool _quitting;
+    private Native.SubclassProc? _sessionEndSubclass;
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -64,6 +65,8 @@ public sealed partial class MainWindow : Window
         AppWindow.Changed += OnWindowChanged;
         // TextBox handles the tap itself to place the caret, which would clear a selection made on focus.
         SignInUrlBox.AddHandler(UIElement.TappedEvent, new Microsoft.UI.Xaml.Input.TappedEventHandler(SelectAllSignInUrl), true);
+        _sessionEndSubclass = OnSessionEndSubclassProc;
+        Native.HookSessionEnd(ViewModel.OwnerWindowHandle, _sessionEndSubclass);
     }
 
     public MainViewModel ViewModel { get; }
@@ -212,6 +215,34 @@ public sealed partial class MainWindow : Window
         TrayIcon.Dispose();
         Application.Current.Exit();
     }
+
+    // Caps the wait at 10s so a busy row can never blow the newcomer's own 15s budget for the global mutex.
+    public async Task QuitFromAnotherBuildAsync()
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (ViewModel.IsAnyRowBusy && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(200));
+        }
+
+        QuitCompletely();
+    }
+
+    private nint OnSessionEndSubclassProc(nint hWnd, uint uMsg, nint wParam, nint lParam, nint uIdSubclass, nint dwRefData)
+    {
+        if (uMsg is Native.WM_QUERYENDSESSION or Native.WM_ENDSESSION)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!_quitting)
+                {
+                    QuitCompletely();
+                }
+            });
+        }
+
+        return Native.DefSubclassProc(hWnd, uMsg, wParam, lParam);
+    }
 }
 
 internal static class Native
@@ -236,6 +267,20 @@ internal static class Native
 
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(nint hWnd);
+
+    public const uint WM_QUERYENDSESSION = 0x11;
+    public const uint WM_ENDSESSION = 0x16;
+
+    public delegate nint SubclassProc(nint hWnd, uint uMsg, nint wParam, nint lParam, nint uIdSubclass, nint dwRefData);
+
+    [DllImport("comctl32.dll", SetLastError = true)]
+    private static extern bool SetWindowSubclass(nint hWnd, SubclassProc pfnSubclass, nint uIdSubclass, nint dwRefData);
+
+    [DllImport("comctl32.dll")]
+    public static extern nint DefSubclassProc(nint hWnd, uint uMsg, nint wParam, nint lParam);
+
+    // Windows sends these to request/confirm a logoff, reboot or app-update shutdown; unhandled, the app would not exit until Windows force-kills it.
+    public static void HookSessionEnd(nint handle, SubclassProc proc) => SetWindowSubclass(handle, proc, nint.Zero, nint.Zero);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern int RegisterApplicationRestart([MarshalAs(UnmanagedType.LPWStr)] string? pwzCommandline, int dwFlags);

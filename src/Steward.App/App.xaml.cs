@@ -42,6 +42,18 @@ public partial class App : Application
 
     public static readonly string BuildName = ResolveBuildName();
 
+    // The Store release and a Store flight are the same package on a machine, so they contend for the same instance.
+    public static readonly string Train = BuildName == "prerelease" ? "store" : BuildName;
+
+    public static string TrainDisplayName(string train) => train switch
+    {
+        "store" => "Store",
+        "msi" => "MSI",
+        "dev" => "Development",
+        "debug" => "Debug",
+        _ => train,
+    };
+
     private static readonly string RealDataRoot = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward");
 
@@ -57,11 +69,13 @@ public partial class App : Application
         return Directory.Exists(virtualised) ? virtualised : realDataFolder;
     }
 
+    private readonly InstanceCoordination _instanceCoordination;
     private IHost? _host;
     private MainWindow? _window;
 
-    public App()
+    public App(InstanceCoordination instanceCoordination)
     {
+        _instanceCoordination = instanceCoordination;
         InitializeComponent();
     }
 
@@ -81,6 +95,11 @@ public partial class App : Application
 
         _window = _host.Services.GetRequiredService<MainWindow>();
         _window.Closed += (_, _) => _host.Dispose();
+        _instanceCoordination.ListenForSignals(_window);
+        if (_instanceCoordination.ClosedTrainDisplayName is { } closedTrainDisplayName)
+        {
+            _window.ViewModel.ShowLocalInfoBanner($"Closed the {closedTrainDisplayName} build automatically");
+        }
 
         if (GuidesPreview.Scenario(Environment.GetCommandLineArgs()) is { Length: > 0 } scenario)
         {
