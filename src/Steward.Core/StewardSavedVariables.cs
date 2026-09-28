@@ -37,6 +37,34 @@ public static class StewardSavedVariables
         return files;
     }
 
+    public static IReadOnlyList<(string Realm, string Character)> FindCharacterFolders(string flavourPath)
+    {
+        var accountRoot = Path.Combine(flavourPath, "WTF", "Account");
+        if (!Directory.Exists(accountRoot))
+        {
+            return [];
+        }
+
+        var found = new List<(string, string)>();
+        foreach (var accountPath in Directory.EnumerateDirectories(accountRoot))
+        {
+            foreach (var realmPath in Directory.EnumerateDirectories(accountPath))
+            {
+                if (string.Equals(Path.GetFileName(realmPath), "SavedVariables", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                foreach (var characterPath in Directory.EnumerateDirectories(realmPath))
+                {
+                    found.Add((Path.GetFileName(realmPath), Path.GetFileName(characterPath)));
+                }
+            }
+        }
+
+        return found;
+    }
+
     public static SavedVariablesSnapshot? Read(string flavourPath)
     {
         var paths = FindFiles(flavourPath);

@@ -28,6 +28,12 @@ public sealed partial class SyncInstallViewModel : ObservableObject
     public partial int OutdatedProfessions { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NoOwnCharactersVisibility))]
+    public partial bool HasNoOwnCharacters { get; set; }
+
+    public Visibility NoOwnCharactersVisibility => When(HasNoOwnCharacters);
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(OldFormatVisibility))]
     [NotifyPropertyChangedFor(nameof(DatasetsVisibility))]
     public partial SyncExportState ExportState { get; set; }
@@ -87,6 +93,7 @@ public sealed partial class SyncInstallViewModel : ObservableObject
         IsClientRunning = fresh.IsClientRunning;
         AddonMissing = fresh.AddonMissing;
         OutdatedProfessions = fresh.OutdatedProfessions;
+        HasNoOwnCharacters = fresh.HasNoOwnCharacters;
         ExportState = fresh.ExportState;
         ReadError = fresh.ReadError;
         ApplyExpansion(fresh.IsProfessionsExpanded);

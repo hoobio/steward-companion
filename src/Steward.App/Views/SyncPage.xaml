@@ -312,9 +312,17 @@
                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </Grid>
                             </Expander.Header>
-                            <ItemsControl
-                                ItemsSource="{x:Bind ProfessionsCharacters}"
-                                ItemTemplate="{StaticResource ProfessionsCharacterTemplate}" />
+                            <StackPanel>
+                                <ItemsControl
+                                    ItemsSource="{x:Bind ProfessionsCharacters}"
+                                    ItemTemplate="{StaticResource ProfessionsCharacterTemplate}" />
+                                <TextBlock
+                                    Text="No characters of yours on this install yet."
+                                    Padding="16,8"
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                    Visibility="{x:Bind NoOwnCharactersVisibility, Mode=OneWay}" />
+                            </StackPanel>
                         </Expander>
                     </Border>
                 </StackPanel>

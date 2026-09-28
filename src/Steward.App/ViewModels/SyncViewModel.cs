@@ -168,11 +168,11 @@ public sealed partial class SyncViewModel : ObservableObject
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
-    public Task ReloadAsync()
+    public async Task ReloadAsync()
     {
         if (_isReloading)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         _isReloading = true;
@@ -181,7 +181,13 @@ public sealed partial class SyncViewModel : ObservableObject
             IsUnreachable = !_main.IsApiReachable;
             WatchSavedVariables();
 
-            var fresh = _main.Installs.Where(install => install == _main.SelectedInstall).Select(Build).ToList();
+            var selected = _main.Installs.Where(install => install == _main.SelectedInstall).ToList();
+            var ownFolders = await Task.Run(() => selected.ToDictionary(
+                install => install.FlavourPath,
+                install => OwnCharacterKeys(install.FlavourPath),
+                StringComparer.OrdinalIgnoreCase)).ConfigureAwait(true);
+
+            var fresh = selected.Select(install => Build(install, ownFolders[install.FlavourPath])).ToList();
             if (fresh.Select(view => view.Shape).SequenceEqual(Installs.Select(view => view.Shape)))
             {
                 for (var i = 0; i < fresh.Count; i++)
@@ -200,7 +206,6 @@ public sealed partial class SyncViewModel : ObservableObject
 
             SyncCharacterPushRows();
             Recompute();
-            return Task.CompletedTask;
         }
         finally
         {
@@ -255,7 +260,15 @@ public sealed partial class SyncViewModel : ObservableObject
         Recompute();
     }
 
-    private SyncInstallViewModel Build(WowInstallViewModel install)
+    private static HashSet<(string Realm, string Name)> OwnCharacterKeys(string flavourPath) =>
+        StewardSavedVariables.FindCharacterFolders(flavourPath)
+            .Select(folder => OwnKey(folder.Realm, folder.Character))
+            .ToHashSet();
+
+    private static (string Realm, string Name) OwnKey(string realm, string name) =>
+        (realm.Replace(" ", "", StringComparison.Ordinal).ToUpperInvariant(), name.ToUpperInvariant());
+
+    private SyncInstallViewModel Build(WowInstallViewModel install, HashSet<(string Realm, string Name)> ownCharacters)
     {
         var addonMissing = !Directory.Exists(
             Path.Combine(install.AddOnsPath, StewardSavedVariables.AddonName));
@@ -293,22 +306,29 @@ public sealed partial class SyncViewModel : ObservableObject
             : snapshot.Characters;
         var outcomes = _main.GetCharacterOutcomes(install.FlavourPath);
         var batchCurrent = !professionsOnly && _main.IsCharacterPushCurrent(install.FlavourPath, snapshot?.CharactersFingerprint);
-        foreach (var character in covered
-            .Select(c => Character(c, snapshot!.Professions, outcomes, professionsOnly, batchCurrent))
+        var coveredCharacters = covered
+            .Select(c => (Observation: c, View: Character(c, snapshot!.Professions, outcomes, professionsOnly, batchCurrent)))
+            .ToList();
+        var shown = professionsOnly
+            ? coveredCharacters
+            : coveredCharacters.Where(c => ownCharacters.Contains(OwnKey(c.Observation.Realm, c.Observation.Name))).ToList();
+        foreach (var character in shown
+            .Select(c => c.View)
             .OrderBy(c => c.State)
             .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
         {
             view.ProfessionsCharacters.Add(character);
         }
 
-        var synced = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Synced);
-        var pending = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Pending);
-        var rejected = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Rejected);
+        var synced = coveredCharacters.Count(c => c.View.State == ProfessionsCharacterState.Synced);
+        var pending = coveredCharacters.Count(c => c.View.State == ProfessionsCharacterState.Pending);
+        var rejected = coveredCharacters.Count(c => c.View.State == ProfessionsCharacterState.Rejected);
         var notLinked = covered.Count(c => outcomes.GetValueOrDefault(c.CharacterGuid) is { Accepted: false, Reason: CharacterSyncRejectionCopy.NotLinkedReason });
+        view.HasNoOwnCharacters = !professionsOnly && covered.Count > 0 && shown.Count == 0;
         var professions = Dataset(
             ProfessionsDatasetKey,
             "Your characters",
-            "characters",
+            professionsOnly ? "characters" : batchCurrent ? "guild characters synced" : "guild characters, sending shortly",
             covered.Count,
             sourceFile,
             exportedAt,

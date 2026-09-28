@@ -118,7 +118,7 @@ The primary working state. Top to bottom:
 2. Header actions: a refresh icon button that re-reads the local files, and `Sync now` as the accent button.
 3. Summary banner, info tint: "{n} changes to send" at 19/600, a second line naming the datasets, and `Sync now` on the right.
 4. One `Expander` for the install selected in the title bar's install picker (see `addon-manager.md`), expanded by default; the empty states, the running banner, the generated-file card and the nav badge read that install alone. Character pushes, `StewardSync.lua` writes and the saved-variables watchers still cover every install. Header matches the Addons page: flavour name, path in mono at 11.5px, client version chip, and a per-install state pill.
-5. Three rows per card, divided by hairlines, the same for every role: "Guild roster" and "Guild professions" pulls, then a "Your characters" push that expands to one row per character. Loot and attendance have no rows until something syncs them.
+5. Three rows per card, divided by hairlines, the same for every role: "Guild roster" and "Guild professions" pulls, then a "Your characters" push that expands to one row per character. For an officer this expansion is scoped to the signed-in user's own characters on that install (matched by WTF character folder, not the full guild-wide push), with "No characters of yours on this install yet." shown when none match. Loot and attendance have no rows until something syncs them.
 
 A dataset row is: 30px glyph, the dataset name at 13.5px with the source file in mono beneath, then the record count and `exportedAt`, then the action.
 

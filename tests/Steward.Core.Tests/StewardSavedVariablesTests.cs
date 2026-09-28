@@ -223,6 +223,21 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void FindCharacterFolders_ReturnsRealmAndCharacterNames_SkippingAccountSavedVariables()
+    {
+        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), AccountFile);
+        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1", "Nightslayer", "Grug"), CharacterFile);
+        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1", "Nightslayer", "Hoobi"), CharacterFile);
+        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1", "Emberstorm", "Grug"), CharacterFile);
+
+        var found = StewardSavedVariables.FindCharacterFolders(_root);
+
+        Assert.Equal(
+            new[] { ("Nightslayer", "Grug"), ("Nightslayer", "Hoobi"), ("Emberstorm", "Grug") }.OrderBy(p => p),
+            found.OrderBy(p => p));
+    }
+
+    [Fact]
     public void Read_MapsCharacters()
     {
         var snapshot = ReadFiles(("account.lua", """
