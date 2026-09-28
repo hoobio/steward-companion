@@ -4,13 +4,13 @@ The redesign of the Addons page from one expander per WoW install into a single 
 
 Interactive mockup of every state: https://claude.ai/artifact/Vtzv3nY6bR3SEZpepFb6NX
 
-Agreed, not implemented. It replaces the Addons page and the Release channels card described in `home-and-settings.md`; everything else in that doc (the gate, the account flyout, the rest of Settings, checking and auto-apply) is unchanged. Colours, radii and control treatment follow the Design system section of `AGENTS.md` and the styles already in `App.xaml`; the mockup's pixel values are illustrative.
+Phase 1 is implemented and this doc stays the source of truth for it; phase 2 (Get addons, CurseForge and Wago sources) is blocked on gigagrug. It replaces the Addons page and the Release channels card described in `home-and-settings.md`; everything else in that doc (the gate, the account flyout, the rest of Settings, checking and auto-apply) is unchanged. Colours, radii and control treatment follow the Design system section of `AGENTS.md` and the styles already in `App.xaml`; the mockup's pixel values are illustrative. The sections below describe the built page; the differences from the original agreed design are called out where they matter.
 
 ## Page layout
 
 Top to bottom:
 
-1. Header row, one line: `Addons` at 28/600, the install picker, an edit button, and status text in Text mute at 12px on the left; "Checked {relative} ago", a refresh icon button and an open AddOns folder icon button on the right. Phase 2 adds `Get addons` after them.
+1. Header row, one line: `Addons` at 28/600 alone on the left; on the right, in order, the selected install's status text, "Checked {relative} ago", the install picker, an edit button, a refresh icon button and an open AddOns folder icon button. Phase 2 adds `Get addons` after them.
 2. `BannerList`, in its existing row between the header and the content.
 3. Toolbar: a filter box, a `Segmented` of `All`, `Updates {n}` and `Hidden {n}` (the Hidden segment only while at least one row is hidden), a `Default order` button while a column sort is active, and the `Update all` split button right-aligned.
 4. The table.
@@ -19,11 +19,13 @@ The summary banner and the per-install expanders go. The `Hidden addons` toggle 
 
 ## Install picker
 
-The picker is a button showing the selected install's label, opening a flyout of every install. A row holds more than a menu item can (label, game version, path), so it is a custom `Flyout` matching `MenuFlyout`, the same treatment as the guild switcher. Each flyout row shows the label, the game version beneath it when the install has a user label, and the flavour path in mono; the selected row carries the accent selection bar. Below a separator: `Add install` (the existing folder picker, `AddedInstalls`) and `Manage installs` (navigates to the Installs card in Settings).
+The picker is a button showing the selected install's label, opening a flyout of every install. A row holds more than a menu item can (label, game version, path), so it is a custom `Flyout` matching `MenuFlyout`, the same treatment as the guild switcher: `ShouldConstrainToRootBounds="False"`, a `DesktopAcrylicBackdrop`, the `MenuFlyoutPresenter*` brushes, `Placement="BottomEdgeAlignedRight"`. Each flyout row shows the label, the game version beneath it when the install has a user label, and the flavour path in mono; the selected row carries the accent selection bar. Below a separator: `Add install` (the existing folder picker, `AddedInstalls`) and `Manage installs` (navigates to the Installs card in Settings).
 
 **Label.** The install's `SupportedProducts` display name with the `World of Warcraft: ` prefix dropped, so `World of Warcraft: Forever - Beta` reads `Forever - Beta`. A user label replaces it. The status text beside the picker reads `{client version}` plus the running dot and "Running" while `WowClient.IsRunning` holds; with a user label it leads with the game version, `Forever · 5.5.0.62422`, so a renamed install still says which game it runs. The install path is in the picker's tooltip, the flyout and the edit dialog, not on the page.
 
-**Game version is required.** Discovery reads it from `.flavor.info`. A folder added by hand with no `.flavor.info` has none: its status text reads "Game version not set" in caution, and the page shows a centred prompt in place of the toolbar and table ("Choose a game version for this install", with a `Choose game version` button opening the edit dialog) until one is set. The options are the `SupportedProducts` values with the prefix dropped. Manifests carry one build per addon today, so in phase 1 the game version drives the RestedXP guide product gate (`RestedXp:ProductPrefixes`) and nothing else; phase 2 provider search is scoped by it.
+**Icon.** Each install carries its game version's icon, `Assets/Products/{product code}.png` (`ProductIcon.For`), shown beside the install picker's own label, on each flyout row, in the edit dialog's game version options and on the Settings Installs cards. An install with no game version shows the caution glyph in its place instead.
+
+**Game version is required.** Discovery reads it from `.flavor.info`. Add install accepts a folder that has no `.flavor.info`, as long as it looks like a flavour folder (an underscore-wrapped name holding `Interface\AddOns`); a folder added by hand with no `.flavor.info` has none: its status text reads "Game version not set" in caution, and the page shows a centred prompt in place of the toolbar and table ("Choose a game version for this install", with a `Choose game version` button opening the edit dialog) until one is set. The options are the `SupportedProducts` values with the prefix dropped. Manifests carry one build per addon today, so in phase 1 the game version drives the RestedXP guide product gate (`RestedXp:ProductPrefixes`) and nothing else; phase 2 provider search is scoped by it.
 
 **Selection** is remembered in `selected_install`, falling back to the first install.
 
@@ -49,10 +51,10 @@ Primary `Save`, close `Cancel`.
 
 | Column | Header | Content |
 | --- | --- | --- |
-| Icon | hidden | The manifest icon for a configured or provider addon; an initials tile otherwise. |
+| Icon | hidden | The manifest icon for a configured addon, falling back to the decoded local TOC icon and then an initials tile; an initials tile for a Local row. See Icons below. |
 | Name | `Name`, sortable | Display name, with the folder name in mono beneath, and the out of date glyph after the name when it applies. A row notice (below) takes the line under the folder name. |
 | Version | `Version` | See Version cell. |
-| Channel | `Channel` | A chip button reading the addon's channel, opening the channel dialog. A dim `-` for Local rows and addons with no release on any channel. |
+| Channel | `Channel` | A chip button opening the channel dialog, shown only when the addon has a release on two or more channels; with exactly one release, the channel name renders as plain text with a tooltip ("Only {channel} builds are published for {addon}.") and `Change channel` is left out of the overflow menu. A dim `-` for Local rows and addons with no release on any channel. |
 | Source | `Source`, sortable | `Steward`, `GitHub`, `Local`, and in phase 2 `CurseForge` or `Wago`. |
 | Actions | hidden | The action for the row's state, then the overflow button. |
 
@@ -71,21 +73,29 @@ Source for a configured addon comes from a new `Source` field on its `Addons` en
 | Local | the TOC `## Version` | none |
 | Updating, failed | unchanged from today: target version, the 3px bar under the name, busy `Updating`; the failure line under the folder name and `Retry` | |
 
-Versions are mono. The RestedXP row keeps its `Sign in to RestedXP` button in the action cell while RXPGuides is installed with no RestedXP session, per `guides-page.md`.
+Versions are mono. The version pair is one `TextBlock` of `Run`s rather than separate blocks, so the mono and proportional parts share a baseline. The RestedXP row keeps its `Sign in to RestedXP` button in the action cell while RXPGuides is installed with no RestedXP session, per `guides-page.md`.
 
 Row notices keep their current wording and move to the line under the folder name: the stale stored channel fallback, a newer build on a more stable channel, the `/reload` hint after an update applied while the client ran.
 
 The changelog tooltip on the available version is phase 2: `AddonRelease` has no notes field, so it needs a `notes` string array in the manifests first.
 
+The Updates count and `Update all` cover the Update available and channel switch states only; a missing addon does not count towards either.
+
+### Icons
+
+A configured addon's icon comes from its manifest, falling back on `ImageFailed` to the folder's own TOC `## IconTexture`, decoded from TGA or BLP2 by `AddonIcon` in Core; a Local row goes straight to the decoded TOC icon. Where neither resolves, the tile shows the display name's initials on the dark tile, coloured from a fixed palette by a stable hash of the folder name (`InitialsTile`).
+
 ### Out of date flag
 
-A caution glyph after the name when the installed addon's TOC `## Interface:` holds no value equal to the client's interface number. The value can be a comma-separated list; any match counts. The client's number comes from `ClientVersion` as major × 10000 + minor × 100 + patch, so the Forever beta's `1.60.1.70009` is `16001`, the value every current addon TOC on that install carries. The TOC read is `<FolderName>.toc`, the same file the version fallback reads. The glyph is a focus stop with a `ToolTip`: "Out of date for this client. Built for interface 16000 (1.60.0). Forever - Beta runs 16001 (1.60.1). The game skips it unless Load out of date AddOns is ticked on the AddOns screen." `TocFile.ReadDirective` already reads the line. Not shown on a row that is not installed.
+A caution glyph after the name when the installed addon's TOC `## Interface:` holds no value equal to the client's interface number. The value can be a comma-separated list; any match counts. The client's number comes from `ClientVersion` as major × 10000 + minor × 100 + patch, so the Forever beta's `1.60.1.70009` is `16001`, the value every current addon TOC on that install carries. The TOC read is `<FolderName>.toc`, the same file the version fallback reads. The glyph is a focus stop with a `ToolTip`: "Out of date for this client. Built for interface 16000 (1.60.0). Forever - Beta runs 16001 (1.60.1). The game skips it unless Load out of date AddOns is ticked on the AddOns screen." `TocFile.ReadDirective` already reads the line. Not shown on a row that is not installed, and not shown when the TOC carries no `## Interface:` line at all, since there is nothing to compare against.
 
 ### Order and filter
 
 The default order is the configured addons in `Addons` array order (Steward, HoobiScripts, RestedXP Guides, BugSack, BugGrabber), then every other row by name. Clicking `Name` or `Source` sorts by that column, ascending then descending then back to the default, with the arrow glyph on the active header; `Default order` in the toolbar resets it. The sort lasts for the session. A background pass never re-orders rows, as today.
 
 The filter box matches the display name, case-insensitive. `Updates` shows rows in the Update available or channel switch state. `Hidden` shows hidden rows only; `All` and `Updates` exclude them. A filter with no match shows one row reading "No addons match".
+
+The table is full width, its edges aligned with the toolbar above it. Each row raises `SizeChanged`, since `AdaptiveTrigger` does not fire inside an `ItemsRepeater`; the handler collapses the Channel column below 700px of row width and the Source column below 780px.
 
 ## Row actions
 
@@ -104,11 +114,13 @@ Neither Ignore nor Hide is offered on an `AutoInstall` addon.
 
 **Hide** keeps its current semantics (`hidden_addons`, global, excluded from counts, auto-apply and Update all); only its toggle moves to the Hidden segment.
 
-**Uninstall** opens a confirmation `ContentDialog`, "Uninstall {name}?", body "This deletes {folders} from {install}'s AddOns folder.", primary `Uninstall`. It removes the folder under the existing rule that a folder is only deleted when it holds that addon's own `.toc`, and drops the install record. A configured addon's row stays, with `Install`; a Local row goes.
+**Uninstall** opens a confirmation `ContentDialog`, "Uninstall {name}?", body "This deletes {folders} from {install}'s AddOns folder.", primary `Uninstall`; `{folders}` names the first folder and "and n more folders" for a row folded from several unmanaged folders. It removes the folder under the existing rule that a folder is only deleted when it holds that addon's own `.toc`, and drops the install record. A configured addon's row stays, with `Install`; a Local row goes.
+
+Local rows are rescanned on startup, on Refresh, and after an install or uninstall on that install (any change to a configured row's installed version, or a Local row's own removal), not on the background pass, so a busy background pass never restructures the folded-folder rows under the user.
 
 ## Update all
 
-A `SplitButton` in the accent style. The main part reads `Update all ({n})` and updates the selected install's pending rows, disabled at 0 and while any row is busy, as today. The flyout holds `Update all on {install} ({n})` and `Update all installs ({total})`.
+Two accent `Button`s: the main part reads `Update all ({n})` and updates the selected install's pending rows, disabled at 0 and while any row is busy; a second, narrower button with a chevron opens a `MenuFlyout` holding `Update all on {install} ({n})` and `Update all installs ({total})`. Built as two buttons rather than a `SplitButton`, because the `SplitButton`'s secondary half stayed transparent after `IsEnabled` toggled; the flyout's counts sit right-aligned in `KeyboardAcceleratorTextOverride`, with the full text carried in `AutomationProperties.Name`.
 
 ## Release channel dialog
 
@@ -144,7 +156,7 @@ App side: installed provider addons persisted in `state.json` as `ManagedAddon`-
 | `state.json` key | Shape | Use |
 | --- | --- | --- |
 | `install_labels` | flavour path to string | User label for an install. |
-| `install_products` | flavour path to product code | Game version for an added install, or an override of the detected one. |
+| `install_products` | flavour path to product code | Game version for an added install, or an override of the detected one; written only when the chosen product differs from the one `.flavor.info` detects, so a plain confirmation of the detected value writes nothing. |
 | `selected_install` | flavour path | The install the page shows. |
 | `ignored_addons` | list of `AppStateStore.Key` | Per-install ignored addons. |
 | `hidden_addons` | unchanged | |
@@ -154,7 +166,7 @@ App side: installed provider addons persisted in `state.json` as `ManagedAddon`-
 
 | Element | Control | Note |
 | --- | --- | --- |
-| Install picker | `Button` with a chevron + custom `Flyout` | Guild switcher treatment: `ShouldConstrainToRootBounds="False"`, `DesktopAcrylicBackdrop`, `MenuFlyoutPresenter*` brushes, explicit `Placement="BottomEdgeAlignedLeft"`. |
+| Install picker | `Button` with a chevron + custom `Flyout` | Guild switcher treatment: `ShouldConstrainToRootBounds="False"`, `DesktopAcrylicBackdrop`, `MenuFlyoutPresenter*` brushes, explicit `Placement="BottomEdgeAlignedRight"`. |
 | Edit install, uninstall confirmation | `ContentDialog` | |
 | Filter | `TextBox` with a search glyph | |
 | All / Updates / Hidden | `toolkit:Segmented` | |
@@ -163,13 +175,13 @@ App side: installed provider addons persisted in `state.json` as `ManagedAddon`-
 | Channel chip | `Button` in the chip style | |
 | Changelog, out of date glyph | `ToolTip` | Both targets are focus stops. |
 | Row overflow | `MenuFlyout` | Ignore and Hide flip their label rather than using `ToggleMenuFlyoutItem`. |
-| Update all | `SplitButton`, accent | |
+| Update all | Two `Button`s, accent | A main button and a narrower chevron button opening a `MenuFlyout`, in place of a `SplitButton`. |
 | Channel dialog | `ContentDialog` + `RadioButtons` | `IsEnabled` per item carries the no-release state. |
 | Get addons | `ContentDialog` + `AutoSuggestBox` + `ItemsRepeater` | Phase 2. Search debounced at 300ms. |
 
 ## Phases
 
-**Phase 1, this repo only:** the header and install picker, the edit install dialog and its state, the table with every column and state above, Local rows, the out of date flag, ordering and filtering, Ignore, Hide moved to the segment, uninstall confirmation, the Update all split button, the channel dialog, and the Release channels card removed from Settings. `AGENTS.md` and `home-and-settings.md` are updated to describe what is built.
+**Phase 1, this repo only, implemented:** the header and install picker, the edit install dialog and its state, the table with every column and state above, Local rows, the out of date flag, ordering and filtering, Ignore, Hide moved to the segment, uninstall confirmation, the Update all buttons, the channel dialog, and the Release channels card removed from Settings. `AGENTS.md` and `home-and-settings.md` describe what is built.
 
 **Phase 2, after gigagrug:** Get addons, CurseForge and Wago sources, the changelog tooltip.
 

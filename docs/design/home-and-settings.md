@@ -146,34 +146,7 @@ A user with no feature at all never gets past the gate. `/api/admin/me` comes ba
 
 ### Admin, updates available
 
-The primary state. Top to bottom:
-
-1. Page header. `Addons` at 26/600, and under it "{n} World of Warcraft installs, last checked {relative time}".
-2. Header actions, right-aligned on the same row: a refresh icon button and `Add install`. No channel picker, because the channel is per addon and lives in Settings.
-3. Summary banner. Caution tint, download glyph, "{n} updates available" at 19/600, a second line naming the addon and versions, and `Update all` as the accent button on the right.
-4. One `Expander` per install, expanded by default. Header carries the flavour name, the flavour path in mono at 11.5px, the client version as a chip, and a per-install count pill (`1 update` in caution, `Up to date` in success).
-5. Addon rows inside each card, divided by hairlines.
-
-An addon row is: 30px addon glyph, name at 13.5px with the addon id in mono beneath, then the version pair, then the channel pill, then the action.
-
-- Update available: `0.4.9 -> 0.5.0-beta.1`, old in mute, new in accent hover, and an accent `Update` button.
-- Current: the single version in dim, and a success tick with `Up to date`.
-- Missing: `Not installed` in dim, and a secondary `Install` button.
-- No releases: "No releases yet" in mute, no channel pill, no button.
-
-The channel pill is read only here. The same addon appears once per install and they all share one channel, so a picker on the row would change three rows at once. The row's overflow menu carries `Change channel`, which opens Settings, alongside Open folder, Reinstall and Copy SHA-256.
-
-Availability is string inequality against the recorded version, so a channel switch can move a version down. The button reads `Switch to {channel}` rather than `Update` when the addon's recorded channel differs from the effective one; the version pair beside it already carries the target version, and a full version string in the button starves the name column.
-
-### Updating
-
-The row owns the progress and the window does not block. The version pair is replaced by the target version and a state line ("Installing 0.5.0-beta.1, verifying download"), a 3px determinate `ProgressBar` bound to the existing `UpdateProgress` sits under the name, the percentage replaces the version text, and the button goes to a disabled busy state labelled `Updating`. `Update all` disables while any row is busy.
-
-Row failures stay on the row, in critical text under the addon id, with a `Retry` button: "Update failed: the download did not match the manifest checksum. Nothing was written." The window-level `InfoBar` is for session and connectivity only.
-
-### All current
-
-The banner drops to the success tint, reads "Everything is up to date" with "{n} addons across {n} installs, last checked {relative time}", and `Update all` is replaced by `Check again`. Rows keep their success tick.
+The Addons page itself, the summary banner and per-install expanders, and per-row updating and failure states are described in `docs/design/addon-manager.md`, which replaced them with a single table for one selected install.
 
 ## Account flyout
 
@@ -190,15 +163,7 @@ Toolkit `SettingsCard` and `SettingsExpander` in a 1064px column with 4px betwee
 - Identity card: avatar, display name, "Signed in with Discord, guild.hoobi.io", the role badge, and a danger-toned `Sign out`.
 - Guild panel: opens `guild.hoobi.io`, with an open-in-new action icon.
 
-**Release channels**
-
-A `SettingsExpander` headed `Release channels`, described "Each addon follows its own channel", holding one child card per configured addon. Each card shows the addon glyph, its name, the addon id, and a `Segmented` picker of the channels that addon has releases on.
-
-- A channel with no release for that addon is disabled with the tooltip "No releases on {channel} yet". `steward` has all three disabled today, and its card reads "No releases yet" in place of the picker.
-- `unstable` is absent for any role but `global`, rather than disabled.
-- The card description carries the latest version on the selected channel, in mono, so the consequence of a switch is visible before making it: "beta, 0.5.0-beta.1".
-
-There is no card explaining when Steward checks. The relative "checked {time} ago" in the page header and the summary banner says it.
+Release channels are no longer edited on Settings: the card described here was removed once `docs/design/addon-manager.md` moved channel editing to a dialog opened from the row.
 
 **World of Warcraft installs**
 
@@ -219,12 +184,6 @@ Removing an install is new. It drops the install from the list and its records f
 | Window chrome | `Window`, no backdrop | Ground painted solid, with `ExtendsContentIntoTitleBar` and `SetTitleBar`. |
 | Page switching | `Frame` | Two pages. Back arrow swaps in for the app mark on Settings. |
 | Account chip | `DropDownButton` + `PersonPicture` | Flyout gets acrylic by default. |
-| Summary banner | `Border` on `LayerFillColorDefault` | Tone tint chosen by a converter on the update count. |
-| Channel picker | `toolkit:Segmented` | One per addon, on the Settings page only. Items bind to that addon's available channels; `IsEnabled` per item carries the no-release state. |
-| Channel pill on a row | `Border` + `TextBlock` | Read only. Editing lives in Settings. |
-| Install card | `Expander` | Expanded by default. |
-| Addon rows | `ItemsControl` | Not a `ListView`: rows are not selectable and selection chrome fights the row buttons. |
-| Row progress | `ProgressBar` | Determinate, bound to `UpdateProgress`. |
 | Session and network messages | `InfoBar` | Window level, bound to `StatusMessage`. |
 | Settings rows | `toolkit:SettingsCard`, `toolkit:SettingsExpander` | Needs `CommunityToolkit.WinUI.Controls.SettingsControls`, referenced from `Steward.App.csproj`. |
 | Empty state | `StackPanel` + `FontIcon` | Centred, 46ch copy width. |
