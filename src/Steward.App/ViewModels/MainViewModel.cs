@@ -110,6 +110,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string? _characterRowsGuildId;
     private DateTimeOffset _lastPass;
     private DateTimeOffset _lastGuideCheck;
+    private TimeSpan _nextGuideCheckDue = GuideCheckInterval;
     private DateTimeOffset _lastStoreCheck;
     private StoreContext? _storeContext;
     private IReadOnlyList<StorePackageUpdate>? _storeUpdates;
@@ -585,6 +586,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         _lastGuideCheck = DateTimeOffset.Now;
+        _nextGuideCheckDue = GuideCheckInterval + TimeSpan.FromMinutes(Random.Shared.NextDouble() * 30);
         await RestedXp.CheckAsync().ConfigureAwait(true);
     }
 
@@ -2332,7 +2334,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             await RestedXp.RefreshSessionAsync().ConfigureAwait(true);
-            if (DateTimeOffset.Now - _lastGuideCheck >= GuideCheckInterval)
+            if (DateTimeOffset.Now - _lastGuideCheck >= _nextGuideCheckDue)
             {
                 await CheckGuidesAsync().ConfigureAwait(true);
             }
