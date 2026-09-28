@@ -65,6 +65,7 @@ jobs:
     runs-on: windows-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      release-version: ${{ steps.version.outputs.release-version }}
     permissions:
       contents: read
       pull-requests: read
@@ -82,14 +83,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_CREATED: ${{ needs.release-please.outputs.release_created }}
         run: |
-          $fallback = (Get-Content version.txt -Raw).Trim()
-          if ($env:RELEASE_CREATED -eq 'true') {
-            "version=$fallback" | Out-File -Append $env:GITHUB_OUTPUT
-            return
+          $release = (Get-Content version.txt -Raw).Trim()
+          "release-version=$release" | Out-File -Append $env:GITHUB_OUTPUT
+          $majorMinor = $release -replace '^(\d+\.\d+)\.\d+$', '$1'
+          if ($env:RELEASE_CREATED -ne 'true') {
+            $title = gh pr list --head release-please--branches--main --state open --json title --jq '.[0].title // empty'
+            if ($title -match 'release (\d+)\.(\d+)\.\d+') { $majorMinor = "$($Matches[1]).$($Matches[2])" }
           }
-          $majorMinor = $fallback -replace '^(\d+\.\d+)\.\d+$', '$1'
-          $title = gh pr list --head release-please--branches--main --state open --json title --jq '.[0].title // empty'
-          if ($title -match 'release (\d+)\.(\d+)\.\d+') { $majorMinor = "$($Matches[1]).$($Matches[2])" }
           "version=$majorMinor.$($env:GITHUB_RUN_NUMBER).0" | Out-File -Append $env:GITHUB_OUTPUT
 
       - name: Stamp Package.appxmanifest version
@@ -226,7 +226,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.build-msix.outputs.version }}
+          VERSION: ${{ needs.build-msix.outputs.release-version }}
         run: |
           $ErrorActionPreference = 'Stop'
           $releases = gh api repos/${{ github.repository }}/releases --paginate | ConvertFrom-Json
@@ -258,7 +258,7 @@ jobs:
         shell: pwsh
         env:
           PRODUCT_ID: ${{ env.STORE_PRODUCT_ID }}
-          VERSION: ${{ needs.build-msix.outputs.version }}
+          VERSION: ${{ needs.build-msix.outputs.release-version }}
           SINCE_VERSION: ${{ steps.previous-release.outputs.since }}
         run: |
           $ErrorActionPreference = 'Stop'
@@ -304,7 +304,6 @@ jobs:
     if: >-
       always()
       && github.event_name == 'push'
-      && needs.release-please.outputs.release_created != 'true'
       && needs.build-msix.result == 'success'
       && vars.STORE_FLIGHT_ID != ''
       && vars.AZURE_CLIENT_ID != ''
