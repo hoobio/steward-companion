@@ -517,7 +517,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public static string WindowTitle => $"Steward{BuildSuffix}";
 
-    private static string BuildSuffix => !App.IsGitHubRelease ? " (Development)" : App.IsPreRelease ? " (Pre-release)" : "";
+    private static string BuildSuffix => App.IsGitHubRelease ? (App.IsPreRelease ? " (Pre-release)" : "")
+        : App.BuildName == "debug" ? " (Debug)" : " (Development)";
 
     public string InstallsDescription => $"{InstallCount} found, read from .flavor.info and .build.info";
 
