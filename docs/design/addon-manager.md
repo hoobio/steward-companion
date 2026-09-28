@@ -42,7 +42,7 @@ Primary `Save`, close `Cancel`.
 ### Which rows show
 
 - Every configured addon in `appsettings.json` that `VisibleAddons()` passes, on every install with a game version, whether installed or not. Feature gating, `WowInstallViewModel.SyncAddons` reconciliation and the `AutoInstall` rules are unchanged.
-- Every other folder in the install's `AddOns` holding a `.toc`, as a Local row. A folder is folded into another row instead of getting its own when it is a configured addon's `FolderName`, or when its TOC's `## Dependencies` or `## RequiredDeps` names another unmanaged folder that is present; the parent row's folder line then reads `DBM-Core + 12 folders`.
+- Every other folder in the install's `AddOns` holding its own TOC (`<Folder>.toc`, or a flavour-suffixed `<Folder>_*.toc` when that is all it has), as a Local row. A configured addon's `FolderName` never gets a Local row, whether or not that addon is visible to the user, so feature gating stays exact. `StewardGuides` never gets one either: the app generates it and the Guides page owns it. A folder is folded into another row instead of getting its own when its TOC's `## Dependencies` or `## RequiredDeps` names another unmanaged folder that is present, resolved through chains to the root; the parent row's folder line then reads `DBM-Core + 12 folders`. A folder depending only on a configured addon keeps its own row: `HoobiVersions` depends on `Steward` but is a separate addon. The rule was checked against the Forever beta install on 28 Sep 2026, whose `AddOns` held `HoobiScripts`, `HoobiVersions`, `RXPGuides`, `Steward` and `StewardGuides`; the unmanaged-to-unmanaged folding case (a DBM-style suite) had no real folder there and is covered by tests.
 - Phase 2: addons installed through Get addons, on the installs they were installed to.
 
 ### Columns
@@ -79,7 +79,7 @@ The changelog tooltip on the available version is phase 2: `AddonRelease` has no
 
 ### Out of date flag
 
-A caution glyph after the name when the installed addon's TOC `## Interface:` holds no value equal to the client's interface number. The value can be a comma-separated list; any match counts. The client's number comes from `ClientVersion` as major × 10000 + minor × 100 + patch, so `5.5.1.63538` is `50501`. The glyph is a focus stop with a `ToolTip`: "Out of date for this client. Built for interface 50500 (5.5.0). Forever - Beta runs 50501 (5.5.1). The game skips it unless Load out of date AddOns is ticked on the AddOns screen." `TocFile.ReadDirective` already reads the line. Not shown on a row that is not installed.
+A caution glyph after the name when the installed addon's TOC `## Interface:` holds no value equal to the client's interface number. The value can be a comma-separated list; any match counts. The client's number comes from `ClientVersion` as major × 10000 + minor × 100 + patch, so the Forever beta's `1.60.1.70009` is `16001`, the value every current addon TOC on that install carries. The TOC read is `<FolderName>.toc`, the same file the version fallback reads. The glyph is a focus stop with a `ToolTip`: "Out of date for this client. Built for interface 16000 (1.60.0). Forever - Beta runs 16001 (1.60.1). The game skips it unless Load out of date AddOns is ticked on the AddOns screen." `TocFile.ReadDirective` already reads the line. Not shown on a row that is not installed.
 
 ### Order and filter
 
@@ -176,4 +176,3 @@ App side: installed provider addons persisted in `state.json` as `ManagedAddon`-
 ## Open questions
 
 - Which providers phase 2 searches, given the API key terms for CurseForge and Wago.
-- Whether the Local folder-folding rule holds up against real `AddOns` folders; check it against the Forever beta install before building the table on it.
