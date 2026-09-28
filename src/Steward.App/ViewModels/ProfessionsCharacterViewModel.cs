@@ -14,6 +14,8 @@ public sealed record ProfessionsCharacterViewModel(
 {
     public string LevelClassText => $"Level {Level} {ClassName}";
 
+    public Visibility SkillsVisibility => When(SkillsSummary.Length > 0);
+
     public Visibility SyncedVisibility => When(State == ProfessionsCharacterState.Synced);
 
     public Visibility PendingVisibility => When(State == ProfessionsCharacterState.Pending);

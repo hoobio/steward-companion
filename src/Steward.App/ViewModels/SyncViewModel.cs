@@ -13,9 +13,6 @@ namespace Steward.App.ViewModels;
 
 public sealed partial class SyncViewModel : ObservableObject
 {
-    private const string RosterDatasetKey = "roster";
-    private const string LootDatasetKey = "loot";
-    private const string AttendanceDatasetKey = "attendance";
     private const string ProfessionsDatasetKey = "professions";
     private const string GuildRosterDatasetKey = "guild-roster";
     private const string GuildProfessionsDatasetKey = "guild-professions";
@@ -100,7 +97,7 @@ public sealed partial class SyncViewModel : ObservableObject
 
     public bool HasWaiting => _main.HasSyncFeature && Installs.Any(install =>
         install.ExportState == SyncExportState.Ready
-        && install.Datasets.FirstOrDefault(dataset => dataset.Key is RosterDatasetKey or ProfessionsDatasetKey) is { } pushRow
+        && install.Datasets.FirstOrDefault(dataset => dataset.Key == ProfessionsDatasetKey) is { } pushRow
         && (pushRow.CharacterSync is null || pushRow.CharacterSync.Error is not null));
 
     public Visibility NoInstallVisibility => When(_main.Installs.Count == 0);
@@ -230,7 +227,7 @@ public sealed partial class SyncViewModel : ObservableObject
     {
         foreach (var install in Installs)
         {
-            var pushRow = install.Datasets.FirstOrDefault(dataset => dataset.Key is RosterDatasetKey or ProfessionsDatasetKey);
+            var pushRow = install.Datasets.FirstOrDefault(dataset => dataset.Key == ProfessionsDatasetKey);
             if (pushRow is null)
             {
                 continue;
@@ -290,121 +287,96 @@ public sealed partial class SyncViewModel : ObservableObject
             OutdatedProfessions = snapshot?.OutdatedProfessions ?? 0,
         };
 
-        if (_main.IsProfessionsOnlySync)
+        var professionsOnly = _main.IsProfessionsOnlySync;
+        IReadOnlyList<CharacterObservation> covered = snapshot is null ? []
+            : professionsOnly ? CharacterSyncMapping.FilterToProfessionsOnly(snapshot)
+            : snapshot.Characters;
+        var outcomes = _main.GetCharacterOutcomes(install.FlavourPath);
+        var batchCurrent = !professionsOnly && _main.IsCharacterPushCurrent(install.FlavourPath, snapshot?.CharactersFingerprint);
+        foreach (var character in covered
+            .Select(c => Character(c, snapshot!.Professions, outcomes, professionsOnly, batchCurrent))
+            .OrderBy(c => c.State)
+            .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
         {
-            IReadOnlyList<CharacterObservation> covered = snapshot is null ? [] : CharacterSyncMapping.FilterToProfessionsOnly(snapshot);
-            var outcomes = _main.GetCharacterOutcomes(install.FlavourPath);
-            foreach (var character in covered
-                .Select(c => ProfessionsCharacter(c, snapshot!.Professions, outcomes))
-                .OrderBy(c => c.State)
-                .ThenBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase))
-            {
-                view.ProfessionsCharacters.Add(character);
-            }
-
-            var synced = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Synced);
-            var pending = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Pending);
-            var rejected = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Rejected);
-            var notLinked = covered.Count(c => outcomes.GetValueOrDefault(c.CharacterGuid) is { Accepted: false, Reason: CharacterSyncRejectionCopy.NotLinkedReason });
-            var professions = Dataset(
-                ProfessionsDatasetKey,
-                "Your characters",
-                "characters",
-                "",
-                covered.Count,
-                sourceFile,
-                exportedAt,
-                isStale,
-                isFirst: true,
-                isSynced: synced > 0 && pending == 0,
-                showOutcomeSummary: false);
-            professions.IconSource = ProfessionsIcon;
-            professions.StatusText = ProfessionsStatus(synced, pending, notLinked, rejected - notLinked);
-            view.Datasets.Add(professions);
-            view.ProfessionsDataset = professions;
-            view.ApplyExpansion(_expansionChoices.GetValueOrDefault(install.FlavourPath));
-            view.ExpansionChosen = (flavourPath, expanded) => _expansionChoices[flavourPath] = expanded;
-
-            var written = _main.IsGuildDataWritten(install.FlavourPath, install.AddOnsPath);
-            var directory = _main.LastDirectory;
-            if (_main.HasRosterFeature)
-            {
-                var guildRoster = Dataset(GuildRosterDatasetKey, "Guild roster", $"people, {directory?.Characters?.Count ?? 0} characters", "", directory?.People?.Count ?? 0, StewardSyncFileName, "", false, isFirst: true);
-                guildRoster.IconSource = GuildRosterIcon;
-                AddPullDataset(view, guildRoster, directory?.People is not null, written);
-            }
-
-            if (_main.HasProfessionsFeature)
-            {
-                var guildProfessions = Dataset(
-                    GuildProfessionsDatasetKey,
-                    "Guild professions",
-                    $"characters, {_main.LastMemberCatalogue?.Count ?? 0} professions",
-                    "",
-                    directory?.Professions?.Count ?? 0,
-                    StewardSyncFileName,
-                    "",
-                    false,
-                    isFirst: view.PullDatasets.Count == 0);
-                guildProfessions.IconSource = GuildProfessionsIcon;
-                AddPullDataset(view, guildProfessions, directory?.Professions is not null, written);
-            }
-
-            return view;
+            view.ProfessionsCharacters.Add(character);
         }
 
-        var roster = Dataset(
-            RosterDatasetKey,
-            "Roster",
+        var synced = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Synced);
+        var pending = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Pending);
+        var rejected = view.ProfessionsCharacters.Count(c => c.State == ProfessionsCharacterState.Rejected);
+        var notLinked = covered.Count(c => outcomes.GetValueOrDefault(c.CharacterGuid) is { Accepted: false, Reason: CharacterSyncRejectionCopy.NotLinkedReason });
+        var professions = Dataset(
+            ProfessionsDatasetKey,
+            "Your characters",
             "characters",
-            "",
-            snapshot?.Characters.Count ?? 0,
+            covered.Count,
             sourceFile,
             exportedAt,
             isStale,
             isFirst: true,
-            isSynced: _main.IsRosterInSync(install.FlavourPath, install.AddOnsPath, snapshot?.CharactersFingerprint));
-        roster.IconSource = GuildRosterIcon;
-        view.Datasets.Add(roster);
-        view.Datasets.Add(Dataset(
-            LootDatasetKey,
-            "Loot",
-            "loot events",
-            "",
-            snapshot?.Loot.Count ?? 0,
-            sourceFile,
-            exportedAt,
-            isStale,
-            isFirst: false,
-            isComingSoon: true));
-        view.Datasets.Add(Dataset(
-            AttendanceDatasetKey,
-            "Attendance",
-            "raids",
-            "",
-            snapshot?.Attendance.Count ?? 0,
-            sourceFile,
-            exportedAt,
-            isStale,
-            isFirst: false,
-            isComingSoon: true));
+            isSynced: synced > 0 && pending == 0);
+        professions.IconSource = ProfessionsIcon;
+        professions.StatusText = ProfessionsStatus(synced, pending, notLinked, rejected - notLinked);
+        view.Datasets.Add(professions);
+        view.ProfessionsDataset = professions;
+        view.ApplyExpansion(_expansionChoices.GetValueOrDefault(install.FlavourPath));
+        view.ExpansionChosen = (flavourPath, expanded) => _expansionChoices[flavourPath] = expanded;
+
+        var written = _main.IsGuildDataWritten(install.FlavourPath, install.AddOnsPath);
+        var directory = _main.LastDirectory;
+        var officerPayload = _main.HasStewardFeature ? _main.LastOfficerPayload : null;
+        if (_main.HasRosterFeature || _main.HasStewardFeature)
+        {
+            var guildRoster = Dataset(
+                GuildRosterDatasetKey,
+                "Guild roster",
+                $"people, {directory?.Characters?.Count ?? 0} characters",
+                directory?.People?.Count ?? officerPayload?.Members.Count ?? 0,
+                StewardSyncFileName,
+                "",
+                false,
+                isFirst: true);
+            guildRoster.IconSource = GuildRosterIcon;
+            AddPullDataset(view, guildRoster, directory?.People is not null || officerPayload is not null, written);
+        }
+
+        if (_main.HasProfessionsFeature || _main.HasStewardFeature)
+        {
+            var guildProfessions = Dataset(
+                GuildProfessionsDatasetKey,
+                "Guild professions",
+                $"characters, {_main.LastMemberCatalogue?.Count ?? officerPayload?.Catalogue.Count ?? 0} professions",
+                directory?.Professions?.Count ?? 0,
+                StewardSyncFileName,
+                "",
+                false,
+                isFirst: view.PullDatasets.Count == 0);
+            guildProfessions.IconSource = GuildProfessionsIcon;
+            AddPullDataset(view, guildProfessions, directory?.Professions is not null || officerPayload?.Catalogue.Count > 0, written);
+        }
 
         return view;
     }
 
-    private ProfessionsCharacterViewModel ProfessionsCharacter(
+    private ProfessionsCharacterViewModel Character(
         CharacterObservation character,
         IReadOnlyDictionary<string, CharacterProfessions> professions,
-        IReadOnlyDictionary<string, CharacterPushOutcome> outcomes)
+        IReadOnlyDictionary<string, CharacterPushOutcome> outcomes,
+        bool professionsOnly,
+        bool batchCurrent)
     {
         var outcome = outcomes.GetValueOrDefault(character.CharacterGuid);
-        var characterProfessions = professions[character.CharacterGuid];
-        var state = ProfessionsPushSelection.StateOf(outcome, CharacterSyncMapping.ProfessionsFingerprint(characterProfessions));
+        var characterProfessions = professions.GetValueOrDefault(character.CharacterGuid);
+        var state = professionsOnly
+            ? ProfessionsPushSelection.StateOf(outcome, CharacterSyncMapping.ProfessionsFingerprint(characterProfessions!))
+            : !batchCurrent || outcome is null ? ProfessionsCharacterState.Pending
+            : outcome.Accepted ? ProfessionsCharacterState.Synced
+            : ProfessionsCharacterState.Rejected;
         return new ProfessionsCharacterViewModel(
             character.Name,
             character.Level,
             WowClasses.NameFor(character.ClassId),
-            ProfessionsSkillSummary.Format(characterProfessions.Skills),
+            ProfessionsSkillSummary.Format(characterProfessions?.Skills),
             state,
             state == ProfessionsCharacterState.Rejected && outcome?.Reason is { } reason
                 ? _main.DescribeRejection(character.CharacterGuid, reason)
@@ -442,28 +414,22 @@ public sealed partial class SyncViewModel : ObservableObject
         string key,
         string name,
         string unit,
-        string glyph,
         int localCount,
         string sourceFile,
         string exportedAt,
         bool isStale,
         bool isFirst,
-        bool isComingSoon = false,
-        bool isSynced = false,
-        bool showOutcomeSummary = true) => new()
+        bool isSynced = false) => new()
     {
         Key = key,
         Name = name,
         Unit = unit,
-        Glyph = glyph,
         SourceFile = sourceFile,
         LocalCount = localCount,
         ExportedAtText = exportedAt,
         IsStale = isStale,
         IsFirst = isFirst,
-        IsComingSoon = isComingSoon,
         IsSynced = isSynced,
-        ShowOutcomeSummary = showOutcomeSummary,
     };
 
     private static string SourceFile(SavedVariablesSnapshot? snapshot) => snapshot switch
@@ -496,14 +462,12 @@ public sealed partial class SyncViewModel : ObservableObject
     private async Task SyncNowAsync()
     {
         await _main.PushCharacterSyncAsync(force: true).ConfigureAwait(true);
-        if (IsProfessionsOnlySync)
-        {
-            await ReloadAsync().ConfigureAwait(true);
-        }
-        else
+        if (!IsProfessionsOnlySync)
         {
             await WriteGeneratedFileAsync().ConfigureAwait(true);
         }
+
+        await ReloadAsync().ConfigureAwait(true);
     }
 
     [RelayCommand]

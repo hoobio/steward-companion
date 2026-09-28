@@ -61,104 +61,6 @@
             </Button>
         </DataTemplate>
 
-        <DataTemplate x:Key="SyncDatasetTemplate" x:DataType="vm:SyncDatasetViewModel">
-            <Grid
-                BorderThickness="{x:Bind HairlineThickness}"
-                BorderBrush="{ThemeResource RowHairlineBrush}"
-                Padding="{StaticResource CardRowPadding}"
-                MinHeight="{StaticResource CardRowMinHeight}"
-                ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="30" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" MinWidth="96" />
-                    <ColumnDefinition Width="Auto" MinWidth="80" />
-                </Grid.ColumnDefinitions>
-
-                <Border
-                    Grid.Column="0"
-                    Width="30"
-                    Height="30"
-                    VerticalAlignment="Center"
-                    CornerRadius="6"
-                    Background="{ThemeResource ChipBrush}">
-                    <Grid>
-                        <FontIcon
-                            Glyph="{x:Bind Glyph}"
-                            FontSize="14"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Visibility="{x:Bind GlyphVisibility}" />
-                        <Image Source="{x:Bind IconSource}" Stretch="UniformToFill" />
-                    </Grid>
-                </Border>
-
-                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind Name}" FontSize="13.5" FontWeight="SemiBold" />
-                    <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind SyncedGlyphVisibility, Mode=OneWay}">
-                        <FontIcon
-                            Glyph="&#xE73E;"
-                            FontSize="12"
-                            VerticalAlignment="Center"
-                            Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-                        <TextBlock
-                            Text="In sync with the guild"
-                            FontSize="12"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                    <TextBlock
-                        Text="{x:Bind CharacterSync.Error, Mode=OneWay, FallbackValue=''}"
-                        TextWrapping="Wrap"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                        Visibility="{x:Bind CharacterSync.ErrorVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
-                    <TextBlock
-                        Text="{x:Bind CharacterSync.RejectedSummary, Mode=OneWay, FallbackValue=''}"
-                        TextWrapping="Wrap"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                        Visibility="{x:Bind CharacterRejectedVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="{x:Bind Note, Mode=OneWay}"
-                        TextWrapping="Wrap"
-                        FontSize="12"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind NoteVisibility, Mode=OneWay}" />
-                </StackPanel>
-
-                <TextBlock
-                    Grid.Column="2"
-                    VerticalAlignment="Center"
-                    Text="{x:Bind CharacterSync.AcceptedText, Mode=OneWay, FallbackValue=''}"
-                    FontSize="12.5"
-                    TextAlignment="Right"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Visibility="{x:Bind CharacterAcceptedVisibility, Mode=OneWay}" />
-
-                <TextBlock
-                    Grid.Column="3"
-                    VerticalAlignment="Center"
-                    Text="{x:Bind RecordsText, Mode=OneWay}"
-                    FontSize="12.5"
-                    TextAlignment="Right"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Visibility="{x:Bind RecordsVisibility, Mode=OneWay}" />
-
-                <Border
-                    Grid.Column="3"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center"
-                    CornerRadius="4"
-                    Padding="8,2"
-                    Background="{ThemeResource ChipBrush}"
-                    Visibility="{x:Bind ComingSoonVisibility, Mode=OneWay}">
-                    <TextBlock
-                        Text="Soon"
-                        FontSize="12"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                </Border>
-            </Grid>
-        </DataTemplate>
-
         <DataTemplate x:Key="PullDatasetTemplate" x:DataType="vm:SyncDatasetViewModel">
             <Grid
                 BorderThickness="{x:Bind HairlineThickness}"
@@ -228,7 +130,8 @@
                         Text="{x:Bind SkillsSummary}"
                         FontSize="12"
                         TextWrapping="Wrap"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Visibility="{x:Bind SkillsVisibility}" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" MaxWidth="200">
@@ -335,17 +238,13 @@
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                     <ItemsControl
-                        ItemsSource="{x:Bind Datasets}"
-                        ItemTemplate="{StaticResource SyncDatasetTemplate}"
-                        Visibility="{x:Bind DatasetListVisibility, Mode=OneWay}" />
-                    <ItemsControl
                         ItemsSource="{x:Bind PullDatasets}"
                         ItemTemplate="{StaticResource PullDatasetTemplate}"
-                        Visibility="{x:Bind ProfessionsVisibility, Mode=OneWay}" />
+                        Visibility="{x:Bind DatasetsVisibility, Mode=OneWay}" />
                     <Border
                         BorderBrush="{ThemeResource RowHairlineBrush}"
                         BorderThickness="{x:Bind ProfessionsHairlineThickness}"
-                        Visibility="{x:Bind ProfessionsVisibility, Mode=OneWay}">
+                        Visibility="{x:Bind DatasetsVisibility, Mode=OneWay}">
                         <Expander
                             IsExpanded="{x:Bind IsProfessionsExpanded, Mode=TwoWay}"
                             Padding="0"
@@ -391,6 +290,18 @@
                                                 FontSize="12"
                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                         </StackPanel>
+                                        <TextBlock
+                                            Text="{x:Bind ProfessionsDataset.CharacterSync.Error, Mode=OneWay, FallbackValue=''}"
+                                            TextWrapping="Wrap"
+                                            FontSize="12"
+                                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                            Visibility="{x:Bind ProfessionsDataset.CharacterSync.ErrorVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
+                                        <TextBlock
+                                            Text="{x:Bind ProfessionsDataset.Note, Mode=OneWay, FallbackValue=''}"
+                                            TextWrapping="Wrap"
+                                            FontSize="12"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Visibility="{x:Bind ProfessionsDataset.NoteVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
                                     </StackPanel>
 
                                     <TextBlock

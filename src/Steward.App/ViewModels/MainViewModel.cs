@@ -380,7 +380,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasGuidesFeature => _features.Contains(GigagrugClient.GuidesFeature);
 
-    private bool HasStewardFeature => _guildFeatures.Contains(GigagrugClient.StewardFeature);
+    public bool HasStewardFeature => _guildFeatures.Contains(GigagrugClient.StewardFeature);
 
     public bool HasSyncFeature => _guildFeatures.Contains(GigagrugClient.SyncFeature);
 
@@ -391,6 +391,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public SyncDirectory? LastDirectory => _lastDirectory;
 
     public IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? LastMemberCatalogue => _lastMemberCatalogue;
+
+    public SyncPayload? LastOfficerPayload => _lastOfficerPayload;
 
     public bool IsProfessionsOnlySync => HasSyncFeature && !HasStewardFeature;
 
@@ -1779,7 +1781,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
     }
 
-    public bool IsRosterInSync(string flavourPath, string addOnsPath, string? charactersFingerprint)
+    public bool IsCharacterPushCurrent(string flavourPath, string? charactersFingerprint)
     {
         if (charactersFingerprint is null || _guildId is not { } guildId)
         {
@@ -1788,10 +1790,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var state = _stateStore.Load();
         var key = AppStateStore.CharacterSyncKey(guildId, flavourPath);
-        var pushedUp = !CharacterPushGate.ShouldPush(charactersFingerprint, state.CharacterSync, key)
+        return !CharacterPushGate.ShouldPush(charactersFingerprint, state.CharacterSync, key)
             && state.CharacterSync.GetValueOrDefault(key)?.Error is null;
-
-        return pushedUp && IsGuildDataWritten(flavourPath, addOnsPath);
     }
 
     public bool IsGuildDataWritten(string flavourPath, string addOnsPath) =>

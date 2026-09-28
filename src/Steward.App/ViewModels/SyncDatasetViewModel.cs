@@ -7,21 +7,11 @@ namespace Steward.App.ViewModels;
 
 public sealed partial class SyncDatasetViewModel : ObservableObject
 {
-    private static readonly string[] CharacterSyncDerivedNames =
-    [
-        nameof(CharacterSyncVisibility),
-        nameof(NoteVisibility),
-        nameof(CharacterAcceptedVisibility),
-        nameof(CharacterRejectedVisibility),
-    ];
-
     public required string Key { get; init; }
 
     public required string Name { get; init; }
 
     public required string Unit { get; set; }
-
-    public required string Glyph { get; init; }
 
     public required string SourceFile { get; set; }
 
@@ -33,17 +23,11 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
 
     public required bool IsFirst { get; init; }
 
-    public bool IsComingSoon { get; init; }
-
     public bool IsSynced { get; set; }
 
     public Visibility SyncedGlyphVisibility => When(IsSynced);
 
-    public bool ShowOutcomeSummary { get; init; } = true;
-
     public ImageSource? IconSource { get; set; }
-
-    public Visibility GlyphVisibility => When(IconSource is null);
 
     public string? StatusText { get; set; }
 
@@ -51,28 +35,14 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     public partial string? Note { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NoteVisibility))]
     public partial CharacterSyncRowViewModel? CharacterSync { get; set; }
 
-    public Visibility CharacterSyncVisibility => When(CharacterSync is not null);
-
-    public Visibility CharacterAcceptedVisibility => When(ShowOutcomeSummary && CharacterSync?.AcceptedVisibility == Visibility.Visible);
-
-    public Visibility CharacterRejectedVisibility => When(ShowOutcomeSummary && (CharacterSync?.HasRejected ?? false));
-
-    public Visibility NoteVisibility => When(CharacterSync is null && Note is not null && !IsComingSoon);
-
-    public Visibility ComingSoonVisibility => When(IsComingSoon);
+    public Visibility NoteVisibility => When(CharacterSync is null && Note is not null);
 
     public Thickness HairlineThickness => IsFirst ? default : new Thickness(0, 1, 0, 0);
 
     public string RecordsText => $"{LocalCount} {Unit}";
-
-    public Visibility RecordsVisibility => When(!IsComingSoon);
-
-    public Visibility ExportedAtVisibility => When(!IsComingSoon);
-
-    public Brush ExportedAtBrush => (Brush)Application.Current.Resources[
-        IsStale ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush"];
 
     public void CopyFrom(SyncDatasetViewModel fresh)
     {
@@ -89,14 +59,6 @@ public sealed partial class SyncDatasetViewModel : ObservableObject
     }
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
-
-    partial void OnCharacterSyncChanged(CharacterSyncRowViewModel? value)
-    {
-        foreach (var name in CharacterSyncDerivedNames)
-        {
-            OnPropertyChanged(name);
-        }
-    }
 
     partial void OnNoteChanged(string? value) => OnPropertyChanged(nameof(NoteVisibility));
 }

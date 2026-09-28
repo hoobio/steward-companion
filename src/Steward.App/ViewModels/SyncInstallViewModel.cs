@@ -30,16 +30,12 @@ public sealed partial class SyncInstallViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(OldFormatVisibility))]
     [NotifyPropertyChangedFor(nameof(DatasetsVisibility))]
-    [NotifyPropertyChangedFor(nameof(DatasetListVisibility))]
-    [NotifyPropertyChangedFor(nameof(ProfessionsVisibility))]
     public partial SyncExportState ExportState { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ReadErrorVisibility))]
     [NotifyPropertyChangedFor(nameof(OldFormatVisibility))]
     [NotifyPropertyChangedFor(nameof(DatasetsVisibility))]
-    [NotifyPropertyChangedFor(nameof(DatasetListVisibility))]
-    [NotifyPropertyChangedFor(nameof(ProfessionsVisibility))]
     public partial string? ReadError { get; set; }
 
     public ObservableCollection<SyncDatasetViewModel> Datasets { get; } = [];
@@ -61,13 +57,7 @@ public sealed partial class SyncInstallViewModel : ObservableObject
     public Visibility DatasetsVisibility => When(ReadError is null && ExportState != SyncExportState.OldFormat);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(DatasetListVisibility))]
-    [NotifyPropertyChangedFor(nameof(ProfessionsVisibility))]
     public partial SyncDatasetViewModel? ProfessionsDataset { get; set; }
-
-    public Visibility DatasetListVisibility => When(DatasetsVisibility == Visibility.Visible && ProfessionsDataset is null);
-
-    public Visibility ProfessionsVisibility => When(DatasetsVisibility == Visibility.Visible && ProfessionsDataset is not null);
 
     [ObservableProperty]
     public partial bool IsProfessionsExpanded { get; set; }

@@ -14,17 +14,7 @@ public sealed record CharacterSyncRowViewModel(
 {
     public string LastPushText => PushedAt is null ? "Not pushed yet" : $"Pushed {Relative(PushedAt.Value)}";
 
-    public string AcceptedText => Accepted is { } accepted ? $"{accepted} accepted" : string.Empty;
-
-    public Visibility AcceptedVisibility => Accepted is not null ? Visibility.Visible : Visibility.Collapsed;
-
     public Visibility ErrorVisibility => Error is not null ? Visibility.Visible : Visibility.Collapsed;
-
-    public bool HasRejected => Rejected.Count > 0;
-
-    public Visibility RejectedVisibility => HasRejected ? Visibility.Visible : Visibility.Collapsed;
-
-    public string RejectedSummary => string.Join(Environment.NewLine, Rejected.Select(r => $"{r.CharacterGuid}: {r.Reason}"));
 
     private static string Relative(DateTimeOffset moment)
     {
