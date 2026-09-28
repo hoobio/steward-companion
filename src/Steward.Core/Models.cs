@@ -173,6 +173,9 @@ public sealed record AppState(
     [JsonPropertyName("app_update_check")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AppUpdateCheck? AppUpdateCheck { get; init; }
+
+    [JsonPropertyName("table_column_widths")]
+    public Dictionary<string, double> TableColumnWidths { get; init; } = null!;
 }
 
 public sealed record AppUpdateCheck(

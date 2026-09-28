@@ -15,4 +15,6 @@ public interface IAddonTableRow
     int StatusRank { get; }
 
     DateTimeOffset? LastUpdated { get; }
+
+    bool IsCompact { get; set; }
 }

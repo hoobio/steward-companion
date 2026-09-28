@@ -77,6 +77,10 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(Notes),
         nameof(ChangelogVisibility),
         nameof(ChangelogTitle),
+        nameof(VersionCellTip),
+        nameof(HasVersionCellTip),
+        nameof(CompactChannelChipVisibility),
+        nameof(CompactSingleChannelVisibility),
         nameof(NoticeVisibility),
         nameof(OverflowVisibility),
         nameof(IgnoreVisibility),
@@ -282,7 +286,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public Visibility VersionPairVisibility =>
         When(State is AddonRowState.UpdateAvailable or AddonRowState.Missing || (State == AddonRowState.Failed && HasUpdateAvailable));
 
-    public Visibility ReleasedVisibility => When(State is AddonRowState.UpdateAvailable or AddonRowState.Missing && !IsIgnoredUpdate);
+    private bool ShowsReleased => State is AddonRowState.UpdateAvailable or AddonRowState.Missing && !IsIgnoredUpdate;
+
+    public Visibility ReleasedVisibility => When(ShowsReleased && !IsCompact);
 
     public Visibility CurrentVersionVisibility => When(State == AddonRowState.Current);
 
@@ -357,10 +363,20 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public partial DateTimeOffset? LastUpdated { get; private set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasVersionTip))]
+    [NotifyPropertyChangedFor(nameof(VersionCellTip), nameof(HasVersionCellTip))]
     public partial string? VersionTip { get; private set; }
 
-    public bool HasVersionTip => VersionTip is not null;
+    [ObservableProperty]
+    public partial bool IsCompact { get; set; }
+
+    public string? VersionCellTip =>
+        string.Join("\n", new[] { VersionTip, IsCompact && ShowsReleased ? ReleasedText : null }.Where(line => !string.IsNullOrEmpty(line))) is { Length: > 0 } tip ? tip : null;
+
+    public bool HasVersionCellTip => VersionCellTip is not null;
+
+    public Visibility CompactChannelChipVisibility => When(IsCompact && HasChannelChoice);
+
+    public Visibility CompactSingleChannelVisibility => When(IsCompact && Channel is not null && !HasChannelChoice);
 
     public Visibility NoticeVisibility =>
         When(State != AddonRowState.Failed && !string.IsNullOrEmpty(StatusMessage));
@@ -472,6 +488,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     partial void OnIsHiddenChanged(bool value) => NotifyDerived();
 
     partial void OnIsIgnoredChanged(bool value) => NotifyDerived();
+
+    partial void OnIsCompactChanged(bool value) => NotifyDerived();
 
     private void NotifyDerived()
     {

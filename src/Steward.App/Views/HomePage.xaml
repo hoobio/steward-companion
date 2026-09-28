@@ -18,6 +18,7 @@
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Stretch"
                     ToolTipService.ToolTip="{x:Bind FlavourPath}"
+                    Tag="{x:Bind}"
                     Click="OnInstallOptionClick">
                     <Grid ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
@@ -77,6 +78,7 @@
                     BorderThickness="0"
                     AutomationProperties.Name="{x:Bind EditAccessibleName, Mode=OneWay}"
                     ToolTipService.ToolTip="Edit install"
+                    Tag="{x:Bind}"
                     Click="OnEditInstallOptionClick">
                     <Button.Resources>
                         <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
@@ -96,7 +98,7 @@
                 Background="Transparent"
                 BorderThickness="0,1,0,0"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
-                SizeChanged="OnTableRowSizeChanged">
+                Tag="{x:Bind}">
                 <Grid.Resources>
                     <MenuFlyout
                         x:Key="RowMenu"
@@ -129,12 +131,13 @@
                 </Grid.ContextFlyout>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="30" />
-                    <ColumnDefinition Width="3*" MinWidth="96" />
-                    <ColumnDefinition Width="2*" MinWidth="114" />
-                    <ColumnDefinition Width="1.2*" MinWidth="84" />
-                    <ColumnDefinition Width="1*" MinWidth="60" />
-                    <ColumnDefinition Width="1.5*" MinWidth="76" />
-                    <ColumnDefinition Width="184" />
+                    <ColumnDefinition Width="3*" />
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="1.2*" />
+                    <ColumnDefinition Width="1*" />
+                    <ColumnDefinition Width="1.5*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <Border
@@ -155,21 +158,27 @@
                         <Image
                             Source="{x:Bind Icon}"
                             Stretch="UniformToFill"
+                            Tag="{x:Bind}"
                             ImageFailed="OnManifestIconFailed"
                             Visibility="{x:Bind ManifestIconVisibility, Mode=OneWay}" />
                     </Grid>
                 </Border>
 
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Grid HorizontalAlignment="Left" ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
                         <TextBlock
                             Text="{x:Bind DisplayName}"
-                            MaxWidth="240"
                             FontSize="13.5"
                             TextWrapping="NoWrap"
                             TextTrimming="CharacterEllipsis"
+                            ToolTipService.ToolTip="{x:Bind DisplayName}"
                             VerticalAlignment="Center" />
                         <Button
+                            Grid.Column="1"
                             Width="22"
                             Height="22"
                             MinHeight="0"
@@ -180,7 +189,7 @@
                             Visibility="{x:Bind OutOfDateVisibility, Mode=OneWay}">
                             <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
                         </Button>
-                    </StackPanel>
+                    </Grid>
                     <TextBlock
                         Text="{x:Bind FolderName}"
                         FontFamily="Cascadia Mono"
@@ -226,17 +235,17 @@
 
                 <ContentControl
                     Grid.Column="2"
-                    IsTabStop="{x:Bind HasVersionTip, Mode=OneWay}"
+                    IsTabStop="{x:Bind HasVersionCellTip, Mode=OneWay}"
                     UseSystemFocusVisuals="True"
                     VerticalAlignment="Center"
                     HorizontalContentAlignment="Stretch"
                     HorizontalAlignment="Stretch"
-                    AutomationProperties.Name="{x:Bind VersionTip, Mode=OneWay}"
-                    ToolTipService.ToolTip="{x:Bind VersionTip, Mode=OneWay}">
+                    AutomationProperties.Name="{x:Bind VersionCellTip, Mode=OneWay}"
+                    ToolTipService.ToolTip="{x:Bind VersionCellTip, Mode=OneWay}">
                     <StackPanel Spacing="2">
-                        <Grid ColumnSpacing="4">
+                        <Grid HorizontalAlignment="Left" ColumnSpacing="4">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock
@@ -274,6 +283,7 @@
                                 Background="Transparent"
                                 AutomationProperties.Name="Changelog"
                                 ToolTipService.ToolTip="Changelog"
+                                Tag="{x:Bind}"
                                 Click="OnChangelogClick"
                                 Visibility="{x:Bind ChangelogVisibility, Mode=OneWay}">
                                 <FontIcon Glyph="&#xE8A5;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -289,6 +299,29 @@
                             FontSize="12.5"
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                             Visibility="{x:Bind NoReleasesVisibility, Mode=OneWay}" />
+                        <Button
+                            Height="24"
+                            MinHeight="0"
+                            Padding="8,0,6,0"
+                            HorizontalAlignment="Left"
+                            Background="{ThemeResource ChipBrush}"
+                            Command="{x:Bind ChangeChannelCommand}"
+                            AutomationProperties.Name="Release channel"
+                            Visibility="{x:Bind CompactChannelChipVisibility, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{x:Bind Channel, Mode=OneWay}" FontSize="12" VerticalAlignment="Center" />
+                                <FontIcon Glyph="&#xE70D;" FontSize="9" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
+                        </Button>
+                        <ContentControl
+                            IsTabStop="True"
+                            UseSystemFocusVisuals="True"
+                            HorizontalAlignment="Left"
+                            AutomationProperties.Name="{x:Bind SingleChannelTip, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind SingleChannelTip, Mode=OneWay}"
+                            Visibility="{x:Bind CompactSingleChannelVisibility, Mode=OneWay}">
+                            <TextBlock Text="{x:Bind Channel, Mode=OneWay}" FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </ContentControl>
                     </StackPanel>
                 </ContentControl>
 
@@ -316,7 +349,7 @@
                     AutomationProperties.Name="{x:Bind SingleChannelTip, Mode=OneWay}"
                     ToolTipService.ToolTip="{x:Bind SingleChannelTip, Mode=OneWay}"
                     Visibility="{x:Bind SingleChannelVisibility, Mode=OneWay}">
-                    <TextBlock Text="{x:Bind Channel, Mode=OneWay}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{x:Bind Channel, Mode=OneWay}" FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </ContentControl>
                 <TextBlock
                     Grid.Column="3"
@@ -328,6 +361,7 @@
                 <TextBlock
                     Grid.Column="4"
                     Text="{x:Bind Source}"
+                    TextTrimming="CharacterEllipsis"
                     FontSize="12.5"
                     VerticalAlignment="Center"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -340,14 +374,18 @@
                         VerticalAlignment="Center"
                         Foreground="{x:Bind StatusBrush, Mode=OneWay}"
                         Visibility="{x:Bind StatusTextVisibility, Mode=OneWay}" />
-                    <StackPanel
-                        Orientation="Horizontal"
-                        Spacing="6"
+                    <Grid
+                        ColumnSpacing="6"
                         VerticalAlignment="Center"
+                        ToolTipService.ToolTip="Up to date"
                         Visibility="{x:Bind UpToDateVisibility, Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <FontIcon Glyph="&#xE73E;" FontSize="13" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-                        <TextBlock Text="Up to date" FontSize="12.5" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-                    </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Up to date" FontSize="12.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                    </Grid>
                     <Border
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
@@ -369,9 +407,11 @@
                 </Grid>
 
                 <StackPanel
-                    Grid.Column="6"
+                    x:Name="Actions"
+                    Grid.Column="7"
                     Orientation="Horizontal"
                     Spacing="6"
+                    SizeChanged="OnActionsSizeChanged"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center">
                     <Button
@@ -408,7 +448,7 @@
                 Background="Transparent"
                 BorderThickness="0,1,0,0"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
-                SizeChanged="OnTableRowSizeChanged">
+                Tag="{x:Bind}">
                 <Grid.Resources>
                     <MenuFlyout
                         x:Key="RowMenu"
@@ -438,12 +478,13 @@
                 </Grid.ContextFlyout>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="30" />
-                    <ColumnDefinition Width="3*" MinWidth="96" />
-                    <ColumnDefinition Width="2*" MinWidth="114" />
-                    <ColumnDefinition Width="1.2*" MinWidth="84" />
-                    <ColumnDefinition Width="1*" MinWidth="60" />
-                    <ColumnDefinition Width="1.5*" MinWidth="76" />
-                    <ColumnDefinition Width="184" />
+                    <ColumnDefinition Width="3*" />
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="1.2*" />
+                    <ColumnDefinition Width="1*" />
+                    <ColumnDefinition Width="1.5*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <Border
@@ -465,15 +506,20 @@
                 </Border>
 
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Grid HorizontalAlignment="Left" ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
                         <TextBlock
                             Text="{x:Bind DisplayName}"
-                            MaxWidth="240"
                             FontSize="13.5"
                             TextWrapping="NoWrap"
                             TextTrimming="CharacterEllipsis"
+                            ToolTipService.ToolTip="{x:Bind DisplayName}"
                             VerticalAlignment="Center" />
                         <Button
+                            Grid.Column="1"
                             Width="22"
                             Height="22"
                             MinHeight="0"
@@ -484,7 +530,7 @@
                             Visibility="{x:Bind OutOfDateVisibility}">
                             <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
                         </Button>
-                    </StackPanel>
+                    </Grid>
                     <TextBlock
                         Text="{x:Bind FolderLine}"
                         FontFamily="Cascadia Mono"
@@ -524,6 +570,7 @@
                 <TextBlock
                     Grid.Column="4"
                     Text="{x:Bind Source}"
+                    TextTrimming="CharacterEllipsis"
                     FontSize="12.5"
                     VerticalAlignment="Center"
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
@@ -546,7 +593,9 @@
                 </Border>
 
                 <Button
-                    Grid.Column="6"
+                    x:Name="Actions"
+                    Grid.Column="7"
+                    SizeChanged="OnActionsSizeChanged"
                     Width="32"
                     Height="32"
                     Padding="0"
@@ -969,8 +1018,8 @@
                     CornerRadius="8"
                     Background="{ThemeResource LayerFillColorDefaultBrush}"
                     Visibility="{x:Bind ViewModel.TableVisibility, Mode=OneWay}">
-                    <StackPanel>
-                        <Grid Padding="16,6" ColumnSpacing="12" SizeChanged="OnTableRowSizeChanged">
+                    <StackPanel x:Name="TableBody" SizeChanged="OnTableSizeChanged">
+                        <Grid x:Name="TableHeader" Padding="16,6" ColumnSpacing="12">
                             <Grid.Resources>
                                 <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
                                 <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
@@ -978,12 +1027,13 @@
                             </Grid.Resources>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="30" />
-                                <ColumnDefinition Width="3*" MinWidth="96" />
-                                <ColumnDefinition Width="2*" MinWidth="114" />
-                                <ColumnDefinition Width="1.2*" MinWidth="84" />
-                                <ColumnDefinition Width="1*" MinWidth="60" />
-                                <ColumnDefinition Width="1.5*" MinWidth="76" />
-                                <ColumnDefinition Width="184" />
+                                <ColumnDefinition Width="3*" />
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="1.2*" />
+                                <ColumnDefinition Width="1*" />
+                                <ColumnDefinition Width="1.5*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Button
                                 Grid.Column="1"
@@ -1039,11 +1089,18 @@
                                     <FontIcon Glyph="{x:Bind ViewModel.StatusSortGlyph, Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
                             </Button>
+                            <views:ColumnResizeGrip x:Name="NameGrip" Grid.Column="1" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Name column" />
+                            <views:ColumnResizeGrip x:Name="VersionGrip" Grid.Column="2" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Version column" />
+                            <views:ColumnResizeGrip x:Name="ChannelGrip" Grid.Column="3" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Channel column" />
+                            <views:ColumnResizeGrip x:Name="SourceGrip" Grid.Column="4" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Source column" />
+                            <views:ColumnResizeGrip x:Name="StatusGrip" Grid.Column="5" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Status column" />
                         </Grid>
 
                         <ItemsRepeater
                             ItemsSource="{x:Bind ViewModel.TableRows}"
-                            ItemTemplate="{StaticResource AddonTableTemplateSelector}" />
+                            ItemTemplate="{StaticResource AddonTableTemplateSelector}"
+                            ElementPrepared="OnTableRowPrepared"
+                            ElementClearing="OnTableRowClearing" />
 
                         <TextBlock
                             Text="No addons match"

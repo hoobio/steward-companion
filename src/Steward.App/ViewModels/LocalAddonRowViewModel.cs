@@ -51,6 +51,8 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     public bool HasVersionTip => VersionTip is not null;
 
+    public bool IsCompact { get; set; }
+
     public int StatusRank => (int)(IsHidden ? AddonRowStatus.Hidden : AddonRowStatus.Local);
 
     public Visibility StatusDashVisibility => When(!IsHidden);

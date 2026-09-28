@@ -155,6 +155,7 @@ public sealed partial class MainWindow : Window
     {
         var dialog = new ContentDialog
         {
+            Style = (Style)Application.Current.Resources["DefaultContentDialogStyle"],
             Title = title,
             Content = new TextBlock { Text = body, TextWrapping = TextWrapping.Wrap },
             PrimaryButtonText = primary,

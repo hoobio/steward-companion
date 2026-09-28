@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using Steward.Core;
+using Steward.Core.Diagnostics;
 
 using Steward.App.Services;
 
@@ -240,6 +241,29 @@ public sealed partial class MainViewModel
         (_sortKey, _sortDescending) = _sortKey != key ? (key, false) : !_sortDescending ? (key, true) : (null, false);
         Resort();
     }
+
+    private Dictionary<string, double>? _columnWidths;
+
+    private Dictionary<string, double> ColumnWidths => _columnWidths ??= _stateStore.Load().TableColumnWidths;
+
+    public double? ColumnWidth(string id) => ColumnWidths.TryGetValue(id, out var width) ? width : null;
+
+    public void SetColumnWidth(string id, double? width)
+    {
+        if (width is { } pixels)
+        {
+            ColumnWidths[id] = Math.Round(pixels);
+        }
+        else
+        {
+            ColumnWidths.Remove(id);
+        }
+    }
+
+    public void WarnUi(string message) => _logger.Warn(null, message);
+
+    public void SaveColumnWidths() =>
+        _stateStore.Save(_stateStore.Load() with { TableColumnWidths = new Dictionary<string, double>(ColumnWidths, StringComparer.OrdinalIgnoreCase) });
 
     [RelayCommand]
     private void DefaultOrder()

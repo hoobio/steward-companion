@@ -374,6 +374,19 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Save_TableColumnWidths_RoundTrip()
+    {
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+        Assert.Empty(store.Load().TableColumnWidths);
+
+        store.Save(store.Load() with { TableColumnWidths = new Dictionary<string, double> { ["version"] = 180, ["Status"] = 132 } });
+
+        var loaded = store.Load();
+        Assert.Equal(180, loaded.TableColumnWidths["version"]);
+        Assert.Equal(132, loaded.TableColumnWidths["status"]);
+    }
+
+    [Fact]
     public void RemoveInstall_DropsLabelProductIgnoredAndSelection_ForThatPathOnly()
     {
         var state = new AppState([], [], null, [@"C:\wow\_retail_", @"C:\wow\_classic_era_"])

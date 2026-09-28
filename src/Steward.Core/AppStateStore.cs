@@ -130,6 +130,7 @@ public sealed class AppStateStore
         IgnoredAddons = state.IgnoredAddons ?? [],
         LegacyRestedXpGuideChoice = null,
         DismissedBanners = new Dictionary<string, int>(state.DismissedBanners ?? [], StringComparer.Ordinal),
+        TableColumnWidths = new Dictionary<string, double>(state.TableColumnWidths ?? [], StringComparer.OrdinalIgnoreCase),
     };
 
     public static bool IsExcludedFromUpdates(AppState state, string flavourPath, string addonId) =>
