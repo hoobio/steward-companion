@@ -118,6 +118,23 @@ public sealed class AppStateStoreTests : IDisposable
         var state = new AppStateStore(["hoobiscripts"], StatePath).Load();
 
         Assert.Null(state.Installs["flavour|hoobiscripts"].InstalledAt);
+        Assert.Equal("aa", state.Installs["flavour|hoobiscripts"].Sha256);
+        Assert.Null(state.Installs["flavour|hoobiscripts"].Sha1);
+    }
+
+    [Fact]
+    public void Save_Sha1Record_WritesSha1AndNoSha256()
+    {
+        var store = new AppStateStore(["questie"], StatePath);
+        var state = store.Load();
+        state.Installs["flavour|questie"] = new InstalledAddonRecord("11.0", "release", null, null, "ab12");
+
+        store.Save(state);
+
+        var json = File.ReadAllText(StatePath);
+        Assert.Contains("\"sha1\":\"ab12\"", json.Replace(" ", "", StringComparison.Ordinal), StringComparison.Ordinal);
+        Assert.DoesNotContain("sha256", json, StringComparison.Ordinal);
+        Assert.Equal("ab12", store.Load().Installs["flavour|questie"].Sha1);
     }
 
     [Fact]

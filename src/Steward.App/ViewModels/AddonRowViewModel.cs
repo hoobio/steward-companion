@@ -538,7 +538,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
                 .ConfigureAwait(true);
 
             var state = _stateStore.Load();
-            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256 ?? release.Sha1!, DateTimeOffset.Now);
+            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, release.Sha1);
             _stateStore.Save(state);
 
             RefreshInstalledVersion();
@@ -566,14 +566,16 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     [RelayCommand(CanExecute = nameof(CanUninstall))]
     private async Task UninstallAsync()
     {
-        if (!await _confirmUninstall(DisplayName, _addon.FolderName).ConfigureAwait(true) || IsBusy)
-        {
-            return;
-        }
-
         try
         {
-            AddonUpdater.RemoveExistingInstall(_install.AddOnsPath, _addon.FolderName);
+            var folders = AddonUpdater.InstallFolders(_addon, _status?.Release);
+            var described = folders.Count == 1 ? folders[0] : $"{folders[0]} and {folders.Count - 1} more folder{(folders.Count == 2 ? "" : "s")}";
+            if (!await _confirmUninstall(DisplayName, described).ConfigureAwait(true) || IsBusy)
+            {
+                return;
+            }
+
+            AddonUpdater.Uninstall(_install.AddOnsPath, folders);
             var state = _stateStore.Load();
             state.Installs.Remove(Key);
             state.IgnoredAddons.RemoveAll(key => string.Equals(key, Key, StringComparison.OrdinalIgnoreCase));
