@@ -36,7 +36,7 @@ Base `https://api.curseforge.com`, header `x-api-key`. World of Warcraft is `gam
 | Call | Result with Steward's key |
 | --- | --- |
 | `GET /v1/games`, `/v1/games/1`, `/v1/games/1/version-types`, `/v1/categories?gameId=1` | 200 (403 without the key) |
-| `GET /v1/mods/search?...` | **403 "API Key missing or invalid" for every game and every parameter shape**, including WowUp's exact request (`gameId=1&searchFilter=...&sortField=1&sortOrder=desc&index=0&gameVersionTypeId=...`, from `wowup-electron/src/app/addon-providers/curse-addon-provider.ts` `getSearchResults`). WowUp's own key searches with that request, so search is a permission this key lacks, not a request-shape problem. WowUp also browses categories through the same endpoint (`getCategoryAddons`), so category browsing is blocked too. |
+| `GET /v1/mods/search?...` | 200 since 29 Sep 2026 (the same day), with WowUp's request shape (`gameId=1&searchFilter=...&sortField=1&sortOrder=desc&index=0&gameVersionTypeId=...`, from `wowup-electron/src/app/addon-providers/curse-addon-provider.ts` `getSearchResults`). Earlier that day it answered 403 "API Key missing or invalid" for every shape, right after the key was approved; gigagrug keeps mapping a CurseForge 403 on search to `search_unavailable` in case that recurs. |
 | `POST /v1/mods/featured` `{"gameId":1,"excludedModIds":[],"gameVersionTypeId":88568}` | 200: `featured` 0, `popular` 10, `recentlyUpdated` 10, scoped to Forever |
 | `GET /v1/mods/{modId}`, `POST /v1/mods` `{"modIds":[...]}` | 200 |
 | `GET /v1/mods/{modId}/files?gameVersionTypeId=88568` | 200, Forever builds only (DBM: 36) |
