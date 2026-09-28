@@ -143,6 +143,8 @@ The house design system is `D:\hoobi-design` (React and Tailwind, no XAML output
 
 A button with a clear rest background uses the `SubtleFillColor*` brushes for rest, hover and pressed. The Button template animates its background through a `BrushTransition` that interpolates ARGB, and `Transparent` is `#00FFFFFF`, so a clear rest brush against an opaque hover colour fades through white.
 
+Text inside a filled box (a read-only value field, pill, chip, tile or button) is vertically centred in it: the box takes a fixed height (32px, `TextControlThemeMinHeight`, for anything sitting beside a `TextBox` or `Button`) and the `TextBlock` inside sets `VerticalAlignment="Center"`, never top-aligned text with padding standing in for centring. A read-only value shown where an editable one would be is a `TextBox` with `IsReadOnly="True"`, so it gets the same metrics as its neighbours. Checked in a screenshot, the ink's gap above and below is equal within 1px; top-aligned text in a box has been built and flagged more than once.
+
 ## Roster sync
 
 `docs/design/roster-sync.md` is the agreed contract between this app, gigagrug and the Steward addon, and it is the source of truth for how the three interact. Read it before touching anything that crosses a repo boundary. It carries the direction of travel, the identity and linking rules, the gigagrug endpoints in use, the confirmed Forever client API facts, and the per-repo branch rules.
