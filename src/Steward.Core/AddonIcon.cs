@@ -40,9 +40,19 @@ public static class AddonIcon
 
             return null;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
+        catch (Exception)
         {
             return null;
+        }
+    }
+
+    private const int MaxDimension = 1024;
+
+    private static void ValidateSize(int width, int height, string format)
+    {
+        if (width <= 0 || height <= 0 || width > MaxDimension || height > MaxDimension)
+        {
+            throw new FormatException($"{format} size {width}x{height} is outside 1 to {MaxDimension} pixels");
         }
     }
 
@@ -112,6 +122,13 @@ public static class AddonIcon
         if (bpp != 24 && bpp != 32)
         {
             throw new FormatException($"unsupported TGA bit depth {bpp}");
+        }
+
+        ValidateSize(width, height, "TGA");
+
+        if (data.Length < AvatarTga.HeaderLength + idLength)
+        {
+            throw new FormatException("TGA image ID field is truncated");
         }
 
         var bytesPerPixel = bpp / 8;
@@ -242,7 +259,9 @@ public static class AddonIcon
         var mipOffset = (int)BinaryPrimitives.ReadUInt32LittleEndian(data[20..]);
         var mipSize = (int)BinaryPrimitives.ReadUInt32LittleEndian(data[84..]);
 
-        if (mipOffset <= 0 || mipSize <= 0 || mipOffset + mipSize > data.Length)
+        ValidateSize(width, height, "BLP2");
+
+        if (mipOffset <= 0 || mipSize <= 0 || (long)mipOffset + mipSize > data.Length)
         {
             throw new FormatException("BLP2 mip level 0 is missing or truncated");
         }

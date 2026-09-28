@@ -64,6 +64,47 @@ public sealed class AddonIconTests
             decoded.Bgra[..20]);
     }
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1025, 1)]
+    [InlineData(65535, 65535)]
+    public void DecodeTga_RejectsAnOutOfRangeSize(int width, int height)
+    {
+        var header = new byte[18];
+        header[2] = 2;
+        BitConverter.GetBytes((ushort)width).CopyTo(header, 12);
+        BitConverter.GetBytes((ushort)height).CopyTo(header, 14);
+        header[16] = 32;
+
+        Assert.Throws<FormatException>(() => AddonIcon.DecodeTga(header));
+    }
+
+    [Fact]
+    public void DecodeTga_RejectsATruncatedIdField()
+    {
+        var header = new byte[18];
+        header[0] = 200;
+        header[2] = 2;
+        header[12] = 1;
+        header[14] = 1;
+        header[16] = 32;
+
+        Assert.Throws<FormatException>(() => AddonIcon.DecodeTga(header.Concat(new byte[] { 1, 2, 3, 4 }).ToArray()));
+    }
+
+    [Theory]
+    [InlineData(0u, 0u)]
+    [InlineData(4096u, 4096u)]
+    [InlineData(0x80000000u, 1u)]
+    public void DecodeBlp_RejectsAnOutOfRangeSize(uint width, uint height)
+    {
+        var data = BuildBlp2(compression: 3, alphaDepth: 8, alphaType: 0, 1, 1, new byte[256 * 4], [1, 2, 3, 4]);
+        BitConverter.GetBytes(width).CopyTo(data, 12);
+        BitConverter.GetBytes(height).CopyTo(data, 16);
+
+        Assert.Throws<FormatException>(() => AddonIcon.DecodeBlp(data));
+    }
+
     [Fact]
     public void DecodeBlp_ThrowsForABlp1Header()
     {
