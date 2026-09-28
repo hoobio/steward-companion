@@ -125,4 +125,42 @@ public sealed class LocalAddonsTests : IDisposable
         var addon = Assert.Single(LocalAddons.Scan(_addOnsPath, []));
         Assert.Equal("Colourful Addon", addon.Name);
     }
+
+    [Fact]
+    public void ReadDeclaredIds_ReadsTopLevelTocOnly_IgnoringEmbeddedLibraryToc()
+    {
+        WriteAddon("RXPGuides", "## Title: RXPGuides\n## X-Curse-Project-ID: 486246\n## X-Wago-ID: rkGrgw6y\n");
+        var library = Path.Combine(_addOnsPath, "RXPGuides", "libs", "HereBeDragons");
+        Directory.CreateDirectory(library);
+        File.WriteAllText(Path.Combine(library, "HereBeDragons.toc"), "## X-Curse-Project-ID: 94348\n");
+
+        Assert.Equal(new DeclaredAddonIds(486246, "rkGrgw6y", null), LocalAddons.ReadDeclaredIds(_addOnsPath, "RXPGuides"));
+    }
+
+    [Fact]
+    public void ReadDeclaredIds_FallsBackToFlavourToc_AndReadsWowInterfaceId()
+    {
+        WriteAddon("BugSack", "## X-Curse-Project-ID: 6273\n## X-WoWI-ID: 5460\n", "BugSack_Vanilla.toc");
+
+        Assert.Equal(new DeclaredAddonIds(6273, null, "5460"), LocalAddons.ReadDeclaredIds(_addOnsPath, "BugSack"));
+    }
+
+    [Fact]
+    public void ReadDeclaredIds_NoTopLevelToc_ReturnsNull()
+    {
+        var library = Path.Combine(_addOnsPath, "Loose", "libs", "Lib");
+        Directory.CreateDirectory(library);
+        File.WriteAllText(Path.Combine(library, "Lib.toc"), "## X-Curse-Project-ID: 94348\n");
+
+        Assert.Null(LocalAddons.ReadDeclaredIds(_addOnsPath, "Loose"));
+        Assert.Null(LocalAddons.ReadDeclaredIds(_addOnsPath, "Missing"));
+    }
+
+    [Fact]
+    public void ReadDeclaredIds_NonNumericCurseId_IsNull()
+    {
+        WriteAddon("Odd", "## X-Curse-Project-ID: abc\n");
+
+        Assert.Equal(new DeclaredAddonIds(null, null, null), LocalAddons.ReadDeclaredIds(_addOnsPath, "Odd"));
+    }
 }

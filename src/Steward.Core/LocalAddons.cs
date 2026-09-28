@@ -8,6 +8,8 @@ namespace Steward.Core;
 
 public sealed record LocalAddon(string FolderName, string Name, string? Version, string? Interface, IReadOnlyList<string> FoldedFolders, bool Removable);
 
+public sealed record DeclaredAddonIds(int? CurseProjectId, string? WagoId, string? WowInterfaceId);
+
 public static class LocalAddons
 {
     private sealed record Candidate(string FolderName, string Name, string? Version, string? Interface, bool HasOwnToc, IReadOnlyList<string> Deps);
@@ -90,16 +92,33 @@ public static class LocalAddons
         return results.OrderBy(addon => addon.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private static Candidate? ReadCandidate(string folderPath, string folderName)
+    public static string? TopLevelToc(string folderPath, string folderName)
     {
         var exact = Path.Combine(folderPath, folderName + ".toc");
-        var hasOwnToc = File.Exists(exact);
-        var tocPath = hasOwnToc
+        return File.Exists(exact)
             ? exact
             : Directory.EnumerateFiles(folderPath, folderName + "_*.toc")
                 .OrderBy(Path.GetFileName, StringComparer.Ordinal)
                 .FirstOrDefault();
-        if (tocPath is null)
+    }
+
+    public static DeclaredAddonIds? ReadDeclaredIds(string addOnsPath, string folderName)
+    {
+        var folderPath = Path.Combine(addOnsPath, folderName);
+        if (!Directory.Exists(folderPath) || TopLevelToc(folderPath, folderName) is not { } tocPath)
+        {
+            return null;
+        }
+
+        return new DeclaredAddonIds(
+            int.TryParse(TocFile.ReadDirective(tocPath, "X-Curse-Project-ID"), out var curseId) ? curseId : null,
+            TocFile.ReadDirective(tocPath, "X-Wago-ID"),
+            TocFile.ReadDirective(tocPath, "X-WoWI-ID"));
+    }
+
+    private static Candidate? ReadCandidate(string folderPath, string folderName)
+    {
+        if (TopLevelToc(folderPath, folderName) is not { } tocPath)
         {
             return null;
         }
@@ -109,7 +128,7 @@ public static class LocalAddons
             StripColourCodes(TocFile.ReadDirective(tocPath, "Title")) ?? folderName,
             TocFile.ReadDirective(tocPath, "Version"),
             TocFile.ReadDirective(tocPath, "Interface"),
-            hasOwnToc,
+            string.Equals(tocPath, Path.Combine(folderPath, folderName + ".toc"), StringComparison.Ordinal),
             [.. SplitDeps(TocFile.ReadDirective(tocPath, "Dependencies")), .. SplitDeps(TocFile.ReadDirective(tocPath, "RequiredDeps"))]);
     }
 
