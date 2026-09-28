@@ -2,7 +2,7 @@ function Test-StoreSubmissionBusy {
     param([Parameter(Mandatory)][string]$StatusOutput)
 
     if ($StatusOutput -notmatch 'Submission Status = (\S+)') { return $false }
-    $busyStates = 'PendingCommit', 'CommitStarted', 'PendingPublication', 'Publishing', 'PreProcessing', 'Certification', 'Release'
+    $busyStates = 'CommitStarted', 'PreProcessing', 'PendingPublication', 'Publishing', 'Release'
     return $busyStates -contains $Matches[1]
 }
 
@@ -71,7 +71,8 @@ function Wait-StoreSubmissionClear {
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
-    if (-not (Test-StoreSubmissionBusy -StatusOutput 'Submission Status = Certification')) { throw 'self-check failed: Certification should be busy' }
+    if (Test-StoreSubmissionBusy -StatusOutput 'Submission Status = Certification') { throw 'self-check failed: Certification should be deletable' }
+    if (Test-StoreSubmissionBusy -StatusOutput 'Submission Status = PendingCommit') { throw 'self-check failed: PendingCommit should be deletable' }
     if (-not (Test-StoreSubmissionBusy -StatusOutput 'Submission Status = CommitStarted')) { throw 'self-check failed: CommitStarted should be busy' }
     if (Test-StoreSubmissionBusy -StatusOutput 'Submission Status = Published') { throw 'self-check failed: Published should not be busy' }
     if (Test-StoreSubmissionBusy -StatusOutput 'Submission Status = CommitFailed') { throw 'self-check failed: CommitFailed should not be busy' }
