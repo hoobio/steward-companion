@@ -298,11 +298,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool StartWithWindows { get; set; }
 
     [ObservableProperty]
-    public partial bool CanStartWithWindows { get; set; } = App.IsPackaged || App.IsGitHubRelease;
+    public partial bool CanStartWithWindows { get; set; } = App.IsGitHubRelease;
 
     [ObservableProperty]
-    public partial string StartWithWindowsDescription { get; set; } = App.IsPackaged || App.IsGitHubRelease
-        ? "Starts Steward in the tray when you sign in to Windows"
+    public partial string StartWithWindowsDescription { get; set; } = App.IsGitHubRelease
+        ?"Starts Steward in the tray when you sign in to Windows"
         : "Only available in a released build";
 
     [ObservableProperty]
@@ -591,7 +591,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (App.IsPackaged)
         {
-            await SetStartupTaskAsync(enable: null).ConfigureAwait(true);
+            await SetStartupTaskAsync(enable: App.IsGitHubRelease ? null : false).ConfigureAwait(true);
         }
 
         _lastBannersSync = DateTimeOffset.Now;
@@ -974,9 +974,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _isLoadingState = true;
             StartWithWindows = state is StartupTaskState.Enabled or StartupTaskState.EnabledByPolicy;
             _isLoadingState = false;
-            CanStartWithWindows = state is StartupTaskState.Enabled or StartupTaskState.Disabled;
+            CanStartWithWindows = App.IsGitHubRelease && state is StartupTaskState.Enabled or StartupTaskState.Disabled;
             StartWithWindowsDescription = state switch
             {
+                _ when !App.IsGitHubRelease => "Only available in a released build",
                 StartupTaskState.EnabledByPolicy => "Turned on by your organisation's policy",
                 StartupTaskState.DisabledByPolicy => "Turned off by your organisation's policy",
                 StartupTaskState.DisabledByUser => "Turned off in Windows Settings > Apps > Startup",
