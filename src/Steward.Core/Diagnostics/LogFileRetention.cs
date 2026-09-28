@@ -25,7 +25,8 @@ public static class LogFileRetention
         }
     }
 
-    public static string FileNameFor(DateOnly date) => $"{Prefix}{date.ToString(DateFormat, CultureInfo.InvariantCulture)}{Extension}";
+    public static string FileNameFor(string buildName, DateOnly date) =>
+        $"{Prefix}{buildName}-{date.ToString(DateFormat, CultureInfo.InvariantCulture)}{Extension}";
 
     public static bool TryParseDate(string fileName, out DateOnly date)
     {
@@ -36,6 +37,8 @@ public static class LogFileRetention
         }
 
         var stem = fileName[Prefix.Length..^Extension.Length];
-        return DateOnly.TryParseExact(stem, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
+        var lastDash = stem.LastIndexOf('-');
+        var datePart = lastDash >= 0 ? stem[(lastDash + 1)..] : stem;
+        return DateOnly.TryParseExact(datePart, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
     }
 }

@@ -14,13 +14,13 @@ public sealed class FileLoggerProviderTests : IDisposable
     public void CreateLogger_WritesTimestampLevelCategoryAndMessage()
     {
         var now = new DateTimeOffset(2026, 9, 27, 12, 34, 56, TimeSpan.Zero);
-        using var provider = new FileLoggerProvider(_root, () => now);
+        using var provider = new FileLoggerProvider(_root, "debug", () => now);
         var logger = provider.CreateLogger("Steward.App.ViewModels.MainViewModel");
 
         logger.Warn(null, "Sign-in failed");
         provider.Dispose();
 
-        var line = File.ReadAllText(Path.Combine(_root, "steward-20260927.log"));
+        var line = File.ReadAllText(Path.Combine(_root, "steward-debug-20260927.log"));
         Assert.Contains("2026-09-27T12:34:56", line);
         Assert.Contains("WRN", line);
         Assert.Contains("Steward.App.ViewModels.MainViewModel", line);
@@ -30,7 +30,7 @@ public sealed class FileLoggerProviderTests : IDisposable
     [Fact]
     public void CreateLogger_IncludesTheExceptionStackTrace()
     {
-        using var provider = new FileLoggerProvider(_root, () => DateTimeOffset.UtcNow);
+        using var provider = new FileLoggerProvider(_root, "debug", () => DateTimeOffset.UtcNow);
         var logger = provider.CreateLogger("Test");
 
         try
@@ -53,7 +53,7 @@ public sealed class FileLoggerProviderTests : IDisposable
     public void Write_RollsToANewFile_WhenTheUtcDateChanges()
     {
         var current = new DateTimeOffset(2026, 9, 27, 23, 59, 0, TimeSpan.Zero);
-        using var provider = new FileLoggerProvider(_root, () => current);
+        using var provider = new FileLoggerProvider(_root, "debug", () => current);
         var logger = provider.CreateLogger("Test");
 
         logger.Info("day one");
@@ -61,17 +61,17 @@ public sealed class FileLoggerProviderTests : IDisposable
         logger.Info("day two");
         provider.Dispose();
 
-        Assert.True(File.Exists(Path.Combine(_root, "steward-20260927.log")));
-        Assert.True(File.Exists(Path.Combine(_root, "steward-20260928.log")));
+        Assert.True(File.Exists(Path.Combine(_root, "steward-debug-20260927.log")));
+        Assert.True(File.Exists(Path.Combine(_root, "steward-debug-20260928.log")));
     }
 
     [Fact]
     public void Constructor_DeletesLogFilesOlderThanRetention()
     {
-        var stale = Path.Combine(_root, "steward-20260101.log");
+        var stale = Path.Combine(_root, "steward-debug-20260101.log");
         File.WriteAllText(stale, "stale");
 
-        using var provider = new FileLoggerProvider(_root, () => new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero));
+        using var provider = new FileLoggerProvider(_root, "debug", () => new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero));
 
         Assert.False(File.Exists(stale));
     }

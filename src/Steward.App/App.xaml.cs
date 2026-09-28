@@ -34,6 +34,8 @@ public partial class App : Application
 
     public static readonly bool IsPackaged = ResolveIsPackaged();
 
+    public static readonly string BuildName = ResolveBuildName();
+
     private static readonly string RealDataRoot = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward");
 
@@ -112,6 +114,15 @@ public partial class App : Application
         var length = 0;
         return GetCurrentPackageFullName(ref length, nint.Zero) != AppModelErrorNoPackage;
     }
+
+    private static string ResolveBuildName() => (IsPackaged, IsGitHubRelease, IsPreRelease) switch
+    {
+        (true, true, true) => "prerelease",
+        (true, true, false) => "store",
+        (true, false, _) => "dev",
+        (false, true, _) => "msi",
+        (false, false, _) => "debug",
+    };
 
     [DllImport("kernel32.dll")]
     private static extern int GetCurrentPackageFullName(ref int packageFullNameLength, nint packageFullName);

@@ -22,7 +22,7 @@ internal static class HostBuilderExtensions
         builder.Logging.AddDebug();
         var logDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward", "logs");
-        builder.Logging.AddProvider(new FileLoggerProvider(logDirectory));
+        builder.Logging.AddProvider(new FileLoggerProvider(logDirectory, App.BuildName));
         builder.Logging.AddFilter("Steward", LogLevel.Information);
         builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
         builder.Logging.AddFilter("System", LogLevel.Warning);

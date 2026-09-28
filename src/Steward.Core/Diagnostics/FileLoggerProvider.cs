@@ -9,18 +9,20 @@ public sealed class FileLoggerProvider : ILoggerProvider
     public const int RetentionDays = 14;
 
     private readonly string _directory;
+    private readonly string _buildName;
     private readonly Lock _writeLock = new();
     private readonly Func<DateTimeOffset> _now;
     private StreamWriter? _writer;
     private DateOnly _writerDate;
 
-    public FileLoggerProvider(string directory) : this(directory, () => DateTimeOffset.UtcNow)
+    public FileLoggerProvider(string directory, string buildName) : this(directory, buildName, () => DateTimeOffset.UtcNow)
     {
     }
 
-    internal FileLoggerProvider(string directory, Func<DateTimeOffset> now)
+    internal FileLoggerProvider(string directory, string buildName, Func<DateTimeOffset> now)
     {
         _directory = directory;
+        _buildName = buildName;
         _now = now;
         Directory.CreateDirectory(_directory);
         LogFileRetention.DeleteOlderThan(_directory, RetentionDays, now());
@@ -60,7 +62,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
 
         _writer?.Dispose();
         _writerDate = date;
-        var path = Path.Combine(_directory, LogFileRetention.FileNameFor(date));
+        var path = Path.Combine(_directory, LogFileRetention.FileNameFor(_buildName, date));
         var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
         _writer = new StreamWriter(stream) { AutoFlush = false };
         return _writer;
