@@ -4,7 +4,6 @@ using Steward.App.ViewModels;
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Navigation;
 
 namespace Steward.App.Views;
 
@@ -12,8 +11,9 @@ public sealed partial class SettingsPage : Page
 {
     private bool _editing;
 
-    public SettingsPage()
+    public SettingsPage(MainViewModel viewModel)
     {
+        ViewModel = viewModel;
         InitializeComponent();
         Loaded += (_, _) =>
         {
@@ -32,14 +32,7 @@ public sealed partial class SettingsPage : Page
         };
     }
 
-    public MainViewModel? ViewModel { get; private set; }
-
-    protected override void OnNavigatedTo(NavigationEventArgs e)
-    {
-        base.OnNavigatedTo(e);
-        ViewModel = e.Parameter as MainViewModel;
-        Bindings.Update();
-    }
+    public MainViewModel ViewModel { get; }
 
     private void OnEditInstallRequested(object? sender, EventArgs e) => _ = ShowPendingEditAsync();
 

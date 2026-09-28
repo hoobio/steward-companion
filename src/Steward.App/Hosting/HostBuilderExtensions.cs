@@ -111,6 +111,10 @@ internal static class HostBuilderExtensions
 
         builder.Services.AddSingleton<MainWindow>();
         builder.Services.AddSingleton<MainViewModel>();
+        builder.Services.AddSingleton<HomePage>();
+        builder.Services.AddSingleton<SyncPage>();
+        builder.Services.AddSingleton<GuidesPage>();
+        builder.Services.AddSingleton<SettingsPage>();
 
         return builder;
     }

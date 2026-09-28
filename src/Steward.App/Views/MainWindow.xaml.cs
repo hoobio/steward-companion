@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 
 using H.NotifyIcon.EfficiencyMode;
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using Steward.App.Services;
@@ -14,17 +15,21 @@ using Steward.App.ViewModels;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Steward.App.Views;
 
 public sealed partial class MainWindow : Window
 {
+    private readonly IServiceProvider _services;
     private bool _quitting;
     private Native.SubclassProc? _sessionEndSubclass;
 
-    public MainWindow(MainViewModel viewModel, ILogger<MainWindow> logger)
+    public MainWindow(MainViewModel viewModel, IServiceProvider services, ILogger<MainWindow> logger)
     {
+        _services = services;
         InitializeComponent();
         FlyoutOpener.TrackActivation(this, logger);
         FlyoutOpener.Attach(InstallPicker, InstallFlyout, "install-picker");
@@ -134,19 +139,48 @@ public sealed partial class MainWindow : Window
             };
 
         ViewModel.IsSettingsShown = args.IsSettingsSelected;
-        if (RootFrame.CurrentSourcePageType == page)
+        ShowPage(page);
+    }
+
+    // Pages are DI singletons: Frame.Navigate would build a new one per visit, and each discarded page's repeater stays subscribed to the shared collections.
+    private void ShowPage(Type pageType)
+    {
+        if (RootFrame.Content?.GetType() == pageType)
         {
             return;
         }
 
-        RootFrame.Navigate(page, ViewModel);
+        var page = (Page)_services.GetRequiredService(pageType);
+        RootFrame.Content = page;
+        PlayEntrance(page);
+    }
+
+    private static void PlayEntrance(UIElement page)
+    {
+        var translate = new TranslateTransform { Y = 18 };
+        page.RenderTransform = translate;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var duration = new Duration(TimeSpan.FromMilliseconds(220));
+
+        var fade = new DoubleAnimation { From = 0, To = 1, Duration = duration, EasingFunction = ease };
+        Storyboard.SetTarget(fade, page);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+
+        var slide = new DoubleAnimation { To = 0, Duration = duration, EasingFunction = ease };
+        Storyboard.SetTarget(slide, translate);
+        Storyboard.SetTargetProperty(slide, "Y");
+
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(fade);
+        storyboard.Children.Add(slide);
+        storyboard.Begin();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(MainViewModel.SyncVisibility)
             && ViewModel.SyncVisibility == Visibility.Collapsed
-            && RootFrame.CurrentSourcePageType == typeof(SyncPage))
+            && RootFrame.Content is SyncPage)
         {
             Nav.SelectedItem = AddonsItem;
             return;
@@ -154,7 +188,7 @@ public sealed partial class MainWindow : Window
 
         if (e.PropertyName is not nameof(MainViewModel.GuidesVisibility)
             || ViewModel.GuidesVisibility == Visibility.Visible
-            || RootFrame.CurrentSourcePageType != typeof(GuidesPage)
+            || RootFrame.Content is not GuidesPage
             || (ViewModel.RestedXp.IsSessionExpired && ViewModel.HasGuidesFeature))
         {
             return;
@@ -188,7 +222,7 @@ public sealed partial class MainWindow : Window
         {
             Nav.SelectedItem = GuidesItem;
         }
-        else if (RootFrame.CurrentSourcePageType == typeof(GuidesPage))
+        else if (RootFrame.Content is GuidesPage)
         {
             Nav.SelectedItem = AddonsItem;
         }

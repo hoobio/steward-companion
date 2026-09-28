@@ -2,7 +2,6 @@ using Steward.App.ViewModels;
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Navigation;
 
 namespace Steward.App.Views;
 
@@ -26,8 +25,9 @@ public sealed partial class HomePage : Page
     private double _actionsWidth = 32;
     private double _defaultSpace;
 
-    public HomePage()
+    public HomePage(MainViewModel viewModel)
     {
+        ViewModel = viewModel;
         InitializeComponent();
         _grips = new()
         {
@@ -45,21 +45,7 @@ public sealed partial class HomePage : Page
         }
     }
 
-    public MainViewModel? ViewModel { get; private set; }
-
-    protected override void OnNavigatedTo(NavigationEventArgs e)
-    {
-        base.OnNavigatedTo(e);
-        ViewModel = e.Parameter as MainViewModel;
-        Bindings.Update();
-    }
-
-    protected override void OnNavigatedFrom(NavigationEventArgs e)
-    {
-        base.OnNavigatedFrom(e);
-        // A left page's repeater stays subscribed to the shared TableRows and throws E_FAIL on the next row removal.
-        TableRepeater.ItemsSource = null;
-    }
+    public MainViewModel ViewModel { get; }
 
     private (double Width, double Minimum, double Maximum) MeasureColumn(string id)
     {
