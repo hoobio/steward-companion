@@ -9,42 +9,14 @@
     SizeChanged="OnSizeChanged">
 
     <Page.Resources>
-        <DataTemplate x:Key="ChannelCardTemplate" x:DataType="vm:AddonChannelViewModel">
-            <controls:SettingsCard Header="{x:Bind Name}" Description="{x:Bind Description, Mode=OneWay}" Padding="{StaticResource SettingsExpanderItemPadding}">
-                <controls:SettingsCard.HeaderIcon>
-                    <ImageIcon Source="{x:Bind Icon}" />
-                </controls:SettingsCard.HeaderIcon>
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <TextBlock
-                        Text="No releases yet"
-                        VerticalAlignment="Center"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Visibility="{x:Bind NoReleasesVisibility, Mode=OneWay}" />
-                    <controls:Segmented
-                        SelectionMode="Single"
-                        SelectedIndex="{x:Bind SelectedIndex, Mode=TwoWay}"
-                        Visibility="{x:Bind PickerVisibility, Mode=OneWay}">
-                        <controls:SegmentedItem
-                            Content="{x:Bind Option1Label}"
-                            IsEnabled="{x:Bind Option1Enabled, Mode=OneWay}"
-                            ToolTipService.ToolTip="{x:Bind Option1Tooltip, Mode=OneWay}" />
-                        <controls:SegmentedItem
-                            Content="{x:Bind Option2Label}"
-                            IsEnabled="{x:Bind Option2Enabled, Mode=OneWay}"
-                            ToolTipService.ToolTip="{x:Bind Option2Tooltip, Mode=OneWay}"
-                            Visibility="{x:Bind Option2Visibility, Mode=OneWay}" />
-                        <controls:SegmentedItem
-                            Content="{x:Bind Option3Label}"
-                            IsEnabled="{x:Bind Option3Enabled, Mode=OneWay}"
-                            ToolTipService.ToolTip="{x:Bind Option3Tooltip, Mode=OneWay}"
-                            Visibility="{x:Bind Option3Visibility, Mode=OneWay}" />
-                    </controls:Segmented>
-                </StackPanel>
-            </controls:SettingsCard>
-        </DataTemplate>
-
         <DataTemplate x:Key="InstallCardTemplate" x:DataType="vm:WowInstallViewModel">
-            <controls:SettingsCard Header="{x:Bind DisplayName}" Description="{x:Bind FlavourPath}" Padding="{StaticResource SettingsExpanderItemPadding}">
+            <controls:SettingsCard Header="{x:Bind Label}" Padding="{StaticResource SettingsExpanderItemPadding}">
+                <controls:SettingsCard.Description>
+                    <StackPanel>
+                        <TextBlock Text="{x:Bind GameVersionName}" Visibility="{x:Bind GameVersionLineVisibility}" />
+                        <TextBlock Text="{x:Bind FlavourPath}" />
+                    </StackPanel>
+                </controls:SettingsCard.Description>
                 <controls:SettingsCard.HeaderIcon>
                     <FontIcon Glyph="&#xE8B7;" />
                 </controls:SettingsCard.HeaderIcon>
@@ -123,18 +95,6 @@
                     </controls:SettingsCard.ActionIcon>
                 </controls:SettingsCard>
             </StackPanel>
-
-            <controls:SettingsExpander
-                Margin="0,20,0,0"
-                Header="Release channels"
-                Description="Channel is set per addon"
-                IsExpanded="True"
-                ItemsSource="{x:Bind ViewModel.AddonChannels}"
-                ItemTemplate="{StaticResource ChannelCardTemplate}">
-                <controls:SettingsExpander.HeaderIcon>
-                    <FontIcon Glyph="&#xE895;" />
-                </controls:SettingsExpander.HeaderIcon>
-            </controls:SettingsExpander>
 
             <controls:SettingsExpander
                 Margin="0,20,0,0"

@@ -25,7 +25,6 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
 using Windows.Management.Deployment;
 using Windows.Services.Store;
-using Windows.Storage.Pickers;
 
 namespace Steward.App.ViewModels;
 
@@ -213,8 +212,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public nint OwnerWindowHandle { get; set; }
 
-    public Action? NavigateToSettings { get; set; }
-
     public Action? NavigateToAddons { get; set; }
 
     public Action<string>? NavigateToPageTag { get; set; }
@@ -247,7 +244,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HeaderSubtitle))]
+    [NotifyPropertyChangedFor(nameof(CheckedText))]
     public partial string LastCheckedRelative { get; set; } = "not checked yet";
 
     [ObservableProperty]
@@ -313,9 +310,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StoreListingVisibility), nameof(StoreSwitchVisibility))]
     public partial bool? IsStoreAppInstalled { get; set; }
-
-    [ObservableProperty]
-    public partial bool ShowHiddenAddons { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RoleLabel))]
@@ -390,44 +384,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public int InstallCount => Installs.Count;
 
-    public int AddonCount => Installs.Sum(install => install.AddonRows.Count(row => !row.IsHidden));
-
-    public int UpdateCount => Installs.Sum(install => install.UpdateCount);
-
     public bool IsAnyRowBusy => Installs.Any(install => install.AddonRows.Any(row => row.IsBusy));
 
-    public string HeaderSubtitle =>
-        _lastPass == default ? "Not checked for updates yet" : $"Last checked for updates {LastCheckedRelative}";
-
-
-    public string BannerGlyph => UpdateCount > 0 ? "" : "";
-
-    public string BannerTitle => $"{UpdateCount} update{(UpdateCount == 1 ? "" : "s")} available";
-
-    public string BannerDetail
-    {
-        get
-        {
-            var first = Installs
-                .SelectMany(install => install.AddonRows)
-                .FirstOrDefault(row => !row.IsHidden && row.HasUpdateAvailable);
-            if (first is null)
-            {
-                return string.Empty;
-            }
-
-            var line = $"{first.DisplayName} {first.InstalledVersionShort ?? "not installed"} → {first.AvailableVersionShort}";
-            return UpdateCount > 1 ? $"{line}, and {UpdateCount - 1} more" : line;
-        }
-    }
-
-    public Visibility BannerVisibility => When(UpdateCount > 0);
-
-    public Visibility UpdateAllVisibility => When(IsAuthorized && UpdateCount > 0);
-
     public Visibility NoInstallsVisibility => When(Installs.Count == 0 && !IsBusy);
-
-    public Visibility HiddenToggleVisibility => When(Installs.Any(install => install.AddonRows.Any(row => row.IsHidden)));
 
     public bool StatusMessageIsOpen => !string.IsNullOrEmpty(StatusMessage);
 
@@ -550,6 +509,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         Installs.Clear();
+        SelectedInstall = null;
         SyncGuideInstalls();
     }
 
@@ -703,17 +663,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            var added = _stateStore.Load().AddedInstalls;
+            var state = _stateStore.Load();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var install in WowInstalls.Discover(_supportedProducts)
-                .Concat(added.Select(path => WowInstalls.FromFlavourPath(path, _supportedProducts)).OfType<WowInstall>()))
+            foreach (var install in DiscoverInstalls(state))
             {
                 if (seen.Add(install.FlavourPath))
                 {
-                    AddInstall(install, added.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase));
+                    AddInstall(install, state.AddedInstalls.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase));
                 }
             }
 
+            EnsureSelection();
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
             await PushCharacterSyncAsync().ConfigureAwait(true);
             _lastDirectorySync = DateTimeOffset.Now;
@@ -737,35 +697,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task BrowseAsync()
     {
-        var picker = new FolderPicker();
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, OwnerWindowHandle);
-        picker.FileTypeFilter.Add("*");
-
-        var folder = await picker.PickSingleFolderAsync();
-        if (folder is null)
+        if (await PickFolderAsync().ConfigureAwait(true) is not { } path)
         {
             return;
         }
 
-        var install = WowInstalls.FromFlavourPath(folder.Path, _supportedProducts);
-        if (install is null)
+        if (Installs.FirstOrDefault(existing => string.Equals(existing.FlavourPath, WowInstalls.FromFlavourPath(path, _supportedProducts)?.FlavourPath, StringComparison.OrdinalIgnoreCase)) is { } known)
         {
-            StatusMessage = $"{folder.Path} is not a valid WoW flavour directory.";
+            SelectedInstall = known;
             return;
         }
 
-        if (install.ProductCode is null || !_supportedProducts.ContainsKey(install.ProductCode))
+        if (ValidateInstallFolder(path, editing: null) is { } error)
         {
-            StatusMessage = "Steward supports World of Warcraft: Forever only.";
-            return;
-        }
-
-        if (Installs.Any(existing => string.Equals(existing.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase)))
-        {
+            StatusMessage = error;
             return;
         }
 
         var state = _stateStore.Load();
+        if (WowInstalls.FromFlavourPath(path, _supportedProducts, state.InstallProducts) is not { } install)
+        {
+            return;
+        }
+
         if (!state.AddedInstalls.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase))
         {
             state.AddedInstalls.Add(install.FlavourPath);
@@ -774,13 +728,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var viewModel = AddInstall(install, isAddedByUser: true);
         viewModel.ApplyStatus(_status, background: false);
+        SelectedInstall = viewModel;
         RecomputeSummary();
     }
 
     [RelayCommand]
     private void Rescan()
     {
-        foreach (var install in WowInstalls.Discover(_supportedProducts))
+        foreach (var install in Installs)
+        {
+            install.RescanLocal();
+        }
+
+        foreach (var install in WowInstalls.Discover(_supportedProducts, _stateStore.Load().InstallProducts))
         {
             if (Installs.Any(existing => string.Equals(existing.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase)))
             {
@@ -790,33 +750,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             AddInstall(install, isAddedByUser: false).ApplyStatus(_status, background: false);
         }
 
+        EnsureSelection();
         RecomputeSummary();
     }
 
     private void RemoveInstall(WowInstallViewModel install)
     {
-        Installs.Remove(install);
-        install.RowsChanged -= OnInstallRowsChanged;
-        install.Dispose();
+        DetachInstall(install);
         _stateStore.Save(AppStateStore.RemoveInstall(_stateStore.Load(), install.FlavourPath));
-        SyncGuideInstalls();
+        EnsureSelection();
         RecomputeSummary();
     }
 
-    private bool CanUpdateAll => IsAuthorized && UpdateCount > 0 && !IsAnyRowBusy;
-
-    [RelayCommand(CanExecute = nameof(CanUpdateAll))]
-    private async Task UpdateAllAsync()
+    private void DetachInstall(WowInstallViewModel install)
     {
-        foreach (var row in Installs.SelectMany(install => install.AddonRows).ToList())
-        {
-            if (row.UpdateCommand.CanExecute(null))
-            {
-                await row.UpdateCommand.ExecuteAsync(null).ConfigureAwait(true);
-            }
-        }
-
-        RecomputeSummary();
+        Installs.Remove(install);
+        install.RowsChanged -= OnInstallRowsChanged;
+        install.Dispose();
+        SyncGuideInstalls();
     }
 
     [RelayCommand]
@@ -833,6 +784,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 is AuthCheckResult.SessionExpired or AuthCheckResult.NotAuthorized)
             {
                 return;
+            }
+
+            foreach (var install in Installs)
+            {
+                install.RescanLocal();
             }
 
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
@@ -2086,7 +2042,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (_status.TryGetValue(channel.AddonId, out var status))
             {
-                channel.Apply(status, IsGlobalAdmin);
+                channel.Apply(status);
             }
         }
     }
@@ -2232,14 +2188,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         StartupRegistration.Set(value);
     }
 
-    partial void OnShowHiddenAddonsChanged(bool value)
-    {
-        foreach (var install in Installs)
-        {
-            install.SetShowHidden(value);
-        }
-    }
-
     partial void OnAvatarUriChanged(Uri? value) => _avatarImage = value is null ? null : new BitmapImage(value);
 
     private void OnChannelChanged(string addonId, string channel)
@@ -2259,12 +2207,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         var viewModel = new WowInstallViewModel(
             install,
+            install.ProductCode is { } product && _supportedProducts.TryGetValue(product, out var productName) ? productName : null,
+            _stateStore.Load().InstallLabels.GetValueOrDefault(install.FlavourPath),
             VisibleAddons(),
+            [.. _addons.Select(addon => addon.FolderName), StewardGuidesAddon.FolderName],
             _addonUpdater,
             _stateStore,
             EnsureAuthorizedForActionAsync,
             _features.Contains,
-            () => NavigateToSettings?.Invoke(),
+            ShowChannelDialogFor,
+            ConfirmUninstallAsync,
             RemoveInstall,
             OnClientExited,
             wowInstall => AfterStewardInstalled?.Invoke(wowInstall) ?? Task.CompletedTask)
@@ -2272,7 +2224,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsAddedByUser = isAddedByUser,
         };
         viewModel.SetIsAdmin(IsAuthorized);
-        viewModel.SetShowHidden(ShowHiddenAddons);
         viewModel.RowsChanged += OnInstallRowsChanged;
         Installs.Add(viewModel);
         SyncGuideInstalls();
@@ -2307,7 +2258,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(name);
         }
 
-        UpdateAllCommand.NotifyCanExecuteChanged();
+        RecomputeTable();
     }
 
     private void StartRecheckTimer()

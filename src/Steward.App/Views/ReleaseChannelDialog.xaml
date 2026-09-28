@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="Steward.App.Views.ReleaseChannelDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Release channel"
+    PrimaryButtonText="Save"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary"
+    CornerRadius="8"
+    PrimaryButtonClick="OnSaveClick">
+
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMinWidth">420</x:Double>
+        <x:Double x:Key="ContentDialogMaxWidth">460</x:Double>
+    </ContentDialog.Resources>
+
+    <StackPanel Spacing="12">
+        <Grid ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Width="28" Height="28" CornerRadius="6" VerticalAlignment="Center" Background="{ThemeResource ChipBrush}">
+                <Image Source="{x:Bind Channel.Icon}" Stretch="UniformToFill" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="{x:Bind Channel.Name}" FontSize="13.5" />
+                <TextBlock
+                    Text="{x:Bind Channel.FolderName}"
+                    FontFamily="Cascadia Mono"
+                    FontSize="11.5"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+            </StackPanel>
+        </Grid>
+
+        <RadioButtons x:Name="Options" SelectionChanged="OnSelectionChanged" />
+
+        <TextBlock
+            Text="{x:Bind Channel.Hint}"
+            FontSize="12"
+            TextWrapping="Wrap"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+    </StackPanel>
+</ContentDialog>

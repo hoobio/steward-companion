@@ -8,7 +8,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Steward.App.Services;
 
-public static class AddonIcon
+public static class ManifestIcon
 {
     private static readonly HttpClient HttpClient = new();
     private static readonly ConcurrentDictionary<string, Task> Refreshes = new(StringComparer.OrdinalIgnoreCase);

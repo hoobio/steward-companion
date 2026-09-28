@@ -1,22 +1,20 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-
 using Steward.App.Services;
 using Steward.Core;
 
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Steward.App.ViewModels;
 
-public sealed partial class AddonChannelViewModel : ObservableObject
+public sealed record ChannelOption(string Channel, string Detail, bool IsEnabled, bool IsCurrent)
+{
+    public string Label => string.Concat(char.ToUpperInvariant(Channel[0]), Channel[1..]);
+}
+
+public sealed class AddonChannelViewModel
 {
     private readonly ManagedAddon _addon;
     private readonly AppStateStore _stateStore;
     private readonly Action<string, string> _channelChanged;
-
-    private AddonChannelStatus? _status;
-    private bool _isApplying;
 
     public AddonChannelViewModel(ManagedAddon addon, AppStateStore stateStore, Action<string, string> channelChanged)
     {
@@ -25,123 +23,38 @@ public sealed partial class AddonChannelViewModel : ObservableObject
         _addon = addon;
         _stateStore = stateStore;
         _channelChanged = channelChanged;
-        Icon = AddonIcon.For(addon);
-        SelectedIndex = -1;
+        Icon = ManifestIcon.For(addon);
     }
 
     public string AddonId => _addon.Id;
 
     public string Name => _addon.DisplayName;
 
+    public string FolderName => _addon.FolderName;
+
     public ImageSource Icon { get; }
 
-    [ObservableProperty]
-    public partial string Description { get; set; } = "No releases yet";
+    public string? Current { get; private set; }
 
-    [ObservableProperty]
-    public partial int SelectedIndex { get; set; }
+    public string Hint { get; set; } = "";
 
-    [ObservableProperty]
-    public partial bool Option1Enabled { get; set; }
+    public IReadOnlyList<ChannelOption> Options { get; private set; } = [];
 
-    [ObservableProperty]
-    public partial bool Option2Enabled { get; set; }
-
-    [ObservableProperty]
-    public partial bool Option3Enabled { get; set; }
-
-    [ObservableProperty]
-    public partial string? Option1Tooltip { get; set; }
-
-    [ObservableProperty]
-    public partial string? Option2Tooltip { get; set; }
-
-    [ObservableProperty]
-    public partial string? Option3Tooltip { get; set; }
-
-    [ObservableProperty]
-    public partial string Option1Label { get; set; } = "";
-
-    [ObservableProperty]
-    public partial string Option2Label { get; set; } = "";
-
-    [ObservableProperty]
-    public partial string Option3Label { get; set; } = "";
-
-    [ObservableProperty]
-    public partial Visibility Option2Visibility { get; set; } = Visibility.Collapsed;
-
-    [ObservableProperty]
-    public partial Visibility Option3Visibility { get; set; } = Visibility.Collapsed;
-
-    [ObservableProperty]
-    public partial Visibility PickerVisibility { get; set; } = Visibility.Collapsed;
-
-    [ObservableProperty]
-    public partial Visibility NoReleasesVisibility { get; set; } = Visibility.Visible;
-
-    public void Apply(AddonChannelStatus status, bool isGlobalAdmin)
+    public void Apply(AddonChannelStatus status)
     {
         ArgumentNullException.ThrowIfNull(status);
 
-        _isApplying = true;
-        try
-        {
-            _status = status;
-            var channels = _addon.Channels;
-            Option1Label = channels.Count > 0 ? channels[0] : "";
-            Option2Label = channels.Count > 1 ? channels[1] : "";
-            Option3Label = channels.Count > 2 ? channels[2] : "";
-            Option1Enabled = channels.Count > 0 && status.Has(channels[0]);
-            Option2Enabled = channels.Count > 1 && status.Has(channels[1]);
-            Option3Enabled = channels.Count > 2 && status.Has(channels[2]);
-            Option1Tooltip = channels.Count > 0 && !Option1Enabled ? $"No releases on {channels[0]} yet" : null;
-            Option2Tooltip = channels.Count > 1 && !Option2Enabled ? $"No releases on {channels[1]} yet" : null;
-            Option3Tooltip = channels.Count > 2 && !Option3Enabled ? $"No releases on {channels[2]} yet" : null;
-            Option2Visibility = channels.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
-            Option3Visibility = channels.Count > 2 && isGlobalAdmin ? Visibility.Visible : Visibility.Collapsed;
-
-            SelectedIndex = status.Channel is null ? -1 : IndexOf(status.Channel);
-            Description = status.Channel is null
-                ? "No releases yet"
-                : $"{status.Channel}, {status.Release?.Version}";
-
-            var resolved = status.Channel is not null;
-            NoReleasesVisibility = resolved ? Visibility.Collapsed : Visibility.Visible;
-            var choices = (Option1Enabled ? 1 : 0)
-                + (Option2Visibility == Visibility.Visible && Option2Enabled ? 1 : 0)
-                + (Option3Visibility == Visibility.Visible && Option3Enabled ? 1 : 0);
-            PickerVisibility = resolved && choices > 1 ? Visibility.Visible : Visibility.Collapsed;
-        }
-        finally
-        {
-            _isApplying = false;
-        }
+        Current = status.Channel;
+        Options = [.. _addon.Channels.Select(channel => status.Releases.GetValueOrDefault(channel) is { } release
+            ? new ChannelOption(channel, $"{release.Version} · {RelativeTime.Describe(release.Released, DateTimeOffset.Now)}", true, IsCurrent(channel))
+            : new ChannelOption(channel, $"No releases on {channel} yet", false, IsCurrent(channel)))];
     }
 
-    private int IndexOf(string channel)
+    private bool IsCurrent(string channel) => string.Equals(Current, channel, StringComparison.OrdinalIgnoreCase);
+
+    public void Save(string channel)
     {
-        var channels = _addon.Channels;
-        for (var i = 0; i < channels.Count; i++)
-        {
-            if (string.Equals(channels[i], channel, StringComparison.OrdinalIgnoreCase))
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    partial void OnSelectedIndexChanged(int value)
-    {
-        if (_isApplying || value < 0 || value >= _addon.Channels.Count)
-        {
-            return;
-        }
-
-        var channel = _addon.Channels[value];
-        if (_status is null || string.Equals(_status.Channel, channel, StringComparison.OrdinalIgnoreCase))
+        if (Current is null || IsCurrent(channel))
         {
             return;
         }

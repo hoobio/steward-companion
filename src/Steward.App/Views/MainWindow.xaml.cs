@@ -33,7 +33,6 @@ public sealed partial class MainWindow : Window
         AppTitleBar.Title = MainViewModel.WindowTitle;
         TrayIcon.ToolTipText = MainViewModel.WindowTitle;
         ViewModel.OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        ViewModel.NavigateToSettings = () => Nav.SelectedItem = Nav.SettingsItem;
         ViewModel.NavigateToAddons = () => Nav.SelectedItem = AddonsItem;
         ViewModel.NavigateToPageTag = tag => Nav.SelectedItem = tag switch
         {
@@ -43,6 +42,9 @@ public sealed partial class MainWindow : Window
             _ => AddonsItem,
         };
         ViewModel.ShowRestedXpSignIn = () => _ = ShowRestedXpSignInAsync();
+        ViewModel.ShowChannelDialog = channel => ShowDialogAsync(new ReleaseChannelDialog(channel));
+        ViewModel.ShowEditInstallDialog = install => ShowDialogAsync(new EditInstallDialog(ViewModel, install));
+        ViewModel.ShowConfirmDialog = ConfirmAsync;
         ViewModel.QuitRequested = QuitCompletely;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         Nav.SelectedItem = AddonsItem;
@@ -142,6 +144,27 @@ public sealed partial class MainWindow : Window
         {
             Nav.SelectedItem = AddonsItem;
         }
+    }
+
+    private async Task ShowDialogAsync(ContentDialog dialog)
+    {
+        dialog.XamlRoot = Content.XamlRoot;
+        await dialog.ShowAsync();
+    }
+
+    private async Task<bool> ConfirmAsync(string title, string body, string primary)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = new TextBlock { Text = body, TextWrapping = TextWrapping.Wrap },
+            PrimaryButtonText = primary,
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            CornerRadius = new CornerRadius(8),
+            XamlRoot = Content.XamlRoot,
+        };
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 
     private void OnGuildPanelClick(object sender, RoutedEventArgs e)

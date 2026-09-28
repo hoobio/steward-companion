@@ -213,6 +213,7 @@
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
 
+            <SolidColorBrush x:Key="AvailableVersionBrush" Color="{ThemeResource SystemAccentColorLight1}" />
             <Thickness x:Key="PageGutter">26,7,26,26</Thickness>
             <Thickness x:Key="PageTitleMargin">0,-2,0,0</Thickness>
             <Thickness x:Key="CardRowPadding">16,10</Thickness>

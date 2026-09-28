@@ -9,7 +9,6 @@ using Steward.Core;
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 
 using Windows.ApplicationModel.DataTransfer;
 
@@ -25,7 +24,7 @@ public enum AddonRowState
     Failed,
 }
 
-public sealed partial class AddonRowViewModel : ObservableObject
+public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 {
     private static readonly string[] DerivedNames =
     [
@@ -33,28 +32,41 @@ public sealed partial class AddonRowViewModel : ObservableObject
         nameof(HasUpdateAvailable),
         nameof(IsInstalled),
         nameof(HasNoReleases),
+        nameof(IsPendingUpdate),
         nameof(ActionLabel),
         nameof(ActionStyle),
         nameof(UpdatingLine),
-        nameof(SubtitleText),
+        nameof(InstalledRunText),
+        nameof(NotInstalledRunText),
+        nameof(VersionPairTip),
         nameof(InstalledVersionShort),
         nameof(AvailableVersionShort),
+        nameof(ReleasedText),
+        nameof(NewVersionBrush),
         nameof(VersionPairVisibility),
+        nameof(ReleasedVisibility),
+        nameof(CurrentVersionVisibility),
         nameof(NoReleasesVisibility),
         nameof(UpdatingVisibility),
         nameof(FailedVisibility),
-        nameof(ChannelPillVisibility),
+        nameof(ChannelChipVisibility),
+        nameof(SingleChannelVisibility),
+        nameof(SingleChannelTip),
+        nameof(NoChannelVisibility),
         nameof(ActionVisibility),
-        nameof(StatusGlyphVisibility),
-        nameof(StatusGlyph),
-        nameof(StatusGlyphBrush),
-        nameof(StatusGlyphTooltip),
+        nameof(UpToDateVisibility),
+        nameof(IgnoredPillVisibility),
         nameof(MemberPillVisibility),
         nameof(NoticeVisibility),
         nameof(OverflowVisibility),
+        nameof(IgnoreVisibility),
+        nameof(IgnoreLabel),
+        nameof(ReleaseActionsVisibility),
+        nameof(InstalledActionsVisibility),
+        nameof(OutOfDateTip),
+        nameof(OutOfDateVisibility),
         nameof(CanAutoApply),
         nameof(HideLabel),
-        nameof(RowVisibility),
         nameof(HiddenPillVisibility),
         nameof(RestedXpSignInVisibility),
     ];
@@ -64,7 +76,9 @@ public sealed partial class AddonRowViewModel : ObservableObject
     private readonly AddonUpdater _updater;
     private readonly AppStateStore _stateStore;
     private readonly Func<CancellationToken, Task<bool>> _ensureAuthorized;
-    private readonly Action _changeChannelRequested;
+    private readonly Action<string> _changeChannelRequested;
+    private readonly Func<string, string, Task<bool>> _confirmUninstall;
+    private readonly Func<string?, string?> _outOfDateTip;
     private readonly Func<WowInstall, Task> _afterStewardInstalled;
 
     private AddonChannelStatus? _status;
@@ -77,7 +91,9 @@ public sealed partial class AddonRowViewModel : ObservableObject
         AddonUpdater updater,
         AppStateStore stateStore,
         Func<CancellationToken, Task<bool>> ensureAuthorized,
-        Action changeChannelRequested,
+        Action<string> changeChannelRequested,
+        Func<string, string, Task<bool>> confirmUninstall,
+        Func<string?, string?> outOfDateTip,
         Func<WowInstall, Task> afterStewardInstalled)
     {
         _install = install;
@@ -86,29 +102,56 @@ public sealed partial class AddonRowViewModel : ObservableObject
         _stateStore = stateStore;
         _ensureAuthorized = ensureAuthorized;
         _changeChannelRequested = changeChannelRequested;
+        _confirmUninstall = confirmUninstall;
+        _outOfDateTip = outOfDateTip;
         _afterStewardInstalled = afterStewardInstalled;
-        Icon = AddonIcon.For(addon);
-        IsHidden = stateStore.Load().HiddenAddons.Contains(addon.Id, StringComparer.OrdinalIgnoreCase);
+        Icon = ManifestIcon.For(addon);
+        InitialsBrush = InitialsTile.Brush(addon.FolderName);
+        var state = stateStore.Load();
+        IsHidden = state.HiddenAddons.Contains(addon.Id, StringComparer.OrdinalIgnoreCase);
+        IsIgnored = state.IgnoredAddons.Contains(Key, StringComparer.OrdinalIgnoreCase);
         RefreshInstalledVersion();
     }
 
+    public string Initials => InitialsTile.Text(DisplayName);
+
+    public Brush InitialsBrush { get; }
+
+    [ObservableProperty]
+    public partial ImageSource? FallbackIcon { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ManifestIconVisibility))]
+    public partial bool ManifestIconFailed { get; set; }
+
+    public Visibility ManifestIconVisibility => When(!ManifestIconFailed);
+
+    partial void OnManifestIconFailedChanged(bool value) => _ = LoadFallbackIconAsync();
+
+    private async Task LoadFallbackIconAsync() =>
+        FallbackIcon = await LocalAddonIcon.LoadAsync(_install.AddOnsPath, _addon.FolderName).ConfigureAwait(true);
+
     public string AddonId => _addon.Id;
+
+    public string HiddenId => _addon.Id;
 
     public string DisplayName => _addon.DisplayName;
 
-    public string SubtitleText => ShortVersion(InstalledVersion) ?? "Not installed";
+    public string FolderName => _addon.FolderName;
+
+    public string Source => _addon.Source;
+
+    public string InstalledRunText => InstalledVersionShort ?? "";
+
+    public string NotInstalledRunText => IsInstalled ? "" : "Not installed";
+
+    public string VersionPairTip => $"{InstalledVersion ?? "Not installed"} → {AvailableVersion}";
 
     public string? InstalledVersionShort => ShortVersion(InstalledVersion);
 
     public string? AvailableVersionShort => ShortVersion(AvailableVersion);
 
     private static string? ShortVersion(string? version) => version?.Replace("-pre-release.", "-", StringComparison.Ordinal);
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HairlineThickness))]
-    public partial bool IsFirst { get; set; }
-
-    public Thickness HairlineThickness => IsFirst ? default : new Thickness(0, 1, 0, 0);
 
     [ObservableProperty]
     public partial string? Channel { get; set; }
@@ -143,7 +186,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
     public partial bool IsHidden { get; set; }
 
     [ObservableProperty]
-    public partial bool ShowHidden { get; set; }
+    public partial bool IsIgnored { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RestedXpSignInVisibility))]
@@ -163,14 +206,21 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     public Visibility ReloadHintVisibility => When(NeedsReload);
 
-    public bool CanAutoApply => !IsHidden && IsAdmin && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
+    public bool CanAutoApply => !IsHidden && !IsIgnored && IsAdmin
+        && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
 
     public bool HasUpdateAvailable =>
         _status?.Release is { } release && Channel is not null && TocFile.HasUpdate(release.Version, InstalledVersion);
 
+    public bool IsPendingUpdate => !IsHidden && !IsIgnored && State == AddonRowState.UpdateAvailable;
+
     public bool IsInstalled => InstalledVersion is not null;
 
     public bool HasNoReleases => _status is { Channel: null };
+
+    private bool HasRelease => _status?.Release is not null;
+
+    private bool IsIgnoredUpdate => IsIgnored && State == AddonRowState.UpdateAvailable;
 
     public AddonRowState State => true switch
     {
@@ -197,7 +247,19 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     public string UpdatingLine => $"Installing {_status?.Release?.Version}, verifying download";
 
-    public Visibility VersionPairVisibility => When(State == AddonRowState.UpdateAvailable);
+    public string ReleasedText => _status?.Release is { } release
+        ? $"Released {RelativeTime.Describe(release.Released, DateTimeOffset.Now)}"
+        : "";
+
+    public Brush NewVersionBrush => (Brush)Application.Current.Resources[
+        IsIgnored ? "TextFillColorTertiaryBrush" : "AvailableVersionBrush"];
+
+    public Visibility VersionPairVisibility =>
+        When(State is AddonRowState.UpdateAvailable or AddonRowState.Missing || (State == AddonRowState.Failed && HasUpdateAvailable));
+
+    public Visibility ReleasedVisibility => When(State is AddonRowState.UpdateAvailable or AddonRowState.Missing && !IsIgnoredUpdate);
+
+    public Visibility CurrentVersionVisibility => When(State == AddonRowState.Current);
 
     public Visibility NoReleasesVisibility => When(State == AddonRowState.NoReleases);
 
@@ -205,55 +267,69 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     public Visibility FailedVisibility => When(State == AddonRowState.Failed);
 
-    public Visibility ChannelPillVisibility => When(Channel is not null);
+    private bool HasChannelChoice => Channel is not null && _status!.Releases.Count(release => release.Value is not null) > 1;
+
+    public Visibility ChannelChipVisibility => When(HasChannelChoice);
+
+    public Visibility SingleChannelVisibility => When(Channel is not null && !HasChannelChoice);
+
+    public string SingleChannelTip => $"Only {Channel} builds are published for {DisplayName}.";
+
+    public Visibility NoChannelVisibility => When(Channel is null);
 
     public Visibility ActionVisibility =>
-        When(!IsHidden && IsAdmin && State is AddonRowState.UpdateAvailable or AddonRowState.Missing);
+        When(!IsHidden && !IsIgnored && IsAdmin && State is AddonRowState.UpdateAvailable or AddonRowState.Missing);
 
-    public Visibility StatusGlyphVisibility => When(State is AddonRowState.Current or AddonRowState.UpdateAvailable);
+    public Visibility UpToDateVisibility => When(State == AddonRowState.Current);
 
-    public string StatusGlyph => State == AddonRowState.UpdateAvailable ? "" : "";
+    public Visibility IgnoredPillVisibility => When(IsIgnoredUpdate);
 
-    public Brush StatusGlyphBrush => (Brush)Application.Current.Resources[
-        State == AddonRowState.UpdateAvailable ? "SystemFillColorCautionBrush" : "SystemFillColorSuccessBrush"];
-
-    public string StatusGlyphTooltip => State == AddonRowState.UpdateAvailable
-        ? $"{AvailableVersion} available"
-        : Record?.InstalledAt is { } at ? $"Updated {RelativeTime.Describe(at, DateTimeOffset.Now)}" : "Up to date";
-
-    public Visibility MemberPillVisibility => When(!IsHidden && !IsAdmin && State == AddonRowState.UpdateAvailable);
-
-    public Visibility OverflowVisibility => When(State != AddonRowState.NoReleases);
+    public Visibility MemberPillVisibility => When(!IsHidden && !IsIgnored && !IsAdmin && State == AddonRowState.UpdateAvailable);
 
     public Visibility NoticeVisibility =>
         When(State != AddonRowState.Failed && !string.IsNullOrEmpty(StatusMessage));
 
-    public bool CanHide => !_addon.AutoInstall;
+    public string? OutOfDateTip => IsInstalled && File.Exists(TocPath)
+        ? _outOfDateTip(TocFile.ReadDirective(TocPath, "Interface"))
+        : null;
 
-    public Visibility HideVisibility => When(CanHide);
+    public Visibility OutOfDateVisibility => When(OutOfDateTip is not null);
+
+    private bool CanIgnoreOrHide => !_addon.AutoInstall;
+
+    public Visibility IgnoreVisibility => When(CanIgnoreOrHide && IsInstalled && HasRelease);
+
+    public string IgnoreLabel => IsIgnored ? "Resume updates" : "Ignore updates";
+
+    public Visibility HideVisibility => When(CanIgnoreOrHide);
 
     public string HideLabel => IsHidden ? "Show addon" : "Hide addon";
 
-    public Visibility RowVisibility => When(!IsHidden || ShowHidden);
+    public Visibility ReleaseActionsVisibility => When(IsInstalled && HasRelease);
+
+    public Visibility InstalledActionsVisibility => When(IsInstalled);
+
+    public Visibility OverflowVisibility => When(CanIgnoreOrHide || IsInstalled || HasChannelChoice);
 
     public Visibility HiddenPillVisibility => When(IsHidden);
 
     private bool RecordedChannelDiffers =>
         Record is { } record && Channel is not null && !string.Equals(record.Channel, Channel, StringComparison.OrdinalIgnoreCase);
 
-    private InstalledAddonRecord? Record =>
-        _stateStore.Load().Installs.GetValueOrDefault(AppStateStore.Key(_install.FlavourPath, _addon.Id));
+    private string Key => AppStateStore.Key(_install.FlavourPath, _addon.Id);
+
+    private InstalledAddonRecord? Record => _stateStore.Load().Installs.GetValueOrDefault(Key);
 
     private string AddonFolderPath => Path.Combine(_install.AddOnsPath, _addon.FolderName);
+
+    private string TocPath => Path.Combine(AddonFolderPath, $"{_addon.FolderName}.toc");
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
     public void RefreshInstalledVersion()
     {
-        var state = _stateStore.Load();
-        var record = state.Installs.GetValueOrDefault(AppStateStore.Key(_install.FlavourPath, _addon.Id));
-        InstalledVersion = record?.Version
-            ?? TocFile.ReadVersion(Path.Combine(_install.AddOnsPath, _addon.FolderName, $"{_addon.FolderName}.toc"));
+        var record = _stateStore.Load().Installs.GetValueOrDefault(Key);
+        InstalledVersion = record?.Version ?? TocFile.ReadVersion(TocPath);
     }
 
     public void Apply(AddonChannelStatus status)
@@ -289,7 +365,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
     partial void OnIsHiddenChanged(bool value) => NotifyDerived();
 
-    partial void OnShowHiddenChanged(bool value) => NotifyDerived();
+    partial void OnIsIgnoredChanged(bool value) => NotifyDerived();
 
     private void NotifyDerived()
     {
@@ -302,7 +378,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
         CopySha256Command.NotifyCanExecuteChanged();
     }
 
-    private bool CanUpdate => !IsHidden && IsAdmin && HasUpdateAvailable;
+    private bool CanUpdate => !IsHidden && !IsIgnored && IsAdmin && HasUpdateAvailable;
 
     [RelayCommand(CanExecute = nameof(CanUpdate))]
     private Task UpdateAsync() => RunInstallAsync();
@@ -337,8 +413,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
                 .ConfigureAwait(true);
 
             var state = _stateStore.Load();
-            state.Installs[AppStateStore.Key(_install.FlavourPath, _addon.Id)] =
-                new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now);
+            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now);
             _stateStore.Save(state);
 
             InstalledVersion = release.Version;
@@ -358,6 +433,32 @@ public sealed partial class AddonRowViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task UninstallAsync()
+    {
+        if (!await _confirmUninstall(DisplayName, _addon.FolderName).ConfigureAwait(true))
+        {
+            return;
+        }
+
+        try
+        {
+            AddonUpdater.RemoveExistingInstall(_install.AddOnsPath, _addon.FolderName);
+            var state = _stateStore.Load();
+            state.Installs.Remove(Key);
+            state.IgnoredAddons.RemoveAll(key => string.Equals(key, Key, StringComparison.OrdinalIgnoreCase));
+            _stateStore.Save(state);
+            IsIgnored = false;
+            NeedsReload = false;
+            RefreshInstalledVersion();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            HasFailed = true;
+            StatusMessage = $"Uninstall failed: {ex.Message}";
         }
     }
 
@@ -384,7 +485,7 @@ public sealed partial class AddonRowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ChangeChannel() => _changeChannelRequested();
+    private void ChangeChannel() => _changeChannelRequested(AddonId);
 
     [RelayCommand]
     private void RestedXpSignIn() => RestedXpSignInRequested?.Invoke();
@@ -404,5 +505,22 @@ public sealed partial class AddonRowViewModel : ObservableObject
 
         _stateStore.Save(state);
         IsHidden = !IsHidden;
+    }
+
+    [RelayCommand]
+    private void ToggleIgnored()
+    {
+        var state = _stateStore.Load();
+        if (IsIgnored)
+        {
+            state.IgnoredAddons.RemoveAll(key => string.Equals(key, Key, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            state.IgnoredAddons.Add(Key);
+        }
+
+        _stateStore.Save(state);
+        IsIgnored = !IsIgnored;
     }
 }
