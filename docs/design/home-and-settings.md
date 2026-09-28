@@ -4,7 +4,7 @@ The WinUI 3 design for the two pages the app has: a home page listing every WoW 
 
 Rendered mockups of every state: https://claude.ai/artifact/1Vyp5Qcg9KzbbtweuNNYRf
 
-This is built, and this doc is the reference for how it behaves.
+This is built, and this doc is the reference for how it behaves. `addon-manager.md` is the agreed replacement for its Addons page and its Release channels card; this doc stays the reference for both until that lands.
 
 ## Foundations
 
