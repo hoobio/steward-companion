@@ -55,7 +55,7 @@ File fields that matter:
 - `dependencies[]` of `{modId, relationType}`; relationType values follow the CurseForge docs (3 is a required dependency); confirm against https://docs.curseforge.com/rest-api/ before relying on them.
 - `fileDate`, `fileLength`, `displayName`, `fileName`.
 
-`allowModDistribution` is false for several of the most popular Forever addons (DBM, Details!, Auctionator) and true for others (Questie, Plater). Such a file has no `downloadUrl` and `/download-url` answers 403, but `https://mediafilez.forgecdn.net/files/{id / 1000}/{id % 1000}/{fileName}` serves it without a key with the API's SHA-1 (verified against DBM on 29 Sep 2026), so gigagrug puts that URL in the manifest's `zip` and the app downloads it directly.
+`allowModDistribution` is false for several of the most popular Forever addons (DBM, Details!, Auctionator) and true for others (Questie, Plater). Such a file has no `downloadUrl` and `/download-url` answers 403, but `https://edge.forgecdn.net/files/{id / 1000}/{id % 1000}/{fileName}`, the same form the API's own `downloadUrl` takes, redirects without a key to `mediafilez.forgecdn.net`, which serves the file with the API's SHA-1 (verified against DBM on 29 Sep 2026), so gigagrug puts the edge URL in the manifest's `zip` and the app downloads it directly. App downloads send the `Downloads:UserAgent` value from `appsettings.json` (an Edge browser string by default), overridable with the `Downloads__UserAgent` environment variable.
 
 ## gigagrug service
 
