@@ -164,7 +164,7 @@ The Release channels expander and its cards are removed. The Installs cards show
 
 There is no add-by-URL field. The unauthenticated GitHub API allows 60 requests an hour per IP, which a 5-minute check across several addons exhausts; a GitHub-only addon is added to gigagrug's mirror, the way RestedXP, BugSack and BugGrabber are.
 
-CurseForge addons are persisted in `state.json` under `provider_addons`, per install, as `ManagedAddon`-shaped records with `Source: "CurseForge"`; they are shown only on the installs they were installed to or found on, and only while the user holds the `curseforge` feature.
+CurseForge addons are persisted in `provider_addons.json` beside `state.json` (see AGENTS.md "Managed addons"), per install, as `ManagedAddon`-shaped records with `Source: "CurseForge"`; they are shown only on the installs they were installed to or found on, and only while the user holds the `curseforge` feature.
 
 ## State
 
@@ -178,7 +178,7 @@ CurseForge addons are persisted in `state.json` under `provider_addons`, per ins
 | `hidden_addons` | unchanged | |
 | `channels` | unchanged | Written from the channel dialog. |
 | `table_column_widths` | column id to pixels | User-resized widths of Name, Version, Channel and Source; a column without an entry keeps its proportional default. |
-| `provider_addons` | flavour path to a list of `ProviderAddonRecord` | CurseForge addons installed through Get addons or matched from a Local folder on that install. |
+| `provider_addons` | flavour path to a list of `ProviderAddonRecord` | CurseForge addons installed through Get addons or matched from a Local folder on that install. Held in memory on `AppState` but saved to `provider_addons.json`, not `state.json`. |
 
 ## Control mapping
 
