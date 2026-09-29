@@ -324,8 +324,8 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <FontIcon Glyph="&#xE73E;" FontSize="13" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-                        <TextBlock Grid.Column="1" Text="Up to date" FontSize="12.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                        <FontIcon Glyph="&#xE73E;" FontSize="13" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="Up to date" FontSize="12.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                     </Grid>
                     <Border
                         HorizontalAlignment="Left"
