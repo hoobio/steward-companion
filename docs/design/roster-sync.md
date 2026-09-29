@@ -170,7 +170,7 @@ The companion repo uses no feature branches, no worktrees and no pull requests f
 
 ## Out of scope
 
-- Pushing loot and attendance. The push direction of `IGuildSyncApi` stays unimplemented.
+- Pushing loot and attendance. No loot or attendance route exists in `GigagrugGuildSyncApi`.
 - A characters table in gigagrug.
 - Addon-to-addon messages of any kind.
 - Writing to the addon's own saved variables from the desktop app, in any circumstance.

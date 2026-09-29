@@ -4,7 +4,7 @@ The WinUI 3 design for the two pages the app has: a home page listing every WoW 
 
 Rendered mockups of every state: https://claude.ai/artifact/1Vyp5Qcg9KzbbtweuNNYRf
 
-This is built, and this doc is the reference for how it behaves. `addon-manager.md` is the agreed replacement for its Addons page and its Release channels card; this doc stays the reference for both until that lands.
+This is built, and this doc is the reference for how it behaves. `addon-manager.md` replaced its Addons page and its Release channels card, and is the reference for both.
 
 ## Foundations
 
@@ -65,15 +65,15 @@ The channel is per addon, not per app. `hoobiscripts` and `steward` are separate
 
 `state.json` carries `Channels`, a map of addon id to channel, replacing the single `Channel` string. On first load, an existing `Channel` value seeds every configured addon so nobody loses their setting.
 
-**Availability.** A channel is offered for an addon only when `{ManifestBaseUrl}latest-{channel}.json` resolves to a release. Refresh probes every channel the role can see rather than only the selected one, so one fetch per channel the role can see at startup instead of one per addon. A channel with no release renders disabled in the picker with the tooltip "No releases on {channel} yet".
+**Availability.** A channel is offered for an addon only when `{ManifestBaseUrl}latest-{channel}.json` resolves to a release. Refresh probes every channel (`release`, `pre-release`) rather than only the selected one. A channel with no release renders disabled in the picker with the tooltip "No releases on {channel} yet".
 
-**Default.** With no stored choice for an addon, pick the first channel that has a release in the order `beta` then `stable` then `unstable`. Beta leads while the addons are pre-release. Today that gives `hoobiscripts` beta, and it gives `steward` nothing until it publishes. Once the user picks a channel it is stored and the default stops applying.
+**Default.** With no stored choice for an addon, pick the first channel that has a release in the order `release` then `pre-release`. Once the user picks a channel it is stored and the default stops applying.
 
-**Role.** `unstable` is absent from the picker unless `/api/admin/me` returns role exactly `global`. Absent for role and disabled for no releases are different states and read differently: the first is not shown at all, the second is shown greyed with the reason.
+**Role.** No channel is gated on role; the picker offers `release` and `pre-release` to every user.
 
-**No channel at all.** An addon with no releases on any channel the user can see shows "No releases yet" in place of the version pair, no picker, and no action button. `steward` is in this state today.
+**No channel at all.** An addon with no releases on any channel shows "No releases yet" in place of the version pair, no picker, and no action button.
 
-**Stored channel goes stale.** If the stored channel stops resolving, fall back to the default rule and say so once on the row: "No releases on beta any more. Showing stable."
+**Stored channel goes stale.** If the stored channel stops resolving, fall back to the default rule and say so once on the row: "No releases on pre-release any more. Showing release."
 
 ## Checking
 
@@ -140,7 +140,7 @@ The page header stays visible above it.
 
 ### Not authorised
 
-Access is gated on `/api/admin/me`'s `user.features` array (`addons`, `guides`, `steward`), not on officer role: a guild member can hold any subset of the three by Discord role or user id, and an officer gets all three by default.
+Access is gated on `/api/admin/me`'s `user.features` array (`guides`, `steward`, `sync`, `roster`, `professions`, `signups`, `addons`; `AGENTS.md` Auth is the source of truth), not on officer role: a guild member can hold any subset by Discord role or user id, and an officer gets the officer defaults.
 
 A user with no feature at all never gets past the gate. `/api/admin/me` comes back with an empty (or, on an older server with no `features` field, non-officer) feature set, the stored session is cleared and the window stays on the gate, with a critical `InfoBar` above the sign-in button: "This Discord user has no Steward access. Reach out to an Officer or to Hoobi." No link, no instruction. The same check runs on the background pass, so a user who loses every feature mid-session returns to the gate.
 
@@ -190,15 +190,15 @@ Removing an install is new. It drops the install from the list and its records f
 
 ## Scope
 
-Already in the app and unchanged by this design: the default-browser sign-in and DPAPI token, the role re-check at startup and on the 15-minute timer, the `unstable` gate on role `global`, per-row update with progress and SHA-256 verification, install discovery and the folder picker.
+Already in the app and unchanged by this design: the default-browser sign-in and DPAPI token, the role re-check at startup and on the 15-minute timer, per-row update with progress and SHA-256 verification, install discovery and the folder picker.
 
 New: the settings page and the gear that reaches it, the signed-out gate as a real state, the summary banner and `Update all`, all installs visible at once in place of the install dropdown, removing an install, and rescanning.
 
 New and not only a view change, so worth doing first:
 
 - **Per-addon channels.** `AppState.Channel` becomes `Channels`, a map of addon id to channel, with a one-time migration seeding every configured addon from the old value. `MainViewModel.SelectedChannel` and `OnSelectedChannelChanged` go away and `AddonRowViewModel` reads its own channel from the store.
-- **Channel probing.** `AddonUpdater.GetLatestAsync` is called for all three channels per addon on refresh, not just the selected one, so the picker knows which channels have releases. A missing manifest is a normal outcome here, not an error to surface.
-- **Default channel.** With nothing stored for an addon, take the first channel that has a release in the order `beta`, `stable`, `unstable`, so a pre-release addon lands on beta and one with no beta falls back to stable.
+- **Channel probing.** `AddonUpdater.GetLatestAsync` is called for every channel per addon on refresh, not just the selected one, so the picker knows which channels have releases. A missing manifest is a normal outcome here, not an error to surface.
+- **Default channel.** With nothing stored for an addon, take the first channel that has a release in the order `release`, `pre-release`.
 - **Background checking.** The 15-minute timer refreshes manifests as well as the role, and a check runs at startup. Applying an update follows the game client. See [Checking](#checking).
 - **Dark only.** `RequestedTheme` is forced to `Dark` in `App.xaml`, matching the guild panel. There is no theme setting and no light palette.
 

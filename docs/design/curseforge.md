@@ -4,11 +4,11 @@ Phase 2 of `addon-manager.md`: the Get addons dialog and CurseForge as an addon 
 
 Visual reference for the Get addons dialog, the search, result rows and the Installed state: https://claude.ai/artifact/Vtzv3nY6bR3SEZpepFb6NX (the interactive mockup behind `addon-manager.md`). Where the mockup and a doc disagree, the doc wins, and this doc wins over `addon-manager.md` on anything CurseForge-specific below.
 
-Status: agreed direction, not implemented. Everything under "Verified API behaviour" was exercised against the live API with Steward's key on 29 Sep 2026.
+Status: built. Everything under "Verified API behaviour" was exercised against the live API with Steward's key on 29 Sep 2026.
 
 ## Access
 
-- The key is a CurseForge 3rd-party API key, approved for the application "Steward" on 29 Sep 2026, and stored in Key Vault `hbicfgkvtaus01` as `curseforge-api-key`. It is not yet mapped into any variable group or container; wire it with the `hoobi-secret` skill (variable group `hoobi-podman` id 10, env var `CURSEFORGE_API_KEY` on the gigagrug service, `D:\hoobi-podman` files per that skill) in the same change that adds the code reading it.
+- The key is a CurseForge 3rd-party API key, approved for the application "Steward" on 29 Sep 2026, and stored in Key Vault `hbicfgkvtaus01` as `curseforge-api-key`. It reaches the gigagrug service as the `CURSEFORGE_API_KEY` environment variable, mapped from `curseforge-api-key` in `D:\hoobi-podman` (`operations/inventory/service-secrets.yaml`, `operations/pipelines/ci.yaml`).
 - The key lives in gigagrug only and never ships in the app. Terms section 2.2: the key "is non-transferable and may not be shared with any third party", and a key compiled into a .NET Store package is recoverable with any decompiler whatever the obfuscation, so embedding it in Steward was rejected. (WowUp ships its key in its client, `AppConfig.curseforge.apiKey`; its agreement with CurseForge is not known here, so it is not a precedent for Steward's key.)
 - Every CurseForge call goes `Steward -> gigagrug -> api.curseforge.com` with the `x-api-key` header, except file downloads, which the app takes straight from the CDN URL gigagrug returns (the CDN needs no key).
 
@@ -92,7 +92,7 @@ Manifest selection mirrors the GitHub mirror's rule and its lesson: filter files
 
 - **Manifest model** (`AddonRelease` in `Models.cs`): optional `sha1`, `folders`, `website` and `distributable` (default true) beside the existing fields; `sha256` becomes optional. `AddonUpdater` verifies SHA-256 when present, otherwise SHA-1, and refuses a manifest with neither. Tests for each case.
 - **Multi-folder installs:** `AddonUpdater.InstallAsync` removes and extracts every folder in `folders` (falling back to `FolderName` alone when absent), each through the unchanged `RemoveExistingInstall` TOC guard, and the zip-slip guard still applies. Uninstall removes the same set. A `folders` entry becomes a folded folder for the Local scan so it never shows as its own Local row.
-- **Non-distributable mods:** the row's action is `Get on CurseForge` (opens `website`), or `Update on CurseForge` when a newer version exists; auto-apply and Update all skip it; Get addons shows `Available on CurseForge` with the same link instead of `Install`.
+- **Non-distributable mods:** gigagrug no longer sends `distributable: false`, so every CurseForge row installs. For a manifest from an older gigagrug that does, the row's action is `Get on CurseForge` (opens `website`), or `Update on CurseForge` when a newer version exists; auto-apply and Update all skip it; Get addons shows `Available on CurseForge` with the same link instead of `Install`.
 - **Session on manifest fetches:** CurseForge manifests are fetched with the `gg_session` token (the mirrors stay unauthenticated). A 401 follows the existing signed-out path.
 - **Check interval:** with no caching allowed on gigagrug, CurseForge manifests are checked on startup, on Refresh and at most every 30 minutes from the background pass (wall-clock, like `_lastGuideCheck`), not every minute like the Steward manifests.
 - **Installed provider addons:** persisted in `state.json` as `ManagedAddon`-shaped entries with `Source: "CurseForge"`, the mod id and the version type, keyed per install and shown only on the installs they were installed to; not feature-gated. They take part in channels, Ignore, Hide, sort, filter and Update all like configured addons.
@@ -116,20 +116,20 @@ The Install button on a curseforge.com addon page (for example https://www.curse
 - A link starts a second process. It hands the URI to the running instance of the same train instead of only asking it to show itself (Windows App SDK `AppInstance` redirection, or the existing `InstanceCoordination` channel extended to carry the URI), then exits. A cold start handles the URI once signed in and the first pass has finished.
 - The running app parses `addonId` and `fileId` (both positive integers, anything else ignored with a log line). Without a session or without the `curseforge` feature it shows a dismissible info bar ("CurseForge installs are not enabled for your account.") and does nothing else.
 - gigagrug `GET /api/addons/curseforge/{modId}/files/{fileId}` (session and `curseforge` required, nothing cached) returns the mod's name, icon, website and that file in the manifest shape plus its `gameVersionTypeIds`.
-- The app shows a confirmation `ContentDialog`, "Install {name} {version} on {install}?", on the selected install. A file without the install's version type reads "{name} {version} is not built for {game version}." with only Close; a non-distributable mod offers "Open on CurseForge". Confirming installs that file, adds the CurseForge row (channel `release`, or `pre-release` when the file's `releaseType` is 2 or 3) and navigates to Addons. An addon already installed there reads "{name} is already installed" with Update when the link's file is newer.
+- The app shows a confirmation `ContentDialog`, "Install {name} {version} on {install}?", on the selected install. A file without the install's version type reads "{name} {version} is not built for {game version}." with only Close; a mod that an older gigagrug reports as non-distributable offers "Open on CurseForge". Confirming installs that file, adds the CurseForge row (channel `release`, or `pre-release` when the file's `releaseType` is 2 or 3) and navigates to Addons. An addon already installed there reads "{name} is already installed" with Update when the link's file is newer.
 
 ## Open questions for CurseForge
 
-Search is required for the Get addons dialog, so question 1 gates the release of that dialog; matching existing folders, updates and installing from the discover list work without it. These go to the CurseForge API team before release, from Hoobi. A draft for Hoobi to review and send:
+Search answers 200 with Steward's key since 29 Sep 2026, so the search question is dropped from the draft. The remaining questions go to the CurseForge API team before release, from Hoobi. A draft for Hoobi to review and send:
 
-> Hi, thanks for approving Steward's API key. Steward is a free Windows companion app for a World of Warcraft guild toolkit; it installs and updates the addons a guild uses on WoW Forever, calling the API from our own server with our key. Three questions: (1) our key returns 403 on `/v1/mods/search` while every other endpoint works; can search be enabled for it? (2) Does 3.1(e) allow our server a short in-memory cache (a few minutes) of mod and file metadata, and does storing the mod id, file id and version of an addon the user installed count as caching? (3) We read 3.1 as allowing an addon manager inside a guild tool for one game; please tell us if you see it otherwise. Thanks, Alex
+> Hi, thanks for approving Steward's API key. Steward is a free Windows companion app for a World of Warcraft guild toolkit; it installs and updates the addons a guild uses on WoW Forever, calling the API from our own server with our key. Two questions: (1) Does 3.1(e) allow our server a short in-memory cache (a few minutes) of mod and file metadata, and does storing the mod id, file id and version of an addon the user installed count as caching? (2) We read 3.1 as allowing an addon manager inside a guild tool for one game; please tell us if you see it otherwise. Thanks, Alex
 
 ## Build order
 
 1. gigagrug: the `curseforge` service and routes (including `match`), key wired through `hoobi-secret`, tests with recorded CurseForge responses (no live calls in tests).
 2. App Core: `AddonRelease` fields, SHA-1 verification, multi-folder install and uninstall, the declared-ID read and the CurseForge folder fingerprint, tests.
-3. App: matching existing folders into CurseForge rows, provider addons in `state.json`, the non-distributable row actions, the 30-minute check interval.
-4. App: the Get addons dialog, discover first; search switches on once CurseForge enables it for the key.
+3. App: matching existing folders into CurseForge rows, provider addons in `state.json`, the non-distributable row actions (kept for an older gigagrug), the 30-minute check interval.
+4. App: the Get addons dialog, discover first, then search.
 5. Docs: `AGENTS.md` (Managed addons), `addon-manager.md` (phase 2 marked built, pointing here).
 
 Wago Addons is a later, separate source: its API keys are self-serve at https://addons.wago.io/account/apikeys with no approval step, and its terms have not been reviewed.

@@ -4,7 +4,7 @@ The WinUI 3 design for a third page: moving roster, loot history and attendance 
 
 Rendered mockups of every state: https://claude.ai/artifact/1Vyp5Qcg9KzbbtweuNNYRf
 
-Built so far: the SavedVariables reader, the generated sync-file writer, the freshness judgement in `SavedVariablesFreshness`, and the `NavigationView` shell this page sits in. Not built: the page itself and the sync endpoints on the guild API. The Steward addon also publishes no manifests and has no `Addons` entry, so it cannot be installed by the app today, and the page's honest default state is the one where the addon is missing.
+Built: the SavedVariables reader, the generated sync-file writer, the freshness judgement in `SavedVariablesFreshness`, the `NavigationView` shell and the page itself, against gigagrug's roster, professions and character-sync routes (`character-sync.md` and `roster-sync.md` are the source of truth for them). Not built: loot and attendance sync, which have no rows and no endpoints. The endpoint table and the fake API below are the original plan and no longer describe the code.
 
 Foundations, palette, type and surfaces are unchanged from [home-and-settings.md](home-and-settings.md).
 
@@ -16,19 +16,19 @@ A 401 on any sync call means the session is gone, and it is handled exactly as `
 
 ## Endpoint contract
 
-Unconfirmed. The shapes below are what the page needs, not an agreed API. Get the real contract from gigagrug before writing any `GigagrugClient` method.
+The shapes below are the original plan for loot and attendance, which have no endpoints. The routes the page uses today are in `character-sync.md` and `roster-sync.md`.
 
-| Need | Provisional shape |
+| Need | Planned shape |
 | --- | --- |
 | What the server holds per dataset, to compare against local | `GET /api/guild/sync/state` returning per-dataset record count and a server cursor |
 | Push one dataset | `POST /api/guild/sync/{roster\|loot\|attendance}` with the parsed records and the addon's `exportedAt` |
 | Pull the merged view | `GET /api/guild/sync/export` returning the merged datasets for writing into the generated Lua file |
 
-Until that contract is agreed, the app runs the page against `InMemoryGuildSyncApi`, the only implementation of `IGuildSyncApi` registered today. It answers with mock counts and a mock local snapshot, so every card, count and banner renders without the endpoints existing. `Send`, `Sync now`, `Write again` and `Update in game` are rendered per this design but disabled, tooltipped "Available once the guild API ships". The fake's `Scenario` property carries `InSync`, `Ready`, `DatasetFailure`, `Unreachable` and `Slow`, defaulting to `Ready`; it is set from code, with no picker in the UI, and is how each state below is reached while the real endpoints are absent. A card drawing on the fake's records carries a `Sample` pill.
+The page ran against an in-memory fake (`InMemoryGuildSyncApi`, behind `IGuildSyncApi`) while the endpoints were absent; the fake was removed on 27 Sep 2026 and the page reads the real routes through `GigagrugGuildSyncApi`. The `Sample` pill, the `Scenario` property and the disabled "Available once the guild API ships" buttons went with it.
 
-One thing to settle with the API owner before implementing: **how the server merges overlapping records.** The page reports a merge result per dataset and never opens a conflict dialog, which assumes the server resolves overlaps and answers with what it took.
+How the server merges overlapping records for loot and attendance is undecided. The page reports a merge result per dataset and never opens a conflict dialog, which assumes the server resolves overlaps and answers with what it took.
 
-Roles are settled. Steward is an officer tool: gigagrug answers 403 on every `/api/admin/` route to a user with no seat and no global admin, so a member reaching this page has nothing to send and nothing to pull. The app stops such a user at the sign-in gate, described in the [Addons page design](home-and-settings.md#not-authorised), and this page is only ever reached by `global`/`admin`.
+Access is gated on `/api/me`'s `user.features` rather than on role, per `AGENTS.md` (Auth): an officer holds every officer feature by default, and a user with `sync`, `roster` or `professions` and no seat reaches the same page with the rows their features allow.
 
 ## Reading and writing on disk
 
@@ -44,7 +44,7 @@ One direction per file, from the [saved variables write-up](../../AGENTS.md#save
 
 ## SavedVariables schema
 
-The addon has no Lua yet, so this is the contract it must write. `LuaSavedVariables` and `StewardSavedVariables` in `Steward.Core` read it, and the account file holds `StewardDB`:
+The addon writes `characters`, `professions`, `catalogue` and `guildRanks` (see `character-sync.md`) and does not yet write the roster, loot and attendance tables below, so this is the contract it must write for those. `LuaSavedVariables` and `StewardSavedVariables` in `Steward.Core` read it, and the account file holds `StewardDB`:
 
 ```lua
 StewardDB = {
@@ -92,11 +92,7 @@ This is the second destination the home design was waiting for, so the shell mov
 
 ### Addon missing
 
-The default state today, and the only one a user can reach right now.
-
-Centred empty state: addon glyph at 44px, "The Steward addon is not installed", then "Sync reads roster, loot and attendance out of the Steward addon's saved variables. The addon has no releases yet, so there is nothing to install from here." No action button, because there is no manifest to install from. A link to the guild panel sits below.
-
-Once the addon publishes, this state keeps its shape and gains an `Install` button pointing at the Addons page.
+Centred empty state: addon glyph at 44px, "The Steward addon is not installed", then "Sync reads roster, loot and attendance out of the Steward addon's saved variables." A link to the guild panel sits below. The `steward` addon is a configured `Addons` entry, so the app installs it from the Addons page (automatically for a `sync` holder).
 
 ### Never exported
 
@@ -157,9 +153,9 @@ New and not only a view change:
 - **A SavedVariables reader.** Parsing the addon's Lua table dump into records. This is the largest piece and belongs in `Steward.Core` with its own tests, ahead of any UI. Built: `LuaSavedVariables` and `StewardSavedVariables`.
 - **A generated Lua writer.** One file, calling a function the addon exposes. Rewritten after every addon update. Built: `StewardSyncFile`.
 - **Running-client detection.** Process enumeration by main module path, per flavour folder, plus an exit hook that triggers a re-read. Built: `WowClient`, and the per-install watcher in `WowInstallViewModel`.
-- **Sync client methods.** On `GigagrugClient`, against a contract that does not exist yet. Built against the fake only: `IGuildSyncApi` and `InMemoryGuildSyncApi`.
+- **Sync client methods.** On `GigagrugClient`. Built for roster, members, professions and characters; not built for loot and attendance.
 - **`NavigationView` shell.** See [Shell change](#shell-change). Built.
-- **The page itself.** Built: `SyncViewModel` and `SyncPage`, against the fake.
+- **The page itself.** Built: `SyncViewModel` and `SyncPage`.
 
 Deliberately absent:
 
