@@ -109,6 +109,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastGuideCheck;
     private TimeSpan _nextGuideCheckDue = GuideCheckInterval;
     private readonly double _intervalJitter = 1 + Random.Shared.NextDouble() / 5;
+    private DateTimeOffset _lastAuthCheck;
     private DateTimeOffset _lastStoreCheck;
     private StoreContext? _storeContext;
     private IReadOnlyList<StorePackageUpdate>? _storeUpdates;
@@ -2695,7 +2696,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             var result = Failure == GateFailure.ClientOutdated && DateTimeOffset.Now - _clientOutdatedAt < GuildSyncFallbackInterval
                 ? AuthCheckResult.ClientOutdated
-                : await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
+                : _isAccessEventStreamLive && IsAuthorized && !IsDue(_lastAuthCheck, GuildSyncFallbackInterval)
+                    ? AuthCheckResult.Authorized
+                    : await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
             if (result == AuthCheckResult.Authorized)
             {
                 var guildSyncDue = !_isEventStreamLive || IsDue(_lastGuildSync, GuildSyncFallbackInterval);
@@ -2763,6 +2766,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task<AuthCheckResult> RecheckAuthorizationAsync(CancellationToken cancellationToken)
     {
+        _lastAuthCheck = DateTimeOffset.Now;
         try
         {
             var me = await _gigagrugClient.GetMeAsync(cancellationToken).ConfigureAwait(true);
