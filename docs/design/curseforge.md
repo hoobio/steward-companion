@@ -55,11 +55,11 @@ File fields that matter:
 - `dependencies[]` of `{modId, relationType}`; relationType values follow the CurseForge docs (3 is a required dependency); confirm against https://docs.curseforge.com/rest-api/ before relying on them.
 - `fileDate`, `fileLength`, `displayName`, `fileName`.
 
-`allowModDistribution` is false for several of the most popular Forever addons (DBM, Details!, Auctionator) and true for others (Questie, Plater). The app cannot download a non-distributable mod.
+`allowModDistribution` is false for several of the most popular Forever addons (DBM, Details!, Auctionator) and true for others (Questie, Plater). Such a file has no `downloadUrl` and `/download-url` answers 403, but `https://mediafilez.forgecdn.net/files/{id / 1000}/{id % 1000}/{fileName}` serves it without a key with the API's SHA-1 (verified against DBM on 29 Sep 2026), so gigagrug puts that URL in the manifest's `zip` and the app downloads it directly.
 
 ## gigagrug service
 
-A new `curseforge` service in `D:\gigagrug`, beside `github_mirror`, reading `CURSEFORGE_API_KEY`. No persistence of any CurseForge response (3.1(e)). Every route requires a signed-in `gg_session` like `/api/me`, so the key's quota is only spent for Steward users, and gigagrug rate-limits per user.
+A new `curseforge` service in `D:\gigagrug`, beside `github_mirror`, reading `CURSEFORGE_API_KEY`. Nothing is persisted to disk; API responses are cached in memory (15 minutes, 24 hours for immutable file lookups) so every client's version checks share one upstream call, a departure from 3.1(e) decided on 29 Sep 2026 to cut load on CurseForge. Every route requires a signed-in `gg_session` like `/api/me`, so the key's quota is only spent for Steward users, and gigagrug rate-limits per user.
 
 | Route | Does |
 | --- | --- |
@@ -82,12 +82,11 @@ Manifest selection mirrors the GitHub mirror's rule and its lesson: filter files
   "released": "<fileDate>",
   "folders": ["QuestieDB", "Questie"],
   "notes": ["<changelog HTML flattened to lines>"],
-  "website": "https://www.curseforge.com/wow/addons/questie",
-  "distributable": true
+  "website": "https://www.curseforge.com/wow/addons/questie"
 }
 ```
 
-A non-distributable mod's manifest has `"distributable": false` and no `zip`/`sha1`. A mod with no file for that version type on a channel answers 404, which the app already reads as no release on that channel.
+`zip` falls back to the media CDN path above when the file has no `downloadUrl`. gigagrug no longer sends `distributable: false`; the app's handling of it below stays for older gigagrug builds. A mod with no file for that version type on a channel answers 404, which the app already reads as no release on that channel.
 
 ## App changes
 
