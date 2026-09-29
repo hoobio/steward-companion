@@ -225,7 +225,7 @@
                                 Tag="{x:Bind}"
                                 Click="OnChangelogClick"
                                 Visibility="{x:Bind ChangelogVisibility, Mode=OneWay}">
-                                <FontIcon Glyph="&#xE8A5;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <FontIcon Glyph="&#xE8FD;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </Button>
                         </Grid>
                         <TextBlock
