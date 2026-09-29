@@ -62,7 +62,7 @@ internal static class FlyoutOpener
         }
     }
 
-    public static void Attach(ButtonBase button, FlyoutBase flyout, string name)
+    public static void Attach(ButtonBase button, FlyoutBase flyout, string name, Func<FlyoutShowOptions>? options = null)
     {
         Attached.AddOrUpdate(flyout, null);
         long closedAt = 0;
@@ -79,7 +79,7 @@ internal static class FlyoutOpener
                 return;
             }
 
-            Open(button, flyout, name);
+            Open(button, flyout, name, options);
         };
         flyout.Opening += (_, _) => Log(name, "Opening");
         flyout.Opened += (_, _) => Log(name, "Opened");
@@ -179,18 +179,30 @@ internal static class FlyoutOpener
 
     private static void ClearPress(object sender, PointerRoutedEventArgs e) => _pressedWhileActivating = false;
 
-    private static void Open(FrameworkElement target, FlyoutBase flyout, string name)
+    private static void Open(FrameworkElement target, FlyoutBase flyout, string name, Func<FlyoutShowOptions>? options)
     {
+        void Show()
+        {
+            if (options is null)
+            {
+                flyout.ShowAt(target);
+            }
+            else
+            {
+                flyout.ShowAt(target, options());
+            }
+        }
+
         var defer = _pressedWhileActivating;
         _pressedWhileActivating = false;
         if (!defer)
         {
-            flyout.ShowAt(target);
+            Show();
             return;
         }
 
         Log(name, "Deferred");
-        target.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => flyout.ShowAt(target));
+        target.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, Show);
     }
 
     private static void Log(string name, string stage) =>

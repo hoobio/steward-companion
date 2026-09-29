@@ -17,6 +17,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -33,6 +34,8 @@ public sealed partial class MainWindow : Window
     private RectInt32 _passthrough;
     private bool _passthroughStale;
     private const double InstallPickerGap = 8;
+    private const double AccountFlyoutBottomGap = 8;
+    private const double RolePillGap = 8;
     private readonly ILogger<MainWindow> _logger;
     private readonly Microsoft.UI.WindowId _windowId;
 
@@ -44,7 +47,9 @@ public sealed partial class MainWindow : Window
         _windowId = AppWindow.Id;
         FlyoutOpener.TrackActivation(this, logger);
         FlyoutOpener.Attach(InstallPicker, InstallFlyout, "install-picker");
-        FlyoutOpener.Attach(AccountButton, AccountFlyout, "account");
+        FlyoutOpener.Attach(AccountButton, AccountFlyout, "account", AccountFlyoutAtWindowBottom);
+        AccountName.SizeChanged += (_, _) => PlaceRolePill();
+        RolePill.SizeChanged += (_, _) => PlaceRolePill();
         FlyoutOpener.AttachSubmenu(GuildRow, GuildFlyout, GuildFlyoutContent, [AccountHeader, OpenGuildPanelButton, AccountSignOutButton], "guild-switcher");
         InstallFlyout.OverlayInputPassThroughElement = InstallPicker;
         ExtendsContentIntoTitleBar = true;
@@ -112,6 +117,25 @@ public sealed partial class MainWindow : Window
     }
 
     public MainViewModel ViewModel { get; }
+
+    private FlyoutShowOptions AccountFlyoutAtWindowBottom()
+    {
+        var top = AccountButton.TransformToVisual(null).TransformPoint(default).Y;
+        return new FlyoutShowOptions
+        {
+            Position = new Windows.Foundation.Point(AccountButton.ActualWidth, AccountButton.XamlRoot.Size.Height - AccountFlyoutBottomGap - top),
+            Placement = FlyoutPlacementMode.RightEdgeAlignedBottom,
+        };
+    }
+
+    private void PlaceRolePill()
+    {
+        var beside = AccountName.ActualWidth + RolePillGap + RolePill.ActualWidth <= AccountNameColumn.ActualWidth;
+        Grid.SetRow(RolePill, beside ? 0 : 1);
+        RolePill.HorizontalAlignment = beside ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+        RolePill.VerticalAlignment = beside ? VerticalAlignment.Top : VerticalAlignment.Center;
+        RolePill.Margin = beside ? default : new Thickness(0, 8, 0, 0);
+    }
 
     private void PositionInstallPicker()
     {
