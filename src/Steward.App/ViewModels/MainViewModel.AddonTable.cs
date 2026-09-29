@@ -388,6 +388,7 @@ public sealed partial class MainViewModel
         if (AddonChannels.FirstOrDefault(channel => string.Equals(channel.AddonId, addonId, StringComparison.OrdinalIgnoreCase)) is not { } channel
             || ShowChannelDialog is not { } show)
         {
+            _logger.Warn(null, $"Channel dialog not shown for {addonId}: {AddonChannels.Count} channel entries ({string.Join(", ", AddonChannels.Select(c => c.AddonId))}), dialog host {(ShowChannelDialog is null ? "missing" : "set")}");
             return;
         }
 
@@ -406,7 +407,20 @@ public sealed partial class MainViewModel
             _ => "The new version installs once the game is closed, or when you click Switch on the row.",
         };
         channel.Hint = $"Applies to {channel.Name} on {scope}. {when}";
-        _ = show(channel);
+        _logger.Info($"Channel dialog requested for {addonId}");
+        _ = ShowChannelDialogLoggedAsync(show, channel);
+    }
+
+    private async Task ShowChannelDialogLoggedAsync(Func<AddonChannelViewModel, Task> show, AddonChannelViewModel channel)
+    {
+        try
+        {
+            await show(channel).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, $"Channel dialog failed for {channel.AddonId}");
+        }
     }
 
     private async Task<bool> ConfirmUninstallAsync(string name, string folders, string installLabel) =>

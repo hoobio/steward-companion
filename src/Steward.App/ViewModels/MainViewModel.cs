@@ -875,6 +875,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Installs.Remove(install);
         install.RowsChanged -= OnInstallRowsChanged;
         install.Dispose();
+        RebuildAddonChannels();
         SyncGuideInstalls();
     }
 
@@ -2624,6 +2625,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         viewModel.SetIsAdmin(IsAuthorized);
         viewModel.RowsChanged += OnInstallRowsChanged;
         Installs.Add(viewModel);
+        RebuildAddonChannels();
         SyncGuideInstalls();
         SyncCharacterSyncRows();
         return viewModel;
