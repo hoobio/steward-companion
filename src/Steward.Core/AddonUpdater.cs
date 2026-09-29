@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Net;
@@ -19,11 +20,18 @@ public sealed class AddonUpdater
     private readonly HttpClient _httpClient;
     private readonly HttpClient? _sessionClient;
     private readonly ILogger _logger;
+    private readonly Func<CurseForgeDownloadFailure, CancellationToken, Task>? _reportDownloadFailure;
+    private readonly ConcurrentDictionary<string, byte> _reportedFailures = new();
 
-    public AddonUpdater(HttpClient httpClient, ILogger<AddonUpdater>? logger = null, HttpClient? sessionClient = null)
+    public AddonUpdater(
+        HttpClient httpClient,
+        ILogger<AddonUpdater>? logger = null,
+        HttpClient? sessionClient = null,
+        Func<CurseForgeDownloadFailure, CancellationToken, Task>? reportDownloadFailure = null)
     {
         _httpClient = httpClient;
         _sessionClient = sessionClient;
+        _reportDownloadFailure = reportDownloadFailure;
         _logger = logger ?? NullLogger<AddonUpdater>.Instance;
     }
 
@@ -111,8 +119,26 @@ public sealed class AddonUpdater
                 var zipUri = addon.ManifestBaseUrl is null
                     ? new Uri(release.Zip)
                     : new Uri(ManifestUri(addon, channel), release.Zip);
-                await DownloadAsync(_httpClient, zipUri, tempZipPath, release.Size, progress, cancellationToken).ConfigureAwait(false);
-                await VerifyChecksumAsync(tempZipPath, release.Sha256, release.Sha1, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await DownloadAsync(_httpClient, zipUri, tempZipPath, release.Size, progress, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    ReportDownloadFailure(addon, release, zipUri, (int?)(ex as HttpRequestException)?.StatusCode, $"{ex.GetType().Name}: {ex.Message}");
+                    throw;
+                }
+
+                try
+                {
+                    await VerifyChecksumAsync(tempZipPath, release.Sha256, release.Sha1, cancellationToken).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException)
+                {
+                    ReportDownloadFailure(addon, release, zipUri, null, "checksum mismatch");
+                    throw;
+                }
+
                 RefuseForeignFolders(tempZipPath, folders);
                 lock (AddOnsWriteLock)
                 {
@@ -135,6 +161,32 @@ public sealed class AddonUpdater
             _logger.Err(ex, $"Failed to install {addon.Id} {channel} into {addOnsPath}");
             throw;
         }
+    }
+
+    private void ReportDownloadFailure(ManagedAddon addon, AddonRelease release, Uri zipUri, int? status, string error)
+    {
+        var parts = addon.Id.Split('-');
+        if (_reportDownloadFailure is null
+            || addon.Source != CurseForgeAddons.Source
+            || parts is not ["curseforge", var mod, _]
+            || !int.TryParse(mod, out var modId)
+            || !_reportedFailures.TryAdd($"{addon.Id}|{release.Version}", 0))
+        {
+            return;
+        }
+
+        var failure = new CurseForgeDownloadFailure(modId, release.Version, zipUri.AbsoluteUri, status, error.Length > 500 ? error[..500] : error);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _reportDownloadFailure(failure, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, $"Could not report the {addon.Id} {release.Version} download failure to gigagrug");
+            }
+        });
     }
 
     private static Uri ManifestUri(ManagedAddon addon, string channel) =>

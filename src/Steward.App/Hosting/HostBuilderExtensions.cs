@@ -101,7 +101,8 @@ internal static class HostBuilderExtensions
         builder.Services.AddSingleton(sp => new AddonUpdater(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"),
             sp.GetRequiredService<ILogger<AddonUpdater>>(),
-            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gigagrug")));
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gigagrug"),
+            sp.GetRequiredService<GigagrugClient>().ReportCurseForgeDownloadFailureAsync));
         builder.Services.AddSingleton(sp => new AppUpdater(storeProductId));
 
         builder.Services.AddSingleton(sp => new RestedXpClient(

@@ -420,4 +420,111 @@ public sealed class AddonUpdaterTests : IDisposable
         Assert.True(Directory.Exists(Path.Combine(addOnsPath, "Questie")));
         Assert.True(Directory.Exists(Path.Combine(addOnsPath, "QuestieDB")));
     }
+
+    private sealed class StatusHandler(HttpStatusCode status) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(status));
+    }
+
+    private static readonly ManagedAddon CurseForgeQuestie = new(
+        "curseforge-334372-88568", "Questie", "https://gigagrug.example/api/addons/curseforge/334372/88568/", Source: CurseForgeAddons.Source);
+
+    private static readonly AddonRelease QuestieRelease = new("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: "00");
+
+    private static (AddonUpdater Updater, List<CurseForgeDownloadFailure> Reports, SemaphoreSlim Signal) ReportingUpdater(
+        HttpMessageHandler handler, Func<CurseForgeDownloadFailure, Task>? report = null)
+    {
+        var reports = new List<CurseForgeDownloadFailure>();
+        var signal = new SemaphoreSlim(0);
+        var updater = new AddonUpdater(new HttpClient(handler), reportDownloadFailure: async (failure, _) =>
+        {
+            lock (reports)
+            {
+                reports.Add(failure);
+            }
+
+            signal.Release();
+            if (report is not null)
+            {
+                await report(failure);
+            }
+        });
+        return (updater, reports, signal);
+    }
+
+    [Fact]
+    public async Task InstallAsync_CurseForgeZipForbidden_ReportsTheFailure()
+    {
+        var (updater, reports, signal) = ReportingUpdater(new StatusHandler(HttpStatusCode.Forbidden));
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(
+            () => updater.InstallAsync(CurseForgeQuestie, "release", QuestieRelease, _tempDir, null, TestContext.Current.CancellationToken));
+        await signal.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, ex.StatusCode);
+        var report = Assert.Single(reports);
+        Assert.Equal(334372, report.ModId);
+        Assert.Equal("v2", report.Version);
+        Assert.Equal(QuestieZip.AbsoluteUri, report.Url);
+        Assert.Equal(403, report.Status);
+        Assert.Contains("403", report.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task InstallAsync_ChecksumMismatch_ReportsWithNullStatus()
+    {
+        var (setupUpdater, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc");
+        _ = setupUpdater;
+        var (updater, reports, signal) = ReportingUpdater(handler);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => updater.InstallAsync(CurseForgeQuestie, "release", QuestieRelease, addOnsPath, null, TestContext.Current.CancellationToken));
+        await signal.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        var report = Assert.Single(reports);
+        Assert.Null(report.Status);
+        Assert.Equal("checksum mismatch", report.Error);
+    }
+
+    [Fact]
+    public async Task InstallAsync_NonCurseForgeAddon_ReportsNothing()
+    {
+        var (updater, reports, signal) = ReportingUpdater(new StatusHandler(HttpStatusCode.Forbidden));
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => updater.InstallAsync(Questie, "release", QuestieRelease, _tempDir, null, TestContext.Current.CancellationToken));
+
+        Assert.False(await signal.WaitAsync(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken));
+        Assert.Empty(reports);
+    }
+
+    [Fact]
+    public async Task InstallAsync_SameAddonAndVersionFailingTwice_ReportsOnce()
+    {
+        var (updater, reports, signal) = ReportingUpdater(new StatusHandler(HttpStatusCode.Forbidden));
+
+        for (var i = 0; i < 2; i++)
+        {
+            await Assert.ThrowsAsync<HttpRequestException>(
+                () => updater.InstallAsync(CurseForgeQuestie, "release", QuestieRelease, _tempDir, null, TestContext.Current.CancellationToken));
+        }
+
+        await signal.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Assert.False(await signal.WaitAsync(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken));
+        Assert.Single(reports);
+    }
+
+    [Fact]
+    public async Task InstallAsync_ReportItselfFailing_LeavesTheInstallFailureUnchanged()
+    {
+        var (updater, _, signal) = ReportingUpdater(
+            new StatusHandler(HttpStatusCode.Forbidden), _ => throw new SessionExpiredException());
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(
+            () => updater.InstallAsync(CurseForgeQuestie, "release", QuestieRelease, _tempDir, null, TestContext.Current.CancellationToken));
+        await signal.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, ex.StatusCode);
+    }
 }

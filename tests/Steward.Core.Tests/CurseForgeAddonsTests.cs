@@ -102,6 +102,19 @@ public sealed class CurseForgeAddonsTests
     }
 
     [Fact]
+    public async Task ReportCurseForgeDownloadFailureAsync_PostsTheBody_AndThrowsOnNotFound()
+    {
+        var (client, handler) = ClientFor(HttpStatusCode.NoContent, "");
+        await client.ReportCurseForgeDownloadFailureAsync(new CurseForgeDownloadFailure(334372, "v2", "https://edge.example/q.zip", null, "checksum mismatch"), CancellationToken.None);
+
+        Assert.Equal("https://api.example.com/guild/api/addons/curseforge/download-failure", handler.Request?.RequestUri?.ToString());
+        Assert.Equal("""{"modId":334372,"version":"v2","url":"https://edge.example/q.zip","status":null,"error":"checksum mismatch"}""", handler.RequestBody);
+
+        var (missing, _) = ClientFor(HttpStatusCode.NotFound, "");
+        await Assert.ThrowsAsync<HttpRequestException>(() => missing.ReportCurseForgeDownloadFailureAsync(new CurseForgeDownloadFailure(1, "v", "u", 403, "e"), CancellationToken.None));
+    }
+
+    [Fact]
     public async Task SearchCurseForgeAsync_SearchUnavailable_ReturnsNull()
     {
         var (client, _) = ClientFor(HttpStatusCode.ServiceUnavailable, """{"error":"search_unavailable"}""");

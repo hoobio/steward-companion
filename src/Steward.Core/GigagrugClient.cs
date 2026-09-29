@@ -404,6 +404,14 @@ public sealed class GigagrugClient
         return await SendCurseForgeAsync(request, CompanionJsonContext.Default.CurseForgeMatchArray, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task ReportCurseForgeDownloadFailureAsync(CurseForgeDownloadFailure failure, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .PostAsync($"{_baseUrl}/api/addons/curseforge/download-failure", JsonContent.Create(failure, CompanionJsonContext.Default.CurseForgeDownloadFailure), cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+    }
+
     public async Task<CurseForgeModFile?> GetCurseForgeFileAsync(int modId, long fileId, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/api/addons/curseforge/{modId}/files/{fileId}");

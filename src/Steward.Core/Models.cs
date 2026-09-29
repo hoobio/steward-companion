@@ -64,6 +64,13 @@ public sealed record CurseForgeMatchRequest(
     [property: JsonPropertyName("declared")] IReadOnlyList<CurseForgeDeclared> Declared,
     [property: JsonPropertyName("fingerprints")] IReadOnlyList<CurseForgeFolderFingerprint> Fingerprints);
 
+public sealed record CurseForgeDownloadFailure(
+    [property: JsonPropertyName("modId")] int ModId,
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("url")] string Url,
+    [property: JsonPropertyName("status")] int? Status,
+    [property: JsonPropertyName("error")] string Error);
+
 public sealed record CurseForgeMatch(
     [property: JsonPropertyName("folder")] string Folder,
     [property: JsonPropertyName("modId")] int ModId,
@@ -293,6 +300,7 @@ public sealed record ProviderAddonsState(
 [JsonSerializable(typeof(CharacterSyncState))]
 [JsonSerializable(typeof(ProviderAddonsState))]
 [JsonSerializable(typeof(CurseForgeDiscover))]
+[JsonSerializable(typeof(CurseForgeDownloadFailure))]
 [JsonSerializable(typeof(CurseForgeMatch[]))]
 [JsonSerializable(typeof(CurseForgeMatchRequest))]
 [JsonSerializable(typeof(CurseForgeModFile))]
