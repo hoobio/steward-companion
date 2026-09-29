@@ -55,7 +55,7 @@
                     <ColumnDefinition Width="1.2*" />
                     <ColumnDefinition Width="1*" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="32" />
                 </Grid.ColumnDefinitions>
 
                 <Border
@@ -343,39 +343,34 @@
                         Visibility="{x:Bind HiddenPillVisibility, Mode=OneWay}">
                         <TextBlock Text="Hidden" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </Border>
-                </Grid>
-
-                <StackPanel
-                    x:Name="Actions"
-                    Grid.Column="6"
-                    Orientation="Horizontal"
-                    Spacing="6"
-                    SizeChanged="OnActionsSizeChanged"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center">
                     <Button
                         Height="32"
+                        HorizontalAlignment="Left"
                         Content="{x:Bind ActionLabel, Mode=OneWay}"
                         Style="{x:Bind ActionStyle, Mode=OneWay}"
                         Command="{x:Bind UpdateCommand}"
                         Visibility="{x:Bind ActionVisibility, Mode=OneWay}" />
-                    <Button Height="32" Content="Retry" Command="{x:Bind UpdateCommand}" Visibility="{x:Bind FailedVisibility, Mode=OneWay}" />
+                    <Button Height="32" HorizontalAlignment="Left" Content="Retry" Command="{x:Bind UpdateCommand}" Visibility="{x:Bind FailedVisibility, Mode=OneWay}" />
                     <Button
                         Height="32"
+                        HorizontalAlignment="Left"
                         Content="Sign in to RestedXP"
                         Command="{x:Bind RestedXpSignInCommand}"
                         Visibility="{x:Bind RestedXpSignInVisibility, Mode=OneWay}" />
-                    <Button
-                        Width="32"
-                        Height="32"
-                        Padding="0"
-                        AutomationProperties.Name="More options"
-                        ToolTipService.ToolTip="More"
-                        Flyout="{StaticResource RowMenu}"
-                        Visibility="{x:Bind OverflowVisibility, Mode=OneWay}">
-                        <FontIcon Glyph="&#xE712;" FontSize="14" />
-                    </Button>
-                </StackPanel>
+                </Grid>
+
+                <Button
+                    Grid.Column="6"
+                    Width="32"
+                    Height="32"
+                    Padding="0"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="More options"
+                    ToolTipService.ToolTip="More"
+                    Flyout="{StaticResource RowMenu}"
+                    Visibility="{x:Bind OverflowVisibility, Mode=OneWay}">
+                    <FontIcon Glyph="&#xE712;" FontSize="14" />
+                </Button>
             </Grid>
         </DataTemplate>
 
@@ -421,7 +416,7 @@
                     <ColumnDefinition Width="1.2*" />
                     <ColumnDefinition Width="1*" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="32" />
                 </Grid.ColumnDefinitions>
 
                 <Border
@@ -530,13 +525,10 @@
                 </Border>
 
                 <Button
-                    x:Name="Actions"
                     Grid.Column="6"
-                    SizeChanged="OnActionsSizeChanged"
                     Width="32"
                     Height="32"
                     Padding="0"
-                    HorizontalAlignment="Right"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="More options"
                     ToolTipService.ToolTip="More"
@@ -890,7 +882,7 @@
                                 <ColumnDefinition Width="1.2*" />
                                 <ColumnDefinition Width="1*" />
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="32" />
                             </Grid.ColumnDefinitions>
                             <Button
                                 Grid.Column="1"

@@ -365,7 +365,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         _ => "TextFillColorTertiaryBrush",
     }];
 
-    private bool ShowsActionButton => ActionVisibility == Visibility.Visible || RestedXpSignInVisibility == Visibility.Visible;
+    private bool ShowsActionButton =>
+        ActionVisibility == Visibility.Visible || RestedXpSignInVisibility == Visibility.Visible || State == AddonRowState.Failed;
 
     public Visibility StatusTextVisibility =>
         When(!ShowsActionButton && Status is not (AddonRowStatus.UpToDate or AddonRowStatus.Ignored or AddonRowStatus.Hidden));

@@ -20,9 +20,13 @@ public sealed partial class HomePage : Page
         ("source", 4, 1, 56, 840),
     ];
 
+    private static readonly string[] WidestActions = ["Switch to pre-release", "Update on CurseForge", "Sign in to RestedXP"];
+
     private const int StatusIndex = 5;
+    private const int OverflowIndex = 6;
     private const double StatusStars = 1.5;
-    private const double StatusMinWidth = 84;
+    private const double ActionFontSize = 13;
+    private const double ActionPadding = 26;
     private const string CompactColumnId = "channel";
     private const int VersionIndex = 2;
     private const double VersionLineSpacing = 4;
@@ -30,7 +34,7 @@ public sealed partial class HomePage : Page
     private readonly HashSet<Grid> _tableRows = [];
     private readonly TextBlock _versionMeasure = new() { TextWrapping = TextWrapping.NoWrap };
     private readonly Dictionary<string, ColumnResizeGrip> _grips;
-    private double _actionsWidth = 32;
+    private double _statusMinWidth;
     private double _defaultSpace;
 
     public HomePage(MainViewModel viewModel)
@@ -55,11 +59,20 @@ public sealed partial class HomePage : Page
 
     public MainViewModel ViewModel { get; }
 
+    private double StatusMinWidth => _statusMinWidth > 0 ? _statusMinWidth : _statusMinWidth = WidestActions.Max(MeasureAction);
+
+    private static double MeasureAction(string label)
+    {
+        var text = new TextBlock { Text = label, FontSize = ActionFontSize, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+        text.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        return Math.Ceiling(text.DesiredSize.Width + ActionPadding);
+    }
+
     private (double Width, double Minimum, double Maximum) MeasureColumn(string id)
     {
         var column = TableColumns.First(column => column.Id == id);
         var width = TableHeader.ColumnDefinitions[column.Index].ActualWidth;
-        var statusSlack = TableHeader.ColumnDefinitions[StatusIndex].ActualWidth - _actionsWidth - StatusMinWidth;
+        var statusSlack = TableHeader.ColumnDefinitions[StatusIndex].ActualWidth - StatusMinWidth;
         return (width, column.MinWidth, width + Math.Max(0, statusSlack));
     }
 
@@ -89,7 +102,7 @@ public sealed partial class HomePage : Page
         var tableWidth = TableBody.ActualWidth;
         var shown = TableColumns.Where(column => tableWidth >= column.MinTableWidth).ToList();
         var space = tableWidth - row.Padding.Left - row.Padding.Right - row.ColumnSpacing * (row.ColumnDefinitions.Count - 1)
-            - row.ColumnDefinitions[0].Width.Value - _actionsWidth;
+            - row.ColumnDefinitions[0].Width.Value - row.ColumnDefinitions[OverflowIndex].Width.Value;
         if (_defaultSpace <= 0 && space > 0)
         {
             _defaultSpace = space;
@@ -175,24 +188,6 @@ public sealed partial class HomePage : Page
         if (args.Element is Grid row)
         {
             _tableRows.Remove(row);
-            RecomputeActionsWidth();
-        }
-    }
-
-    private void OnActionsSizeChanged(object sender, SizeChangedEventArgs e) => RecomputeActionsWidth();
-
-    private void RecomputeActionsWidth()
-    {
-        var width = _tableRows
-            .Select(row => row.FindName("Actions") as FrameworkElement)
-            .Where(actions => actions is { Visibility: Visibility.Visible })
-            .Select(actions => actions!.ActualWidth)
-            .DefaultIfEmpty(0)
-            .Max();
-        if (Math.Abs(width - _actionsWidth) > 0.5)
-        {
-            _actionsWidth = width;
-            ApplyColumnsToAll();
         }
     }
 
