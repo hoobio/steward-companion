@@ -30,7 +30,7 @@ public sealed partial class GuildOptionViewModel : ObservableObject
 
     public string Role { get; }
 
-    public string Detail => $"{MemberCount} members · {Role}";
+    public string Detail => $"{MemberCount} member{(MemberCount == 1 ? "" : "s")} · {Role}";
 
     public string Initial { get; }
 

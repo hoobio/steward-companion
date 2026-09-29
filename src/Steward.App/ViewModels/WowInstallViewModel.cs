@@ -108,7 +108,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     public string? GameVersionName { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Label), nameof(EditAccessibleName), nameof(StatusText), nameof(GameVersionLineVisibility))]
+    [NotifyPropertyChangedFor(nameof(Label), nameof(EditAccessibleName), nameof(StatusText), nameof(SelectedDetailText), nameof(GameVersionLineVisibility))]
     public partial string? UserLabel { get; set; }
 
     public bool IsAnyRowBusy => AddonRows.Any(row => row.IsBusy);
@@ -129,7 +129,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public string EditAccessibleName => $"Edit {Label}";
 
-    public string StatusText => UserLabel is not null ? $"{GameVersionName} · {ClientVersion}" : ClientVersion ?? "";
+    public string StatusText => string.Join(" · ", new[] { UserLabel is not null ? GameVersionName : null, ClientVersion }.Where(part => !string.IsNullOrEmpty(part)));
 
     public bool IsMissing => Install.IsMissing;
 
@@ -167,7 +167,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public Visibility RunningDotVisibility => When(IsClientRunning);
 
-    public string SelectedDetailText => IsSelected ? $" · {Install.Flavour}" : "";
+    public string SelectedDetailText => !IsSelected ? "" : StatusText.Length > 0 ? $" · {Install.Flavour}" : Install.Flavour;
 
     public Visibility SelectionIndicatorVisibility => When(IsSelected);
 

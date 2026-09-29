@@ -110,7 +110,7 @@ public sealed partial class MainViewModel
 
     public Visibility HiddenSegmentVisibility => When(HiddenCount > 0);
 
-    public Visibility UpdateAllVisibility => When(TotalUpdateCount > 0);
+    public Visibility UpdateAllVisibility => When(TotalUpdateCount > 0 && TableVisibility == Visibility.Visible);
 
     public string UpdateAllOnInstallLabel => $"Update all on {SelectedInstall?.Label}";
 
@@ -130,7 +130,7 @@ public sealed partial class MainViewModel
 
     public Visibility NoMatchVisibility => When(SelectedInstall is { HasGameVersion: true, IsMissing: false } && TableRows.Count == 0);
 
-    public Visibility DefaultOrderVisibility => When(_sortKey is not null);
+    public Visibility DefaultOrderVisibility => When(_sortKey is not null && TableVisibility == Visibility.Visible);
 
     public string NameSortGlyph => SortGlyph("name");
 

@@ -394,6 +394,7 @@ public sealed partial class MainWindow : Window
 
         Activate();
         Native.ForceForeground(ViewModel.OwnerWindowHandle);
+        ViewModel.ResumeGuildPrompt();
     }
 
     private void QuitCompletely()

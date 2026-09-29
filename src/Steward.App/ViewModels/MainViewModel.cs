@@ -144,6 +144,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _isAutoApplying;
     private bool _isLoadingState;
     private bool _isChoosingGuild;
+    private bool _guildPromptDeferred;
     private ImageSource? _avatarImage;
 
     public MainViewModel(
@@ -1451,18 +1452,41 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isChoosingGuild = true;
         try
         {
-            var officerGuild = _meGuilds.FirstOrDefault(guild =>
-                GigagrugClient.ResolveGuildFeatures(guild, _features).Contains(GigagrugClient.StewardFeature));
-            var preselected = Guilds.FirstOrDefault(option => option.Id == officerGuild?.Id) ?? Guilds[0];
-            if (await ChooseGuild([.. Guilds], preselected).ConfigureAwait(true) is { } chosen && Guilds.Contains(chosen))
+            var chosen = await ChooseGuild([.. Guilds], Guilds[0]).ConfigureAwait(true);
+            if (chosen is null)
             {
-                _logger.Info($"Guild chosen at first run: {chosen.Id}");
-                ChooseGuildOption(chosen);
+                _guildPromptDeferred = true;
+            }
+            else if (Guilds.FirstOrDefault(option => option.Id == chosen.Id) is { } current)
+            {
+                _logger.Info($"Guild chosen at first run: {current.Id}");
+                ChooseGuildOption(current);
             }
         }
         finally
         {
             _isChoosingGuild = false;
+        }
+    }
+
+    private async Task RunGuildPromptAsync()
+    {
+        try
+        {
+            await PromptForGuildAsync(_stateStore.Load().GuildId).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "Guild prompt failed");
+        }
+    }
+
+    public void ResumeGuildPrompt()
+    {
+        if (_guildPromptDeferred)
+        {
+            _guildPromptDeferred = false;
+            _ = RunGuildPromptAsync();
         }
     }
 
@@ -2707,7 +2731,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = true;
             SetGuilds(me.Guilds, guild);
-            _ = PromptForGuildAsync(storedGuildId);
+            _ = RunGuildPromptAsync();
             StatusMessage = null;
             Failure = GateFailure.None;
 

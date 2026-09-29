@@ -695,7 +695,7 @@
                     </InfoBar.ActionButton>
                 </InfoBar>
 
-                <Grid ColumnSpacing="10" Visibility="{x:Bind ViewModel.TableVisibility, Mode=OneWay}">
+                <Grid ColumnSpacing="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
@@ -704,7 +704,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Grid Width="220" VerticalAlignment="Center">
+                    <Grid Width="220" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.TableVisibility, Mode=OneWay}">
                         <TextBox
                             Height="32"
                             Text="{x:Bind ViewModel.FilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -724,6 +724,7 @@
                         Grid.Column="1"
                         SelectionMode="Single"
                         VerticalAlignment="Center"
+                        Visibility="{x:Bind ViewModel.TableVisibility, Mode=OneWay}"
                         SelectedIndex="{x:Bind ViewModel.FilterIndex, Mode=TwoWay}">
                         <controls:SegmentedItem Content="All" />
                         <controls:SegmentedItem AutomationProperties.Name="{x:Bind ViewModel.UpdatesSegmentLabel, Mode=OneWay}">
