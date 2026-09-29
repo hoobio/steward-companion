@@ -251,6 +251,9 @@ public sealed record AppState(
     [JsonPropertyName("provider_addons")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, List<ProviderAddonRecord>> ProviderAddons { get; init; } = null!;
+
+    [JsonPropertyName("missing_since")]
+    public Dictionary<string, DateTimeOffset> MissingSince { get; init; } = null!;
 }
 
 public sealed record AppUpdateCheck(
