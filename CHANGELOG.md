@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.3](https://github.com/hoobio/steward-companion/compare/v0.17.2...v0.17.3) (2026-09-29)
+
+
+### Bug Fixes
+
+* 🐛 install every folder a CurseForge zip ships and keep failed rows aligned ([91d79b1](https://github.com/hoobio/steward-companion/commit/91d79b1d68aa41121ac8311bc67c8173047c3e7b))
+* 🐛 stop showing installing after a Store update restarts Steward ([d8c5500](https://github.com/hoobio/steward-companion/commit/d8c5500d635e96b17482fe0373477d98237f8a1a))
+
 ## [0.17.2](https://github.com/hoobio/steward-companion/compare/v0.17.1...v0.17.2) (2026-09-29)
 
 
