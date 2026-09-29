@@ -265,7 +265,6 @@
                                 Closed="OnInstallFlyoutClosed"
                                 Placement="BottomEdgeAlignedRight"
                                 ShouldConstrainToRootBounds="False"
-                                AreOpenCloseAnimationsEnabled="False"
                                 FlyoutPresenterStyle="{StaticResource TintedFlyoutPresenterStyle}">
                                 <Flyout.SystemBackdrop>
                                     <services:TintedAcrylicBackdrop />
@@ -377,7 +376,7 @@
                         </StackPanel>
                         <FlyoutBase.AttachedFlyout>
                             <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
-                            <Flyout x:Name="AccountFlyout" Placement="BottomEdgeAlignedRight" ShouldConstrainToRootBounds="False" AreOpenCloseAnimationsEnabled="False">
+                            <Flyout x:Name="AccountFlyout" Placement="BottomEdgeAlignedRight" ShouldConstrainToRootBounds="False">
                                 <Flyout.SystemBackdrop>
                                     <services:TintedAcrylicBackdrop />
                                 </Flyout.SystemBackdrop>
