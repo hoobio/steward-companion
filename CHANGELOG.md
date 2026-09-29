@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.17.0](https://github.com/hoobio/steward-companion/compare/v0.16.0...v0.17.0) (2026-09-29)
+
+
+### Features
+
+* ✨ add a Get addons dialog that installs from CurseForge ([c5a6ffd](https://github.com/hoobio/steward-companion/commit/c5a6ffd998ad71db3b7ca5b2e8b2a0a4879db19f))
+* ✨ clean up installs whose folder is gone ([bc96eb0](https://github.com/hoobio/steward-companion/commit/bc96eb030182357af90bae143b23b6745da3fc76))
+* ✨ identify installed addons by CurseForge project ID and fingerprint ([15eab71](https://github.com/hoobio/steward-companion/commit/15eab71e79af0353d097109aa46a6a0971f7770f))
+* ✨ install addons from CurseForge install links ([88ec163](https://github.com/hoobio/steward-companion/commit/88ec16390c52e8cb75ac1a86e5d58513a6f8edfc))
+* ✨ install CurseForge manifests with SHA-1 and several folders ([5e9218f](https://github.com/hoobio/steward-companion/commit/5e9218f1fe3ff17c46f63b1388f0ef4414fe3f9a))
+* ✨ turn installed CurseForge addons into CurseForge rows that update ([4bef6fe](https://github.com/hoobio/steward-companion/commit/4bef6fe5f4c9362b1e2c3c2477a63c29a0323274))
+
+
+### Bug Fixes
+
+* 🐛 centre the changelog icon on the version text ([f104895](https://github.com/hoobio/steward-companion/commit/f104895621f5dd3fe81a55fe7b280dabe771926d))
+* 🐛 choose the guild from the account menu and ask once when there are several ([f85697b](https://github.com/hoobio/steward-companion/commit/f85697b9e18a312a9b38bd074614d77d2aa0fb59))
+* 🐛 give dropdowns translucent tinted acrylic and rounded corners ([2e37460](https://github.com/hoobio/steward-companion/commit/2e37460a046d6c1115ad6f3d33bcfdb0f931c64b))
+* 🐛 give every dialog the same themed style ([12828ba](https://github.com/hoobio/steward-companion/commit/12828baf1722b610d7b330cc6a1fac00744f3f69))
+* 🐛 give the Sync page's running notice its own line ([eace331](https://github.com/hoobio/steward-companion/commit/eace3312e64abcf42fb2e3bb09089db389fbafd4))
+* 🐛 keep CurseForge addons in their own file so an older build cannot drop them ([15a1013](https://github.com/hoobio/steward-companion/commit/15a1013799ef4c26acbfce488721552946391074))
+* 🐛 keep refresh reachable and respect the server's guild choice ([45c8643](https://github.com/hoobio/steward-companion/commit/45c8643e47d36cb00f6242f03554920f5f969998))
+* 🐛 keep the title bar buttons clickable after their content changes ([a292735](https://github.com/hoobio/steward-companion/commit/a29273527b84c7953f8c22b10ff24717cfd4e9ef))
+* 🐛 keep the update prompt for the rest of the run once a route is retired ([935712c](https://github.com/hoobio/steward-companion/commit/935712c730fc24a604b06777bf4bf7bf40b910de))
+* 🐛 keep versions and statuses whole in a narrow Addons table ([3c4e507](https://github.com/hoobio/steward-companion/commit/3c4e507ff090a523e9db5ba873db290671f5bf89))
+* 🐛 let dropdowns keep their shadow and a translucent tint ([f306639](https://github.com/hoobio/steward-companion/commit/f306639d396ff2b06626642a3f74e05f108027bd))
+* 🐛 let the delete guard accept an addon's own flavour TOC ([8182d40](https://github.com/hoobio/steward-companion/commit/8182d4091d3c82c34805159efb60cafb30d8ffc2))
+* 🐛 make the Added by you pill readable ([e787610](https://github.com/hoobio/steward-companion/commit/e7876107f3617faae8d79c8956a8fe5d2f7289e7))
+* 🐛 move refresh and the folder shortcut out of the Addons title row ([8ecb4d3](https://github.com/hoobio/steward-companion/commit/8ecb4d31471060aa7e07a312218df634ec5203f4))
+* 🐛 name matched CurseForge rows after their CurseForge project ([9d344d2](https://github.com/hoobio/steward-companion/commit/9d344d23fe7a4bf5f35d1485c6bc4bbc3f4c06a8))
+* 🐛 open the guild submenu on hover ([00b8ad1](https://github.com/hoobio/steward-companion/commit/00b8ad1529fff937b1eacc26225c0ab5bda93afa))
+* 🐛 record SHA-1 installs as sha1 and uninstall every folder an addon ships ([e224410](https://github.com/hoobio/steward-companion/commit/e224410fd375d434f5d8b9398dc4e2aa1dd4f496))
+* 🐛 refresh the Store catalogue when Check for updates is pressed ([8de4de4](https://github.com/hoobio/steward-companion/commit/8de4de4b8fe2f22f54e73bdc752dc9a7aef13ab7))
+* 🐛 show an update prompt when gigagrug retires a route this build calls ([5eb283a](https://github.com/hoobio/steward-companion/commit/5eb283aa50dff432eef685b6b45b041acbd3b254))
+* 🐛 show and remove installs whose folder is gone ([1550805](https://github.com/hoobio/steward-companion/commit/155080539d13abcf61dd5bd3116890f20632b89a))
+* 🐛 show each guild's own role in the guild list ([8079704](https://github.com/hoobio/steward-companion/commit/8079704fc7bce7e864a9afba610bd116502d8f3b))
+* 🐛 show the /reload notice only when there is new data to load ([6cac7e0](https://github.com/hoobio/steward-companion/commit/6cac7e024ca20bac543f0a1551b824841555f52e))
+* 🐛 show the client version in the install picker instead of the path ([b25f45d](https://github.com/hoobio/steward-companion/commit/b25f45d27598c002ec29ceafd6acc0c6c7e75512))
+* 🐛 show the row action in the Status column ([394df47](https://github.com/hoobio/steward-companion/commit/394df478d193ecdd44a487c6d6fe988f9762921c))
+* 🐛 show the running dot on the install row, not twice ([0393d2c](https://github.com/hoobio/steward-companion/commit/0393d2ca5daa8742404090f2d299c7982c523323))
+* 🐛 show the selected install's guides as one card ([4d4c6f4](https://github.com/hoobio/steward-companion/commit/4d4c6f46c7b89268c5d7f36035d340b1749ad40e))
+* 🐛 show the selected install's sync datasets as one card ([f467b0f](https://github.com/hoobio/steward-companion/commit/f467b0f64470c839a0f065c839442831cec61624))
+* 🐛 stop the Get addons search and source picker overlapping ([c660fd6](https://github.com/hoobio/steward-companion/commit/c660fd6c263cb037b86f41b68077b06e86c6198a))
+* 🐛 stop the title bar region update crashing on startup ([cb176bb](https://github.com/hoobio/steward-companion/commit/cb176bbf81d7f3a60b337a7c0eac15868638a600))
+* 🐛 use a release-notes icon for the changelog button ([64653c8](https://github.com/hoobio/steward-companion/commit/64653c8ba7e2bdcb5111395e77bd72ccb9e16804))
+
 ## [0.16.0](https://github.com/hoobio/steward-companion/compare/v0.15.0...v0.16.0) (2026-09-28)
 
 
