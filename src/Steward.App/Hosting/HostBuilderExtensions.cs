@@ -70,7 +70,15 @@ internal static class HostBuilderExtensions
                 CookieContainer = sp.GetRequiredService<CookieContainer>(),
             })
             .AddHttpMessageHandler(sp => new ClientOutdatedHandler(message => sp.GetRequiredService<MainViewModel>().ReportClientOutdated(message)));
+        var downloadUserAgent = builder.Configuration["Downloads:UserAgent"];
         builder.Services.AddHttpClient("Addon")
+            .ConfigureHttpClient(c =>
+            {
+                if (!string.IsNullOrWhiteSpace(downloadUserAgent))
+                {
+                    c.DefaultRequestHeaders.UserAgent.ParseAdd(downloadUserAgent);
+                }
+            })
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false });
 
         builder.Services.AddSingleton<IReadOnlyList<ManagedAddon>>(addons);
