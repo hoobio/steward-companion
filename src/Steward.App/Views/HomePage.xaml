@@ -738,15 +738,14 @@
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     </Grid>
 
-                    <SelectorBar
-                        x:Name="FilterBar"
+                    <controls:Segmented
                         Grid.Column="1"
+                        SelectionMode="Single"
                         VerticalAlignment="Center"
                         Visibility="{x:Bind ViewModel.TableVisibility, Mode=OneWay}"
-                        SelectionChanged="OnFilterSelectionChanged">
-                        <SelectorBarItem x:Name="FilterAllItem" Text="All" />
-                        <SelectorBarItem x:Name="FilterUpdatesItem" AutomationProperties.Name="{x:Bind ViewModel.UpdatesSegmentLabel, Mode=OneWay}">
-                            <SelectorBarItem.Child>
+                        SelectedIndex="{x:Bind ViewModel.FilterIndex, Mode=TwoWay}">
+                        <controls:SegmentedItem Content="All" />
+                        <controls:SegmentedItem AutomationProperties.Name="{x:Bind ViewModel.UpdatesSegmentLabel, Mode=OneWay}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="Updates" VerticalAlignment="Center" />
                                 <Border
@@ -766,13 +765,10 @@
                                         Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
                                 </Border>
                             </StackPanel>
-                            </SelectorBarItem.Child>
-                        </SelectorBarItem>
-                        <SelectorBarItem
-                            x:Name="FilterHiddenItem"
+                        </controls:SegmentedItem>
+                        <controls:SegmentedItem
                             AutomationProperties.Name="{x:Bind ViewModel.HiddenSegmentLabel, Mode=OneWay}"
                             Visibility="{x:Bind ViewModel.HiddenSegmentVisibility, Mode=OneWay}">
-                            <SelectorBarItem.Child>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="Hidden" VerticalAlignment="Center" />
                                 <Border
@@ -791,9 +787,8 @@
                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </Border>
                             </StackPanel>
-                            </SelectorBarItem.Child>
-                        </SelectorBarItem>
-                    </SelectorBar>
+                        </controls:SegmentedItem>
+                    </controls:Segmented>
 
                     <Button
                         Grid.Column="2"

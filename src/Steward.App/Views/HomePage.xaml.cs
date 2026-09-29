@@ -41,14 +41,6 @@ public sealed partial class HomePage : Page
     {
         ViewModel = viewModel;
         InitializeComponent();
-        SyncFilterSelection();
-        ViewModel.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(MainViewModel.FilterIndex))
-            {
-                SyncFilterSelection();
-            }
-        };
         _grips = new()
         {
             ["name"] = NameGrip,
@@ -66,26 +58,6 @@ public sealed partial class HomePage : Page
     }
 
     public MainViewModel ViewModel { get; }
-
-    private SelectorBarItem[] FilterItems => [FilterAllItem, FilterUpdatesItem, FilterHiddenItem];
-
-    private void OnFilterSelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
-    {
-        var index = Array.IndexOf(FilterItems, sender.SelectedItem);
-        if (index >= 0 && ViewModel.FilterIndex != index)
-        {
-            ViewModel.FilterIndex = index;
-        }
-    }
-
-    private void SyncFilterSelection()
-    {
-        var item = FilterItems[Math.Clamp(ViewModel.FilterIndex, 0, 2)];
-        if (FilterBar.SelectedItem != item)
-        {
-            FilterBar.SelectedItem = item;
-        }
-    }
 
     private double StatusMinWidth => _statusMinWidth > 0 ? _statusMinWidth : _statusMinWidth = WidestActions.Max(MeasureAction);
 
