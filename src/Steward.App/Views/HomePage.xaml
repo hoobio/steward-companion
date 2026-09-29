@@ -269,6 +269,7 @@
                     Grid.Column="3"
                     Height="24"
                     MinHeight="0"
+                    Margin="-8,0,0,0"
                     Padding="8,0,6,0"
                     VerticalAlignment="Center"
                     Background="{ThemeResource ChipBrush}"
