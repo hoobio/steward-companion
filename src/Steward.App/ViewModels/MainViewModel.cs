@@ -2783,8 +2783,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsAuthorized = true;
             SetGuilds(me.Guilds, guild);
             _ = RunGuildPromptAsync();
-            StatusMessage = null;
-            Failure = GateFailure.None;
+            if (Failure != GateFailure.ClientOutdated)
+            {
+                StatusMessage = null;
+                Failure = GateFailure.None;
+            }
 
             // Client-side gate only: gigagrug does not restrict who can fetch the unstable manifest.
             IsGlobalAdmin = GigagrugClient.IsGlobalAdmin(me);
