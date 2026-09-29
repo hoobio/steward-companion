@@ -397,7 +397,7 @@ public sealed partial class MainViewModel
 
     private Task<bool> CheckProviderAddonsAsync(bool background)
     {
-        var due = !background || DateTimeOffset.Now - _lastCurseForgeCheck >= CurseForgeCheckInterval;
+        var due = !background || IsDue(_lastCurseForgeCheck, CurseForgeCheckInterval);
         var addons = AllProviderAddons().Where(addon => due || !_releases.ContainsKey(addon.Id)).ToList();
         if (due)
         {

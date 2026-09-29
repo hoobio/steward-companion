@@ -108,6 +108,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastPass;
     private DateTimeOffset _lastGuideCheck;
     private TimeSpan _nextGuideCheckDue = GuideCheckInterval;
+    private readonly double _intervalJitter = 1 + Random.Shared.NextDouble() / 5;
     private DateTimeOffset _lastStoreCheck;
     private StoreContext? _storeContext;
     private IReadOnlyList<StorePackageUpdate>? _storeUpdates;
@@ -2697,24 +2698,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 : await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
             if (result == AuthCheckResult.Authorized)
             {
-                var guildSyncDue = !_isEventStreamLive || DateTimeOffset.Now - _lastGuildSync >= GuildSyncFallbackInterval;
+                var guildSyncDue = !_isEventStreamLive || IsDue(_lastGuildSync, GuildSyncFallbackInterval);
                 await CheckAsync(background: true, CancellationToken.None, guildSyncDue).ConfigureAwait(true);
                 if (guildSyncDue)
                 {
                     _lastGuildSync = DateTimeOffset.Now;
                     await PushCharacterSyncAsync().ConfigureAwait(true);
                 }
-                if (DateTimeOffset.Now - _lastDirectorySync >= GuildSyncFallbackInterval)
+                if (IsDue(_lastDirectorySync, GuildSyncFallbackInterval))
                 {
                     _lastDirectorySync = DateTimeOffset.Now;
                     await SyncDirectoryAsync().ConfigureAwait(true);
                 }
-                if (DateTimeOffset.Now - _lastBannersSync >= GuildSyncFallbackInterval)
+                if (IsDue(_lastBannersSync, GuildSyncFallbackInterval))
                 {
                     _lastBannersSync = DateTimeOffset.Now;
                     await SyncBannersAsync().ConfigureAwait(true);
                 }
-                if (!App.IsPackaged || DateTimeOffset.Now - _lastStoreCheck >= StoreCheckInterval)
+                if (!App.IsPackaged || IsDue(_lastStoreCheck, StoreCheckInterval))
                 {
                     await CheckAppUpdateAsync().ConfigureAwait(true);
                 }
@@ -2735,6 +2736,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _isChecking = false;
         }
     }
+
+    // A Store update restarts every copy at once, so each copy stretches its intervals by its own 0 to 20% to fall out of step.
+    private bool IsDue(DateTimeOffset last, TimeSpan interval) => DateTimeOffset.Now - last >= interval * _intervalJitter;
 
     private void UpdateLastCheckedText()
     {
