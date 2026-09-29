@@ -480,9 +480,9 @@ public sealed partial class MainWindow : Window
                     Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
                 },
                 PrimaryButtonText = "Close anyway",
-                CloseButtonText = "Minimize to tray",
+                SecondaryButtonText = "Minimize to tray",
             };
-            dialog.Opened += (_, _) => dialog.FindDescendant<Button>(b => b.Name == "CloseButton")?.Focus(FocusState.Programmatic);
+            dialog.Opened += (_, _) => dialog.FindDescendant<Button>(b => b.Name == "SecondaryButton")?.Focus(FocusState.Programmatic);
             dialog.Resources["AccentButtonBackground"] = Application.Current.Resources["CriticalButtonBackground"];
             dialog.Resources["AccentButtonBackgroundPointerOver"] = Application.Current.Resources["CriticalButtonBackgroundPointerOver"];
             dialog.Resources["AccentButtonBackgroundPressed"] = Application.Current.Resources["CriticalButtonBackgroundPressed"];
@@ -490,13 +490,14 @@ public sealed partial class MainWindow : Window
             dialog.Resources["AccentButtonForegroundPointerOver"] = Application.Current.Resources["CriticalButtonForeground"];
             dialog.Resources["AccentButtonForegroundPressed"] = Application.Current.Resources["CriticalButtonForeground"];
 
-            if (await AppDialogs.ShowAsync(dialog, Content.XamlRoot) == ContentDialogResult.Primary)
+            switch (await AppDialogs.ShowAsync(dialog, Content.XamlRoot))
             {
-                QuitCompletely();
-            }
-            else
-            {
-                HideToTray();
+                case ContentDialogResult.Primary:
+                    QuitCompletely();
+                    break;
+                case ContentDialogResult.Secondary:
+                    HideToTray();
+                    break;
             }
         }
         finally
