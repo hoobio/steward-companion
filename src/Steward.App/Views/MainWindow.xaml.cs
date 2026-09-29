@@ -164,6 +164,12 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void OnOpenAddOnsFolderClick(object sender, RoutedEventArgs e)
+    {
+        InstallFlyout.Hide();
+        ViewModel.SelectedInstall?.OpenFolderCommand.Execute(null);
+    }
+
     private void OnAddInstallClick(object sender, RoutedEventArgs e)
     {
         InstallFlyout.Hide();

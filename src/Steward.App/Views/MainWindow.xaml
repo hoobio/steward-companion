@@ -38,13 +38,15 @@
                             </Grid>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{x:Bind Label, Mode=OneWay}" FontSize="12.5" TextTrimming="CharacterEllipsis" />
+                                <TextBlock FontSize="12.5" TextTrimming="CharacterEllipsis">
+                                    <Run Text="{x:Bind Label, Mode=OneWay}" /><Run Text="{x:Bind RunningText, Mode=OneWay}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                </TextBlock>
                                 <TextBlock
                                     FontSize="11.5"
                                     TextTrimming="CharacterEllipsis"
                                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                     Visibility="{x:Bind StatusVisibility}">
-                                    <Run Text="{x:Bind StatusText, Mode=OneWay}" /><Run Text="{x:Bind RunningText, Mode=OneWay}" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                                    <Run Text="{x:Bind StatusText, Mode=OneWay}" /><Run Text="{x:Bind SelectedDetailText, Mode=OneWay}" />
                                 </TextBlock>
                                 <TextBlock
                                     Text="Game version not set"
@@ -171,11 +173,20 @@
                                 FontSize="14"
                                 VerticalAlignment="Center"
                                 TextTrimming="CharacterEllipsis" />
-                            <FontIcon
-                                Grid.Column="2"
-                                Glyph="&#xE70D;"
-                                FontSize="10"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Ellipse
+                                    Width="7"
+                                    Height="7"
+                                    VerticalAlignment="Center"
+                                    Fill="{ThemeResource SystemFillColorCautionBrush}"
+                                    ToolTipService.ToolTip="World of Warcraft is running"
+                                    Visibility="{x:Bind ViewModel.SelectedInstall.RunningDotVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
+                                <FontIcon
+                                    Glyph="&#xE70D;"
+                                    FontSize="10"
+                                    VerticalAlignment="Center"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
                         </Grid>
                         <FlyoutBase.AttachedFlyout>
                             <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
@@ -203,6 +214,22 @@
                                         ItemsSource="{x:Bind ViewModel.Installs, Mode=OneWay}"
                                         ItemTemplate="{StaticResource InstallOptionTemplate}" />
                                     <Border Height="1" Margin="-4,2" Background="{ThemeResource MenuFlyoutSeparatorBackground}" />
+                                    <Button
+                                        Height="36"
+                                        Padding="8,0"
+                                        BorderThickness="0"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        Click="OnOpenAddOnsFolderClick">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="32" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon Glyph="&#xE838;" FontSize="14" />
+                                            <TextBlock Grid.Column="1" Text="Open AddOns folder" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Button>
                                     <Button
                                         Height="36"
                                         Padding="8,0"

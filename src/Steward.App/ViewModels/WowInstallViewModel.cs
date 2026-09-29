@@ -148,16 +148,20 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     public partial bool IsAddedByUser { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CurrentDotVisibility))]
+    [NotifyPropertyChangedFor(nameof(CurrentDotVisibility), nameof(SelectedDetailText))]
     public partial bool IsSelected { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsClientRunning), nameof(RunningText))]
+    [NotifyPropertyChangedFor(nameof(IsClientRunning), nameof(RunningText), nameof(RunningDotVisibility))]
     public partial WowClientProcess? Client { get; set; }
 
     public bool IsClientRunning => Client is not null;
 
-    public string RunningText => IsClientRunning ? "  ● Running" : "";
+    public string RunningText => IsClientRunning ? " · running" : "";
+
+    public Visibility RunningDotVisibility => When(IsClientRunning);
+
+    public string SelectedDetailText => IsSelected ? $" · {Install.Flavour}" : "";
 
     public Visibility CurrentDotVisibility => When(IsSelected);
 

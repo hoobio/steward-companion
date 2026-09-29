@@ -266,7 +266,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CheckedText))]
+    [NotifyPropertyChangedFor(nameof(CheckedText), nameof(CheckedStaleVisibility))]
     public partial string LastCheckedRelative { get; set; } = "not checked yet";
 
     [ObservableProperty]
@@ -1352,6 +1352,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             succeeded = false;
         }
 
+        _lastCheckFailed = !succeeded;
         if (!await CheckProviderAddonsAsync(background).ConfigureAwait(true))
         {
             return;

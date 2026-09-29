@@ -28,15 +28,22 @@ public sealed partial class MainViewModel
     private const int FilterUpdates = 1;
     private const int FilterHidden = 2;
 
+    private static readonly TimeSpan CheckStaleAfter = TimeSpan.FromMinutes(5);
+
+    private bool _lastCheckFailed;
+
     private static readonly string[] TableNames =
     [
         nameof(CheckedText),
+        nameof(CheckedStaleVisibility),
         nameof(SelectedUpdateCount),
         nameof(TotalUpdateCount),
         nameof(UpdatesSegmentLabel),
+        nameof(UpdatesBadgeVisibility),
         nameof(HiddenSegmentLabel),
+        nameof(HiddenCountText),
         nameof(HiddenSegmentVisibility),
-        nameof(UpdateAllLabel),
+        nameof(UpdateAllVisibility),
         nameof(UpdateAllOnInstallLabel),
         nameof(SelectedUpdateCountText),
         nameof(TotalUpdateCountText),
@@ -45,7 +52,6 @@ public sealed partial class MainViewModel
         nameof(NoMatchVisibility),
         nameof(TableVisibility),
         nameof(GameVersionPromptVisibility),
-        nameof(InstallPickerVisibility),
         nameof(UpdateAllEnabled),
         nameof(GetAddonsVisibility),
     ];
@@ -76,7 +82,15 @@ public sealed partial class MainViewModel
     [ObservableProperty]
     public partial int FilterIndex { get; set; }
 
-    public string CheckedText => _lastPass == default ? "Not checked yet" : $"Checked {LastCheckedRelative}";
+    public string CheckedText => (_lastCheckFailed, _lastPass == default) switch
+    {
+        (true, true) => "Check failed",
+        (true, false) => $"Check failed, last checked {LastCheckedRelative}",
+        (false, true) => "Not checked yet",
+        _ => $"Checked {LastCheckedRelative}",
+    };
+
+    public Visibility CheckedStaleVisibility => When(_lastCheckFailed || (_lastPass != default && DateTimeOffset.Now - _lastPass >= CheckStaleAfter));
 
     public int SelectedUpdateCount => SelectedInstall?.UpdateCount ?? 0;
 
@@ -86,11 +100,15 @@ public sealed partial class MainViewModel
 
     public string UpdatesSegmentLabel => SelectedUpdateCount > 0 ? $"Updates {SelectedUpdateCount}" : "Updates";
 
+    public Visibility UpdatesBadgeVisibility => When(SelectedUpdateCount > 0);
+
     public string HiddenSegmentLabel => $"Hidden {HiddenCount}";
+
+    public string HiddenCountText => $"{HiddenCount}";
 
     public Visibility HiddenSegmentVisibility => When(HiddenCount > 0);
 
-    public string UpdateAllLabel => SelectedUpdateCount > 0 ? $"Update all ({SelectedUpdateCount})" : "Update all";
+    public Visibility UpdateAllVisibility => When(TotalUpdateCount > 0);
 
     public string UpdateAllOnInstallLabel => $"Update all on {SelectedInstall?.Label}";
 
@@ -103,8 +121,6 @@ public sealed partial class MainViewModel
     public string UpdateAllInstallsAccessibleName => $"Update all installs, {Updates(TotalUpdateCount)}";
 
     private static string Updates(int count) => $"{count} update{(count == 1 ? "" : "s")}";
-
-    public Visibility InstallPickerVisibility => When(SelectedInstall is not null);
 
     public Visibility TableVisibility => When(SelectedInstall is { HasGameVersion: true });
 

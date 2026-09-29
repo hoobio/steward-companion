@@ -569,20 +569,9 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="26,7,26,0" ColumnSpacing="6">
-            <Grid.Resources>
-                <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
-                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
-                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
-                <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
-            </Grid.Resources>
+        <Grid Grid.Row="0" Margin="26,7,26,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
@@ -592,47 +581,9 @@
                 FontWeight="SemiBold"
                 VerticalAlignment="Center" />
 
-            <TextBlock
-                x:Name="CheckedLabel"
-                Grid.Column="3"
-                Text="{x:Bind ViewModel.CheckedText, Mode=OneWay}"
-                FontSize="12"
-                Margin="0,0,4,0"
-                VerticalAlignment="Center"
-                Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-
             <Button
-                Grid.Column="4"
-                Width="32"
+                Grid.Column="1"
                 Height="32"
-                Padding="0"
-                VerticalAlignment="Center"
-                Command="{x:Bind ViewModel.RefreshCommand}"
-                AutomationProperties.Name="Refresh"
-                ToolTipService.ToolTip="Check for updates">
-                <FontIcon
-                    Glyph="&#xE72C;"
-                    FontSize="14"
-                    views:Spinner.IsSpinning="{x:Bind ViewModel.RefreshCommand.IsRunning, Mode=OneWay}" />
-            </Button>
-
-            <Button
-                Grid.Column="5"
-                Width="32"
-                Height="32"
-                Padding="0"
-                VerticalAlignment="Center"
-                Command="{x:Bind ViewModel.SelectedInstall.OpenFolderCommand, Mode=OneWay}"
-                AutomationProperties.Name="Open AddOns folder"
-                ToolTipService.ToolTip="Open AddOns folder"
-                Visibility="{x:Bind ViewModel.InstallPickerVisibility, Mode=OneWay}">
-                <FontIcon Glyph="&#xE838;" FontSize="14" />
-            </Button>
-
-            <Button
-                Grid.Column="6"
-                Height="32"
-                Margin="4,0,0,0"
                 VerticalAlignment="Center"
                 Click="OnGetAddonsClick"
                 AutomationProperties.Name="Get addons"
@@ -775,10 +726,49 @@
                         VerticalAlignment="Center"
                         SelectedIndex="{x:Bind ViewModel.FilterIndex, Mode=TwoWay}">
                         <controls:SegmentedItem Content="All" />
-                        <controls:SegmentedItem Content="{x:Bind ViewModel.UpdatesSegmentLabel, Mode=OneWay}" />
+                        <controls:SegmentedItem AutomationProperties.Name="{x:Bind ViewModel.UpdatesSegmentLabel, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Updates" VerticalAlignment="Center" />
+                                <Border
+                                    MinWidth="18"
+                                    Height="18"
+                                    Padding="5,0"
+                                    CornerRadius="9"
+                                    VerticalAlignment="Center"
+                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                    Visibility="{x:Bind ViewModel.UpdatesBadgeVisibility, Mode=OneWay}">
+                                    <TextBlock
+                                        Text="{x:Bind ViewModel.SelectedUpdateCountText, Mode=OneWay}"
+                                        FontSize="11"
+                                        FontWeight="SemiBold"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </controls:SegmentedItem>
                         <controls:SegmentedItem
-                            Content="{x:Bind ViewModel.HiddenSegmentLabel, Mode=OneWay}"
-                            Visibility="{x:Bind ViewModel.HiddenSegmentVisibility, Mode=OneWay}" />
+                            AutomationProperties.Name="{x:Bind ViewModel.HiddenSegmentLabel, Mode=OneWay}"
+                            Visibility="{x:Bind ViewModel.HiddenSegmentVisibility, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Hidden" VerticalAlignment="Center" />
+                                <Border
+                                    MinWidth="18"
+                                    Height="18"
+                                    Padding="5,0"
+                                    CornerRadius="9"
+                                    VerticalAlignment="Center"
+                                    Background="{ThemeResource ChipBrush}">
+                                    <TextBlock
+                                        Text="{x:Bind ViewModel.HiddenCountText, Mode=OneWay}"
+                                        FontSize="11"
+                                        FontWeight="SemiBold"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </controls:SegmentedItem>
                     </controls:Segmented>
 
                     <Button
@@ -789,50 +779,78 @@
                         Command="{x:Bind ViewModel.DefaultOrderCommand}"
                         Visibility="{x:Bind ViewModel.DefaultOrderVisibility, Mode=OneWay}" />
 
-                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock
+                            x:Name="CheckedLabel"
+                            Text="{x:Bind ViewModel.CheckedText, Mode=OneWay}"
+                            FontSize="12"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                            Visibility="{x:Bind ViewModel.CheckedStaleVisibility, Mode=OneWay}" />
+
                         <Button
-                            Height="32"
-                            CornerRadius="4,0,0,4"
-                            Style="{StaticResource AccentButtonStyle}"
-                            AutomationProperties.Name="{x:Bind ViewModel.UpdateAllLabel, Mode=OneWay}"
-                            IsEnabled="{x:Bind ViewModel.UpdateAllEnabled, Mode=OneWay}"
-                            Click="OnUpdateAllClick">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE896;" FontSize="13" VerticalAlignment="Center" />
-                                <TextBlock Text="{x:Bind ViewModel.UpdateAllLabel, Mode=OneWay}" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button
-                            x:Name="UpdateAllMore"
-                            Width="34"
+                            Width="32"
                             Height="32"
                             Padding="0"
-                            CornerRadius="0,4,4,0"
-                            Style="{StaticResource AccentButtonStyle}"
-                            AutomationProperties.Name="More update options"
-                            IsEnabled="{x:Bind ViewModel.UpdateAllEnabled, Mode=OneWay}">
-                            <FontIcon Glyph="&#xE70D;" FontSize="10" />
-                            <Button.Flyout>
-                                <MenuFlyout
-                                    Placement="BottomEdgeAlignedRight"
-                                    ShouldConstrainToRootBounds="False"
-                                    MenuFlyoutPresenterStyle="{StaticResource TintedMenuFlyoutPresenterStyle}">
-                                    <MenuFlyout.SystemBackdrop>
-                                        <services:TintedAcrylicBackdrop />
-                                    </MenuFlyout.SystemBackdrop>
-                                    <MenuFlyoutItem
-                                        Text="{x:Bind ViewModel.UpdateAllOnInstallLabel, Mode=OneWay}"
-                                        KeyboardAcceleratorTextOverride="{x:Bind ViewModel.SelectedUpdateCountText, Mode=OneWay}"
-                                        AutomationProperties.Name="{x:Bind ViewModel.UpdateAllOnInstallAccessibleName, Mode=OneWay}"
-                                        Command="{x:Bind ViewModel.UpdateAllCommand}" />
-                                    <MenuFlyoutItem
-                                        Text="Update all installs"
-                                        KeyboardAcceleratorTextOverride="{x:Bind ViewModel.TotalUpdateCountText, Mode=OneWay}"
-                                        AutomationProperties.Name="{x:Bind ViewModel.UpdateAllInstallsAccessibleName, Mode=OneWay}"
-                                        Command="{x:Bind ViewModel.UpdateAllInstallsCommand}" />
-                                </MenuFlyout>
-                            </Button.Flyout>
+                            VerticalAlignment="Center"
+                            Command="{x:Bind ViewModel.RefreshCommand}"
+                            AutomationProperties.Name="Check for updates"
+                            ToolTipService.ToolTip="{x:Bind ViewModel.CheckedText, Mode=OneWay}">
+                            <FontIcon
+                                Glyph="&#xE72C;"
+                                FontSize="14"
+                                views:Spinner.IsSpinning="{x:Bind ViewModel.RefreshCommand.IsRunning, Mode=OneWay}" />
                         </Button>
+
+                        <StackPanel
+                            Orientation="Horizontal"
+                            Spacing="1"
+                            VerticalAlignment="Center"
+                            Visibility="{x:Bind ViewModel.UpdateAllVisibility, Mode=OneWay}">
+                            <Button
+                                Height="32"
+                                CornerRadius="4,0,0,4"
+                                Style="{StaticResource AccentButtonStyle}"
+                                AutomationProperties.Name="{x:Bind ViewModel.UpdateAllOnInstallAccessibleName, Mode=OneWay}"
+                                IsEnabled="{x:Bind ViewModel.UpdateAllEnabled, Mode=OneWay}"
+                                Click="OnUpdateAllClick">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE896;" FontSize="13" VerticalAlignment="Center" />
+                                    <TextBlock Text="Update all" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button
+                                x:Name="UpdateAllMore"
+                                Width="34"
+                                Height="32"
+                                Padding="0"
+                                CornerRadius="0,4,4,0"
+                                Style="{StaticResource AccentButtonStyle}"
+                                AutomationProperties.Name="More update options"
+                                IsEnabled="{x:Bind ViewModel.UpdateAllEnabled, Mode=OneWay}">
+                                <FontIcon Glyph="&#xE70D;" FontSize="10" />
+                                <Button.Flyout>
+                                    <MenuFlyout
+                                        Placement="BottomEdgeAlignedRight"
+                                        ShouldConstrainToRootBounds="False"
+                                        MenuFlyoutPresenterStyle="{StaticResource TintedMenuFlyoutPresenterStyle}">
+                                        <MenuFlyout.SystemBackdrop>
+                                            <services:TintedAcrylicBackdrop />
+                                        </MenuFlyout.SystemBackdrop>
+                                        <MenuFlyoutItem
+                                            Text="{x:Bind ViewModel.UpdateAllOnInstallLabel, Mode=OneWay}"
+                                            KeyboardAcceleratorTextOverride="{x:Bind ViewModel.SelectedUpdateCountText, Mode=OneWay}"
+                                            AutomationProperties.Name="{x:Bind ViewModel.UpdateAllOnInstallAccessibleName, Mode=OneWay}"
+                                            Command="{x:Bind ViewModel.UpdateAllCommand}" />
+                                        <MenuFlyoutItem
+                                            Text="Update all installs"
+                                            KeyboardAcceleratorTextOverride="{x:Bind ViewModel.TotalUpdateCountText, Mode=OneWay}"
+                                            AutomationProperties.Name="{x:Bind ViewModel.UpdateAllInstallsAccessibleName, Mode=OneWay}"
+                                            Command="{x:Bind ViewModel.UpdateAllInstallsCommand}" />
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
 

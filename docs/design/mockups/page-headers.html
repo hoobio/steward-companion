@@ -1,0 +1,406 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Steward Page Headers</title>
+<style>
+:root {
+  --page: #171b24;
+  --win: #1f2430;
+  --chrome: #1a1f2b;
+  --surface: #232937;
+  --surface-2: #2a3040;
+  --line: #343b4c;
+  --fg: #cbccc6;
+  --fg-2: #8a9199;
+  --fg-3: #707a8c;
+  --accent: #409fff;
+  --accent-hi: #73d0ff;
+  --ok: #bae67e;
+  --mark: #ffcc66;
+  --ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--fg); font: 14px/1.45 var(--ui); padding: 32px 16px 48px; }
+main { max-width: 880px; margin: 0 auto; display: grid; gap: 40px; }
+header.page h1 { font: 600 26px/1.2 var(--display); margin: 0 0 6px; text-wrap: balance; }
+header.page p { margin: 0; color: var(--fg-2); max-width: 65ch; }
+section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-3); margin: 0 0 10px; }
+.scroll { overflow-x: auto; padding-bottom: 4px; }
+.win { width: 860px; background: var(--win); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.titlebar { height: 48px; background: var(--chrome); display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 12px; }
+.titlebar .app { display: flex; align-items: center; gap: 8px; flex: 1; }
+.logo { width: 16px; height: 16px; border-radius: 4px; background: linear-gradient(135deg, #ffb454, #f29668); }
+.pill { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 6px; background: var(--surface); font-size: 13px; position: relative; }
+.pill.open { outline: 1px solid var(--accent); }
+.av { width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--ok); }
+.caps { color: var(--fg-3); letter-spacing: 14px; padding-left: 8px; }
+.body { display: flex; }
+.rail { width: 48px; padding-top: 8px; display: grid; gap: 6px; align-content: start; justify-items: center; }
+.rail span { width: 32px; height: 32px; border-radius: 6px; display: grid; place-items: center; color: var(--fg-2); }
+.rail span.on { background: var(--surface); color: var(--fg); }
+.content { flex: 1; padding: 14px 22px 22px 4px; display: grid; gap: 14px; }
+.row { display: flex; align-items: center; gap: 8px; }
+.h { font: 600 28px/1 var(--display); flex: 1; }
+.muted { color: var(--fg-3); font-size: 12px; }
+.btn { height: 32px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border-radius: 5px; background: var(--surface); color: var(--fg); font-size: 13px; white-space: nowrap; position: relative; }
+.btn.icon { width: 32px; padding: 0; justify-content: center; }
+.btn.accent { background: var(--accent); color: #fff; }
+.split { display: inline-flex; gap: 1px; }
+.split .btn.accent:first-child { border-radius: 5px 0 0 5px; }
+.split .btn.accent:last-child { border-radius: 0 5px 5px 0; padding: 0 10px; }
+.search { width: 220px; height: 32px; border-radius: 5px; background: var(--chrome); border: 1px solid var(--line); display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--fg-3); font-size: 13px; }
+.tabs { display: flex; gap: 2px; margin-left: 24px; flex: 1; }
+.tab { height: 32px; padding: 0 12px; display: flex; align-items: center; gap: 6px; border-radius: 5px; color: var(--fg); font-size: 13px; position: relative; }
+.tab.bg { background: var(--surface); }
+.tab.on::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 16px; height: 3px; margin-left: -8px; border-radius: 2px; background: var(--accent); }
+.badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-grid; place-items: center; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.badge.hot { background: var(--accent); color: #fff; }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 8px; overflow: hidden; font-size: 13px; }
+th { text-align: left; font-weight: 400; color: var(--fg-2); padding: 10px 12px; background: var(--surface-2); }
+td { padding: 9px 12px; border-top: 1px solid var(--win); vertical-align: middle; }
+.name { display: flex; align-items: center; gap: 10px; }
+.ico { width: 26px; height: 26px; border-radius: 6px; flex: none; }
+.sub { font: 11px var(--mono); color: var(--fg-3); }
+.ver { font: 12px var(--mono); color: var(--fg-2); }
+.ver b { color: var(--accent-hi); font-weight: 600; }
+.ok { color: var(--ok); }
+.more { width: 32px; height: 28px; border-radius: 5px; background: var(--win); display: grid; place-items: center; color: var(--fg); }
+.flyout { position: absolute; top: 38px; left: 0; width: 230px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 4px; z-index: 2; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+.flyout div { padding: 7px 10px; border-radius: 4px; display: flex; align-items: center; gap: 10px; }
+.flyout .sel { background: var(--surface); }
+.flyout hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.flyout .new { outline: 1px dashed var(--mark); outline-offset: -1px; }
+.tip { position: absolute; top: 38px; right: -6px; white-space: nowrap; background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 5px 9px; font-size: 12px; color: var(--fg); z-index: 2; }
+.busy { outline: 1px dashed #f07178; outline-offset: 3px; border-radius: 6px; }
+.new-spot { outline: 1px dashed var(--mark); outline-offset: 3px; border-radius: 6px; }
+ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; color: var(--fg-2); }
+ol b { color: var(--fg); font-weight: 600; }
+.key { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--fg-3); margin-top: 14px; }
+.key i { display: inline-block; width: 14px; height: 10px; margin-right: 6px; vertical-align: -1px; border-radius: 2px; }
+.guild { display: flex; align-items: center; gap: 10px; padding: 0 8px; font-size: 13px; }
+.guild > span:nth-child(2) { display: grid; line-height: 1.3; }
+.gname { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gav { width: 30px; height: 30px; border-radius: 6px; background: #5a4a44; }
+.card { background: var(--surface); border-radius: 8px; overflow: hidden; }
+.card.file { display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
+.inst { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--win); }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: var(--surface-2); color: var(--fg-2); }
+.chip.warn { background: rgba(255, 204, 102, .18); color: var(--fg); }
+.mono { font-family: var(--mono); }
+.ds { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-top: 1px solid var(--win); }
+.ds:first-child { border-top: 0; }
+.ds .ico { width: 30px; height: 30px; }
+.ds .ico.doc { background: none; display: grid; place-items: center; color: var(--fg-2); }
+.dsn { flex: 1; font-weight: 600; font-size: 13.5px; min-width: 0; }
+.dss { font-weight: 400; font-size: 12px; color: var(--fg-2); }
+.rec { color: var(--fg-2); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mark); }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 24px; }
+.stage { background: var(--win); border: 1px solid var(--line); border-radius: 8px; padding: 20px; min-height: 330px; overflow-x: auto; }
+.menu { width: 250px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.4); font-size: 13px; }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.menu .who { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+.menu .item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 4px; position: relative; }
+.menu .item.hover { background: var(--surface); outline: 1px dashed var(--mark); outline-offset: -1px; }
+.menu.sub { position: absolute; left: calc(100% + 6px); top: -4px; width: 240px; z-index: 3; }
+.stage:has(.sub) { padding-right: 280px; }
+.dialog { max-width: 400px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px; font-size: 13px; }
+.opt { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 6px; border: 1px solid var(--line); margin-top: 6px; }
+.opt.on { border-color: var(--accent); }
+.radio { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--fg-3); flex: none; }
+.opt.on .radio { border: 5px solid var(--accent); }
+code { font-family: var(--mono); font-size: 12px; }
+svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="refresh" viewBox="0 0 16 16"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3"/></symbol>
+  <symbol id="folder" viewBox="0 0 16 16"><path d="M1.5 4.5v8h13v-6.5h-7l-1.5-1.5z"/></symbol>
+  <symbol id="plus" viewBox="0 0 16 16"><path d="M8 2.5v11M2.5 8h11"/></symbol>
+  <symbol id="down" viewBox="0 0 16 16"><path d="M8 2.5v8M4.5 7l3.5 3.5L11.5 7M3 13.5h10"/></symbol>
+  <symbol id="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></symbol>
+  <symbol id="search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></symbol>
+  <symbol id="check" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7"/></symbol>
+  <symbol id="pad" viewBox="0 0 16 16"><rect x="1.5" y="4.5" width="13" height="7" rx="3"/><path d="M5 6.5v3M3.5 8h3"/></symbol>
+  <symbol id="sync" viewBox="0 0 16 16"><path d="M2.5 6.5a5.5 5.5 0 0 1 10-2M13.5 9.5a5.5 5.5 0 0 1-10 2M12.5 1.5v3h-3M3.5 14.5v-3h3"/></symbol>
+  <symbol id="books" viewBox="0 0 16 16"><path d="M2.5 2.5v11M5.5 2.5v11M8.5 3l3 10.5"/></symbol>
+  <symbol id="doc" viewBox="0 0 16 16"><path d="M3.5 1.5h6l3 3v10h-9zM9.5 1.5v3h3"/></symbol>
+  <symbol id="dots" viewBox="0 0 16 16"><path d="M4 8h.01M8 8h.01M12 8h.01" stroke-width="2.4"/></symbol>
+</svg>
+
+<main>
+  <header class="page">
+    <h1>Addons page header</h1>
+    <p>Current <code>main</code> against the approved layout. The title row keeps only the page name and Get addons, and the refresh and update controls sit together on the row above the list.</p>
+  </header>
+
+  <section>
+    <div>
+      <p class="label">Current</p>
+      <div class="scroll">
+        <div class="win">
+          <div class="titlebar">
+            <div class="app"><span class="logo"></span>Steward (Debug)</div>
+            <span class="pill">Forever - Beta <svg><use href="#chev"/></svg></span>
+            <span class="pill"><span class="av"></span>Hoobi <svg><use href="#chev"/></svg></span>
+            <span class="caps">–□×</span>
+          </div>
+          <div class="body">
+            <div class="rail"><span class="on"><svg><use href="#pad"/></svg></span><span><svg><use href="#sync"/></svg></span><span><svg><use href="#books"/></svg></span></div>
+            <div class="content">
+              <div class="row">
+                <span class="h">Addons</span>
+                <span class="row busy" style="gap:8px">
+                  <span class="muted">Checked just now</span>
+                  <span class="btn icon"><svg><use href="#refresh"/></svg></span>
+                  <span class="btn icon"><svg><use href="#folder"/></svg></span>
+                  <span class="btn"><svg><use href="#plus"/></svg>Get addons</span>
+                </span>
+              </div>
+              <div class="row">
+                <span class="search"><svg><use href="#search"/></svg>Filter addons</span>
+                <div class="tabs"><span class="tab on">All</span><span class="tab bg">Updates 2</span><span class="tab bg">Hidden 1</span></div>
+                <span class="split"><span class="btn accent"><svg><use href="#down"/></svg>Update all (2)</span><span class="btn accent"><svg><use href="#chev"/></svg></span></span>
+              </div>
+              <table>
+                <tr><th>Name</th><th>Version</th><th>Channel</th><th>Source</th><th>Status</th><th></th></tr>
+                <tr><td><div class="name"><span class="ico" style="background:#e79a4a"></span><div>Steward<div class="sub">Steward</div></div></div></td><td class="ver">0.0.0-fe886fc<br>→ <b>0.0.0-6cfb0b0</b></td><td>pre-release</td><td>Steward</td><td><span class="btn accent">Update</span></td><td><span class="more"><svg><use href="#dots"/></svg></span></td></tr>
+                <tr><td><div class="name"><span class="ico" style="background:#8fb8dd"></span><div>HoobiScripts<div class="sub">HoobiScripts</div></div></div></td><td class="ver">0.0.0-26ec280<br>→ <b>0.0.0-37bbb07</b></td><td>pre-release</td><td>Steward</td><td><span class="btn accent">Update</span></td><td><span class="more"><svg><use href="#dots"/></svg></span></td></tr>
+                <tr><td><div class="name"><span class="ico" style="background:#3b4a9e"></span><div>RestedXP Guides<div class="sub">RXPGuides</div></div></div></td><td class="ver">v4.11.11</td><td>release</td><td>GitHub</td><td class="ok">✓ Up to date</td><td><span class="more"><svg><use href="#dots"/></svg></span></td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="key"><span><i style="outline:1px dashed #f07178"></i>Four controls competing with the title</span></div>
+    </div>
+    <div>
+      <p class="label">Issues</p>
+      <ol>
+        <li><b>Crowded title row.</b> Status text, two icon buttons and Get addons sit beside the page name.</li>
+        <li><b>Split actions.</b> Refresh is on the top row while Update all is on the row below.</li>
+        <li><b>Repeated count.</b> "2" appears on the Updates tab and on Update all.</li>
+        <li><b>Per-install action on the page.</b> Open AddOns folder acts on the selected install but sits apart from the install picker.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div>
+      <p class="label">Approved</p>
+      <div class="scroll">
+        <div class="win">
+          <div class="titlebar">
+            <div class="app"><span class="logo"></span>Steward (Debug)</div>
+            <span class="pill open">Forever - Beta <svg><use href="#chev"/></svg>
+              <span class="flyout">
+                <div class="sel">Forever - Beta</div>
+                <div>Forever</div>
+                <hr>
+                <div class="new"><svg><use href="#folder"/></svg>Open AddOns folder</div>
+                <div><svg><use href="#plus"/></svg>Add install</div>
+                <div>Manage installs</div>
+              </span>
+            </span>
+            <span class="pill"><span class="av"></span>Hoobi <svg><use href="#chev"/></svg></span>
+            <span class="caps">–□×</span>
+          </div>
+          <div class="body">
+            <div class="rail"><span class="on"><svg><use href="#pad"/></svg></span><span><svg><use href="#sync"/></svg></span><span><svg><use href="#books"/></svg></span></div>
+            <div class="content">
+              <div class="row">
+                <span class="h">Addons</span>
+                <span class="btn"><svg><use href="#plus"/></svg>Get addons</span>
+              </div>
+              <div class="row">
+                <span class="search"><svg><use href="#search"/></svg>Filter addons</span>
+                <div class="tabs"><span class="tab on">All</span><span class="tab">Updates <span class="badge hot">2</span></span><span class="tab">Hidden <span class="badge">1</span></span></div>
+                <span class="btn icon new-spot"><svg><use href="#refresh"/></svg><span class="tip">Checked just now</span></span>
+                <span class="split"><span class="btn accent"><svg><use href="#down"/></svg>Update all</span><span class="btn accent"><svg><use href="#chev"/></svg></span></span>
+              </div>
+              <table>
+                <tr><th>Name</th><th>Version</th><th>Channel</th><th>Source</th><th>Status</th><th></th></tr>
+                <tr><td><div class="name"><span class="ico" style="background:#e79a4a"></span><div>Steward<div class="sub">Steward</div></div></div></td><td class="ver">0.0.0-fe886fc<br>→ <b>0.0.0-6cfb0b0</b></td><td>pre-release</td><td>Steward</td><td><span class="btn accent">Update</span></td><td><span class="more"><svg><use href="#dots"/></svg></span></td></tr>
+                <tr><td><div class="name"><span class="ico" style="background:#8fb8dd"></span><div>HoobiScripts<div class="sub">HoobiScripts</div></div></div></td><td class="ver">0.0.0-26ec280<br>→ <b>0.0.0-37bbb07</b></td><td>pre-release</td><td>Steward</td><td><span class="btn accent">Update</span></td><td><span class="more"><svg><use href="#dots"/></svg></span></td></tr>
+                <tr><td><div class="name"><span class="ico" style="background:#3b4a9e"></span><div>RestedXP Guides<div class="sub">RXPGuides</div></div></div></td><td class="ver">v4.11.11</td><td>release</td><td>GitHub</td><td class="ok">✓ Up to date</td><td><span class="more"><svg><use href="#dots"/></svg></span></td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="key"><span><i style="outline:1px dashed var(--mark)"></i>Moved control (flyout and tooltip shown open)</span></div>
+    </div>
+    <div>
+      <p class="label">Changes</p>
+      <ol>
+        <li><b>Open AddOns folder</b> moves into the install picker flyout, under the install list.</li>
+        <li><b>"Checked just now"</b> moves into the refresh tooltip. The inline label returns only when the last check is stale or failed.</li>
+        <li><b>Refresh</b> moves down beside Update all, so checking and updating share one row.</li>
+        <li><b>Update all</b> drops its count and hides when nothing needs updating.</li>
+        <li><b>Tab counts</b> become badges, with Updates accented when non-zero.</li>
+      </ol>
+    </div>
+  </section>
+
+  <header class="page">
+    <h1>Sync page</h1>
+    <p>The per-install expander repeats the title bar picker. The approved page shows only the selected install, so its datasets become the main card and the install details move into the picker.</p>
+  </header>
+
+  <section>
+    <div>
+      <p class="label">Current</p>
+      <div class="scroll">
+        <div class="win">
+          <div class="titlebar">
+            <div class="app"><span class="logo"></span>Steward (Debug)</div>
+            <span class="pill">Forever - Beta <svg><use href="#chev"/></svg></span>
+            <span class="pill"><span class="av"></span>Hoobi <svg><use href="#chev"/></svg></span>
+            <span class="caps">–□×</span>
+          </div>
+          <div class="body">
+            <div class="rail"><span><svg><use href="#pad"/></svg></span><span class="on"><svg><use href="#sync"/></svg></span><span><svg><use href="#books"/></svg></span></div>
+            <div class="content">
+              <div class="row">
+                <div style="flex:1"><div class="h" style="flex:none">Sync</div><div class="muted" style="font-size:13px;margin-top:6px">Last synced 3 minutes ago</div></div>
+                <span class="guild"><span class="gav"></span><span><span class="gname">RaT WiTH FLaMeS oN…</span><span class="muted">224 members · 4 servers</span></span><svg><use href="#chev"/></svg></span>
+                <span class="btn icon"><svg><use href="#refresh"/></svg></span>
+                <span class="btn accent">Sync now</span>
+              </div>
+              <div class="card">
+                <div class="inst busy">
+                  <div style="flex:1"><b>Forever - Beta</b><div class="sub">C:\Program Files (x86)\World of Warcraft\_classic_beta_</div></div>
+                  <span class="chip mono">1.60.1.70009</span><span class="chip warn">Running</span><svg><use href="#chev"/></svg>
+                </div>
+                <div class="ds"><span class="ico" style="background:#8a6d2f"></span><div class="dsn">Guild roster<div class="dss"><span class="ok">✓</span> In game after /reload</div></div><span class="rec">74 people, 119 characters</span></div>
+                <div class="ds"><span class="ico" style="background:#4b5fa8"></span><div class="dsn">Guild professions<div class="dss"><span class="ok">✓</span> In game after /reload</div></div><span class="rec">10 characters, 12 professions</span></div>
+                <div class="ds"><span class="ico" style="background:#6d6f75"></span><div class="dsn">Your characters<div class="dss"><span class="ok">✓</span> In sync with the guild</div></div><span class="rec">118 guild characters synced <svg><use href="#chev"/></svg></span></div>
+              </div>
+              <div class="card file busy">
+                <svg><use href="#doc"/></svg>
+                <div style="flex:1;min-width:0">Guild data in game<div class="dss">C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns\Steward\StewardSync.lua, written 5 minutes ago</div></div>
+                <span class="btn">Write again</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="key"><span><i style="outline:1px dashed #f07178"></i>Repeats the title bar, or wraps a long path</span></div>
+    </div>
+    <div>
+      <p class="label">Issues</p>
+      <ol>
+        <li><b>Install expander.</b> Name and path duplicate the title bar picker, and collapsing it hides the whole page.</li>
+        <li><b>Running pill.</b> The most useful fact in the header is the smallest item in it.</li>
+        <li><b>Full file path.</b> The StewardSync.lua path wraps to two lines and pushes "written 5 minutes ago" off the end.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div>
+      <p class="label">Approved</p>
+      <div class="scroll">
+        <div class="win">
+          <div class="titlebar">
+            <div class="app"><span class="logo"></span>Steward (Debug)</div>
+            <span class="pill open"><span class="dot"></span>Forever - Beta <svg><use href="#chev"/></svg>
+              <span class="flyout" style="width:300px">
+                <div class="sel" style="display:block">Forever - Beta <span class="muted">· running</span><div class="sub">1.60.1.70009 · _classic_beta_</div></div>
+                <div>Forever</div>
+                <hr>
+                <div><svg><use href="#folder"/></svg>Open AddOns folder</div>
+                <div><svg><use href="#plus"/></svg>Add install</div>
+                <div>Manage installs</div>
+              </span>
+            </span>
+            <span class="pill"><span class="av"></span>Hoobi <svg><use href="#chev"/></svg></span>
+            <span class="caps">–□×</span>
+          </div>
+          <div class="body">
+            <div class="rail"><span><svg><use href="#pad"/></svg></span><span class="on"><svg><use href="#sync"/></svg></span><span><svg><use href="#books"/></svg></span></div>
+            <div class="content">
+              <div class="row">
+                <div style="flex:1"><div class="h" style="flex:none">Sync</div><div class="muted new-spot" style="font-size:13px;margin-top:6px;display:inline-block"><span style="color:var(--fg)">RaT WiTH FLaMeS oN…</span> · last synced 3 minutes ago · <span style="color:var(--mark)">WoW is running, /reload to load new data</span></div></div>
+                <span class="btn icon"><svg><use href="#refresh"/></svg></span>
+                <span class="btn accent">Sync now</span>
+              </div>
+              <div class="card">
+                <div class="ds"><span class="ico" style="background:#8a6d2f"></span><div class="dsn">Guild roster<div class="dss"><span class="ok">✓</span> In game after /reload</div></div><span class="rec">74 people, 119 characters</span></div>
+                <div class="ds"><span class="ico" style="background:#4b5fa8"></span><div class="dsn">Guild professions<div class="dss"><span class="ok">✓</span> In game after /reload</div></div><span class="rec">10 characters, 12 professions</span></div>
+                <div class="ds"><span class="ico" style="background:#6d6f75"></span><div class="dsn">Your characters<div class="dss"><span class="ok">✓</span> In sync with the guild</div></div><span class="rec">118 guild characters synced <svg><use href="#chev"/></svg></span></div>
+                <div class="ds new-spot" style="outline-offset:-2px"><span class="ico doc"><svg><use href="#doc"/></svg></span><div class="dsn">Guild data in game<div class="dss"><span class="mono">StewardSync.lua</span> · written 5 minutes ago</div></div><span class="btn">Write again</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="key"><span><i style="outline:1px dashed var(--mark)"></i>Moved or reworded (picker flyout shown open)</span></div>
+    </div>
+    <div>
+      <p class="label">Changes</p>
+      <ol>
+        <li><b>Install expander</b> goes. The page shows the selected install only, so the dataset rows are the card.</li>
+        <li><b>Version and path</b> move into the picker flyout, next to Open AddOns folder from the Addons page.</li>
+        <li><b>Running</b> becomes a dot on the picker and a line under the title that says what to do about it.</li>
+        <li><b>Guild data in game</b> joins the card as its last row, showing the file name only. The full path moves to a tooltip.</li>
+        <li><b>Guild picker</b> moves into the account menu. The page keeps the guild name as plain text under the title, so the sync target stays visible.</li>
+      </ol>
+    </div>
+  </section>
+
+  <header class="page">
+    <h1>Guild choice</h1>
+    <p>The selected guild is app-wide state on the main view model, so it sits with the account rather than on one page. Guild names other than the current one are examples.</p>
+  </header>
+
+  <section>
+    <div class="pair">
+      <div>
+        <p class="label">Account menu, guild submenu open</p>
+        <div class="stage">
+          <div class="menu">
+            <div class="who"><span class="av" style="width:30px;height:30px"></span><div><b>Hoobi</b><div class="dss">Signed in with Discord</div></div></div>
+            <hr>
+            <div class="item hover"><span class="gav" style="width:20px;height:20px;border-radius:4px"></span><div style="flex:1;min-width:0"><div class="gname">RaT WiTH FLaMeS oN…</div><div class="dss">Guild</div></div><svg style="transform:rotate(-90deg)"><use href="#chev"/></svg>
+              <div class="menu sub">
+                <div class="item"><span class="gav" style="width:20px;height:20px;border-radius:4px"></span><div style="flex:1"><div>RaT WiTH FLaMeS oN…</div><div class="dss">224 members · Officer</div></div><svg class="ok"><use href="#check"/></svg></div>
+                <div class="item"><span class="gav" style="width:20px;height:20px;border-radius:4px;background:#3e5a4a"></span><div style="flex:1"><div>Example guild two</div><div class="dss">58 members · Member</div></div></div>
+                <div class="item"><span class="gav" style="width:20px;height:20px;border-radius:4px;background:#4a4460"></span><div style="flex:1"><div>Example guild three</div><div class="dss">31 members · Member</div></div></div>
+                <div class="item"><span class="gav" style="width:20px;height:20px;border-radius:4px;background:#5c4a3a"></span><div style="flex:1"><div>Example guild four</div><div class="dss">12 members · Guild master</div></div></div>
+              </div>
+            </div>
+            <hr>
+            <div class="item">Open guild panel</div>
+            <div class="item">Sign out</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="label">First sign-in with more than one guild</p>
+        <div class="stage">
+          <div class="dialog">
+            <b style="font-size:18px">Choose a guild</b>
+            <p class="dss" style="margin:6px 0 14px;font-size:13px">Steward syncs your characters to this guild. You can change it later from the account menu.</p>
+            <div class="opt on"><span class="radio"></span><span class="gav" style="width:24px;height:24px;border-radius:5px"></span><div><div>RaT WiTH FLaMeS oN…</div><div class="dss">224 members · Officer</div></div></div>
+            <div class="opt"><span class="radio"></span><span class="gav" style="width:24px;height:24px;border-radius:5px;background:#3e5a4a"></span><div><div>Example guild two</div><div class="dss">58 members · Member</div></div></div>
+            <div class="opt"><span class="radio"></span><span class="gav" style="width:24px;height:24px;border-radius:5px;background:#4a4460"></span><div><div>Example guild three</div><div class="dss">31 members · Member</div></div></div>
+            <div class="row" style="justify-content:flex-end;margin-top:16px"><span class="btn accent">Continue</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p class="label">Behaviour</p>
+      <ol>
+        <li><b>Guild row</b> in the account menu shows the current guild and opens a submenu to the right (a native WinUI <code>MenuFlyoutSubItem</code>).</li>
+        <li><b>One guild:</b> the row shows the name with no submenu, and no dialog appears on sign-in.</li>
+        <li><b>More than one guild, none chosen:</b> the dialog appears once after sign-in, with the highest-ranked guild preselected.</li>
+        <li><b>Removed from the chosen guild:</b> the dialog appears again on the next refresh.</li>
+      </ol>
+    </div>
+  </section>
+</main>
