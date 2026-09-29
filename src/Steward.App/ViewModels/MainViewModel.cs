@@ -1402,12 +1402,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void SetGuilds(IReadOnlyList<AdminGuild> guilds, AdminGuild? current)
     {
         _isLoadingState = true;
-        if (!Guilds.Select(option => option.Id).SequenceEqual(guilds.Select(guild => guild.Id), StringComparer.Ordinal))
+        var wanted = guilds.Select(guild => (guild.Id, Role: GuildRoleLabel(guild))).ToList();
+        if (!Guilds.Select(option => (option.Id, option.Role)).SequenceEqual(wanted))
         {
             Guilds.Clear();
             foreach (var guild in guilds)
             {
-                Guilds.Add(new GuildOptionViewModel(guild, RoleLabel));
+                Guilds.Add(new GuildOptionViewModel(guild, GuildRoleLabel(guild)));
             }
         }
 
@@ -1422,6 +1423,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasGuildChoice));
         OnPropertyChanged(nameof(GuildChevronVisibility));
     }
+
+    private string GuildRoleLabel(AdminGuild guild) =>
+        GigagrugClient.ResolveGuildFeatures(guild, _features).Contains(GigagrugClient.StewardFeature) ? "Officer" : "Member";
 
     public void ChooseGuildOption(GuildOptionViewModel option)
     {
