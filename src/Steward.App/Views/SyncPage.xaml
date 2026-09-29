@@ -124,9 +124,14 @@
 
                 <StackPanel Grid.Column="0" Spacing="4">
                     <TextBlock Text="Sync" FontSize="26" FontWeight="SemiBold" Margin="{StaticResource PageTitleMargin}" />
-                    <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
-                        <Run Text="{x:Bind ViewModel.SubtitleGuild, Mode=OneWay}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" /><Run Text="{x:Bind ViewModel.SubtitleSynced, Mode=OneWay}" /><Run Text="{x:Bind ViewModel.SubtitleRunning, Mode=OneWay}" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                    <TextBlock TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                        <Run Text="{x:Bind ViewModel.SubtitleGuild, Mode=OneWay}" Foreground="{ThemeResource TextFillColorPrimaryBrush}" /><Run Text="{x:Bind ViewModel.SubtitleSynced, Mode=OneWay}" />
                     </TextBlock>
+                    <TextBlock
+                        Text="WoW is running, /reload to load new data"
+                        TextTrimming="CharacterEllipsis"
+                        Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                        Visibility="{x:Bind ViewModel.SubtitleRunningVisibility, Mode=OneWay}" />
                 </StackPanel>
 
                 <StackPanel

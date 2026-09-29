@@ -104,7 +104,7 @@ Addon installed, no saved-variables file. "Steward has not exported anything yet
 
 ### Client running
 
-While the selected install's client runs, the line under the page title ends with "WoW is running, /reload to load new data" in caution, and the install picker in the title bar carries a caution dot. There is no running banner and no `Running` pill.
+While the selected install's client runs, a second line under the page title reads "WoW is running, /reload to load new data" in caution (the guild and last-synced line above it trims rather than wraps), and the install picker in the title bar carries a caution dot. There is no running banner and no `Running` pill.
 
 Pulling is unaffected and says so on the pull action: "Writes now, read in game after `/reload`."
 

@@ -33,7 +33,7 @@ public sealed partial class SyncViewModel : ObservableObject
         nameof(NeverExportedVisibility),
         nameof(SubtitleGuild),
         nameof(SubtitleSynced),
-        nameof(SubtitleRunning),
+        nameof(SubtitleRunningVisibility),
         nameof(GeneratedFilePath),
         nameof(GeneratedFileStatus),
         nameof(GeneratedFileErrorVisibility),
@@ -141,9 +141,7 @@ public sealed partial class SyncViewModel : ObservableObject
         }
     }
 
-    public string SubtitleRunning => _main.SelectedInstall is { IsClientRunning: true }
-        ? $"{(SubtitleGuild.Length + SubtitleSynced.Length > 0 ? " · " : "")}WoW is running, /reload to load new data"
-        : "";
+    public Visibility SubtitleRunningVisibility => When(_main.SelectedInstall is { IsClientRunning: true });
 
     public string GeneratedFilePath => _main.SelectedInstall is { } install
         ? StewardSyncFile.PathFor(install.AddOnsPath)
