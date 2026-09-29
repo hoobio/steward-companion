@@ -882,11 +882,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task CheckAppUpdateAsync(bool forceStoreScan = false)
+    private async Task CheckAppUpdateAsync(bool forceStoreScan = false, bool scanAllApps = false)
     {
         if (forceStoreScan && (!App.IsGitHubRelease || App.IsPackaged))
         {
-            await ForceStoreScanAsync().ConfigureAwait(true);
+            await ForceStoreScanAsync(scanAllApps).ConfigureAwait(true);
         }
 
         AppUpdate = App.IsPackaged && App.IsGitHubRelease
@@ -894,7 +894,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             : null;
     }
 
-    private async Task ForceStoreScanAsync()
+    private async Task ForceStoreScanAsync(bool scanAllApps = false)
     {
         try
         {
@@ -914,6 +914,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ? "Store scan for Steward: no install item returned (the Store may still queue and install the update)"
                 : $"Store scan for Steward: {item.GetCurrentStatus().InstallState}");
 
+            if (scanAllApps)
+            {
+                await ScanAllAppsForUpdatesAsync(manager).ConfigureAwait(true);
+            }
+
             if (!App.IsGitHubRelease)
             {
                 _ = Task.Run(async () =>
@@ -927,6 +932,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             _logger.Warn(ex, "Store scan for Steward failed");
         }
+    }
+
+    private async Task ScanAllAppsForUpdatesAsync(AppInstallManager manager)
+    {
+        try
+        {
+            // Only SearchForAllUpdatesAsync refreshes a flight's catalogue (verified 29 Sep 2026); it also queues every other Store app's update, hence explicit-press only.
+            await manager.SearchForAllUpdatesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Verified 29 Sep 2026: this call throws (AggregateException, cause uncaptured) yet still queues the update.
+            _logger.Warn(ex, "Store scan for all apps failed");
+        }
+
+        var queued = manager.AppInstallItems.Any(queueItem => queueItem.PackageFamilyName == App.PackageFamilyName);
+        _logger.Info($"Store scan for all apps: {manager.AppInstallItems.Count} item(s), Steward {(queued ? "queued" : "not queued")}");
     }
 
     private void LogStoreCopyVersion(string when)
@@ -1141,7 +1163,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (!App.IsGitHubRelease)
         {
-            _ = ForceStoreScanAsync();
+            _ = ForceStoreScanAsync(scanAllApps: true);
         }
 
         OpenUri(App.IsPackaged ? _appUpdater.StoreUpdatesUri : _appUpdater.StoreListingUri);
@@ -1236,7 +1258,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsCheckingAppUpdate = true;
         try
         {
-            await CheckAppUpdateAsync(forceStoreScan: true).ConfigureAwait(true);
+            await CheckAppUpdateAsync(forceStoreScan: true, scanAllApps: true).ConfigureAwait(true);
         }
         finally
         {
