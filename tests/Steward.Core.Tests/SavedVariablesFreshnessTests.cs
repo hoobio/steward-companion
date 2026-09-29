@@ -127,4 +127,29 @@ public sealed class SavedVariablesFreshnessTests
             Directory.Delete(flavourPath, recursive: true);
         }
     }
+
+    [Fact]
+    public void AwaitsReload_OnlyForAFileWrittenAfterClientStartAndBeforeTheNextReload()
+    {
+        var flavourPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var savedVariables = Path.Combine(flavourPath, "WTF", "Account", "ACCOUNT#1", "SavedVariables", "Steward.lua");
+        Directory.CreateDirectory(Path.GetDirectoryName(savedVariables)!);
+        var writtenAt = ClientStart.AddMinutes(10);
+        var client = new WowClientProcess(1, ClientStart);
+        try
+        {
+            Assert.False(SavedVariablesFreshness.AwaitsReload(flavourPath, writtenAt, null));
+            Assert.False(SavedVariablesFreshness.AwaitsReload(flavourPath, null, client));
+            Assert.False(SavedVariablesFreshness.AwaitsReload(flavourPath, ClientStart.AddMinutes(-1), client));
+            Assert.True(SavedVariablesFreshness.AwaitsReload(flavourPath, writtenAt, client));
+
+            File.WriteAllText(savedVariables, "StewardDB = {}");
+            File.SetLastWriteTimeUtc(savedVariables, writtenAt.UtcDateTime.AddMinutes(1));
+            Assert.False(SavedVariablesFreshness.AwaitsReload(flavourPath, writtenAt, client));
+        }
+        finally
+        {
+            Directory.Delete(flavourPath, recursive: true);
+        }
+    }
 }

@@ -141,7 +141,11 @@ public sealed partial class SyncViewModel : ObservableObject
         }
     }
 
-    public Visibility SubtitleRunningVisibility => When(_main.SelectedInstall is { IsClientRunning: true });
+    public Visibility SubtitleRunningVisibility => When(_main.SelectedInstall is { } install
+        && SavedVariablesFreshness.AwaitsReload(
+            install.Install.FlavourPath,
+            File.Exists(GeneratedFilePath) ? File.GetLastWriteTimeUtc(GeneratedFilePath) : null,
+            install.Client));
 
     public string GeneratedFilePath => _main.SelectedInstall is { } install
         ? StewardSyncFile.PathFor(install.AddOnsPath)

@@ -210,7 +210,14 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
 
     public string WrittenText => WrittenAt is { } at ? $" · written {SyncViewModel.Relative(at)}" : " · not written yet";
 
-    public void RefreshRelativeTimes() => OnPropertyChanged(nameof(WrittenText));
+    public Visibility ReloadNoticeVisibility(WowClientProcess? client, DateTimeOffset? writtenAt) =>
+        When(SavedVariablesFreshness.AwaitsReload(Install.FlavourPath, writtenAt, client));
+
+    public void RefreshRelativeTimes()
+    {
+        OnPropertyChanged(nameof(WrittenText));
+        OnPropertyChanged(nameof(WrittenAt));
+    }
 
     public void SetProducts(
         IReadOnlyList<string> products,

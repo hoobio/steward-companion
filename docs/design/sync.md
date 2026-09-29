@@ -104,7 +104,7 @@ Addon installed, no saved-variables file. "Steward has not exported anything yet
 
 ### Client running
 
-While the selected install's client runs, a second line under the page title reads "WoW is running, /reload to load new data" in caution (the guild and last-synced line above it trims rather than wraps), and the install picker in the title bar carries a caution dot. There is no running banner and no `Running` pill.
+A second line under the page title reads "WoW is running, /reload to load new data" in caution (the guild and last-synced line above it trims rather than wraps) only while `StewardSync.lua` was written after the selected install's client started and no saved variable has been written since (`SavedVariablesFreshness.AwaitsReload`), so it clears on the next `/reload` or logout; Guides makes the same check against its own `Guides.lua`. While the client runs, the install picker in the title bar carries a caution dot. There is no running banner and no `Running` pill.
 
 Pulling is unaffected and says so on the pull action: "Writes now, read in game after `/reload`."
 

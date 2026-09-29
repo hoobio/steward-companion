@@ -36,6 +36,12 @@ public static class SavedVariablesFreshness
             .Any(path => File.GetLastWriteTimeUtc(path) > since + ClockTolerance);
     }
 
+    public static bool AwaitsReload(string flavourPath, DateTimeOffset? writtenAt, WowClientProcess? client) =>
+        client is not null
+        && writtenAt is { } at
+        && at > client.StartTime + ClockTolerance
+        && !WrittenSince(flavourPath, at);
+
     public static DateTimeOffset? LastWrite(SavedVariablesSnapshot? snapshot) =>
         snapshot?.ExportedAt ?? NewestFileWriteTime(snapshot);
 

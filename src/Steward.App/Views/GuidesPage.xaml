@@ -115,7 +115,7 @@
                         Text="WoW is running, /reload to load new guides"
                         TextTrimming="CharacterEllipsis"
                         Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                        Visibility="{x:Bind ViewModel.SelectedInstall.RunningDotVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
+                        Visibility="{x:Bind ViewModel.SelectedGuide.ReloadNoticeVisibility(ViewModel.SelectedInstall.Client, ViewModel.SelectedGuide.WrittenAt), Mode=OneWay, FallbackValue=Collapsed}" />
                 </StackPanel>
 
                 <Button
