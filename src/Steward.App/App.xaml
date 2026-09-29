@@ -72,6 +72,7 @@
                             <SolidColorBrush x:Key="TextFillColorDisabledBrush" Color="#FF4E5768" />
                             <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#FF409FFF" />
 
+                            <SolidColorBrush x:Key="ControlFillColorTransparentBrush" Color="#001A1F2B" />
                             <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#FF232834" />
                             <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="#FF2B3140" />
                             <SolidColorBrush x:Key="ControlFillColorTertiaryBrush" Color="#FF1A1F2B" />
@@ -124,10 +125,6 @@
 
                             <SolidColorBrush x:Key="SegmentedBackground" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="SegmentedBorderBrush" Color="Transparent" />
-                            <SolidColorBrush x:Key="SegmentedItemBackground" Color="#FF1A1F2B" />
-                            <SolidColorBrush x:Key="SegmentedItemBackgroundPointerOver" Color="#FF232834" />
-                            <SolidColorBrush x:Key="SegmentedItemBackgroundPressed" Color="#FF2B3140" />
-                            <SolidColorBrush x:Key="SegmentedItemBackgroundSelected" Color="#FF232834" />
 
                             <SolidColorBrush x:Key="RadioButtonOuterEllipseFill" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="RadioButtonOuterEllipseFillPointerOver" Color="#FF1A1F2B" />
@@ -176,6 +173,8 @@
                             <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedDisabled" Color="#FF8FB8DD" />
 
                             <SolidColorBrush x:Key="ContentDialogBackground" Color="#FF2B3140" />
+                            <SolidColorBrush x:Key="DialogButtonBackgroundPointerOver" Color="#FF343B4C" />
+                            <SolidColorBrush x:Key="DialogButtonBackgroundPressed" Color="#FF232834" />
                             <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#B3000000" />
                             <SolidColorBrush x:Key="ContentDialogTopOverlay" Color="#FF2B3140" />
                             <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent" />
@@ -229,6 +228,8 @@
                             <SolidColorBrush x:Key="DiscordBrush" Color="{ThemeResource SystemColorButtonFaceColor}" />
                             <StaticResource x:Key="FlyoutAcrylicTintColor" ResourceKey="SystemColorWindowColor" />
                             <StaticResource x:Key="FlyoutAcrylicFallbackColor" ResourceKey="SystemColorWindowColor" />
+                            <SolidColorBrush x:Key="DialogButtonBackgroundPointerOver" Color="{ThemeResource SystemColorHighlightColor}" />
+                            <SolidColorBrush x:Key="DialogButtonBackgroundPressed" Color="{ThemeResource SystemColorHighlightColor}" />
                         </ResourceDictionary>
                     </ResourceDictionary.ThemeDictionaries>
 
@@ -261,6 +262,7 @@
             <CornerRadius x:Key="GroupBottomCornerRadius">0,0,8,8</CornerRadius>
             <x:Double x:Key="ContentDialogMinWidth">440</x:Double>
             <x:Double x:Key="ContentDialogMaxWidth">440</x:Double>
+            <GridLength x:Key="ContentDialogButtonSpacing">12</GridLength>
             <Style x:Key="StewardDialogStyle" TargetType="ContentDialog">
                 <Setter Property="CornerRadius" Value="8" />
                 <Setter Property="PrimaryButtonStyle" Value="{StaticResource AccentButtonStyle}" />
