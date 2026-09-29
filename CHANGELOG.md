@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.17.1](https://github.com/hoobio/steward-companion/compare/v0.17.0...v0.17.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* 🐛 add per-client jitter to background check intervals ([f1483b9](https://github.com/hoobio/steward-companion/commit/f1483b91ac921a98828017be5bb333072d623592))
+* 🐛 adopt matched CurseForge addons explicitly instead of automatically ([b95f5aa](https://github.com/hoobio/steward-companion/commit/b95f5aad306ccafa5b4762b6d357eb01ab23c273))
+* 🐛 align the channel dropdown with the channel column text ([1518c32](https://github.com/hoobio/steward-companion/commit/1518c327558f7d030a1935bd46e78adbbca4e697))
+* 🐛 allow overriding the User-Agent for addon downloads ([0588876](https://github.com/hoobio/steward-companion/commit/0588876378cce118e723d6de7ded0f4b5c33b6c2))
+* 🐛 animate the Addons filter tabs and stop them flashing white ([404dac2](https://github.com/hoobio/steward-companion/commit/404dac22a03e5a6000592491f0f4bdab7fc4b6fb))
+* 🐛 animate the install and account dropdowns ([e24a528](https://github.com/hoobio/steward-companion/commit/e24a528d2536615a90e71dcf8bd8e8bb711f8355))
+* 🐛 centre the install picker in the title bar ([1087c8a](https://github.com/hoobio/steward-companion/commit/1087c8a943b760c39aade1edf07f49dbfb13c55c))
+* 🐛 check /api/me every 15 minutes while the access event stream is live ([a338f5c](https://github.com/hoobio/steward-companion/commit/a338f5c178fa9e3f7572807b48cb7a8e9764dfb6))
+* 🐛 drop the account menu to the window bottom, centre and narrow the install menu, and put the role beside the name ([d9e542e](https://github.com/hoobio/steward-companion/commit/d9e542edd8b40f15d476597ffd16a4561f1ae1f0))
+* 🐛 give managed addons an in-game icon when they ship none ([1de951b](https://github.com/hoobio/steward-companion/commit/1de951ba5effedcdf2fa90174f7ac45183c5961d))
+* 🐛 install CurseForge links without a confirmation ([5b2ccd2](https://github.com/hoobio/steward-companion/commit/5b2ccd2899f4b106a613b6279e739fa920435202))
+* 🐛 keep dialog buttons visible on hover and space them apart ([a7559db](https://github.com/hoobio/steward-companion/commit/a7559dbd79a851d900c074b740eeb1f48e00f0ba))
+* 🐛 keep every filter tab background opaque so switching never flashes white ([749ccf8](https://github.com/hoobio/steward-companion/commit/749ccf8f9c13629a2707922e585eceb38ac32cd0))
+* 🐛 move the account menu to the bottom of the navigation bar ([47a18d2](https://github.com/hoobio/steward-companion/commit/47a18d2cb80912adac3e47bc8cb8941ca7eb1590))
+* 🐛 name CurseForge installs after their main folder ([9fb55f2](https://github.com/hoobio/steward-companion/commit/9fb55f21e1c800bad83dd4dcee1d8dd7eb021147))
+* 🐛 open Default apps when another app already owns CurseForge links ([428b06f](https://github.com/hoobio/steward-companion/commit/428b06f59c0ef0d4d65667b289b375af43108505))
+* 🐛 open the channel dialog for CurseForge addons ([cada475](https://github.com/hoobio/steward-companion/commit/cada4754eb9d81e9725b40bc39007a84156cfcb6))
+* 🐛 open the install and account dropdowns without the janky animation ([862ee96](https://github.com/hoobio/steward-companion/commit/862ee96d17e1a6f0bc8fd84db84952bd528772a2))
+* 🐛 prompt to make Steward the default for CurseForge links ([fec6314](https://github.com/hoobio/steward-companion/commit/fec6314e45fa58ea8fc2edbf8c6a0f8ab9c1ef28))
+* 🐛 read the Forever client's own TOC for addon versions and interface ([9fc95c9](https://github.com/hoobio/steward-companion/commit/9fc95c903343625138a7933aa3799875a704f697))
+* 🐛 render CurseForge changelogs with headings, nested lists and links ([ad64583](https://github.com/hoobio/steward-companion/commit/ad645837dfab2d2584c9b4b624e0e0d8bc187265))
+* 🐛 report CurseForge download failures to gigagrug ([00e7fe8](https://github.com/hoobio/steward-companion/commit/00e7fe8e0c9ea81a3c2ea4b90e43962f7d408d50))
+* 🐛 rewrite StewardSync.lua after a Steward install without pulling the roster again ([4e16a6d](https://github.com/hoobio/steward-companion/commit/4e16a6d1d323b89286f43e5f7e7065e85ee51bad))
+* 🐛 run Update all in parallel batches ([453be87](https://github.com/hoobio/steward-companion/commit/453be87f84c2ec94cac610c2c4dc0ee6719e230d))
+* 🐛 send an Edge User-Agent on addon downloads by default ([c7ad988](https://github.com/hoobio/steward-companion/commit/c7ad9885620cd3764af34975e2f874bbbb56f990))
+* 🐛 set the CurseForge link default from Windows' app picker ([0c51df1](https://github.com/hoobio/steward-companion/commit/0c51df192d233269468f71357d070190dc7f6c62))
+* 🐛 show each channel's changelog in the release channel dialog ([a45fdf3](https://github.com/hoobio/steward-companion/commit/a45fdf315c8e47c698f06f3f354879dd7cdb90f3))
+* 🐛 show Up to date in the default text colour ([413a147](https://github.com/hoobio/steward-companion/commit/413a14784e63e4fe1cd9b8c8c30be9c28ea1fe61))
+* 🐛 space the Updates and Hidden filter tabs like All ([2075b1d](https://github.com/hoobio/steward-companion/commit/2075b1d1587cc6fa2b5bcdeed608c50e8cd0c2fb))
+* 🐛 stop showing a Store update as pending when none is available ([24afc9e](https://github.com/hoobio/steward-companion/commit/24afc9e180230eddd9809606921f7cb026b9634d))
+* 🐛 stop the changelog and out-of-date icon buttons flashing white on hover ([27e8338](https://github.com/hoobio/steward-companion/commit/27e833859c775b9e3cee98635c94ae7b6f54b69b))
+* 🐛 stop the filter tabs flashing white on click ([676af0c](https://github.com/hoobio/steward-companion/commit/676af0c8a80f2eb36243279f465bae33d01f9059))
+* 🐛 stop the Segmented filter tabs flashing white ([20ed763](https://github.com/hoobio/steward-companion/commit/20ed76303d62e024c0e34f206071c826167a5271))
+
 ## [0.17.0](https://github.com/hoobio/steward-companion/compare/v0.16.0...v0.17.0) (2026-09-29)
 
 
