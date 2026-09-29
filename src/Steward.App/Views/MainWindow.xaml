@@ -337,207 +337,6 @@
                             </Flyout>
                         </FlyoutBase.AttachedFlyout>
                     </Button>
-                    <DropDownButton
-                        x:Name="AccountButton"
-                        Height="36"
-                        Margin="0"
-                        VerticalAlignment="Center"
-                        Padding="8,4"
-                        BorderThickness="0"
-                        ToolTipService.ToolTip="{x:Bind ViewModel.LiveUpdatesTooltip, Mode=OneWay}"
-                        AutomationProperties.Name="{x:Bind ViewModel.AccountAutomationName, Mode=OneWay}">
-                        <DropDownButton.Resources>
-                            <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
-                            <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
-                            <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
-                        </DropDownButton.Resources>
-                        <StackPanel Orientation="Horizontal" Spacing="11">
-                            <Grid Width="24" Height="24" VerticalAlignment="Center">
-                                <PersonPicture
-                                    Width="24"
-                                    Height="24"
-                                    ProfilePicture="{x:Bind ViewModel.AvatarImage, Mode=OneWay}"
-                                    DisplayName="{x:Bind ViewModel.UserName, Mode=OneWay}" />
-                                <Ellipse
-                                    Width="30"
-                                    Height="30"
-                                    Margin="-3"
-                                    StrokeThickness="2"
-                                    Stroke="{ThemeResource SystemFillColorSuccessBrush}"
-                                    Visibility="{x:Bind ViewModel.LiveUpdatesLiveVisibility, Mode=OneWay}" />
-                                <Ellipse
-                                    Width="30"
-                                    Height="30"
-                                    Margin="-3"
-                                    StrokeThickness="2"
-                                    Stroke="{ThemeResource SystemFillColorCautionBrush}"
-                                    Visibility="{x:Bind ViewModel.LiveUpdatesReconnectingVisibility, Mode=OneWay}" />
-                            </Grid>
-                            <TextBlock Text="{x:Bind ViewModel.UserName, Mode=OneWay}" VerticalAlignment="Center" />
-                        </StackPanel>
-                        <FlyoutBase.AttachedFlyout>
-                            <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
-                            <Flyout x:Name="AccountFlyout" Placement="BottomEdgeAlignedRight" ShouldConstrainToRootBounds="False" AreOpenCloseAnimationsEnabled="False">
-                                <Flyout.SystemBackdrop>
-                                    <services:TintedAcrylicBackdrop />
-                                </Flyout.SystemBackdrop>
-                                <Flyout.FlyoutPresenterStyle>
-                                    <Style TargetType="FlyoutPresenter" BasedOn="{StaticResource TintedFlyoutPresenterStyle}">
-                                        <Setter Property="Padding" Value="0" />
-                                        <Setter Property="CornerRadius" Value="8" />
-                                    </Style>
-                                </Flyout.FlyoutPresenterStyle>
-                                <StackPanel Width="280">
-                                    <StackPanel.Resources>
-                                        <StaticResource x:Key="ButtonBackground" ResourceKey="MenuFlyoutItemBackground" />
-                                        <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="MenuFlyoutItemBackgroundPointerOver" />
-                                        <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="MenuFlyoutItemBackgroundPressed" />
-                                    </StackPanel.Resources>
-                                    <Grid x:Name="AccountHeader" Padding="16,16,16,12" ColumnSpacing="12" Background="Transparent">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-                                        <PersonPicture
-                                            Grid.Column="0"
-                                            Width="40"
-                                            Height="40"
-                                            VerticalAlignment="Center"
-                                            ProfilePicture="{x:Bind ViewModel.AvatarImage, Mode=OneWay}"
-                                            DisplayName="{x:Bind ViewModel.UserName, Mode=OneWay}" />
-                                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                            <TextBlock
-                                                Text="{x:Bind ViewModel.UserName, Mode=OneWay}"
-                                                FontSize="14"
-                                                FontWeight="SemiBold" />
-                                            <TextBlock
-                                                Text="{x:Bind ViewModel.UserHandle, Mode=OneWay}"
-                                                Visibility="{x:Bind ViewModel.UserHandleVisibility, Mode=OneWay}"
-                                                FontFamily="Cascadia Mono"
-                                                FontSize="12"
-                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                        </StackPanel>
-                                        <Border
-                                            Grid.Row="1"
-                                            Grid.Column="1"
-                                            Margin="0,8,0,0"
-                                            HorizontalAlignment="Left"
-                                            CornerRadius="4"
-                                            Padding="6,2"
-                                            Background="{ThemeResource AccentFillColorDefaultBrush}">
-                                            <TextBlock
-                                                Text="{x:Bind ViewModel.RoleLabel, Mode=OneWay}"
-                                                Foreground="{ThemeResource AccentButtonForeground}"
-                                                Style="{StaticResource CaptionTextBlockStyle}" />
-                                        </Border>
-                                    </Grid>
-                                    <Border
-                                        Height="1"
-                                        HorizontalAlignment="Stretch"
-                                        Background="{ThemeResource RowHairlineBrush}" />
-                                    <Button
-                                        x:Name="GuildRow"
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Stretch"
-                                        BorderThickness="0"
-                                        Margin="4,4,4,4"
-                                        Padding="12,6"
-                                        IsHitTestVisible="{x:Bind ViewModel.HasGuildChoice, Mode=OneWay}"
-                                        IsTabStop="{x:Bind ViewModel.HasGuildChoice, Mode=OneWay}"
-                                        AutomationProperties.Name="Guild"
-                                        Visibility="{x:Bind ViewModel.GuildPickerVisibility, Mode=OneWay}">
-                                        <Grid ColumnSpacing="12">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <Border
-                                                Width="24"
-                                                Height="24"
-                                                VerticalAlignment="Center"
-                                                CornerRadius="6"
-                                                Background="{ThemeResource ChipBrush}">
-                                                <Grid>
-                                                    <TextBlock
-                                                        Text="{x:Bind ViewModel.SelectedGuild.Initial, Mode=OneWay}"
-                                                        FontSize="11.5"
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                                    <Image Source="{x:Bind ViewModel.SelectedGuild.Icon, Mode=OneWay}" Stretch="UniformToFill" />
-                                                </Grid>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                <TextBlock Text="{x:Bind ViewModel.SelectedGuild.Label, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock
-                                                    Text="Guild"
-                                                    FontSize="11.5"
-                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                            </StackPanel>
-                                            <FontIcon
-                                                Grid.Column="2"
-                                                Glyph="&#xE76C;"
-                                                FontSize="11"
-                                                VerticalAlignment="Center"
-                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                Visibility="{x:Bind ViewModel.GuildChevronVisibility, Mode=OneWay}" />
-                                        </Grid>
-                                        <FlyoutBase.AttachedFlyout>
-                                            <Flyout
-                                                x:Name="GuildFlyout"
-                                                Placement="RightEdgeAlignedTop"
-                                                ShouldConstrainToRootBounds="False"
-                                                AreOpenCloseAnimationsEnabled="False"
-                                                FlyoutPresenterStyle="{StaticResource TintedFlyoutPresenterStyle}">
-                                                <Flyout.SystemBackdrop>
-                                                    <services:TintedAcrylicBackdrop />
-                                                </Flyout.SystemBackdrop>
-                                                <StackPanel x:Name="GuildFlyoutContent" Width="260" Spacing="2">
-                                                    <StackPanel.Resources>
-                                                        <StaticResource x:Key="ButtonBackground" ResourceKey="MenuFlyoutItemBackground" />
-                                                        <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="MenuFlyoutItemBackgroundPointerOver" />
-                                                        <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="MenuFlyoutItemBackgroundPressed" />
-                                                    </StackPanel.Resources>
-                                                    <ItemsControl
-                                                        ItemsSource="{x:Bind ViewModel.Guilds}"
-                                                        ItemTemplate="{StaticResource GuildOptionTemplate}" />
-                                                </StackPanel>
-                                            </Flyout>
-                                        </FlyoutBase.AttachedFlyout>
-                                    </Button>
-                                    <Border
-                                        Height="1"
-                                        HorizontalAlignment="Stretch"
-                                        Background="{ThemeResource RowHairlineBrush}"
-                                        Visibility="{x:Bind ViewModel.GuildPickerVisibility, Mode=OneWay}" />
-                                    <Button
-                                        x:Name="OpenGuildPanelButton"
-                                        Content="Open guild panel"
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
-                                        BorderThickness="0"
-                                        Margin="4,4,4,2"
-                                        Padding="12,9,12,10"
-                                        Click="OnGuildPanelClick" />
-                                    <Button
-                                        x:Name="AccountSignOutButton"
-                                        Content="Sign out"
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
-                                        BorderThickness="0"
-                                        Margin="4,2,4,4"
-                                        Padding="12,9,12,10"
-                                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                        Click="OnSignOutClick" />
-                                </StackPanel>
-                            </Flyout>
-                        </FlyoutBase.AttachedFlyout>
-                    </DropDownButton>
                 </StackPanel>
             </TitleBar.RightHeader>
         </TitleBar>
@@ -763,6 +562,220 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
+            <NavigationView.PaneFooter>
+                <Button
+                    x:Name="AccountButton"
+                    Height="36"
+                    Margin="4,2,4,-2"
+                    Padding="0"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch"
+                    BorderThickness="0"
+                    CornerRadius="4"
+                    ToolTipService.ToolTip="{x:Bind ViewModel.AccountAutomationName, Mode=OneWay}"
+                    AutomationProperties.Name="{x:Bind ViewModel.AccountAutomationName, Mode=OneWay}">
+                    <Button.Resources>
+                        <StaticResource x:Key="ButtonBackground" ResourceKey="NavigationViewItemBackground" />
+                        <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="NavigationViewItemBackgroundPointerOver" />
+                        <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="NavigationViewItemBackgroundPressed" />
+                    </Button.Resources>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <PersonPicture
+                                Width="24"
+                                Height="24"
+                                ProfilePicture="{x:Bind ViewModel.AvatarImage, Mode=OneWay}"
+                                DisplayName="{x:Bind ViewModel.UserName, Mode=OneWay}" />
+                            <Ellipse
+                                Width="30"
+                                Height="30"
+                                Margin="-3"
+                                StrokeThickness="2"
+                                Stroke="{ThemeResource SystemFillColorSuccessBrush}"
+                                Visibility="{x:Bind ViewModel.LiveUpdatesLiveVisibility, Mode=OneWay}" />
+                            <Ellipse
+                                Width="30"
+                                Height="30"
+                                Margin="-3"
+                                StrokeThickness="2"
+                                Stroke="{ThemeResource SystemFillColorCautionBrush}"
+                                Visibility="{x:Bind ViewModel.LiveUpdatesReconnectingVisibility, Mode=OneWay}" />
+                        </Grid>
+                        <TextBlock
+                            Grid.Column="1"
+                            Margin="4,0,8,0"
+                            Text="{x:Bind ViewModel.UserName, Mode=OneWay}"
+                            VerticalAlignment="Center"
+                            TextTrimming="CharacterEllipsis" />
+                    </Grid>
+                    <FlyoutBase.AttachedFlyout>
+                        <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
+                        <Flyout x:Name="AccountFlyout" Placement="RightEdgeAlignedBottom" ShouldConstrainToRootBounds="False" AreOpenCloseAnimationsEnabled="False">
+                            <Flyout.SystemBackdrop>
+                                <services:TintedAcrylicBackdrop />
+                            </Flyout.SystemBackdrop>
+                            <Flyout.FlyoutPresenterStyle>
+                                <Style TargetType="FlyoutPresenter" BasedOn="{StaticResource TintedFlyoutPresenterStyle}">
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="CornerRadius" Value="8" />
+                                </Style>
+                            </Flyout.FlyoutPresenterStyle>
+                            <StackPanel Width="280">
+                                <StackPanel.Resources>
+                                    <StaticResource x:Key="ButtonBackground" ResourceKey="MenuFlyoutItemBackground" />
+                                    <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="MenuFlyoutItemBackgroundPointerOver" />
+                                    <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="MenuFlyoutItemBackgroundPressed" />
+                                </StackPanel.Resources>
+                                <Grid x:Name="AccountHeader" Padding="16,16,16,12" ColumnSpacing="12" Background="Transparent">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <PersonPicture
+                                        Grid.Column="0"
+                                        Width="40"
+                                        Height="40"
+                                        VerticalAlignment="Center"
+                                        ProfilePicture="{x:Bind ViewModel.AvatarImage, Mode=OneWay}"
+                                        DisplayName="{x:Bind ViewModel.UserName, Mode=OneWay}" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock
+                                            Text="{x:Bind ViewModel.UserName, Mode=OneWay}"
+                                            FontSize="14"
+                                            FontWeight="SemiBold" />
+                                        <TextBlock
+                                            Text="{x:Bind ViewModel.UserHandle, Mode=OneWay}"
+                                            Visibility="{x:Bind ViewModel.UserHandleVisibility, Mode=OneWay}"
+                                            FontFamily="Cascadia Mono"
+                                            FontSize="12"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <Border
+                                        Grid.Row="1"
+                                        Grid.Column="1"
+                                        Margin="0,8,0,0"
+                                        HorizontalAlignment="Left"
+                                        CornerRadius="4"
+                                        Padding="6,2"
+                                        Background="{ThemeResource AccentFillColorDefaultBrush}">
+                                        <TextBlock
+                                            Text="{x:Bind ViewModel.RoleLabel, Mode=OneWay}"
+                                            Foreground="{ThemeResource AccentButtonForeground}"
+                                            Style="{StaticResource CaptionTextBlockStyle}" />
+                                    </Border>
+                                </Grid>
+                                <Border
+                                    Height="1"
+                                    HorizontalAlignment="Stretch"
+                                    Background="{ThemeResource RowHairlineBrush}" />
+                                <Button
+                                    x:Name="GuildRow"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Stretch"
+                                    BorderThickness="0"
+                                    Margin="4,4,4,4"
+                                    Padding="12,6"
+                                    IsHitTestVisible="{x:Bind ViewModel.HasGuildChoice, Mode=OneWay}"
+                                    IsTabStop="{x:Bind ViewModel.HasGuildChoice, Mode=OneWay}"
+                                    AutomationProperties.Name="Guild"
+                                    Visibility="{x:Bind ViewModel.GuildPickerVisibility, Mode=OneWay}">
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border
+                                            Width="24"
+                                            Height="24"
+                                            VerticalAlignment="Center"
+                                            CornerRadius="6"
+                                            Background="{ThemeResource ChipBrush}">
+                                            <Grid>
+                                                <TextBlock
+                                                    Text="{x:Bind ViewModel.SelectedGuild.Initial, Mode=OneWay}"
+                                                    FontSize="11.5"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                                <Image Source="{x:Bind ViewModel.SelectedGuild.Icon, Mode=OneWay}" Stretch="UniformToFill" />
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind ViewModel.SelectedGuild.Label, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock
+                                                Text="Guild"
+                                                FontSize="11.5"
+                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                        </StackPanel>
+                                        <FontIcon
+                                            Grid.Column="2"
+                                            Glyph="&#xE76C;"
+                                            FontSize="11"
+                                            VerticalAlignment="Center"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Visibility="{x:Bind ViewModel.GuildChevronVisibility, Mode=OneWay}" />
+                                    </Grid>
+                                    <FlyoutBase.AttachedFlyout>
+                                        <Flyout
+                                            x:Name="GuildFlyout"
+                                            Placement="RightEdgeAlignedTop"
+                                            ShouldConstrainToRootBounds="False"
+                                            AreOpenCloseAnimationsEnabled="False"
+                                            FlyoutPresenterStyle="{StaticResource TintedFlyoutPresenterStyle}">
+                                            <Flyout.SystemBackdrop>
+                                                <services:TintedAcrylicBackdrop />
+                                            </Flyout.SystemBackdrop>
+                                            <StackPanel x:Name="GuildFlyoutContent" Width="260" Spacing="2">
+                                                <StackPanel.Resources>
+                                                    <StaticResource x:Key="ButtonBackground" ResourceKey="MenuFlyoutItemBackground" />
+                                                    <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="MenuFlyoutItemBackgroundPointerOver" />
+                                                    <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="MenuFlyoutItemBackgroundPressed" />
+                                                </StackPanel.Resources>
+                                                <ItemsControl
+                                                    ItemsSource="{x:Bind ViewModel.Guilds}"
+                                                    ItemTemplate="{StaticResource GuildOptionTemplate}" />
+                                            </StackPanel>
+                                        </Flyout>
+                                    </FlyoutBase.AttachedFlyout>
+                                </Button>
+                                <Border
+                                    Height="1"
+                                    HorizontalAlignment="Stretch"
+                                    Background="{ThemeResource RowHairlineBrush}"
+                                    Visibility="{x:Bind ViewModel.GuildPickerVisibility, Mode=OneWay}" />
+                                <Button
+                                    x:Name="OpenGuildPanelButton"
+                                    Content="Open guild panel"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    BorderThickness="0"
+                                    Margin="4,4,4,2"
+                                    Padding="12,9,12,10"
+                                    Click="OnGuildPanelClick" />
+                                <Button
+                                    x:Name="AccountSignOutButton"
+                                    Content="Sign out"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    BorderThickness="0"
+                                    Margin="4,2,4,4"
+                                    Padding="12,9,12,10"
+                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                    Click="OnSignOutClick" />
+                            </StackPanel>
+                        </Flyout>
+                    </FlyoutBase.AttachedFlyout>
+                </Button>
+            </NavigationView.PaneFooter>
             <Frame x:Name="RootFrame" />
         </NavigationView>
     </Grid>

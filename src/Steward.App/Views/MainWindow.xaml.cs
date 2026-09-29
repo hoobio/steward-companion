@@ -45,7 +45,6 @@ public sealed partial class MainWindow : Window
         FlyoutOpener.Attach(AccountButton, AccountFlyout, "account");
         FlyoutOpener.AttachSubmenu(GuildRow, GuildFlyout, GuildFlyoutContent, [AccountHeader, OpenGuildPanelButton, AccountSignOutButton], "guild-switcher");
         InstallFlyout.OverlayInputPassThroughElement = TitleBarButtons;
-        AccountFlyout.OverlayInputPassThroughElement = TitleBarButtons;
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         TitleBarButtons.LayoutUpdated += (_, _) => ApplyTitleBarPassthrough(force: false);
