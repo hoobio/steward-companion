@@ -747,7 +747,7 @@
                         <SelectorBarItem x:Name="FilterAllItem" Text="All" />
                         <SelectorBarItem x:Name="FilterUpdatesItem" AutomationProperties.Name="{x:Bind ViewModel.UpdatesSegmentLabel, Mode=OneWay}">
                             <SelectorBarItem.Child>
-                            <StackPanel Orientation="Horizontal" Spacing="6">
+                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="12,0">
                                 <TextBlock Text="Updates" VerticalAlignment="Center" />
                                 <Border
                                     MinWidth="18"
@@ -773,7 +773,7 @@
                             AutomationProperties.Name="{x:Bind ViewModel.HiddenSegmentLabel, Mode=OneWay}"
                             Visibility="{x:Bind ViewModel.HiddenSegmentVisibility, Mode=OneWay}">
                             <SelectorBarItem.Child>
-                            <StackPanel Orientation="Horizontal" Spacing="6">
+                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="12,0">
                                 <TextBlock Text="Hidden" VerticalAlignment="Center" />
                                 <Border
                                     MinWidth="18"
