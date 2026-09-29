@@ -124,6 +124,7 @@
 
                             <SolidColorBrush x:Key="SegmentedBackground" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="SegmentedBorderBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="SegmentedItemBackground" Color="#001A1F2B" />
 
                             <SolidColorBrush x:Key="RadioButtonOuterEllipseFill" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="RadioButtonOuterEllipseFillPointerOver" Color="#FF1A1F2B" />
