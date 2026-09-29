@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.WinUI;
 
 using H.NotifyIcon.EfficiencyMode;
 
@@ -30,6 +31,7 @@ public sealed partial class MainWindow : Window
 {
     private readonly IServiceProvider _services;
     private bool _quitting;
+    private bool _confirmingClose;
     private Native.SubclassProc? _sessionEndSubclass;
     private RectInt32 _passthrough;
     private bool _passthroughStale;
@@ -443,14 +445,64 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        args.Cancel = true;
         if (ViewModel.CloseToTray)
         {
-            args.Cancel = true;
             HideToTray();
             return;
         }
 
-        QuitCompletely();
+        _ = ConfirmCloseAsync();
+    }
+
+    private async Task ConfirmCloseAsync()
+    {
+        if (_confirmingClose)
+        {
+            return;
+        }
+
+        _confirmingClose = true;
+        try
+        {
+            if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter)
+            {
+                presenter.Restore();
+            }
+
+            var dialog = new ContentDialog
+            {
+                Title = new TextBlock { Text = "Are you sure you want to close?", TextWrapping = TextWrapping.Wrap },
+                Content = new TextBlock
+                {
+                    Text = "This will prevent automatic addon updates and guild syncing.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                },
+                PrimaryButtonText = "Close anyway",
+                CloseButtonText = "Minimize to tray",
+            };
+            dialog.Opened += (_, _) => dialog.FindDescendant<Button>(b => b.Name == "CloseButton")?.Focus(FocusState.Programmatic);
+            dialog.Resources["AccentButtonBackground"] = Application.Current.Resources["CriticalButtonBackground"];
+            dialog.Resources["AccentButtonBackgroundPointerOver"] = Application.Current.Resources["CriticalButtonBackgroundPointerOver"];
+            dialog.Resources["AccentButtonBackgroundPressed"] = Application.Current.Resources["CriticalButtonBackgroundPressed"];
+            dialog.Resources["AccentButtonForeground"] = Application.Current.Resources["CriticalButtonForeground"];
+            dialog.Resources["AccentButtonForegroundPointerOver"] = Application.Current.Resources["CriticalButtonForeground"];
+            dialog.Resources["AccentButtonForegroundPressed"] = Application.Current.Resources["CriticalButtonForeground"];
+
+            if (await AppDialogs.ShowAsync(dialog, Content.XamlRoot) == ContentDialogResult.Primary)
+            {
+                QuitCompletely();
+            }
+            else
+            {
+                HideToTray();
+            }
+        }
+        finally
+        {
+            _confirmingClose = false;
+        }
     }
 
     private void OnWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)

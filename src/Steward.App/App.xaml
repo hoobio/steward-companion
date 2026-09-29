@@ -252,6 +252,10 @@
             <SolidColorBrush x:Key="CautionButtonBackgroundPointerOver" Color="#FFFFE6B3" />
             <SolidColorBrush x:Key="CautionButtonBackgroundPressed" Color="#FFFFE6B3" />
             <SolidColorBrush x:Key="CautionButtonForeground" Color="#FF1F2430" />
+            <SolidColorBrush x:Key="CriticalButtonBackground" Color="#FFF28779" />
+            <SolidColorBrush x:Key="CriticalButtonBackgroundPointerOver" Color="#FFF7ABA1" />
+            <SolidColorBrush x:Key="CriticalButtonBackgroundPressed" Color="#FFF7ABA1" />
+            <SolidColorBrush x:Key="CriticalButtonForeground" Color="#FF1F2430" />
             <Thickness x:Key="PageGutter">26,7,26,26</Thickness>
             <Thickness x:Key="PageTitleMargin">0,-2,0,0</Thickness>
             <Thickness x:Key="CardRowPadding">16,10</Thickness>
