@@ -367,7 +367,7 @@ public sealed class GigagrugClient
     public static bool IsAuthorizing(IReadOnlySet<string> features) =>
         AuthorizingFeatures.Any(features.Contains);
 
-    // steward/sync/roster/professions gate per guild, since an officer of one guild is a plain member of another; a guild entry with no features (an older gigagrug, or /api/admin/me) falls back to the user-level set.
+    // steward/sync/roster/professions gate per guild, since an officer of one guild is a plain member of another; a guild entry with no features (an older gigagrug) falls back to the user-level set.
     public static IReadOnlySet<string> ResolveGuildFeatures(AdminGuild? guild, IReadOnlySet<string> userFeatures) =>
         guild?.Features is { } features ? new HashSet<string>(features, StringComparer.Ordinal) : userFeatures;
 
