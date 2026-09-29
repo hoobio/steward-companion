@@ -13,11 +13,15 @@ public static class CurseForgeDefaultQuery
 
     public static string? Aumid => App.IsPackaged ? Windows.ApplicationModel.Package.Current.Id.FamilyName + "!App" : null;
 
-    public static bool IsDefault(string aumid)
+    public static bool IsDefault(string aumid) => CurseForgeDefaultHandler.IsOurs(CurrentProgId(), aumid, LookupAumid);
+
+    // Windows reports "Undecided" until the user has chosen any app for the scheme (verified 29 Sep 2026).
+    public static bool HasAnyDefault() => CurrentProgId() is { Length: > 0 } progId && progId != "Undecided";
+
+    private static string? CurrentProgId()
     {
         var registration = (IApplicationAssociationRegistration)new ApplicationAssociationRegistration();
-        var hr = registration.QueryCurrentDefault("curseforge", UrlProtocol, Effective, out var progId);
-        return hr >= 0 && CurseForgeDefaultHandler.IsOurs(progId, aumid, LookupAumid);
+        return registration.QueryCurrentDefault("curseforge", UrlProtocol, Effective, out var progId) >= 0 ? progId : null;
     }
 
     private static string? LookupAumid(string progId)

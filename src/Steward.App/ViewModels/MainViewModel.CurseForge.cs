@@ -70,6 +70,13 @@ public sealed partial class MainViewModel
     {
         try
         {
+            // The picker offers "Always" only while no app is the default; otherwise it can only open the link once.
+            if (CurseForgeDefaultQuery.HasAnyDefault())
+            {
+                await Windows.System.Launcher.LaunchUriAsync(new Uri($"ms-settings:defaultapps?registeredAUMID={Uri.EscapeDataString(aumid)}"));
+                return;
+            }
+
             var options = new Windows.System.LauncherOptions { DisplayApplicationPicker = true };
             WinRT.Interop.InitializeWithWindow.Initialize(options, OwnerWindowHandle);
             await Windows.System.Launcher.LaunchUriAsync(new Uri("curseforge://"), options);
