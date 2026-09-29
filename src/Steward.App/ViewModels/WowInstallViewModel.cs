@@ -37,6 +37,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Func<WowInstallViewModel, IReadOnlyList<string>> _excludedFolders;
     private readonly Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> _identifyProviderAddons;
     private readonly Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> _reconcileProviderAddons;
+    private readonly Action<WowInstallViewModel, string> _unmanageProviderAddon;
     private readonly Func<CancellationToken, Task<bool>> _ensureAuthorized;
     private readonly Func<string, bool> _hasFeature;
     private readonly Action<string> _changeChannelRequested;
@@ -58,6 +59,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         Func<WowInstallViewModel, IReadOnlyList<string>> excludedFolders,
         Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> identifyProviderAddons,
         Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> reconcileProviderAddons,
+        Action<WowInstallViewModel, string> unmanageProviderAddon,
         AddonUpdater updater,
         AppStateStore stateStore,
         Func<CancellationToken, Task<bool>> ensureAuthorized,
@@ -78,6 +80,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         _excludedFolders = excludedFolders;
         _identifyProviderAddons = identifyProviderAddons;
         _reconcileProviderAddons = reconcileProviderAddons;
+        _unmanageProviderAddon = unmanageProviderAddon;
         _remove = remove;
         _clientExited = clientExited;
         _updater = updater;
@@ -499,6 +502,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             ConfirmUninstallAsync,
             OutOfDateTipForToc,
             _afterStewardInstalled,
+            addon.Source == CurseForgeAddons.Source ? () => _unmanageProviderAddon(this, addon.Id) : null,
             _logger);
     }
 

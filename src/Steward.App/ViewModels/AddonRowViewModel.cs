@@ -70,7 +70,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(NoChannelVisibility),
         nameof(ActionVisibility),
         nameof(UpToDateVisibility),
-        nameof(IgnoredPillVisibility),
+        nameof(IgnoredStatusVisibility),
+        nameof(IgnoredUpdateVisibility),
         nameof(Status),
         nameof(StatusRank),
         nameof(StatusText),
@@ -90,6 +91,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(ReleaseActionsVisibility),
         nameof(InstalledActionsVisibility),
         nameof(UninstallVisibility),
+        nameof(UnmanageVisibility),
         nameof(UninstallErrorVisibility),
         nameof(OutOfDateVisibility),
         nameof(CanAutoApply),
@@ -109,6 +111,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     private readonly Func<string, string, Task<bool>> _confirmUninstall;
     private readonly Func<string, string?> _outOfDateTip;
     private readonly Func<WowInstall, Task> _afterStewardInstalled;
+    private readonly Action? _unmanage;
     private readonly ILogger _logger;
 
     private AddonChannelStatus? _status;
@@ -126,9 +129,11 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         Func<string, string, Task<bool>> confirmUninstall,
         Func<string, string?> outOfDateTip,
         Func<WowInstall, Task> afterStewardInstalled,
+        Action? unmanage,
         ILogger logger)
     {
         _logger = logger;
+        _unmanage = unmanage;
         _install = install;
         _addon = addon;
         _updater = updater;
@@ -335,7 +340,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         _ when IsBusy => AddonRowStatus.Updating,
         _ when HasFailed => AddonRowStatus.Failed,
         _ when IsHidden => AddonRowStatus.Hidden,
-        _ when IsIgnoredUpdate => AddonRowStatus.Ignored,
+        _ when IsIgnored && State is AddonRowState.UpdateAvailable or AddonRowState.Current => AddonRowStatus.Ignored,
         _ => State switch
         {
             AddonRowState.Missing => AddonRowStatus.NotInstalled,
@@ -373,7 +378,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility UpToDateVisibility => When(!ShowsActionButton && Status == AddonRowStatus.UpToDate);
 
-    public Visibility IgnoredPillVisibility => When(Status == AddonRowStatus.Ignored);
+    public Visibility IgnoredStatusVisibility => When(Status == AddonRowStatus.Ignored);
+
+    public Visibility IgnoredUpdateVisibility => When(Status == AddonRowStatus.Ignored && IsIgnoredUpdate);
 
     public IReadOnlyList<ChangelogBlock> Changelog => Changelogs.For(_status?.Release);
 
@@ -432,6 +439,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public string IgnoreLabel => IsIgnored ? "Resume updates" : "Ignore updates";
 
     public Visibility HideVisibility => When(CanIgnoreOrHide);
+
+    public Visibility UnmanageVisibility => When(_unmanage is not null && IsInstalled && !IsBusy);
 
     public string HideLabel => IsHidden ? "Show addon" : "Hide addon";
 
@@ -650,6 +659,15 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     [RelayCommand]
     private void ChangeChannel() => _changeChannelRequested(AddonId);
+
+    [RelayCommand]
+    private void Unmanage()
+    {
+        if (!IsBusy)
+        {
+            _unmanage?.Invoke();
+        }
+    }
 
     [RelayCommand]
     private void RestedXpSignIn() => RestedXpSignInRequested?.Invoke();

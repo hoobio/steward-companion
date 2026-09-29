@@ -32,6 +32,11 @@
                         <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" Visibility="{x:Bind HideVisibility}" />
                         <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" Visibility="{x:Bind InstalledActionsVisibility, Mode=OneWay}" />
                         <MenuFlyoutItem Text="Reinstall" Command="{x:Bind ReinstallCommand}" Visibility="{x:Bind ReleaseActionsVisibility, Mode=OneWay}" />
+                        <MenuFlyoutItem
+                            Text="Unmanage addon"
+                            ToolTipService.ToolTip="Steward will stop managing updates for this addon and treat it like a local install"
+                            Command="{x:Bind UnmanageCommand}"
+                            Visibility="{x:Bind UnmanageVisibility, Mode=OneWay}" />
                         <MenuFlyoutSeparator Visibility="{x:Bind UninstallVisibility, Mode=OneWay}" />
                         <MenuFlyoutItem
                             Text="Uninstall"
@@ -331,15 +336,18 @@
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         ToolTipService.ToolTip="Up to date"
                         Visibility="{x:Bind UpToDateVisibility, Mode=OneWay}" />
-                    <Border
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        CornerRadius="4"
-                        Padding="8,2"
-                        Background="{ThemeResource ChipBrush}"
-                        Visibility="{x:Bind IgnoredPillVisibility, Mode=OneWay}">
-                        <TextBlock Text="Ignored" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                    </Border>
+                    <StackPanel VerticalAlignment="Center" Visibility="{x:Bind IgnoredStatusVisibility, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                            <TextBlock Text="Updates ignored" FontSize="12.5" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                        </StackPanel>
+                        <TextBlock
+                            Text="Update available"
+                            FontSize="12"
+                            TextTrimming="CharacterEllipsis"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Visibility="{x:Bind IgnoredUpdateVisibility, Mode=OneWay}" />
+                    </StackPanel>
                     <Border
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"

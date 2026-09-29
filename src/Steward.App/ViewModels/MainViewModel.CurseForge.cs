@@ -189,6 +189,30 @@ public sealed partial class MainViewModel
         _stateStore.Save(state);
     }
 
+    private void UnmanageProviderAddon(WowInstallViewModel install, string addonId)
+    {
+        var state = _stateStore.Load();
+        var records = state.ProviderAddons.GetValueOrDefault(install.FlavourPath) ?? [];
+        if (records.FirstOrDefault(record => string.Equals(record.Id, addonId, StringComparison.OrdinalIgnoreCase)) is not { } record)
+        {
+            return;
+        }
+
+        var key = AppStateStore.Key(install.FlavourPath, record.Id);
+        state.Installs.Remove(key);
+        state.IgnoredAddons.RemoveAll(ignored => string.Equals(ignored, key, StringComparison.OrdinalIgnoreCase));
+        var keptLocal = CurseForgeAddons.KeptLocalKey(install.FlavourPath, record);
+        if (!state.KeptLocalAddons.Contains(keptLocal, StringComparer.OrdinalIgnoreCase))
+        {
+            state.KeptLocalAddons.Add(keptLocal);
+        }
+
+        _logger.Info($"CurseForge addon {record.Id} unmanaged on {install.FlavourPath}");
+        SaveProviderRecords(state, install.FlavourPath, [.. records.Where(existing => existing != record)]);
+        SyncProviderRows(install);
+        _ = install.RescanLocalAsync();
+    }
+
     private void SyncProviderRows(WowInstallViewModel install)
     {
         install.SyncAddons(AddonsFor(install.FlavourPath));

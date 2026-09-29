@@ -2619,6 +2619,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ExcludedFolders,
             IdentifyCurseForgeAsync,
             ReconcileProviderAddons,
+            UnmanageProviderAddon,
             _addonUpdater,
             _stateStore,
             EnsureAuthorizedForActionAsync,
