@@ -119,7 +119,13 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public Visibility ProductIconVisibility => When(ProductIcon is not null);
 
-    public string Label => UserLabel ?? GameVersionName ?? Install.Flavour;
+    public string DefaultName => GameVersionName ?? Install.Flavour;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Label), nameof(EditAccessibleName))]
+    public partial string? NumberedName { get; set; }
+
+    public string Label => UserLabel ?? NumberedName ?? DefaultName;
 
     public string EditAccessibleName => $"Edit {Label}";
 
@@ -146,12 +152,12 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     public partial bool IsSelected { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsClientRunning), nameof(RunningDotVisibility))]
+    [NotifyPropertyChangedFor(nameof(IsClientRunning), nameof(RunningText))]
     public partial WowClientProcess? Client { get; set; }
 
     public bool IsClientRunning => Client is not null;
 
-    public Visibility RunningDotVisibility => When(IsClientRunning);
+    public string RunningText => IsClientRunning ? "  ● Running" : "";
 
     public Visibility CurrentDotVisibility => When(IsSelected);
 

@@ -47,7 +47,9 @@ public sealed partial class EditInstallDialog : ContentDialog
 
     private void OnGameVersionChanged(object sender, SelectionChangedEventArgs e)
     {
-        NameBox.PlaceholderText = SelectedGameVersion?.Name ?? "";
+        NameBox.PlaceholderText = _install.UserLabel is null && SelectedGameVersion?.Code == _install.Install.ProductCode
+            ? _install.Label
+            : SelectedGameVersion?.Name ?? "";
         GameVersionError.Visibility = Visibility.Collapsed;
         UpdateBusyState();
     }

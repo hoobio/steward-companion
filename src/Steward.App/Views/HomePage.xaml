@@ -591,29 +591,6 @@
                 FontWeight="SemiBold"
                 VerticalAlignment="Center" />
 
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="0,0,10,0" VerticalAlignment="Center">
-                <TextBlock
-                    Text="{x:Bind ViewModel.SelectedInstall.StatusText, Mode=OneWay}"
-                    FontSize="12"
-                    VerticalAlignment="Center"
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Visibility="{x:Bind ViewModel.SelectedInstall.StatusVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
-                <StackPanel
-                    Orientation="Horizontal"
-                    Spacing="5"
-                    VerticalAlignment="Center"
-                    Visibility="{x:Bind ViewModel.SelectedInstall.RunningDotVisibility, Mode=OneWay, FallbackValue=Collapsed}">
-                    <Ellipse Width="6" Height="6" Fill="{ThemeResource SystemFillColorSuccessBrush}" VerticalAlignment="Center" />
-                    <TextBlock Text="Running" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-                </StackPanel>
-                <TextBlock
-                    Text="Game version not set"
-                    FontSize="12"
-                    VerticalAlignment="Center"
-                    Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                    Visibility="{x:Bind ViewModel.SelectedInstall.NoGameVersionVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
-            </StackPanel>
-
             <TextBlock
                 x:Name="CheckedLabel"
                 Grid.Column="3"

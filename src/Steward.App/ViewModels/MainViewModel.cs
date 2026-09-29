@@ -173,6 +173,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _addons = addons;
         _supportedProducts = supportedProducts;
         _logger = logger;
+        Installs.CollectionChanged += (_, _) => RenumberInstalls();
 
         var state = stateStore.Load();
         _isLoadingState = true;

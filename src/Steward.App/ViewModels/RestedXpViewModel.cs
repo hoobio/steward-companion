@@ -175,12 +175,14 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
     public RestedXpInstallViewModel(WowInstall install, Func<RestedXpInstallViewModel, Task> choiceChanged)
     {
         Install = install;
+        DisplayName = install.DisplayName;
         _choiceChanged = choiceChanged;
     }
 
     public WowInstall Install { get; }
 
-    public string DisplayName => Install.DisplayName;
+    [ObservableProperty]
+    public partial string DisplayName { get; set; }
 
     public string FlavourPath => Install.FlavourPath;
 
@@ -355,6 +357,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
                 Guides.Add(card);
             }
 
+            card.DisplayName = install.Label;
             card.IsSessionActive = IsSignedIn;
             card.AddonVersion = install.AddonRows
                 .FirstOrDefault(row => string.Equals(row.AddonId, AddonId, StringComparison.OrdinalIgnoreCase))?.InstalledVersion;

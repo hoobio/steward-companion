@@ -266,6 +266,14 @@ public sealed partial class MainViewModel
 
     public void WarnUi(string message) => _logger.Warn(null, message);
 
+    private void RenumberInstalls()
+    {
+        var names = InstallNames.Resolve(Installs.Select(install => (install.UserLabel, install.DefaultName)));
+        foreach (var (install, name) in Installs.Zip(names))
+        {
+            install.NumberedName = name;
+        }
+    }
     public void SaveColumnWidths() =>
         _stateStore.Save(_stateStore.Load() with { TableColumnWidths = new Dictionary<string, double>(ColumnWidths, StringComparer.OrdinalIgnoreCase) });
 
@@ -443,6 +451,7 @@ public sealed partial class MainViewModel
         if (!structural)
         {
             install.UserLabel = state.InstallLabels.GetValueOrDefault(flavourPath);
+            RenumberInstalls();
             RecomputeSummary();
             return;
         }

@@ -38,25 +38,19 @@
                             </Grid>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{x:Bind Label}" FontSize="12.5" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{x:Bind Label, Mode=OneWay}" FontSize="12.5" TextTrimming="CharacterEllipsis" />
                                 <TextBlock
-                                    Text="{x:Bind GameVersionName}"
                                     FontSize="11.5"
                                     TextTrimming="CharacterEllipsis"
                                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                    Visibility="{x:Bind GameVersionLineVisibility}" />
+                                    Visibility="{x:Bind StatusVisibility}">
+                                    <Run Text="{x:Bind StatusText, Mode=OneWay}" /><Run Text="{x:Bind RunningText, Mode=OneWay}" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                                </TextBlock>
                                 <TextBlock
                                     Text="Game version not set"
                                     FontSize="11.5"
                                     Foreground="{ThemeResource SystemFillColorCautionBrush}"
                                     Visibility="{x:Bind NoGameVersionVisibility}" />
-                                <TextBlock
-                                    Text="{x:Bind FlavourPath}"
-                                    FontFamily="Cascadia Mono"
-                                    FontSize="11"
-                                    TextWrapping="NoWrap"
-                                    TextTrimming="CharacterEllipsis"
-                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                             </StackPanel>
 
                             <Ellipse

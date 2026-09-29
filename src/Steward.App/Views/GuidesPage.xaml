@@ -98,7 +98,7 @@
                 </Expander.Resources>
                 <Expander.Header>
                     <StackPanel Spacing="2" VerticalAlignment="Center">
-                        <TextBlock Text="{x:Bind DisplayName}" FontSize="14" FontWeight="SemiBold" />
+                        <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontSize="14" FontWeight="SemiBold" />
                         <TextBlock
                             Text="{x:Bind FlavourPath}"
                             FontFamily="Cascadia Mono"

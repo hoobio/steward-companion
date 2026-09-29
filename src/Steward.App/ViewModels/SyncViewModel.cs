@@ -277,7 +277,7 @@ public sealed partial class SyncViewModel : ObservableObject
 
         var view = new SyncInstallViewModel
         {
-            DisplayName = install.DisplayName,
+            DisplayName = install.Label,
             FlavourPath = install.FlavourPath,
             ClientVersion = install.ClientVersion,
             IsClientRunning = install.IsClientRunning,
