@@ -145,7 +145,7 @@
                         TextWrapping="Wrap"
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                        Visibility="{x:Bind FailedVisibility, Mode=OneWay}" />
+                        Visibility="{x:Bind FailedMessageVisibility, Mode=OneWay}" />
                     <TextBlock
                         Text="{x:Bind UninstallError, Mode=OneWay}"
                         TextWrapping="Wrap"

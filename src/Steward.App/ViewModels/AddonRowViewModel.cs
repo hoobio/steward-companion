@@ -64,6 +64,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(NoReleasesVisibility),
         nameof(UpdatingVisibility),
         nameof(FailedVisibility),
+        nameof(FailedMessageVisibility),
         nameof(ChannelChipVisibility),
         nameof(SingleChannelVisibility),
         nameof(SingleChannelTip),
@@ -177,7 +178,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public string FolderName => _addon.FolderName;
 
-    public string FolderLine => (_addon.Folders ?? _status?.Release?.Folders ?? []).Count(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)) is var others and > 0
+    public string FolderLine => (_addon.Folders ?? _status?.Release?.Folders ?? []).Union(Record?.Folders ?? [], StringComparer.OrdinalIgnoreCase).Count(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)) is var others and > 0
         ? $"{FolderName} + {others} folder{(others == 1 ? "" : "s")}"
         : FolderName;
 
@@ -321,6 +322,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public Visibility UpdatingVisibility => When(State == AddonRowState.Updating);
 
     public Visibility FailedVisibility => When(State == AddonRowState.Failed);
+
+    public Visibility FailedMessageVisibility => When(State == AddonRowState.Failed && !string.IsNullOrEmpty(StatusMessage));
 
     private bool HasChannelChoice => Channel is not null && _status!.Releases.Count(release => release.Value is not null) > 1;
 
@@ -588,11 +591,11 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             }
 
             var progress = new Progress<double>(value => UpdateProgress = value);
-            await _updater.InstallAsync(_addon, channel, release, _install.AddOnsPath, progress, CancellationToken.None)
+            var folders = await _updater.InstallAsync(_addon, channel, release, _install.AddOnsPath, progress, CancellationToken.None)
                 .ConfigureAwait(true);
 
             var state = _stateStore.Load();
-            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, release.Sha1);
+            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, release.Sha1, folders);
             _stateStore.Save(state);
             await InGameIcon.EnsureAsync(_updater, _install.AddOnsPath, _addon, _logger).ConfigureAwait(true);
 
@@ -626,7 +629,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     {
         try
         {
-            var folders = AddonUpdater.InstallFolders(_addon, _status?.Release).OrderBy(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)).ToList();
+            var folders = AddonUpdater.InstallFolders(_addon, _status?.Release).Union(Record?.Folders ?? [], StringComparer.OrdinalIgnoreCase).OrderBy(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)).ToList();
             var described = folders.Count == 1 ? folders[0] : $"{folders[0]} and {folders.Count - 1} more folder{(folders.Count == 2 ? "" : "s")}";
             if (!await _confirmUninstall(DisplayName, described).ConfigureAwait(true) || IsBusy)
             {

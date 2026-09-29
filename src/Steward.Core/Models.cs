@@ -234,7 +234,8 @@ public sealed record InstalledAddonRecord(
     [property: JsonPropertyName("channel")] string Channel,
     [property: JsonPropertyName("sha256"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Sha256,
     [property: JsonPropertyName("installed_at")] DateTimeOffset? InstalledAt = null,
-    [property: JsonPropertyName("sha1"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Sha1 = null);
+    [property: JsonPropertyName("sha1"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Sha1 = null,
+    [property: JsonPropertyName("folders"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? Folders = null);
 
 public sealed record AppState(
     [property: JsonPropertyName("channels")] Dictionary<string, string> Channels,

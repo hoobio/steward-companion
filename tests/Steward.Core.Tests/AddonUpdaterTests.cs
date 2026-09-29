@@ -325,6 +325,20 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
+    public async Task InstallAsync_CurseForgeZipWithUnlistedFolder_InstallsAndReportsIt()
+    {
+        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", "QuestieExtra/QuestieExtra.toc");
+        WriteInstalled(addOnsPath, "Questie", "Questie.toc");
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["Questie"]);
+
+        var folders = await updater.InstallAsync(CurseForgeQuestie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["Questie", "QuestieExtra"], folders);
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "QuestieExtra", "QuestieExtra.toc")));
+        Assert.False(File.Exists(Path.Combine(addOnsPath, "Questie", "stale.lua")));
+    }
+
+    [Fact]
     public async Task InstallAsync_ZipWithRootFile_IsRefused()
     {
         var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", "readme.txt");

@@ -94,7 +94,7 @@ public sealed class AddonUpdater
         }
     }
 
-    public async Task InstallAsync(
+    public async Task<IReadOnlyList<string>> InstallAsync(
         ManagedAddon addon,
         string channel,
         AddonRelease release,
@@ -104,6 +104,7 @@ public sealed class AddonUpdater
     {
         _logger.Info($"Installing {addon.Id} {channel} {release.Version} into {addOnsPath}");
         var tempZipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
+        IReadOnlyList<string> folders;
         try
         {
             try
@@ -118,7 +119,7 @@ public sealed class AddonUpdater
                     throw new InvalidOperationException($"{addon.Id} {release.Version} manifest has no zip or no sha256/sha1; refusing to install");
                 }
 
-                var folders = InstallFolders(addon, release);
+                folders = InstallFolders(addon, release);
                 var zipUri = addon.ManifestBaseUrl is null
                     ? new Uri(release.Zip)
                     : new Uri(ManifestUri(addon, channel), release.Zip);
@@ -142,6 +143,12 @@ public sealed class AddonUpdater
                     throw;
                 }
 
+                if (addon.Source == CurseForgeAddons.Source)
+                {
+                    // CurseForge's module list can omit a folder its own zip ships (EllesmereUIForeverEssentials, 29 Sep 2026).
+                    folders = [.. folders.Union(ZipFolders(tempZipPath, addon.Id), StringComparer.OrdinalIgnoreCase)];
+                }
+
                 RefuseForeignFolders(tempZipPath, folders);
                 lock (AddOnsWriteLock)
                 {
@@ -158,6 +165,7 @@ public sealed class AddonUpdater
             }
 
             _logger.Info($"Installed {addon.Id} {channel} {release.Version} into {addOnsPath}");
+            return folders;
         }
         catch (Exception ex)
         {
@@ -258,11 +266,24 @@ public sealed class AddonUpdater
         var folders = release?.Folders is { Count: > 0 } listed ? listed
             : addon.Folders is { Count: > 0 } known ? known
             : [addon.FolderName];
+        return ValidFolders(folders, addon.Id);
+    }
+
+    internal static IReadOnlyList<string> ZipFolders(string zipPath, string addonId)
+    {
+        using var archive = ZipFile.OpenRead(zipPath);
+        return ValidFolders(
+            [.. archive.Entries.Select(entry => entry.FullName.Split('/', '\\')).Where(parts => parts.Length > 1).Select(parts => parts[0]).Distinct(StringComparer.OrdinalIgnoreCase)],
+            addonId);
+    }
+
+    private static IReadOnlyList<string> ValidFolders(IReadOnlyList<string> folders, string addonId)
+    {
         foreach (var folder in folders)
         {
             if (string.IsNullOrWhiteSpace(folder) || folder is "." or ".." || folder.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
             {
-                throw new InvalidOperationException($"{addon.Id} lists an invalid folder name '{folder}'");
+                throw new InvalidOperationException($"{addonId} lists an invalid folder name '{folder}'");
             }
         }
 

@@ -528,12 +528,17 @@ public sealed partial class MainViewModel
         return row.HasFailed ? row.StatusMessage ?? "Install failed." : null;
     }
 
-    private IReadOnlyList<string> ExcludedFoldersForOthers(WowInstallViewModel install, string id) =>
-    [
-        .. _addons.Select(addon => addon.FolderName),
-        StewardGuidesAddon.FolderName,
-        .. ProviderRecords(install.FlavourPath).Where(record => record.Id != id).SelectMany(CurseForgeAddons.Folders),
-    ];
+    private IReadOnlyList<string> ExcludedFoldersForOthers(WowInstallViewModel install, string id)
+    {
+        var installs = _stateStore.Load().Installs;
+        return
+        [
+            .. _addons.Select(addon => addon.FolderName),
+            StewardGuidesAddon.FolderName,
+            .. ProviderRecords(install.FlavourPath).Where(record => record.Id != id).SelectMany(record =>
+                CurseForgeAddons.Folders(record).Concat(installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, record.Id))?.Folders ?? [])),
+        ];
+    }
 
     private Task<bool> CheckProviderAddonsAsync(bool background)
     {
