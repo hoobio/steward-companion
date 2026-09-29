@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.17.2](https://github.com/hoobio/steward-companion/compare/v0.17.1...v0.17.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* 🐛 confirm before closing when close to tray is off ([c28673c](https://github.com/hoobio/steward-companion/commit/c28673c91dd244111c2f6c1acd9341910af2ee8b))
+* 🐛 let escape dismiss the close confirmation without hiding to tray ([23b18d9](https://github.com/hoobio/steward-companion/commit/23b18d9b05a38281d049e4d370cb51f5493115f1))
+* 🐛 show an unmanaged addon as a local row straight away ([d2ec084](https://github.com/hoobio/steward-companion/commit/d2ec084df8dce798fcf6d1dd22017b89b241226e))
+* 🐛 show ignored addons as updates ignored and let a CurseForge addon be unmanaged ([32551e1](https://github.com/hoobio/steward-companion/commit/32551e18cf53c7c042216fda11ba609e41a14b57))
+* 🐛 warn before adopting while CurseForge or WowUp is running or starts with Windows ([f38c91c](https://github.com/hoobio/steward-companion/commit/f38c91c0e304bdc45da2858735af4b38b8445a8e))
+
 ## [0.17.1](https://github.com/hoobio/steward-companion/compare/v0.17.0...v0.17.1) (2026-09-29)
 
 
