@@ -5,8 +5,10 @@ using Microsoft.UI.Xaml.Media;
 
 namespace Steward.App.ViewModels;
 
-public sealed record ChannelOption(string Channel, string Detail, bool IsEnabled, bool IsCurrent)
+public sealed record ChannelOption(string Channel, string Detail, bool IsEnabled, bool IsCurrent, AddonRelease? Release = null)
 {
+    public IReadOnlyList<ChangelogBlock> Changelog => Changelogs.For(Release);
+
     public string Label => string.Concat(char.ToUpperInvariant(Channel[0]), Channel[1..]);
 }
 
@@ -46,7 +48,7 @@ public sealed class AddonChannelViewModel
 
         Current = status.Channel;
         Options = [.. _addon.Channels.Select(channel => status.Releases.GetValueOrDefault(channel) is { } release
-            ? new ChannelOption(channel, $"{release.Version} · {RelativeTime.Describe(release.Released, DateTimeOffset.Now)}", true, IsCurrent(channel))
+            ? new ChannelOption(channel, $"{release.Version} · {RelativeTime.Describe(release.Released, DateTimeOffset.Now)}", true, IsCurrent(channel), release)
             : new ChannelOption(channel, $"No releases on {channel} yet", false, IsCurrent(channel)))];
     }
 

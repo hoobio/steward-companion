@@ -30,6 +30,13 @@
 
         <RadioButtons x:Name="Options" SelectionChanged="OnSelectionChanged" />
 
+        <StackPanel x:Name="ChangelogPanel" Spacing="4" Visibility="Collapsed">
+            <TextBlock x:Name="ChangelogCaption" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <ScrollViewer MaxHeight="220">
+                <ContentControl x:Name="ChangelogHost" HorizontalContentAlignment="Stretch" />
+            </ScrollViewer>
+        </StackPanel>
+
         <TextBlock
             Text="{x:Bind Channel.Hint}"
             FontSize="12"

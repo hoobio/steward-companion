@@ -154,6 +154,7 @@ A `ContentDialog` titled `Release channel`, opened from the channel chip or `Cha
 
 - The addon's icon, name and folder under the title.
 - `RadioButtons`, one per channel in `AddonChannelStatus.Ordered` (`release`, `pre-release`), each labelled with the channel name, a `Current` tag on the stored one, and `{version} · {released relative}` beneath in mono. A channel with no release is disabled with "No releases on {channel} yet".
+- An enabled channel with a changelog gets a list-glyph button beside its detail line ("Changelog for {version}"); it shows that release's changelog in a scrollable panel below the options, captioned "{Channel} {version} changelog", and pressing it again hides the panel.
 - A hint: "Applies to {addon} on {this install | both installs | all {n} installs}. The new version installs when you click Switch on the row."
 - Primary button `Save` while the selection is unchanged and `Use {channel}` once it differs; close `Cancel`.
 

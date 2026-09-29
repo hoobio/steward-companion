@@ -26,7 +26,9 @@ public sealed partial class ReleaseChannelDialog : ContentDialog
 
     private string? SelectedChannel => (Options.SelectedItem as RadioButton)?.Tag as string;
 
-    private static StackPanel OptionContent(ChannelOption option)
+    private string? _shownChangelog;
+
+    private StackPanel OptionContent(ChannelOption option)
     {
         var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         title.Children.Add(new TextBlock { Text = option.Label, FontSize = 14 });
@@ -48,10 +50,56 @@ public sealed partial class ReleaseChannelDialog : ContentDialog
             detail.FontFamily = new FontFamily("Cascadia Mono");
         }
 
+        var detailRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        detailRow.Children.Add(detail);
+        if (option.IsEnabled && option.Changelog.Count > 0)
+        {
+            detailRow.Children.Add(ChangelogButton(option));
+        }
+
         var content = new StackPanel { Spacing = 2 };
         content.Children.Add(title);
-        content.Children.Add(detail);
+        content.Children.Add(detailRow);
         return content;
+    }
+
+    private Button ChangelogButton(ChannelOption option)
+    {
+        var button = new Button
+        {
+            Width = 22,
+            Height = 22,
+            MinHeight = 0,
+            Padding = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Content = new FontIcon { Glyph = "", FontSize = 12, Foreground = Brush("TextFillColorSecondaryBrush") },
+            Resources =
+            {
+                ["ButtonBackground"] = Brush("SubtleFillColorTransparentBrush"),
+                ["ButtonBackgroundPointerOver"] = Brush("SubtleFillColorSecondaryBrush"),
+                ["ButtonBackgroundPressed"] = Brush("SubtleFillColorTertiaryBrush"),
+            },
+        };
+        var release = option.Release!;
+        ToolTipService.SetToolTip(button, $"Changelog for {release.Version}");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"Changelog for {release.Version}");
+        button.Click += (_, _) => ToggleChangelog(option);
+        return button;
+    }
+
+    private void ToggleChangelog(ChannelOption option)
+    {
+        if (ChangelogPanel.Visibility == Visibility.Visible && _shownChangelog == option.Channel)
+        {
+            ChangelogPanel.Visibility = Visibility.Collapsed;
+            _shownChangelog = null;
+            return;
+        }
+
+        _shownChangelog = option.Channel;
+        ChangelogCaption.Text = $"{option.Label} {option.Release!.Version} changelog";
+        ChangelogHost.Content = ChangelogView.Build(option.Changelog);
+        ChangelogPanel.Visibility = Visibility.Visible;
     }
 
     private static Brush Brush(string key) => (Brush)Application.Current.Resources[key];
