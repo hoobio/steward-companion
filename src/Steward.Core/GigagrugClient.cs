@@ -425,6 +425,19 @@ public sealed class GigagrugClient
         }
     }
 
+    public async Task<IReadOnlyList<CurseForgeLatestFile>?> GetCurseForgeLatestFilesAsync(int modId, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/api/addons/curseforge/{modId}/latest-files");
+        try
+        {
+            return (await SendCurseForgeAsync(request, CompanionJsonContext.Default.CurseForgeLatestFiles, cancellationToken).ConfigureAwait(false)).Files ?? [];
+        }
+        catch (GigagrugRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
     public async Task<string?> GetCurseForgeIconUrlAsync(int modId, int versionType, CancellationToken cancellationToken)
     {
         using var response = await _httpClient

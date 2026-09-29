@@ -76,6 +76,7 @@ public sealed partial class MainWindow : Window
         ViewModel.ShowChannelDialog = channel => ShowDialogAsync(new ReleaseChannelDialog(channel));
         ViewModel.ShowConfirmDialog = ConfirmAsync;
         ViewModel.ShowLinkDialog = ShowMessageAsync;
+        ViewModel.ChooseLinkFile = ChooseLinkFileAsync;
         ViewModel.ChooseGuild = ChooseGuildAsync;
         ViewModel.QuitRequested = QuitCompletely;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -310,6 +311,34 @@ public sealed partial class MainWindow : Window
             DefaultButton = primary is null ? ContentDialogButton.Close : ContentDialogButton.None,
         };
         return await AppDialogs.ShowAsync(dialog, Content.XamlRoot) == ContentDialogResult.Primary;
+    }
+
+    private async Task<int?> ChooseLinkFileAsync(string title, IReadOnlyList<string> options, int selected, string hint)
+    {
+        var files = new ComboBox { ItemsSource = options, SelectedIndex = selected, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var dialog = new ContentDialog
+        {
+            Title = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap },
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    files,
+                    new TextBlock
+                    {
+                        Text = hint,
+                        FontSize = 12,
+                        TextWrapping = TextWrapping.Wrap,
+                        Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                    },
+                },
+            },
+            PrimaryButtonText = "Install",
+            CloseButtonText = "Skip",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        return await AppDialogs.ShowAsync(dialog, Content.XamlRoot) == ContentDialogResult.Primary && files.SelectedIndex >= 0 ? files.SelectedIndex : null;
     }
 
     private async Task<GuildOptionViewModel?> ChooseGuildAsync(IReadOnlyList<GuildOptionViewModel> guilds, GuildOptionViewModel preselected)

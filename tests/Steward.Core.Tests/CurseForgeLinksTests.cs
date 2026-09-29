@@ -78,4 +78,42 @@ public sealed class CurseForgeLinksTests
     [Fact]
     public void State_InstalledAndNotNewer_IsInstalledEvenWhenNotDistributable() =>
         Assert.Equal(CurseForgeLinkState.Installed, CurseForgeLinks.State(File(allow: false), 88568, installed: true, newer: false));
+
+    [Fact]
+    public void Alternative_PrefersReleaseOverPreRelease()
+    {
+        var release = Release("2.0.0");
+        var pre = Release("2.1.0-beta");
+
+        Assert.Equal(("release", release), CurseForgeLinks.Alternative(new Dictionary<string, AddonRelease?> { ["pre-release"] = pre, ["release"] = release }));
+        Assert.Equal(("pre-release", pre), CurseForgeLinks.Alternative(new Dictionary<string, AddonRelease?> { ["pre-release"] = pre, ["release"] = null }));
+    }
+
+    [Fact]
+    public void Alternative_WithNoBuildOnAnyChannel_IsNull() =>
+        Assert.Null(CurseForgeLinks.Alternative(new Dictionary<string, AddonRelease?> { ["release"] = null }));
+
+    private static readonly CurseForgeLatestFile[] Latest =
+    [
+        new(10, "1.0.0", 517, "Classic Era", 1),
+        new(8996374, "1.0.0-tbc", 73713, "Anniversary", 1),
+    ];
+
+    [Fact]
+    public void Preselect_PicksTheLinkedFile_ElseTheFirst()
+    {
+        Assert.Equal(1, CurseForgeLinks.Preselect(Latest, 8996374));
+        Assert.Equal(0, CurseForgeLinks.Preselect(Latest, 42));
+    }
+
+    [Fact]
+    public void Choices_WithoutTheLatestFilesRoute_OfferOnlyTheLinkedFile()
+    {
+        var choice = Assert.Single(CurseForgeLinks.Choices(null, File([517], releaseType: 2), 8996374));
+
+        Assert.Equal(8996374, choice.FileId);
+        Assert.Equal("1.2.0", choice.Version);
+        Assert.Equal(2, choice.ReleaseType);
+        Assert.Same(Latest, CurseForgeLinks.Choices(Latest, File(), 8996374));
+    }
 }

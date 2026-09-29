@@ -89,6 +89,16 @@ public sealed record CurseForgeModFile(
     [property: JsonPropertyName("releaseType")] int? ReleaseType,
     [property: JsonPropertyName("gameVersionTypeIds")] IReadOnlyList<int>? GameVersionTypeIds);
 
+public sealed record CurseForgeLatestFile(
+    [property: JsonPropertyName("fileId")] long FileId,
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("gameVersionTypeId")] int GameVersionTypeId,
+    [property: JsonPropertyName("client")] string Client,
+    [property: JsonPropertyName("releaseType")] int ReleaseType);
+
+public sealed record CurseForgeLatestFiles(
+    [property: JsonPropertyName("files")] IReadOnlyList<CurseForgeLatestFile>? Files);
+
 public sealed record AddonRelease(
     [property: JsonPropertyName("version")] string Version,
     [property: JsonPropertyName("zip")] string? Zip,
@@ -307,6 +317,7 @@ public sealed record ProviderAddonsState(
 [JsonSerializable(typeof(CurseForgeMatch[]))]
 [JsonSerializable(typeof(CurseForgeMatchRequest))]
 [JsonSerializable(typeof(CurseForgeModFile))]
+[JsonSerializable(typeof(CurseForgeLatestFiles))]
 [JsonSerializable(typeof(CurseForgeSearch))]
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]

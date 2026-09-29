@@ -223,6 +223,8 @@ public sealed partial class MainViewModel
 
     public Func<string, string, string?, string, Task<bool>>? ShowLinkDialog { get; set; }
 
+    public Func<string, IReadOnlyList<string>, int, string, Task<int?>>? ChooseLinkFile { get; set; }
+
     public async Task ReceiveCurseForgeLinkAsync(string uri)
     {
         if (CurseForgeLinks.Parse(uri) is not { } link)
@@ -287,11 +289,15 @@ public sealed partial class MainViewModel
 
         switch (state)
         {
+            case CurseForgeLinkState.NotBuilt when versionType is null:
+                await show($"{name} {version} is not built for {game}.", $"Steward cannot install CurseForge addons on {game}.", null, "Close").ConfigureAwait(true);
+                return;
             case CurseForgeLinkState.NotBuilt:
-                await show($"{name} {version} is not built for {game}.", $"Pick a {game} file on the addon's CurseForge page.", null, "Close").ConfigureAwait(true);
+                await InstallForThisClientAsync(install, link, file, versionType.Value, game, row).ConfigureAwait(true);
                 return;
             case CurseForgeLinkState.Installed:
-                await show($"{name} is already installed", $"{row!.InstalledVersion} is installed on {install.Label}.", null, "Close").ConfigureAwait(true);
+                NavigateToAddons?.Invoke();
+                ShowLocalInfoBanner($"{name} {row!.InstalledVersion} is already installed.");
                 return;
             case CurseForgeLinkState.NotDistributable:
                 if (await show($"{name} is only available on CurseForge", $"Its author does not allow other apps to download it, so {version} has to be installed from CurseForge.", "Open on CurseForge", "Cancel").ConfigureAwait(true)
@@ -303,20 +309,68 @@ public sealed partial class MainViewModel
                 return;
         }
 
-        var confirmed = state == CurseForgeLinkState.Update
-            ? await show($"{name} is already installed", $"Update it from {row!.InstalledVersion} to {version} on {install.Label}?", "Update", "Cancel").ConfigureAwait(true)
-            : await show($"Install {name} {version} on {install.Label}?", $"Steward keeps it updated from CurseForge on the {channel} channel.", "Install", "Cancel").ConfigureAwait(true);
-        if (!confirmed)
+        await InstallLinkedAsync(install, file, versionType!.Value, channel, file.File).ConfigureAwait(true);
+    }
+
+    private async Task InstallForThisClientAsync(WowInstallViewModel install, CurseForgeLink link, CurseForgeModFile file, int versionType, string game, AddonRowViewModel? row)
+    {
+        var record = new ProviderAddonRecord(CurseForgeAddons.Id(file.ModId, versionType), file.Name, file.Name, CurseForgeAddons.Source, file.ModId, versionType, []);
+        var probe = CurseForgeAddons.ToManagedAddon(record, _gigagrugClient.CurseForgeManifestBaseUrl(file.ModId, versionType));
+        var releases = await _addonUpdater.ProbeChannelsAsync(probe, AddonChannelStatus.Ordered, CancellationToken.None).ConfigureAwait(true);
+        if (CurseForgeLinks.Alternative(releases) is (var altChannel, var alt))
+        {
+            _logger.Info($"CurseForge link for {file.Name} {file.File.Version} is for another client; {game} has {alt.Version} on {altChannel}");
+            if (row is not null && string.Equals(row.InstalledVersion, alt.Version, StringComparison.Ordinal))
+            {
+                NavigateToAddons?.Invoke();
+                ShowLocalInfoBanner($"{file.Name} {alt.Version} is already installed.");
+            }
+            else if (await InstallLinkedAsync(install, file, versionType, altChannel, alt).ConfigureAwait(true))
+            {
+                ShowLocalInfoBanner($"Installed the {game} build {alt.Version} of {file.Name} instead of the linked file.");
+            }
+
+            return;
+        }
+
+        if (ChooseLinkFile is not { } choose)
         {
             return;
         }
 
+        var choices = CurseForgeLinks.Choices(await _gigagrugClient.GetCurseForgeLatestFilesAsync(file.ModId, CancellationToken.None).ConfigureAwait(true), file, link.FileId);
+        if (await choose(
+                $"{file.Name} has no build for {game}.",
+                [.. choices.Select(choice => $"{choice.Client} · {choice.Version}")],
+                CurseForgeLinks.Preselect(choices, link.FileId),
+                $"It will show as out of date and updates only once a {game} build is published.").ConfigureAwait(true) is not { } index)
+        {
+            return;
+        }
+
+        var chosen = choices[index].FileId == link.FileId
+            ? file
+            : await _gigagrugClient.GetCurseForgeFileAsync(file.ModId, choices[index].FileId, CancellationToken.None).ConfigureAwait(true);
+        if (chosen is null)
+        {
+            StatusMessage = "That CurseForge file was not found.";
+            return;
+        }
+
+        await InstallLinkedAsync(install, file, versionType, CurseForgeLinks.Channel(chosen.ReleaseType), chosen.File).ConfigureAwait(true);
+    }
+
+    private async Task<bool> InstallLinkedAsync(WowInstallViewModel install, CurseForgeModFile file, int versionType, string channel, AddonRelease release)
+    {
         NavigateToAddons?.Invoke();
-        var result = new CurseForgeResult(file.ModId, name, null, null, file.IconUrl, file.WebsiteUrl, version, file.AllowDistribution);
-        if (await InstallCurseForgeAsync(install, result, versionType!.Value, (channel, file.File)).ConfigureAwait(true) is { } failure)
+        var result = new CurseForgeResult(file.ModId, file.Name, null, null, file.IconUrl, file.WebsiteUrl, release.Version, file.AllowDistribution);
+        if (await InstallCurseForgeAsync(install, result, versionType, (channel, release)).ConfigureAwait(true) is { } failure)
         {
             StatusMessage = failure;
+            return false;
         }
+
+        return true;
     }
 
     public Task<string?> InstallCurseForgeAsync(WowInstallViewModel install, CurseForgeResult result, int versionType) =>

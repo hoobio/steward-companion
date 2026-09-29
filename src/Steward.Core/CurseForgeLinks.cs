@@ -48,6 +48,28 @@ public static class CurseForgeLinks
         return (installedReleased ?? installedAt) is { } baseline && linked.Released > baseline;
     }
 
+    public static (string Channel, AddonRelease Release)? Alternative(IReadOnlyDictionary<string, AddonRelease?> releases)
+    {
+        ArgumentNullException.ThrowIfNull(releases);
+        return AddonChannelStatus.Ordered.FirstOrDefault(channel => releases.GetValueOrDefault(channel) is not null) is { } found
+            ? (found, releases[found]!)
+            : null;
+    }
+
+    public static IReadOnlyList<CurseForgeLatestFile> Choices(IReadOnlyList<CurseForgeLatestFile>? latest, CurseForgeModFile linked, long linkedFileId)
+    {
+        ArgumentNullException.ThrowIfNull(linked);
+        return latest is { Count: > 0 }
+            ? latest
+            : [new CurseForgeLatestFile(linkedFileId, linked.File.Version, linked.GameVersionTypeIds is [var type, ..] ? type : 0, "Linked file", linked.ReleaseType ?? 1)];
+    }
+
+    public static int Preselect(IReadOnlyList<CurseForgeLatestFile> choices, long linkedFileId)
+    {
+        ArgumentNullException.ThrowIfNull(choices);
+        return Math.Max(0, choices.ToList().FindIndex(choice => choice.FileId == linkedFileId));
+    }
+
     public static CurseForgeLinkState State(CurseForgeModFile file, int? versionType, bool installed, bool newer)
     {
         ArgumentNullException.ThrowIfNull(file);
