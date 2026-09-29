@@ -101,10 +101,14 @@
                             Height="22"
                             MinHeight="0"
                             Padding="0"
-                            Background="Transparent"
                             AutomationProperties.Name="Out of date for this client"
                             ToolTipService.ToolTip="{x:Bind OutOfDateTip, Mode=OneWay}"
                             Visibility="{x:Bind OutOfDateVisibility, Mode=OneWay}">
+                            <Button.Resources>
+                                <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                            </Button.Resources>
                             <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
                         </Button>
                     </Grid>
@@ -218,13 +222,17 @@
                                 MinHeight="0"
                                 Padding="0"
                                 VerticalAlignment="Center"
-                                Background="Transparent"
                                 SizeChanged="OnVersionSizeChanged"
                                 AutomationProperties.Name="Changelog"
                                 ToolTipService.ToolTip="Changelog"
                                 Tag="{x:Bind}"
                                 Click="OnChangelogClick"
                                 Visibility="{x:Bind ChangelogVisibility, Mode=OneWay}">
+                                <Button.Resources>
+                                    <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                    <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                    <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                </Button.Resources>
                                 <!-- E8FD's own ink sits ~1.2px above the version text's ink centre (measured via screenshot pixel scan); nudged down to match. -->
                                 <FontIcon Glyph="&#xE8FD;" FontSize="12" Margin="0,1,0,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </Button>
@@ -455,10 +463,14 @@
                             Height="22"
                             MinHeight="0"
                             Padding="0"
-                            Background="Transparent"
                             AutomationProperties.Name="Out of date for this client"
                             ToolTipService.ToolTip="{x:Bind OutOfDateTip}"
                             Visibility="{x:Bind OutOfDateVisibility}">
+                            <Button.Resources>
+                                <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                            </Button.Resources>
                             <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
                         </Button>
                     </Grid>
