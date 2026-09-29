@@ -127,6 +127,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private SyncDirectory? _lastDirectory;
     private IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? _lastMemberCatalogue;
     private SyncPayload? _lastOfficerPayload;
+    private string? _lastOfficerPayloadGuild;
     private CancellationTokenSource? _eventsCts;
     private string? _eventsGuildId;
     private bool _eventsUnsupported;
@@ -215,7 +216,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             StateChanged = () => OnPropertyChanged(nameof(SyncBadgeVisibility)),
         };
         SavedVariablesChanged = Sync.ReloadAsync;
-        AfterStewardInstalled = _ => HasStewardFeature ? Sync.WriteGeneratedFileAsync() : WriteMeAfterInstallAsync();
+        AfterStewardInstalled = install => HasStewardFeature ? Sync.WriteGeneratedFileAsync(install) : WriteMeAfterInstallAsync();
     }
 
     private Task WriteMeAfterInstallAsync()
@@ -1612,12 +1613,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         payload = payload with { Directory = _lastDirectory };
         _lastOfficerPayload = payload;
+        _lastOfficerPayloadGuild = guildId;
         foreach (var install in Installs)
         {
             GuildRosterSync.WriteIfChanged(install.Install, payload, _stateStore, force, _logger);
         }
 
         return null;
+    }
+
+    public Task<string?> RestoreRosterAfterInstallAsync(WowInstall install)
+    {
+        if (_lastOfficerPayload is not { } payload || _lastOfficerPayloadGuild != _guildId)
+        {
+            return SyncRosterAsync();
+        }
+
+        GuildRosterSync.WriteIfChanged(install, payload with { Directory = _lastDirectory }, _stateStore, force: false, _logger);
+        return Task.FromResult<string?>(null);
     }
 
     private async Task SyncDirectoryAsync()
@@ -2904,6 +2917,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastMemberCatalogue = null;
         _lastDirectorySync = default;
         _lastOfficerPayload = null;
+        _lastOfficerPayloadGuild = null;
         OnPropertyChanged(nameof(HasCurseForgeFeature));
         OnPropertyChanged(nameof(GetAddonsVisibility));
     }

@@ -246,9 +246,9 @@ public sealed partial class SyncViewModel : ObservableObject
         }
     }
 
-    public async Task WriteGeneratedFileAsync()
+    public async Task WriteGeneratedFileAsync(WowInstall? installed = null)
     {
-        GeneratedFileError = await _main.SyncRosterAsync().ConfigureAwait(true);
+        GeneratedFileError = await (installed is null ? _main.SyncRosterAsync() : _main.RestoreRosterAfterInstallAsync(installed)).ConfigureAwait(true);
         Recompute();
     }
 
