@@ -26,7 +26,16 @@ public static class CurseForgeAddons
     public static string PrimaryFolder(IReadOnlyList<string> folders)
     {
         ArgumentNullException.ThrowIfNull(folders);
-        return folders.FirstOrDefault(folder => folders.All(other => other.StartsWith(folder, StringComparison.OrdinalIgnoreCase))) ?? folders[0];
+        return folders.MaxBy(folder => folders.Count(other =>
+            !string.Equals(other, folder, StringComparison.OrdinalIgnoreCase) && other.StartsWith(folder, StringComparison.OrdinalIgnoreCase)))!;
+    }
+
+    public static ProviderAddonRecord WithPrimaryFolder(ProviderAddonRecord record, Func<string, bool> folderExists)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        ArgumentNullException.ThrowIfNull(folderExists);
+        var primary = PrimaryFolder([.. Folders(record).Where(folder => string.Equals(folder, record.FolderName, StringComparison.OrdinalIgnoreCase) || folderExists(folder))]);
+        return string.Equals(primary, record.FolderName, StringComparison.Ordinal) ? record : record with { FolderName = primary };
     }
 
     public static CurseForgeMatchRequest MatchRequest(string addOnsPath, IEnumerable<string> folders)

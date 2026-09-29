@@ -278,4 +278,38 @@ public sealed class CurseForgeAddonsTests
 
         await Assert.ThrowsAsync<SessionExpiredException>(() => updater.GetLatestAsync(addon, "release", CancellationToken.None));
     }
+
+    private static readonly string[] AtlasLoot =
+    [
+        "AtlasBIStooltips", "AtlasLootClassic", "AtlasLootClassic_Collections", "AtlasLootClassic_Crafting", "AtlasLootClassic_Data",
+        "AtlasLootClassic_DungeonsAndRaids", "AtlasLootClassic_Factions", "AtlasLootClassic_Options", "AtlasLootClassic_PvP",
+    ];
+
+    [Fact]
+    public void PrimaryFolder_IsTheFolderThatPrefixesTheMostOthers() =>
+        Assert.Equal("AtlasLootClassic", CurseForgeAddons.PrimaryFolder(AtlasLoot));
+
+    [Fact]
+    public void PrimaryFolder_PrefersQuestieOverQuestieDb() =>
+        Assert.Equal("Questie", CurseForgeAddons.PrimaryFolder(["QuestieDB", "Questie"]));
+
+    [Fact]
+    public void PrimaryFolder_KeepsTheFirstWhenNoFolderPrefixesAnother() =>
+        Assert.Equal("Bagnon", CurseForgeAddons.PrimaryFolder(["Bagnon", "Wildpants", "BagBrother"]));
+
+    [Fact]
+    public void WithPrimaryFolder_MigratesARecordNamedAfterItsFirstFolder()
+    {
+        var record = new ProviderAddonRecord("curseforge-1422985-88568", "AtlasBIStooltips", "AtlasLoot", CurseForgeAddons.Source, 1422985, 88568, AtlasLoot);
+
+        Assert.Equal("AtlasLootClassic", CurseForgeAddons.WithPrimaryFolder(record, _ => true).FolderName);
+    }
+
+    [Fact]
+    public void WithPrimaryFolder_NeverMovesToAFolderThatIsNotOnDisk()
+    {
+        var record = new ProviderAddonRecord("curseforge-1-88568", "QuestieDB", "Questie", CurseForgeAddons.Source, 1, 88568, ["Questie", "QuestieDB"]);
+
+        Assert.Same(record, CurseForgeAddons.WithPrimaryFolder(record, _ => false));
+    }
 }

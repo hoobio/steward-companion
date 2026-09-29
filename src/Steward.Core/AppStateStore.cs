@@ -162,7 +162,11 @@ public sealed class AppStateStore
         LegacyRestedXpGuideChoice = null,
         DismissedBanners = new Dictionary<string, int>(state.DismissedBanners ?? [], StringComparer.Ordinal),
         TableColumnWidths = new Dictionary<string, double>(state.TableColumnWidths ?? [], StringComparer.OrdinalIgnoreCase),
-        ProviderAddons = new Dictionary<string, List<ProviderAddonRecord>>(state.ProviderAddons ?? [], StringComparer.OrdinalIgnoreCase),
+        ProviderAddons = (state.ProviderAddons ?? []).ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value.Select(record => CurseForgeAddons.WithPrimaryFolder(
+                record, folder => Directory.Exists(Path.Combine(entry.Key, "Interface", "AddOns", folder)))).ToList(),
+            StringComparer.OrdinalIgnoreCase),
         MissingSince = new Dictionary<string, DateTimeOffset>(state.MissingSince ?? [], StringComparer.OrdinalIgnoreCase),
     };
 
