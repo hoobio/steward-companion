@@ -1728,7 +1728,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     // No server banner backs this, so it skips BannerFilter's id/revision dismissal bookkeeping and is never persisted.
-    public void ShowLocalInfoBanner(string message, string? id = null, string? actionLabel = null, Action? action = null, Action? dismissed = null)
+    public void ShowLocalInfoBanner(string message, string? id = null, string? actionLabel = null, Action? action = null, Action? dismissed = null, string? detail = null)
     {
         BannerViewModel? banner = null;
         var dismiss = new RelayCommand(() =>
@@ -1742,7 +1742,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Id = id ?? Guid.NewGuid().ToString(),
             Revision = 0,
             Title = message,
-            Message = string.Empty,
+            Message = detail ?? string.Empty,
             Background = (Brush)Application.Current.Resources["InfoTintBrush"],
             IconForeground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"],
             IconGlyph = "",
@@ -2786,6 +2786,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _userId = me.User.Id;
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = true;
+            _ = EvaluateCurseForgeDefaultHandlerAsync();
             SetGuilds(me.Guilds, guild);
             _ = RunGuildPromptAsync();
             if (Failure != GateFailure.ClientOutdated)
@@ -2850,6 +2851,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         StatusMessage = null;
         IsSignedIn = false;
         Failure = failure;
+        _ = EvaluateCurseForgeDefaultHandlerAsync();
         if (wasOfficer)
         {
             // An officer's file carries the full roster payload; rewriting it minus me keeps that data instead of wiping it with a roster-less skeleton.

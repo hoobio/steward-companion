@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 
 using Steward.Core;
+using Steward.App.Services;
 using Steward.Core.Diagnostics;
 
 using Microsoft.UI.Xaml;
@@ -13,7 +14,57 @@ public sealed partial class MainViewModel
 {
     private static readonly TimeSpan CurseForgeCheckInterval = TimeSpan.FromMinutes(30);
 
+    private const string DefaultHandlerBannerId = "curseforge-default-handler";
+
     private DateTimeOffset _lastCurseForgeCheck;
+    private int _defaultHandlerCheck;
+
+    public async Task EvaluateCurseForgeDefaultHandlerAsync()
+    {
+        var check = ++_defaultHandlerCheck;
+        await Task.Delay(500).ConfigureAwait(true);
+        if (check != _defaultHandlerCheck)
+        {
+            return;
+        }
+
+        var aumid = CurseForgeDefaultQuery.Aumid;
+        bool? isDefault = false;
+        if (aumid is not null && IsAuthorized && HasCurseForgeFeature)
+        {
+            try
+            {
+                isDefault = await Task.Run(() => CurseForgeDefaultQuery.IsDefault(aumid)).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Could not query the default app for curseforge links");
+                return;
+            }
+        }
+
+        var shown = _localBanners.Any(banner => banner.Id == DefaultHandlerBannerId);
+        var wanted = aumid is not null && IsAuthorized && HasCurseForgeFeature && isDefault == false
+            && !(_stateStore.Load().DismissedBanners ?? []).ContainsKey(DefaultHandlerBannerId);
+        if (wanted && !shown)
+        {
+            ShowLocalInfoBanner(
+                "Open CurseForge links with Steward",
+                DefaultHandlerBannerId,
+                "Set as default",
+                () => _ = Windows.System.Launcher.LaunchUriAsync(new Uri($"ms-settings:defaultapps?registeredAUMID={Uri.EscapeDataString(aumid!)}")),
+                () => _stateStore.Save(_stateStore.Load() with
+                {
+                    DismissedBanners = new Dictionary<string, int>(_stateStore.Load().DismissedBanners ?? [], StringComparer.Ordinal) { [DefaultHandlerBannerId] = 0 },
+                }),
+                "Install buttons on curseforge.com open Steward once it is the default app for CurseForge links.");
+        }
+        else if (!wanted && shown)
+        {
+            _localBanners.RemoveAll(banner => banner.Id == DefaultHandlerBannerId);
+            RefreshBanners();
+        }
+    }
 
     public int? CurseForgeVersionType(WowInstall install) =>
         install?.ProductCode is { } product && _curseForgeVersionTypes.TryGetValue(product, out var versionType) ? versionType : null;

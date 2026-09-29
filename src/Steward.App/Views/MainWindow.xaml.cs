@@ -49,7 +49,14 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         TitleBarButtons.LayoutUpdated += (_, _) => ApplyTitleBarPassthrough(force: false);
-        Activated += (_, _) => ApplyTitleBarPassthrough(force: true);
+        Activated += (_, args) =>
+        {
+            ApplyTitleBarPassthrough(force: true);
+            if (args.WindowActivationState != WindowActivationState.Deactivated)
+            {
+                _ = ViewModel?.EvaluateCurseForgeDefaultHandlerAsync();
+            }
+        };
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppWindow.SetIcon(App.IconPath);
         ViewModel = viewModel;
