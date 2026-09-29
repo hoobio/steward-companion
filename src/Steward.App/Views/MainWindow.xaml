@@ -189,22 +189,20 @@
             Height="48">
             <TitleBar.Resources>
                 <x:Double x:Key="TitleBarMinDragRegionWidth">4</x:Double>
+                <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Stretch</HorizontalAlignment>
             </TitleBar.Resources>
             <TitleBar.IconSource>
                 <ImageIconSource ImageSource="ms-appx:///Assets/Steward-256.png" />
             </TitleBar.IconSource>
-            <TitleBar.RightHeader>
-                <StackPanel
-                    x:Name="TitleBarButtons"
-                    Orientation="Horizontal"
-                    Height="48"
-                    HorizontalAlignment="Right"
+            <TitleBar.Content>
+                <Grid
+                    x:Name="InstallPickerHost"
                     VerticalAlignment="Center"
                     Visibility="{x:Bind ViewModel.ShellChromeVisibility, Mode=OneWay}">
                     <Button
                         x:Name="InstallPicker"
                         Height="32"
-                        Margin="0,0,6,0"
+                        HorizontalAlignment="Left"
                         VerticalAlignment="Center"
                         MinWidth="200"
                         Padding="11,0,10,2"
@@ -213,6 +211,9 @@
                         AutomationProperties.Name="Switch install"
                         ToolTipService.ToolTip="{x:Bind ViewModel.SelectedInstall.FlavourPath, Mode=OneWay}"
                         Visibility="{x:Bind ViewModel.TitleBarPickerVisibility, Mode=OneWay}">
+                        <Button.RenderTransform>
+                            <TranslateTransform x:Name="InstallPickerOffset" />
+                        </Button.RenderTransform>
                         <Button.Resources>
                             <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="LayerFillColorAltBrush" />
                             <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="ChipBrush" />
@@ -337,8 +338,8 @@
                             </Flyout>
                         </FlyoutBase.AttachedFlyout>
                     </Button>
-                </StackPanel>
-            </TitleBar.RightHeader>
+                </Grid>
+            </TitleBar.Content>
         </TitleBar>
 
         <Grid Grid.Row="0" Grid.RowSpan="2" x:Name="GatePanel" Visibility="{x:Bind ViewModel.GateVisibility, Mode=OneWay}">

@@ -31,6 +31,8 @@ public sealed partial class MainWindow : Window
     private bool _quitting;
     private Native.SubclassProc? _sessionEndSubclass;
     private RectInt32 _passthrough;
+    private bool _passthroughStale;
+    private const double InstallPickerGap = 8;
     private readonly ILogger<MainWindow> _logger;
     private readonly Microsoft.UI.WindowId _windowId;
 
@@ -44,10 +46,16 @@ public sealed partial class MainWindow : Window
         FlyoutOpener.Attach(InstallPicker, InstallFlyout, "install-picker");
         FlyoutOpener.Attach(AccountButton, AccountFlyout, "account");
         FlyoutOpener.AttachSubmenu(GuildRow, GuildFlyout, GuildFlyoutContent, [AccountHeader, OpenGuildPanelButton, AccountSignOutButton], "guild-switcher");
-        InstallFlyout.OverlayInputPassThroughElement = TitleBarButtons;
+        InstallFlyout.OverlayInputPassThroughElement = InstallPicker;
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-        TitleBarButtons.LayoutUpdated += (_, _) => ApplyTitleBarPassthrough(force: false);
+        AppTitleBar.SizeChanged += (_, _) => _passthroughStale = true;
+        InstallPickerHost.SizeChanged += (_, _) => _passthroughStale = true;
+        AppTitleBar.LayoutUpdated += (_, _) =>
+        {
+            PositionInstallPicker();
+            ApplyTitleBarPassthrough(force: false);
+        };
         Activated += (_, args) =>
         {
             ApplyTitleBarPassthrough(force: true);
@@ -105,10 +113,28 @@ public sealed partial class MainWindow : Window
 
     public MainViewModel ViewModel { get; }
 
-    // The TitleBar control only recomputes this hole on its own SizeChanged, so it goes stale on sign-in, username and picker changes.
+    private void PositionInstallPicker()
+    {
+        var width = InstallPicker.ActualWidth;
+        if (_quitting || !InstallPickerHost.IsLoaded || width <= 0 || InstallPickerHost.ActualWidth <= 0)
+        {
+            return;
+        }
+
+        var hostLeft = InstallPickerHost.TransformToVisual(AppTitleBar).TransformPoint(default).X;
+        var room = InstallPickerHost.ActualWidth - width;
+        var centred = (AppTitleBar.ActualWidth - width) / 2 - hostLeft;
+        var x = room >= 2 * InstallPickerGap ? Math.Clamp(centred, InstallPickerGap, room - InstallPickerGap) : Math.Max(0, room);
+        if (InstallPickerOffset.X != x)
+        {
+            InstallPickerOffset.X = x;
+        }
+    }
+
+    // The TitleBar control sets its own hole over the whole stretched Content on SizeChanged, so ours is reapplied after every layout that moved either.
     private void ApplyTitleBarPassthrough(bool force)
     {
-        if (_quitting || !TitleBarButtons.IsLoaded || TitleBarButtons.XamlRoot is not { } root)
+        if (_quitting || !InstallPickerHost.IsLoaded || InstallPickerHost.XamlRoot is not { } root)
         {
             return;
         }
@@ -116,20 +142,21 @@ public sealed partial class MainWindow : Window
         try
         {
             var rect = default(RectInt32);
-            if (TitleBarButtons.Visibility == Visibility.Visible && TitleBarButtons.ActualWidth > 0 && TitleBarButtons.ActualHeight > 0)
+            if (InstallPickerHost.Visibility == Visibility.Visible && InstallPicker.Visibility == Visibility.Visible && InstallPicker.ActualWidth > 0 && InstallPicker.ActualHeight > 0)
             {
                 var scale = root.RasterizationScale;
-                var bounds = TitleBarButtons.TransformToVisual(null)
-                    .TransformBounds(new Windows.Foundation.Rect(0, 0, TitleBarButtons.ActualWidth, TitleBarButtons.ActualHeight));
+                var bounds = InstallPicker.TransformToVisual(null)
+                    .TransformBounds(new Windows.Foundation.Rect(0, 0, InstallPicker.ActualWidth, InstallPicker.ActualHeight));
                 rect = new RectInt32(ToPixels(bounds.X, scale), ToPixels(bounds.Y, scale), ToPixels(bounds.Width, scale), ToPixels(bounds.Height, scale));
             }
 
-            if (!force && rect == _passthrough)
+            if (!force && !_passthroughStale && rect == _passthrough)
             {
                 return;
             }
 
             _passthrough = rect;
+            _passthroughStale = false;
             InputNonClientPointerSource.GetForWindowId(_windowId)
                 .SetRegionRects(NonClientRegionKind.Passthrough, rect.Width == 0 || rect.Height == 0 ? [] : [rect]);
         }
