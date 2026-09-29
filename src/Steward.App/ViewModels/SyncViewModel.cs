@@ -27,13 +27,17 @@ public sealed partial class SyncViewModel : ObservableObject
         nameof(HasWaiting),
         nameof(NoInstallVisibility),
         nameof(CardsVisibility),
+        nameof(CardVisibility),
+        nameof(Current),
         nameof(AddonMissingVisibility),
         nameof(NeverExportedVisibility),
-        nameof(ClientRunningBannerVisibility),
-        nameof(ClientRunningDetail),
-        nameof(LastSyncedText),
+        nameof(SubtitleGuild),
+        nameof(SubtitleSynced),
+        nameof(SubtitleRunning),
         nameof(GeneratedFilePath),
-        nameof(GeneratedFileDescription),
+        nameof(GeneratedFileStatus),
+        nameof(GeneratedFileErrorVisibility),
+        nameof(GeneratedFileHairline),
         nameof(SyncNowVisibility),
         nameof(IsProfessionsOnlySync),
     ];
@@ -76,6 +80,10 @@ public sealed partial class SyncViewModel : ObservableObject
             {
                 _ = ReloadAsync();
             }
+            else if (e.PropertyName == nameof(MainViewModel.SelectedGuild))
+            {
+                Recompute();
+            }
         };
     }
 
@@ -90,6 +98,7 @@ public sealed partial class SyncViewModel : ObservableObject
     public partial bool IsUnreachable { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GeneratedFileErrorVisibility))]
     public partial string? GeneratedFileError { get; set; }
 
     public bool IsProfessionsOnlySync => _main.IsProfessionsOnlySync;
@@ -115,52 +124,38 @@ public sealed partial class SyncViewModel : ObservableObject
         && !Installs.All(install => install.AddonMissing)
         && Installs.All(install => install.ReadError is null && install.ExportState == SyncExportState.NoFile));
 
-    private IEnumerable<SyncDatasetViewModel> StaleWhileRunning =>
-        Installs.Where(install => install.IsClientRunning)
-            .SelectMany(install => install.Datasets)
-            .Where(dataset => dataset.IsStale);
+    public Visibility CardVisibility => When(_main.Installs.Count > 0);
 
-    public Visibility ClientRunningBannerVisibility => When(StaleWhileRunning.Any());
+    public SyncInstallViewModel? Current => Installs.FirstOrDefault();
 
-    public string ClientRunningDetail
-    {
-        get
-        {
-            var exported = StaleWhileRunning
-                .Select(dataset => dataset.ExportedAtText)
-                .FirstOrDefault() ?? "earlier";
-            return $"This data was exported {exported}, before your current session. "
-                + "Log out or /reload in game to export again.";
-        }
-    }
+    public string SubtitleGuild => _main.SelectedGuild?.Label ?? "";
 
-    public string LastSyncedText
+    public string SubtitleSynced
     {
         get
         {
             var latest = _main.CharacterSyncRows.Max(row => row.PushedAt);
-            return latest is null ? string.Empty : $"Last synced {Relative(latest)}";
+            return latest is null ? ""
+                : SubtitleGuild.Length > 0 ? $" · last synced {Relative(latest)}"
+                : $"Last synced {Relative(latest)}";
         }
     }
+
+    public string SubtitleRunning => _main.SelectedInstall is { IsClientRunning: true }
+        ? $"{(SubtitleGuild.Length + SubtitleSynced.Length > 0 ? " · " : "")}WoW is running, /reload to load new data"
+        : "";
 
     public string GeneratedFilePath => _main.SelectedInstall is { } install
         ? StewardSyncFile.PathFor(install.AddOnsPath)
-        : "No World of Warcraft install found";
+        : "";
 
-    public string GeneratedFileDescription
-    {
-        get
-        {
-            if (GeneratedFileError is { } error)
-            {
-                return error;
-            }
+    public string GeneratedFileStatus => File.Exists(GeneratedFilePath)
+        ? $" · written {Relative(File.GetLastWriteTime(GeneratedFilePath))}"
+        : " · not written yet, readable in game after /reload";
 
-            return File.Exists(GeneratedFilePath)
-                ? $"{GeneratedFilePath}, written {Relative(File.GetLastWriteTime(GeneratedFilePath))}"
-                : $"{GeneratedFilePath}, not written yet. Readable in game after /reload.";
-        }
-    }
+    public Visibility GeneratedFileErrorVisibility => When(GeneratedFileError is not null);
+
+    public Thickness GeneratedFileHairline => CardsVisibility == Visibility.Visible ? new Thickness(0, 1, 0, 0) : default;
 
     public bool UnreachableIsOpen => IsUnreachable;
 

@@ -18,7 +18,6 @@ public sealed partial class SyncInstallViewModel : ObservableObject
     public partial string? ClientVersion { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RunningPillVisibility))]
     public partial bool IsClientRunning { get; set; }
 
     [ObservableProperty]
@@ -53,8 +52,6 @@ public sealed partial class SyncInstallViewModel : ObservableObject
     public Thickness ProfessionsHairlineThickness => PullDatasets.Count > 0 ? new Thickness(0, 1, 0, 0) : default;
 
     public string Shape => $"{FlavourPath}|{string.Join(',', Datasets.Select(dataset => dataset.Key))}";
-
-    public Visibility RunningPillVisibility => When(IsClientRunning);
 
     public Visibility ReadErrorVisibility => When(ReadError is not null);
 

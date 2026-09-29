@@ -104,9 +104,7 @@ Addon installed, no saved-variables file. "Steward has not exported anything yet
 
 ### Client running
 
-The banner that matters most, caution tint: "World of Warcraft is running", second line "This data was exported {relative time}, before your current session. Log out or `/reload` in game to export again." `Sync now` stays available and reads `Sync what is on disk`.
-
-Per install, the card header carries a caution `Running` pill beside the client version chip. A row whose data predates the running session shows its `exportedAt` in caution rather than dim.
+While the selected install's client runs, the line under the page title ends with "WoW is running, /reload to load new data" in caution, and the install picker in the title bar carries a caution dot. There is no running banner and no `Running` pill.
 
 Pulling is unaffected and says so on the pull action: "Writes now, read in game after `/reload`."
 
@@ -114,11 +112,10 @@ Pulling is unaffected and says so on the pull action: "Writes now, read in game 
 
 The primary working state. Top to bottom:
 
-1. Page header. `Sync` at 26/600, and under it "Last synced {relative time}".
-2. Header actions: a refresh icon button that re-reads the local files, and `Sync now` as the accent button.
-3. Summary banner, info tint: "{n} changes to send" at 19/600, a second line naming the datasets, and `Sync now` on the right.
-4. One `Expander` for the install selected in the title bar's install picker (see `addon-manager.md`), expanded by default; the empty states, the running banner, the generated-file card and the nav badge read that install alone. Character pushes, `StewardSync.lua` writes and the saved-variables watchers still cover every install. Header matches the Addons page: flavour name, path in mono at 11.5px, client version chip, and a per-install state pill.
-5. Three rows per card, divided by hairlines, the same for every role: "Guild roster" and "Guild professions" pulls, then a "Your characters" push that expands to one row per character. For an officer this expansion is scoped to the signed-in user's own characters (matched by Discord link, not the full guild-wide push), with "No characters of yours on this install yet." shown when none match. Loot and attendance have no rows until something syncs them.
+1. Page header. `Sync` at 26/600 with the refresh icon button (re-reads the local files) and `Sync now` (accent) right-aligned on the same row. One line under the title, one `TextBlock` of `Run`s: the selected guild's name, " · last synced {relative time}", and the running note above while the selected install's client runs.
+2. One card for the install selected in the title bar's install picker (see `addon-manager.md`), full width and edge-aligned like the Addons table, with no install heading or expander: the picker already names the install, and its flyout carries the client version and flavour folder. The empty states, the card and the nav badge read that install alone. Character pushes, `StewardSync.lua` writes and the saved-variables watchers still cover every install.
+3. The card's rows, divided by hairlines in the page ground colour, the same for every role: "Guild roster" and "Guild professions" pulls, then a "Your characters" push that expands to one row per character, collapsed by default and remembered per install for the session. For an officer this expansion is scoped to the signed-in user's own characters (matched by Discord link, not the full guild-wide push), with "No characters of yours on this install yet." shown when none match. Loot and attendance have no rows until something syncs them.
+4. The card's last row, "Guild data in game": `StewardSync.lua` in mono and " · written {relative time}" as one `TextBlock` of `Run`s, the full path in its tooltip, and `Write again`. After an addon update this row is the one that reports the rewrite. It shows whenever an install exists, including the addon-missing and never-exported states, where it is the card's only row.
 
 A dataset row is: 30px glyph, the dataset name at 13.5px with the source file in mono beneath, then the record count and `exportedAt`, then the action.
 
@@ -126,8 +123,6 @@ A dataset row is: 30px glyph, the dataset name at 13.5px with the source file in
 - Matching: the count in dim, and a success tick with `In sync`.
 - Nothing yet: `Nothing yet` in mute, no button.
 - Pull pending: "Guild data written {relative time}" with a secondary `Update in game` button.
-
-Below the install cards, one card for the generated file: `Guild data in game`, the file path in mono, when it was last written, and `Write again`. After an addon update this row is the one that reports the rewrite.
 
 ### Syncing
 
@@ -148,11 +143,10 @@ Same critical `InfoBar` as the Addons page, reworded: "Could not reach api.hoobi
 | Element | Control | Note |
 | --- | --- | --- |
 | Shell navigation | `NavigationView` | `LeftCompact`. Replaces the bare `Frame` in `MainWindow.xaml`. Settings becomes the footer item. |
-| Install card | `Expander` | Expanded by default, matching the Addons page. |
-| Dataset rows | `ItemsControl` | Three per card, not selectable. |
+| Dataset card | `Border` + hairline-divided rows | One card for the selected install; no install `Expander`. |
+| Dataset rows | `ItemsControl` | Not selectable. "Your characters" is an `Expander` row. |
 | Row progress | `ProgressBar` | Determinate, same treatment as an addon update. |
-| Running-client pill | `Border` + `TextBlock` | Caution tone, beside the client version chip. |
-| Generated file card | `toolkit:SettingsCard` | Already referenced for the Settings page. |
+| Generated file row | `Grid` row, last in the dataset card | File name in mono, full path in the tooltip. |
 | Session and network messages | `InfoBar` | Window level, shared with the Addons page. |
 | Empty states | `StackPanel` + `FontIcon` | Centred, 46ch copy width. |
 
