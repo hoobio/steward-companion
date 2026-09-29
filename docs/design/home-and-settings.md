@@ -150,7 +150,7 @@ The Addons page itself, the summary banner and per-install expanders, and per-ro
 
 ## Account flyout
 
-Anchored to the account chip, acrylic by default. Avatar at 34px, display name at 14/600, `@handle` in mono beneath, and the role as an accent-tinted badge. Below a hairline, the Guild row (the selected guild, opening a submenu of guilds to the right when there is more than one; see `AGENTS.md` under Auth), then below another hairline two items: Open guild panel, and Sign out in critical.
+Anchored to the account chip, acrylic by default. Avatar at 34px, display name at 14/600, `@handle` in mono beneath, and the role as an accent-tinted badge. Below a hairline, the Guild row (the selected guild, opening a submenu of guilds to the right when there is more than one; see `AGENTS.md` under Auth). The submenu behaves like a `MenuFlyoutSubItem` (`FlyoutOpener.AttachSubmenu`): pointer hover opens it without taking focus after the system menu show delay (`HKCU\Control Panel\Desktop\MenuShowDelay`, 400ms by default, the value WinUI's own cascading menus read), and hovering another row of the account menu closes it after the same delay; moving from the Guild row into the submenu keeps it open. Click, Enter, Space and Right arrow open it at once with focus inside; Left arrow or Esc closes it and returns focus to the Guild row, then below another hairline two items: Open guild panel, and Sign out in critical.
 
 Role comes from the last `/api/admin/me` response, which the 15-minute timer already refreshes.
 

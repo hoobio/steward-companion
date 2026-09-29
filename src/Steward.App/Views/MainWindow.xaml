@@ -393,7 +393,7 @@
                                         <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="MenuFlyoutItemBackgroundPointerOver" />
                                         <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="MenuFlyoutItemBackgroundPressed" />
                                     </StackPanel.Resources>
-                                    <Grid Padding="16,16,16,12" ColumnSpacing="12">
+                                    <Grid x:Name="AccountHeader" Padding="16,16,16,12" ColumnSpacing="12" Background="Transparent">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
@@ -497,7 +497,7 @@
                                                 <Flyout.SystemBackdrop>
                                                     <services:TintedAcrylicBackdrop />
                                                 </Flyout.SystemBackdrop>
-                                                <StackPanel Width="260" Spacing="2">
+                                                <StackPanel x:Name="GuildFlyoutContent" Width="260" Spacing="2">
                                                     <StackPanel.Resources>
                                                         <StaticResource x:Key="ButtonBackground" ResourceKey="MenuFlyoutItemBackground" />
                                                         <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="MenuFlyoutItemBackgroundPointerOver" />
@@ -516,6 +516,7 @@
                                         Background="{ThemeResource RowHairlineBrush}"
                                         Visibility="{x:Bind ViewModel.GuildPickerVisibility, Mode=OneWay}" />
                                     <Button
+                                        x:Name="OpenGuildPanelButton"
                                         Content="Open guild panel"
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Left"
@@ -524,6 +525,7 @@
                                         Padding="12,9,12,10"
                                         Click="OnGuildPanelClick" />
                                     <Button
+                                        x:Name="AccountSignOutButton"
                                         Content="Sign out"
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Left"

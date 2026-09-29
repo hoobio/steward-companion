@@ -43,7 +43,7 @@ public sealed partial class MainWindow : Window
         FlyoutOpener.TrackActivation(this, logger);
         FlyoutOpener.Attach(InstallPicker, InstallFlyout, "install-picker");
         FlyoutOpener.Attach(AccountButton, AccountFlyout, "account");
-        FlyoutOpener.Attach(GuildRow, GuildFlyout, "guild-switcher");
+        FlyoutOpener.AttachSubmenu(GuildRow, GuildFlyout, GuildFlyoutContent, [AccountHeader, OpenGuildPanelButton, AccountSignOutButton], "guild-switcher");
         InstallFlyout.OverlayInputPassThroughElement = TitleBarButtons;
         AccountFlyout.OverlayInputPassThroughElement = TitleBarButtons;
         ExtendsContentIntoTitleBar = true;
