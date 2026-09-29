@@ -202,7 +202,7 @@
                                     <ItemsControl
                                         ItemsSource="{x:Bind ViewModel.Installs, Mode=OneWay}"
                                         ItemTemplate="{StaticResource InstallOptionTemplate}" />
-                                    <Border Height="1" Margin="8,2" Background="{ThemeResource MenuFlyoutSeparatorBackground}" />
+                                    <Border Height="1" Margin="-4,2" Background="{ThemeResource MenuFlyoutSeparatorBackground}" />
                                     <Button
                                         Height="36"
                                         Padding="8,0"
