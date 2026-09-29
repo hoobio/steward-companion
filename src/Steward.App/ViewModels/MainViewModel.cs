@@ -1082,6 +1082,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void OnStoreQueueItemStatusChanged(StoreQueueItem item, object? args)
     {
         var status = item.GetCurrentStatus();
+        var waiting = status.PackageInstallState is StoreQueueItemState.Paused
+            || status.PackageInstallState is StoreQueueItemState.Active && status.UpdateStatus.PackageUpdateState is StorePackageUpdateState.Pending;
+        // The Store kept a Pending Update item for Steward with no update available to StoreContext (29 Sep 2026).
+        if (waiting && _storeUpdates is not { Count: > 0 })
+        {
+            return;
+        }
+
         switch (status.PackageInstallState)
         {
             case StoreQueueItemState.Active:
