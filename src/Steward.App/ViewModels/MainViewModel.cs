@@ -1070,7 +1070,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task WatchStoreQueueAsync(StoreContext context)
     {
-        if (_storeQueueItem is not null)
+        // The finished install's queue item outlives the restart and read as installing forever (29 Sep 2026).
+        if (_storeQueueItem is not null || _storeUpdates is not { Count: > 0 })
         {
             return;
         }
