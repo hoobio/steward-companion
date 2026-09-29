@@ -1,3 +1,4 @@
+using Steward.App.Services;
 using Steward.App.ViewModels;
 
 using Microsoft.UI.Xaml;
@@ -214,7 +215,7 @@ public sealed partial class HomePage : Page
             return;
         }
 
-        await new ChangelogDialog(row.ChangelogTitle, row.Notes) { XamlRoot = XamlRoot }.ShowAsync();
+        await AppDialogs.ShowAsync(new ChangelogDialog(row.ChangelogTitle, row.Notes), XamlRoot);
     }
 
     private async void OnGetAddonsClick(object sender, RoutedEventArgs e)
@@ -224,9 +225,9 @@ public sealed partial class HomePage : Page
             return;
         }
 
-        var dialog = new GetAddonsDialog(getAddons) { XamlRoot = XamlRoot };
+        var dialog = new GetAddonsDialog(getAddons);
         _ = getAddons.LoadAsync();
-        await dialog.ShowAsync();
+        await AppDialogs.ShowAsync(dialog, XamlRoot);
     }
 
     private void OnManifestIconFailed(object sender, ExceptionRoutedEventArgs e)

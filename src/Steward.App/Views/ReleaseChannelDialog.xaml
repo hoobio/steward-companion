@@ -7,13 +7,7 @@
     PrimaryButtonText="Save"
     CloseButtonText="Cancel"
     DefaultButton="Primary"
-    CornerRadius="8"
     PrimaryButtonClick="OnSaveClick">
-
-    <ContentDialog.Resources>
-        <x:Double x:Key="ContentDialogMinWidth">420</x:Double>
-        <x:Double x:Key="ContentDialogMaxWidth">460</x:Double>
-    </ContentDialog.Resources>
 
     <StackPanel Spacing="12">
         <Grid ColumnSpacing="10">

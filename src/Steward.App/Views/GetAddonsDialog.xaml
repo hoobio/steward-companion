@@ -6,8 +6,7 @@
     xmlns:vm="using:Steward.App.ViewModels"
     Title="Get addons"
     CloseButtonText="Done"
-    DefaultButton="Close"
-    CornerRadius="8">
+    DefaultButton="Close">
 
     <ContentDialog.Resources>
         <x:Double x:Key="ContentDialogMinWidth">660</x:Double>

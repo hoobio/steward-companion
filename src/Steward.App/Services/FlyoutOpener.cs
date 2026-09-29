@@ -1,10 +1,12 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 
 using Steward.Core.Diagnostics;
 
@@ -14,6 +16,7 @@ internal static class FlyoutOpener
 {
     private static readonly TimeSpan ActivationSettle = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan ReopenGuard = TimeSpan.FromMilliseconds(300);
+    private static readonly ConditionalWeakTable<FlyoutBase, object?> Attached = [];
     private static ILogger? _logger;
     private static bool _windowActive;
     private static long _activatedAt;
@@ -39,8 +42,25 @@ internal static class FlyoutOpener
         };
     }
 
+    public static void HideAll(XamlRoot? root)
+    {
+        foreach (var (flyout, _) in Attached.Where(entry => entry.Key.IsOpen))
+        {
+            flyout.Hide();
+        }
+
+        if (root is not null)
+        {
+            foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(root))
+            {
+                popup.IsOpen = false;
+            }
+        }
+    }
+
     public static void Attach(ButtonBase button, FlyoutBase flyout, string name)
     {
+        Attached.AddOrUpdate(flyout, null);
         long closedAt = 0;
         button.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) => _pressedWhileActivating = IsActivating), true);
         button.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(ClearPress), true);

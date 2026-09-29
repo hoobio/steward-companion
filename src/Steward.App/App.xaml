@@ -173,6 +173,30 @@
 
                             <SolidColorBrush x:Key="ContentDialogBackground" Color="#FF2B3140" />
                             <SolidColorBrush x:Key="ContentDialogSmokeFill" Color="#B3000000" />
+                            <SolidColorBrush x:Key="ContentDialogTopOverlay" Color="#FF2B3140" />
+                            <SolidColorBrush x:Key="ContentDialogBorderBrush" Color="Transparent" />
+
+                            <SolidColorBrush x:Key="TextControlBackground" Color="#FF1A1F2B" />
+                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FF1A1F2B" />
+                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FF1A1F2B" />
+                            <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="#FF171C26" />
+                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="#FF343B4C" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#FF343B4C" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#FF409FFF" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="#FF272D3A" />
+                            <SolidColorBrush x:Key="TextControlElevationBorderBrush" Color="#FF343B4C" />
+                            <SolidColorBrush x:Key="TextControlElevationBorderFocusedBrush" Color="#FF409FFF" />
+                            <Thickness x:Key="TextControlBorderThemeThicknessFocused">1</Thickness>
+                            <SolidColorBrush x:Key="TextControlForeground" Color="#FFCBCCC6" />
+                            <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FFCBCCC6" />
+                            <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FFCBCCC6" />
+                            <SolidColorBrush x:Key="TextControlForegroundDisabled" Color="#FF4E5768" />
+                            <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#FF707A8C" />
+                            <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#FF707A8C" />
+                            <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#FF707A8C" />
+                            <SolidColorBrush x:Key="TextControlPlaceholderForegroundDisabled" Color="#FF4E5768" />
+                            <SolidColorBrush x:Key="TextControlHeaderForeground" Color="#FF8A9199" />
+                            <SolidColorBrush x:Key="TextControlHeaderForegroundDisabled" Color="#FF4E5768" />
 
                             <Color x:Key="FlyoutAcrylicTintColor">#FF232834</Color>
                             <Color x:Key="FlyoutAcrylicFallbackColor">#FF2B3140</Color>
@@ -227,6 +251,12 @@
             <CornerRadius x:Key="GroupTopCornerRadius">8,8,0,0</CornerRadius>
             <CornerRadius x:Key="GroupMiddleCornerRadius">0</CornerRadius>
             <CornerRadius x:Key="GroupBottomCornerRadius">0,0,8,8</CornerRadius>
+            <x:Double x:Key="ContentDialogMinWidth">440</x:Double>
+            <x:Double x:Key="ContentDialogMaxWidth">440</x:Double>
+            <Style x:Key="StewardDialogStyle" TargetType="ContentDialog">
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="PrimaryButtonStyle" Value="{StaticResource AccentButtonStyle}" />
+            </Style>
             <Style x:Key="TintedFlyoutPresenterStyle" TargetType="FlyoutPresenter">
                 <Setter Property="Padding" Value="4" />
                 <Setter Property="Background" Value="Transparent" />

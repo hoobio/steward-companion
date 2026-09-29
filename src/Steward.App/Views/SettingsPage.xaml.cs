@@ -1,5 +1,6 @@
 using System.Diagnostics;
 
+using Steward.App.Services;
 using Steward.App.ViewModels;
 
 using Microsoft.UI.Xaml;
@@ -46,7 +47,7 @@ public sealed partial class SettingsPage : Page
         _editing = true;
         try
         {
-            await new EditInstallDialog(ViewModel, install) { XamlRoot = XamlRoot }.ShowAsync();
+            await AppDialogs.ShowAsync(new EditInstallDialog(ViewModel, install), XamlRoot);
         }
         finally
         {

@@ -264,8 +264,7 @@ public sealed partial class MainWindow : Window
 
     public async Task ShowRestedXpSignInAsync()
     {
-        var dialog = new RestedXpSignInDialog(ViewModel.RestedXp) { XamlRoot = Content.XamlRoot };
-        await dialog.ShowAsync();
+        await AppDialogs.ShowAsync(new RestedXpSignInDialog(ViewModel.RestedXp), Content.XamlRoot);
 
         if (ViewModel.RestedXp.IsSignedIn)
         {
@@ -277,11 +276,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async Task ShowDialogAsync(ContentDialog dialog)
-    {
-        dialog.XamlRoot = Content.XamlRoot;
-        await dialog.ShowAsync();
-    }
+    private async Task ShowDialogAsync(ContentDialog dialog) => await AppDialogs.ShowAsync(dialog, Content.XamlRoot);
 
     private Task<bool> ConfirmAsync(string title, string body, string primary) => ShowMessageAsync(title, body, primary, "Cancel");
 
@@ -289,16 +284,13 @@ public sealed partial class MainWindow : Window
     {
         var dialog = new ContentDialog
         {
-            Style = (Style)Application.Current.Resources["DefaultContentDialogStyle"],
             Title = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap },
             Content = new TextBlock { Text = body, TextWrapping = TextWrapping.Wrap },
             PrimaryButtonText = primary ?? "",
             CloseButtonText = close,
-            DefaultButton = ContentDialogButton.Close,
-            CornerRadius = new CornerRadius(8),
-            XamlRoot = Content.XamlRoot,
+            DefaultButton = primary is null ? ContentDialogButton.Close : ContentDialogButton.None,
         };
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        return await AppDialogs.ShowAsync(dialog, Content.XamlRoot) == ContentDialogResult.Primary;
     }
 
     private void OnGuildPanelClick(object sender, RoutedEventArgs e)
