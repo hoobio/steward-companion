@@ -148,6 +148,10 @@ public sealed partial class MainWindow : Window
         return null;
     }
 
+    private void OnInstallFlyoutOpening(object? sender, object e) => InstallPickerRunningDot.Opacity = 0;
+
+    private void OnInstallFlyoutClosed(object? sender, object e) => InstallPickerRunningDot.Opacity = 1;
+
     private void OnInstallOptionClick(object sender, RoutedEventArgs e)
     {
         InstallFlyout.Hide();

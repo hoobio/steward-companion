@@ -154,7 +154,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     public partial bool IsAddedByUser { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CurrentDotVisibility), nameof(SelectedDetailText))]
+    [NotifyPropertyChangedFor(nameof(SelectionIndicatorVisibility), nameof(SelectedDetailText))]
     public partial bool IsSelected { get; set; }
 
     [ObservableProperty]
@@ -169,7 +169,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public string SelectedDetailText => IsSelected ? $" · {Install.Flavour}" : "";
 
-    public Visibility CurrentDotVisibility => When(IsSelected);
+    public Visibility SelectionIndicatorVisibility => When(IsSelected);
 
     public int UpdateCount => AddonRows.Count(row => row.IsPendingUpdate);
 

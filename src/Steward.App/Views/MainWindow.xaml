@@ -65,10 +65,20 @@
                                 Width="6"
                                 Height="6"
                                 VerticalAlignment="Center"
-                                Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                Visibility="{x:Bind CurrentDotVisibility, Mode=OneWay}" />
+                                Fill="{ThemeResource SystemFillColorCautionBrush}"
+                                ToolTipService.ToolTip="World of Warcraft is running"
+                                Visibility="{x:Bind RunningDotVisibility, Mode=OneWay}" />
                         </Grid>
                     </Button>
+                    <Border
+                        Width="3"
+                        Height="16"
+                        CornerRadius="1.5"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        IsHitTestVisible="False"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        Visibility="{x:Bind SelectionIndicatorVisibility, Mode=OneWay}" />
                     <Button
                         Width="28"
                         Height="28"
@@ -233,6 +243,7 @@
                                 TextTrimming="CharacterEllipsis" />
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <Ellipse
+                                    x:Name="InstallPickerRunningDot"
                                     Width="7"
                                     Height="7"
                                     VerticalAlignment="Center"
@@ -250,6 +261,8 @@
                             <!-- A windowed Flyout's open animation runs inside a backdrop window already shown at full size, which reads as an empty box then a slide. -->
                             <Flyout
                                 x:Name="InstallFlyout"
+                                Opening="OnInstallFlyoutOpening"
+                                Closed="OnInstallFlyoutClosed"
                                 Placement="BottomEdgeAlignedRight"
                                 ShouldConstrainToRootBounds="False"
                                 AreOpenCloseAnimationsEnabled="False"
