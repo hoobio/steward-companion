@@ -347,6 +347,11 @@ public sealed class RestedXpService : IDisposable
         return results;
     }
 
+    public DateTimeOffset? WrittenAt(WowInstall install) =>
+        _stateStore.Load().RestedXpGuidesGeneration.TryGetValue(install.FlavourPath, out var generation)
+            ? DateTimeOffset.FromUnixTimeMilliseconds(generation)
+            : null;
+
     public IReadOnlyDictionary<string, GuideSyncResult> Confirm(WowInstall install, IReadOnlyList<string> products)
     {
         ArgumentNullException.ThrowIfNull(install);

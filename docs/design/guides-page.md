@@ -8,19 +8,21 @@ Fourteen frames at 1100x720 plus a notes frame, in the order below. Foundations,
 
 ## Shell
 
-A third `NavigationView` menu item, `Guides`, after `Addons` and `Sync`, with `Settings` staying on the footer. The item is present only while the RXPGuides addon is installed in at least one WoW install and a RestedXP session exists; otherwise it is collapsed, and leaving either condition while on the page returns the user to Addons. The title bar account chip is the gigagrug identity and does not change; the RestedXP identity is a separate account and lives in the page's account strip, so the two are never confused.
+A third `NavigationView` menu item, `Guides`, after `Addons` and `Sync`, with `Settings` staying on the footer. The item is present only while the RXPGuides addon is installed in at least one WoW install and a RestedXP session exists; otherwise it is collapsed, and leaving either condition while on the page returns the user to Addons. The title bar account chip is the gigagrug identity and does not change; the RestedXP identity is a separate account and lives on the line under the page title, so the two are never confused.
 
-The sign-in entry point is on the Addons page, not here: the RestedXP Guides addon row shows a `Sign in to RestedXP` button in its action area while the addon is installed and there is no session. It opens the sign-in dialog, and a successful sign-in reveals the Guides item and navigates to it once. With that gate, the page's own signed-out state (frame 01) is unreachable and is dropped; the account strip only carries the signed-in treatment.
+The sign-in entry point is on the Addons page, not here: the RestedXP Guides addon row shows a `Sign in to RestedXP` button in its action area while the addon is installed and there is no session. It opens the sign-in dialog, and a successful sign-in reveals the Guides item and navigates to it once. With that gate, the page's own signed-out state (frame 01) is unreachable and is dropped; the header only carries the signed-in treatment.
 
 ## Layout
 
-Top to bottom:
+The layout follows the approved Sync page pattern in `docs/design/mockups/page-headers.html`, which supersedes the frames' account strip and install expander. Top to bottom:
 
 1. Page header. `RestedXP Guides` at 26/600, with a `Refresh` button right-aligned on the same row.
-2. Account strip. A Surface card holding "Signed in as {email} · {BattleTag}" with the BattleTag in mono, and `Sign out` as a hyperlink button. Signed out, it reads "Not signed in" with an accent `Sign in` button. No avatar.
-3. The card for the install selected in the title bar's install picker (see `addon-manager.md`). Header carries the install title and the path in mono at 11.5px. When the selected install has no RXPGuides, a Surface card reading "RestedXP Guides is not installed on {install}." takes its place; the selection is not switched. Guide writes, confirmations and saved-variables watchers still cover every install.
-4. A `Keep in game` column header above the rows, once per card.
-5. One row per owned product: checkbox, product name at 13.5px, "Updated {relative time}" in dim beneath, and a status pill at the right on each kept row.
+2. One secondary line under the title, never wrapping and trimmed with an ellipsis: "{RestedXP username} · {BattleTag} · checked {relative time}", the username in primary text, the BattleTag part omitted when there is none and the checked part from the last guide timestamp check, followed by `Sign out` as a hyperlink button. No avatar.
+3. While the selected install's client is running, a second line in caution text: "WoW is running, /reload to load new guides".
+4. The banner list and the session-expired `InfoBar`.
+5. A small `Keep in game` caption, then one grouped Surface card for the install selected in the title bar's install picker (see `addon-manager.md`), full width and edge-aligned like the Sync card and the Addons table. There is no per-install header or expander: the install name and path live in the picker. When the selected install has no RXPGuides, a Surface card reading "RestedXP Guides is not installed on {install}." takes its place; the selection is not switched. Guide writes, confirmations and saved-variables watchers still cover every install.
+6. In the card, one row per owned product: checkbox, product name at 13.5px, "Updated {relative time}" in dim beneath, and a status pill at the right on each kept row. With no products, the "No guides on this account" row stands in their place.
+7. The card's last row: a document glyph, "Guides.lua · written {relative time}" (the file name in mono, the time from the install's recorded `restedxp_guides_generation`, "not written yet" when there is none), the full path of `Interface\AddOns\StewardGuides\Guides.lua` as the row's tooltip, and `Write again` with its busy ring at the right.
 
 `productName` from `/user-products` is the row's name, and the relative time comes from that product's entry in `/addon/get-all-timestamps`.
 
@@ -64,8 +66,8 @@ Failures are inline and critical, under the fields: "Wrong username or password"
 | Element | Control |
 | --- | --- |
 | Page slot | `NavigationView` menu item, third |
-| Account strip | `Border` on Surface at 8px, `HyperlinkButton` for Sign out |
-| Install card | `Expander`, expanded by default, matching the Addons page |
+| Account line | `TextBlock` of `Run`s beside a `HyperlinkButton` for Sign out |
+| Install card | `Border` on Surface at 8px, rows divided by hairlines, matching the Sync card |
 | Product rows | `ItemsControl` with a `CheckBox` per row, disabled for a product of another client |
 | Row progress | `ProgressBar`, indeterminate |
 | Status pills | `Border` + `TextBlock` on Chip, semantic foreground |

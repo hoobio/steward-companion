@@ -73,6 +73,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(InstallsDescription),
         nameof(GuidesVisibility),
         nameof(SelectedGuide),
+        nameof(SelectedGuideVisibility),
         nameof(GuidesNotInstalledVisibility),
         nameof(GuidesNotInstalledText),
         nameof(TitleBarPickerVisibility),
@@ -202,6 +203,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RestedXp.Guides.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(SelectedGuide));
+            OnPropertyChanged(nameof(SelectedGuideVisibility));
             OnPropertyChanged(nameof(GuidesNotInstalledVisibility));
         };
 
@@ -452,6 +454,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         : SelectedInstall is { } install && HasRestedXp(install)
             ? RestedXp.Guides.FirstOrDefault(guide => string.Equals(guide.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase))
             : null;
+
+    public Visibility SelectedGuideVisibility => When(SelectedGuide is not null);
 
     public Visibility GuidesNotInstalledVisibility => When(SelectedGuide is null && SelectedInstall is not null);
 
@@ -2612,6 +2616,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void OnTick()
     {
         UpdateLastCheckedText();
+        RestedXp.RefreshRelativeTimes();
         _ = NotifySavedVariablesChangedAsync();
         if (!_isChecking)
         {

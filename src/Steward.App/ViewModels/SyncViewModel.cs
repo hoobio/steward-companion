@@ -441,7 +441,7 @@ public sealed partial class SyncViewModel : ObservableObject
         _ => $"{snapshot.Files.Count} files",
     };
 
-    private static string Relative(DateTimeOffset? moment)
+    internal static string Relative(DateTimeOffset? moment)
     {
         if (moment is null)
         {

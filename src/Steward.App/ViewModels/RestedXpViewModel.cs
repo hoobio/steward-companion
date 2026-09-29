@@ -202,6 +202,16 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
 
     public Visibility NoGuidesVisibility => When(Rows.Count == 0);
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WrittenText))]
+    public partial DateTimeOffset? WrittenAt { get; set; }
+
+    public string GuidesFilePath => Path.Combine(Install.AddOnsPath, StewardGuidesAddon.FolderName, "Guides.lua");
+
+    public string WrittenText => WrittenAt is { } at ? $" · written {SyncViewModel.Relative(at)}" : " · not written yet";
+
+    public void RefreshRelativeTimes() => OnPropertyChanged(nameof(WrittenText));
+
     public void SetProducts(
         IReadOnlyList<string> products,
         IReadOnlyCollection<string> selected,
@@ -274,8 +284,12 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
     public partial string? SignedInAs { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(BattleTagVisibility))]
+    [NotifyPropertyChangedFor(nameof(SubtitleDetails))]
     public partial string? BattleTag { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubtitleDetails))]
+    public partial DateTimeOffset? LastCheckedAt { get; set; }
 
     [ObservableProperty]
     public partial bool IsSessionExpired { get; set; }
@@ -303,7 +317,18 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
 
     public bool IsPreview { get; private set; }
 
-    public Visibility BattleTagVisibility => When(!string.IsNullOrEmpty(BattleTag));
+    public string SubtitleDetails => string.Concat(
+        string.IsNullOrEmpty(BattleTag) ? "" : $" · {BattleTag}",
+        LastCheckedAt is { } at ? $" · checked {SyncViewModel.Relative(at)}" : "");
+
+    public void RefreshRelativeTimes()
+    {
+        OnPropertyChanged(nameof(SubtitleDetails));
+        foreach (var card in Guides)
+        {
+            card.RefreshRelativeTimes();
+        }
+    }
 
     public Visibility MfaVisibility => When(IsMfaRequired);
 
@@ -441,6 +466,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         {
             await _service.EnsureFreshSessionAsync(forCall: true, CancellationToken.None).ConfigureAwait(true);
             await _service.LoadCatalogueAsync(CancellationToken.None).ConfigureAwait(true);
+            LastCheckedAt = DateTimeOffset.Now;
         }
         catch (RestedXpSessionExpiredException)
         {
@@ -462,11 +488,15 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         BattleTag = _service.BattleTag;
     }
 
-    private void LoadProducts(RestedXpInstallViewModel card) => card.SetProducts(
-        _service.Products,
-        [.. _service.GuideChoices(card.Install)],
-        _service.Timestamps,
-        product => _service.IsAllowed(card.Install, product));
+    private void LoadProducts(RestedXpInstallViewModel card)
+    {
+        card.SetProducts(
+            _service.Products,
+            [.. _service.GuideChoices(card.Install)],
+            _service.Timestamps,
+            product => _service.IsAllowed(card.Install, product));
+        card.WrittenAt = _service.WrittenAt(card.Install);
+    }
 
     [RelayCommand]
     private async Task SignInAsync()
@@ -558,6 +588,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         IsSignedIn = false;
         SignedInAs = null;
         BattleTag = null;
+        LastCheckedAt = null;
         IsMfaRequired = false;
         IsSessionExpired = false;
         ErrorMessage = null;
@@ -629,6 +660,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
                 row.State = results.TryGetValue(row.ProductName, out var result) ? Map(result) : GuideRowState.None;
             }
 
+            card.WrittenAt = _service.WrittenAt(card.Install);
             Confirm(card);
         }
         catch (RestedXpSessionExpiredException)
