@@ -124,6 +124,12 @@
 
                             <SolidColorBrush x:Key="SegmentedBackground" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="SegmentedBorderBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="SegmentedItemBackground" Color="#001A1F2B" />
+
+                            <StaticResource x:Key="SelectorBarItemBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                            <StaticResource x:Key="SelectorBarItemBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                            <StaticResource x:Key="SelectorBarItemBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                            <StaticResource x:Key="SelectorBarItemBackgroundSelected" ResourceKey="SubtleFillColorTransparentBrush" />
 
                             <SolidColorBrush x:Key="RadioButtonOuterEllipseFill" Color="#FF1A1F2B" />
                             <SolidColorBrush x:Key="RadioButtonOuterEllipseFillPointerOver" Color="#FF1A1F2B" />
