@@ -17,6 +17,9 @@ internal static class AppDialogs
             // Only one ContentDialog can be open per window; a second ShowAsync throws, so a link arriving mid-dialog waits.
             await previous.ConfigureAwait(true);
             dialog.Style = (Style)Application.Current.Resources["StewardDialogStyle"];
+            // The app's ButtonBackgroundPointerOver matches ContentDialogBackground, so a hovered Cancel would vanish into the dialog.
+            dialog.Resources["ButtonBackgroundPointerOver"] = Application.Current.Resources["DialogButtonBackgroundPointerOver"];
+            dialog.Resources["ButtonBackgroundPressed"] = Application.Current.Resources["DialogButtonBackgroundPressed"];
             dialog.XamlRoot = root;
             FlyoutOpener.HideAll(root);
             return await dialog.ShowAsync();
