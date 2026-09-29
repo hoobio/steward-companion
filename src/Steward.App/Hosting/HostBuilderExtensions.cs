@@ -68,7 +68,8 @@ internal static class HostBuilderExtensions
             .ConfigurePrimaryHttpMessageHandler(sp => new SocketsHttpHandler
             {
                 CookieContainer = sp.GetRequiredService<CookieContainer>(),
-            });
+            })
+            .AddHttpMessageHandler(sp => new ClientOutdatedHandler(message => sp.GetRequiredService<MainViewModel>().ReportClientOutdated(message)));
         builder.Services.AddHttpClient("Addon")
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false });
 

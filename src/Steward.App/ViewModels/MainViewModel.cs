@@ -36,6 +36,7 @@ public enum GateFailure
     Unreachable,
     NotAuthorized,
     SignInFailed,
+    ClientOutdated,
 }
 
 public enum LiveUpdatesState
@@ -120,6 +121,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _lastGuildSync;
     private DateTimeOffset _lastDirectorySync;
     private DateTimeOffset _lastBannersSync;
+    private DateTimeOffset _clientOutdatedAt;
     private IReadOnlyList<Banner> _allBanners = [];
     private readonly List<BannerViewModel> _localBanners = [];
     private SyncDirectory? _lastDirectory;
@@ -298,7 +300,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string? SignInError { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(NotAuthorizedVisibility), nameof(SignInFailedVisibility), nameof(IsApiReachable), nameof(RetryVisibility))]
+    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(NotAuthorizedVisibility), nameof(SignInFailedVisibility), nameof(IsApiReachable), nameof(StatusActionVisibility), nameof(StatusActionLabel), nameof(ClientOutdatedVisibility))]
     public partial GateFailure Failure { get; set; }
 
     [ObservableProperty]
@@ -494,7 +496,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string? AccountAutomationName => LiveUpdatesTooltip is { } tooltip ? $"{UserName}, {tooltip}" : UserName;
 
-    public Visibility RetryVisibility => When(Failure == GateFailure.Unreachable);
+    public Visibility StatusActionVisibility => When(Failure is GateFailure.Unreachable or GateFailure.ClientOutdated);
+
+    public string StatusActionLabel => Failure == GateFailure.ClientOutdated ? "Update Steward" : "Retry";
+
+    public Visibility ClientOutdatedVisibility => When(Failure == GateFailure.ClientOutdated);
 
     public Visibility CancelSignInVisibility => When(IsSigningIn);
 
@@ -668,6 +674,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             _logger.Warn(ex, "Sign-in timed out");
             Failure = GateFailure.Timeout;
+        }
+        catch (ClientOutdatedException ex)
+        {
+            EnterClientOutdated(ex.Message);
         }
         catch (HttpRequestException ex)
         {
@@ -1271,6 +1281,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OpenUri(_appUpdater.StoreUpdatesUri);
     }
 
+    [RelayCommand]
+    private Task StatusActionAsync() =>
+        Failure == GateFailure.ClientOutdated ? HandleStoreUpdateBannerActionAsync() : RefreshAsync();
+
+    public void ReportClientOutdated(string message) => RunOnUi(() => EnterClientOutdated(message));
+
+    private void EnterClientOutdated(string message)
+    {
+        if (Failure != GateFailure.ClientOutdated)
+        {
+            _logger.Warn(null, $"gigagrug answered client_outdated: {message}");
+        }
+
+        _clientOutdatedAt = DateTimeOffset.Now;
+        Failure = GateFailure.ClientOutdated;
+        StatusMessage = message;
+    }
+
     private async Task CheckAndConfirmAppUpdateAsync()
     {
         IsCheckingAppUpdate = true;
@@ -1842,6 +1870,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 SignOutTo(GateFailure.SessionExpired);
                 return;
             }
+            catch (ClientOutdatedException)
+            {
+                _logger.Info($"Guild event stream giving up for {guildId}: client_outdated");
+                _isEventStreamLive = false;
+                _eventsUnsupported = true;
+                RecomputeLiveUpdatesState();
+                return;
+            }
             catch (GigagrugRequestException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
             {
                 _logger.Info($"Guild event stream giving up for {guildId}, status={ex.StatusCode}");
@@ -1933,6 +1969,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 _logger.Info("Access event stream dropped: 401, session expired");
                 SignOutTo(GateFailure.SessionExpired);
+                return;
+            }
+            catch (ClientOutdatedException)
+            {
+                _logger.Info("Access event stream giving up: client_outdated");
+                _accessEventsUnsupported = true;
+                _isAccessEventStreamLive = false;
+                RecomputeLiveUpdatesState();
                 return;
             }
             catch (GigagrugRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
@@ -2635,7 +2679,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             UpdateStoreAppInstalledState();
 
-            var result = await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
+            var result = Failure == GateFailure.ClientOutdated && DateTimeOffset.Now - _clientOutdatedAt < GuildSyncFallbackInterval
+                ? AuthCheckResult.ClientOutdated
+                : await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
             if (result == AuthCheckResult.Authorized)
             {
                 var guildSyncDue = !_isEventStreamLive || DateTimeOffset.Now - _lastGuildSync >= GuildSyncFallbackInterval;
@@ -2761,6 +2807,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SignOutTo(GateFailure.SessionExpired);
             return AuthCheckResult.SessionExpired;
         }
+        catch (ClientOutdatedException ex)
+        {
+            EnterClientOutdated(ex.Message);
+            return AuthCheckResult.ClientOutdated;
+        }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             _logger.Warn(ex, "/api/me recheck: gigagrug unreachable");
@@ -2863,5 +2914,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         NotAuthorized,
         SessionExpired,
         Unreachable,
+        ClientOutdated,
     }
 }

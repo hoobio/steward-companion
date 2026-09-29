@@ -691,7 +691,7 @@
                     Visibility="{x:Bind ViewModel.StatusMessageIsOpen, Mode=OneWay}"
                     Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}">
                     <InfoBar.ActionButton>
-                        <Button Content="Retry" Command="{x:Bind ViewModel.RefreshCommand}" Visibility="{x:Bind ViewModel.RetryVisibility, Mode=OneWay}" />
+                        <Button Content="{x:Bind ViewModel.StatusActionLabel, Mode=OneWay}" Command="{x:Bind ViewModel.StatusActionCommand}" Visibility="{x:Bind ViewModel.StatusActionVisibility, Mode=OneWay}" />
                     </InfoBar.ActionButton>
                 </InfoBar>
 

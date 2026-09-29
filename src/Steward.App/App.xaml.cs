@@ -123,6 +123,21 @@ public partial class App : Application
             return;
         }
 
+        if (ClientOutdatedPreview.IsRequested(Environment.GetCommandLineArgs()))
+        {
+            ClientOutdatedPreview.Apply(_window.ViewModel);
+            if (Environment.GetCommandLineArgs().Contains(StartupRegistration.TrayArgument))
+            {
+                _window.HideToTray();
+            }
+            else
+            {
+                _window.Activate();
+            }
+
+            return;
+        }
+
         if (LiveUpdatesPreview.IsRequested(Environment.GetCommandLineArgs()))
         {
             LiveUpdatesPreview.Apply(_window.ViewModel);
