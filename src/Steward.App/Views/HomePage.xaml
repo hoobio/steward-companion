@@ -225,7 +225,8 @@
                                 Tag="{x:Bind}"
                                 Click="OnChangelogClick"
                                 Visibility="{x:Bind ChangelogVisibility, Mode=OneWay}">
-                                <FontIcon Glyph="&#xE8FD;" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <!-- E8FD's own ink sits ~1.2px above the version text's ink centre (measured via screenshot pixel scan); nudged down to match. -->
+                                <FontIcon Glyph="&#xE8FD;" FontSize="12" Margin="0,1,0,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                             </Button>
                         </Grid>
                         <TextBlock
