@@ -2,6 +2,10 @@ using Steward.App.ViewModels;
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Media;
+
+using Windows.Foundation;
 
 namespace Steward.App.Views;
 
@@ -17,10 +21,13 @@ public sealed partial class HomePage : Page
 
     private const int StatusIndex = 5;
     private const double StatusStars = 1.5;
-    private const double StatusMinWidth = 56;
+    private const double StatusMinWidth = 84;
     private const string CompactColumnId = "channel";
+    private const int VersionIndex = 2;
+    private const double VersionLineSpacing = 4;
 
     private readonly HashSet<Grid> _tableRows = [];
+    private readonly TextBlock _versionMeasure = new() { TextWrapping = TextWrapping.NoWrap };
     private readonly Dictionary<string, ColumnResizeGrip> _grips;
     private double _actionsWidth = 32;
     private double _defaultSpace;
@@ -106,6 +113,48 @@ public sealed partial class HomePage : Page
         if (row.Tag is IAddonTableRow item)
         {
             item.IsCompact = !widths.ContainsKey(CompactColumnId);
+        }
+
+        FitVersion(row);
+    }
+
+    private void FitVersion(Grid row)
+    {
+        if (row.Tag is not AddonRowViewModel item || row.FindName("VersionPair") is not TextBlock pair || row.FindName("Changelog") is not Button changelog)
+        {
+            return;
+        }
+
+        _versionMeasure.FontFamily = pair.FontFamily;
+        _versionMeasure.FontSize = pair.FontSize;
+        _versionMeasure.Inlines.Clear();
+        foreach (var run in pair.Inlines.OfType<Run>())
+        {
+            var copy = new Run { Text = run.Text };
+            if (run.ReadLocalValue(TextElement.FontFamilyProperty) != DependencyProperty.UnsetValue)
+            {
+                copy.FontFamily = run.FontFamily;
+                copy.FontSize = run.FontSize;
+            }
+
+            _versionMeasure.Inlines.Add(copy);
+        }
+
+        _versionMeasure.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var needed = Math.Ceiling(_versionMeasure.DesiredSize.Width) + VersionLineSpacing
+            + (item.ChangelogVisibility == Visibility.Visible ? changelog.Width : 0);
+        item.IsVersionStacked = item.VersionPairVisibility == Visibility.Visible && needed > row.ColumnDefinitions[VersionIndex].Width.Value;
+    }
+
+    private void OnVersionSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        for (var element = sender as FrameworkElement; element is not null; element = VisualTreeHelper.GetParent(element) as FrameworkElement)
+        {
+            if (element is Grid row && _tableRows.Contains(row))
+            {
+                FitVersion(row);
+                return;
+            }
         }
     }
 

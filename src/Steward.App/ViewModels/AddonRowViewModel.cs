@@ -57,6 +57,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(ReleasedText),
         nameof(NewVersionBrush),
         nameof(VersionPairVisibility),
+        nameof(WideVersionPairVisibility),
+        nameof(StackedVersionPairVisibility),
         nameof(ReleasedVisibility),
         nameof(CurrentVersionVisibility),
         nameof(NoReleasesVisibility),
@@ -226,11 +228,11 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public partial bool IsIgnored { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RestedXpSignInVisibility))]
+    [NotifyPropertyChangedFor(nameof(RestedXpSignInVisibility), nameof(StatusTextVisibility), nameof(UpToDateVisibility))]
     public partial bool NeedsRestedXpSignIn { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RestedXpSignInVisibility))]
+    [NotifyPropertyChangedFor(nameof(RestedXpSignInVisibility), nameof(StatusTextVisibility), nameof(UpToDateVisibility))]
     public partial bool HasGuidesFeature { get; set; }
 
     public Action? RestedXpSignInRequested { get; set; }
@@ -292,12 +294,20 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public Brush NewVersionBrush => (Brush)Application.Current.Resources[
         IsIgnoredUpdate ? "TextFillColorTertiaryBrush" : "AvailableVersionBrush"];
 
-    public Visibility VersionPairVisibility =>
-        When(State is AddonRowState.UpdateAvailable or AddonRowState.Missing || (State == AddonRowState.Failed && HasUpdateAvailable));
+    private bool ShowsVersionPair =>
+        State is AddonRowState.UpdateAvailable or AddonRowState.Missing || (State == AddonRowState.Failed && HasUpdateAvailable);
+
+    public Visibility VersionPairVisibility => When(ShowsVersionPair);
+
+    private bool IsStacked => IsVersionStacked && ShowsVersionPair;
+
+    public Visibility WideVersionPairVisibility => When(ShowsVersionPair && !IsStacked);
+
+    public Visibility StackedVersionPairVisibility => When(IsStacked);
 
     private bool ShowsReleased => State is AddonRowState.UpdateAvailable or AddonRowState.Missing && !IsIgnoredUpdate;
 
-    public Visibility ReleasedVisibility => When(ShowsReleased && !IsCompact);
+    public Visibility ReleasedVisibility => When(ShowsReleased && !IsCompact && !IsStacked);
 
     public Visibility CurrentVersionVisibility => When(State == AddonRowState.Current);
 
@@ -355,9 +365,12 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         _ => "TextFillColorTertiaryBrush",
     }];
 
-    public Visibility StatusTextVisibility => When(Status is not (AddonRowStatus.UpToDate or AddonRowStatus.Ignored or AddonRowStatus.Hidden));
+    private bool ShowsActionButton => ActionVisibility == Visibility.Visible || RestedXpSignInVisibility == Visibility.Visible;
 
-    public Visibility UpToDateVisibility => When(Status == AddonRowStatus.UpToDate);
+    public Visibility StatusTextVisibility =>
+        When(!ShowsActionButton && Status is not (AddonRowStatus.UpToDate or AddonRowStatus.Ignored or AddonRowStatus.Hidden));
+
+    public Visibility UpToDateVisibility => When(!ShowsActionButton && Status == AddonRowStatus.UpToDate);
 
     public Visibility IgnoredPillVisibility => When(Status == AddonRowStatus.Ignored);
 
@@ -378,14 +391,22 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     [ObservableProperty]
     public partial bool IsCompact { get; set; }
 
+    [ObservableProperty]
+    public partial bool IsVersionStacked { get; set; }
+
+    private string? TipChannelLine => IsCompact && IsStacked && Channel is not null
+        ? HasChannelChoice ? $"{Channel} channel" : SingleChannelTip
+        : null;
+
     public string? VersionCellTip =>
-        string.Join("\n", new[] { VersionTip, IsCompact && ShowsReleased ? ReleasedText : null }.Where(line => !string.IsNullOrEmpty(line))) is { Length: > 0 } tip ? tip : null;
+        string.Join("\n", new[] { VersionTip, (IsCompact || IsStacked) && ShowsReleased ? ReleasedText : null, TipChannelLine }
+            .Where(line => !string.IsNullOrEmpty(line))) is { Length: > 0 } tip ? tip : null;
 
     public bool HasVersionCellTip => VersionCellTip is not null;
 
-    public Visibility CompactChannelChipVisibility => When(IsCompact && HasChannelChoice);
+    public Visibility CompactChannelChipVisibility => When(IsCompact && !IsStacked && HasChannelChoice);
 
-    public Visibility CompactSingleChannelVisibility => When(IsCompact && Channel is not null && !HasChannelChoice);
+    public Visibility CompactSingleChannelVisibility => When(IsCompact && !IsStacked && Channel is not null && !HasChannelChoice);
 
     public Visibility NoticeVisibility =>
         When(State != AddonRowState.Failed && !string.IsNullOrEmpty(StatusMessage));
@@ -501,6 +522,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     partial void OnIsIgnoredChanged(bool value) => NotifyDerived();
 
     partial void OnIsCompactChanged(bool value) => NotifyDerived();
+
+    partial void OnIsVersionStackedChanged(bool value) => NotifyDerived();
 
     private void NotifyDerived()
     {

@@ -161,19 +161,38 @@
                     AutomationProperties.Name="{x:Bind VersionCellTip, Mode=OneWay}"
                     ToolTipService.ToolTip="{x:Bind VersionCellTip, Mode=OneWay}">
                     <StackPanel Spacing="2">
+                        <TextBlock
+                            FontSize="12"
+                            TextWrapping="NoWrap"
+                            SizeChanged="OnVersionSizeChanged"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Visibility="{x:Bind StackedVersionPairVisibility, Mode=OneWay}">
+                            <Run Text="{x:Bind NotInstalledRunText, Mode=OneWay}" /><Run Text="{x:Bind InstalledRunText, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" />
+                        </TextBlock>
                         <Grid HorizontalAlignment="Left" ColumnSpacing="4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock
+                                x:Name="VersionPair"
                                 FontSize="12"
                                 TextWrapping="NoWrap"
                                 TextTrimming="CharacterEllipsis"
                                 VerticalAlignment="Center"
+                                SizeChanged="OnVersionSizeChanged"
                                 Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                Visibility="{x:Bind VersionPairVisibility, Mode=OneWay}">
+                                Visibility="{x:Bind WideVersionPairVisibility, Mode=OneWay}">
                                 <Run Text="{x:Bind NotInstalledRunText, Mode=OneWay}" /><Run Text="{x:Bind InstalledRunText, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" /><Run Text=" &#x2192; " /><Run Text="{x:Bind AvailableVersionShort, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" Foreground="{x:Bind NewVersionBrush, Mode=OneWay}" />
+                            </TextBlock>
+                            <TextBlock
+                                FontSize="12"
+                                TextWrapping="NoWrap"
+                                VerticalAlignment="Center"
+                                SizeChanged="OnVersionSizeChanged"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                Visibility="{x:Bind StackedVersionPairVisibility, Mode=OneWay}">
+                                <Run Text="&#x2192; " /><Run Text="{x:Bind AvailableVersionShort, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" Foreground="{x:Bind NewVersionBrush, Mode=OneWay}" />
                             </TextBlock>
                             <TextBlock
                                 Text="{x:Bind InstalledVersionShort, Mode=OneWay}"
@@ -192,6 +211,7 @@
                                 Foreground="{ThemeResource AvailableVersionBrush}"
                                 Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
                             <Button
+                                x:Name="Changelog"
                                 Grid.Column="1"
                                 Width="22"
                                 Height="22"
@@ -199,6 +219,7 @@
                                 Padding="0"
                                 VerticalAlignment="Center"
                                 Background="Transparent"
+                                SizeChanged="OnVersionSizeChanged"
                                 AutomationProperties.Name="Changelog"
                                 ToolTipService.ToolTip="Changelog"
                                 Tag="{x:Bind}"
