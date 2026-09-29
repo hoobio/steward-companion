@@ -38,7 +38,7 @@ public static class CurseForgeAddons
         return string.Equals(primary, record.FolderName, StringComparison.Ordinal) ? record : record with { FolderName = primary };
     }
 
-    public static CurseForgeMatchRequest MatchRequest(string addOnsPath, IEnumerable<string> folders)
+    public static CurseForgeMatchRequest MatchRequest(string addOnsPath, IEnumerable<string> folders, int? clientInterface = null)
     {
         var declared = new List<CurseForgeDeclared>();
         var fingerprints = new List<CurseForgeFolderFingerprint>();
@@ -46,7 +46,7 @@ public static class CurseForgeAddons
         {
             try
             {
-                if (LocalAddons.ReadDeclaredIds(addOnsPath, folder)?.CurseProjectId is { } modId and > 0)
+                if (LocalAddons.ReadDeclaredIds(addOnsPath, folder, clientInterface)?.CurseProjectId is { } modId and > 0)
                 {
                     declared.Add(new CurseForgeDeclared(folder, modId));
                 }

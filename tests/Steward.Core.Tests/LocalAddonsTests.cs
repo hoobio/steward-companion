@@ -150,4 +150,77 @@ public sealed class LocalAddonsTests : IDisposable
 
         Assert.Equal(new DeclaredAddonIds(null, null, null), LocalAddons.ReadDeclaredIds(_addOnsPath, "Odd"));
     }
+
+    private string TocPathFor(string folder, int? clientInterface) =>
+        Path.GetFileName(LocalAddons.TopLevelToc(Path.Combine(_addOnsPath, folder), folder, clientInterface))!;
+
+    [Fact]
+    public void TopLevelToc_QuestieShape_PicksTheTocMatchingTheClientInterface()
+    {
+        WriteAddon("Questie", "## Interface: 0\n## Title: stub\n");
+        WriteAddon("Questie", "## Interface: 16001\n## Title: Questie\n## Version: 1.0\n", "Questie_Camelot.toc");
+        WriteAddon("Questie", "## Interface: 11508\n", "Questie_Vanilla.toc");
+
+        Assert.Equal("Questie_Camelot.toc", TocPathFor("Questie", 16001));
+        Assert.Equal("Questie_Vanilla.toc", TocPathFor("Questie", 11508));
+    }
+
+    [Fact]
+    public void TopLevelToc_FlavourOnlyFolder_PicksItWhenMatching()
+    {
+        WriteAddon("QuestieDB", "## Interface: 16001\n", "QuestieDB_Forever.toc");
+
+        Assert.Equal("QuestieDB_Forever.toc", TocPathFor("QuestieDB", 16001));
+    }
+
+    [Fact]
+    public void TopLevelToc_InterfaceList_MatchesAnyListedNumber()
+    {
+        WriteAddon("Multi", "## Interface: 11500\n");
+        WriteAddon("Multi", "## Interface: 11601, 16001\n", "Multi_Camelot.toc");
+
+        Assert.Equal("Multi_Camelot.toc", TocPathFor("Multi", 16001));
+    }
+
+    [Fact]
+    public void TopLevelToc_SeveralMatches_PrefersSuffixedOverBase()
+    {
+        WriteAddon("Both", "## Interface: 16001\n");
+        WriteAddon("Both", "## Interface: 16001\n", "Both_Camelot.toc");
+
+        Assert.Equal("Both_Camelot.toc", TocPathFor("Both", 16001));
+    }
+
+    [Fact]
+    public void TopLevelToc_NoMatch_FallsBackToBaseThenFirstSuffixed()
+    {
+        WriteAddon("Base", "## Interface: 11500\n");
+        WriteAddon("Base", "## Interface: 20000\n", "Base_TBC.toc");
+        WriteAddon("Flav", "## Interface: 30000\n", "Flav_Wrath.toc");
+        WriteAddon("Flav", "## Interface: 20000\n", "Flav_TBC.toc");
+
+        Assert.Equal("Base.toc", TocPathFor("Base", 16001));
+        Assert.Equal("Flav_TBC.toc", TocPathFor("Flav", 16001));
+    }
+
+    [Fact]
+    public void TopLevelToc_UnknownClientInterface_KeepsBaseFirstRule()
+    {
+        WriteAddon("Questie", "## Interface: 0\n");
+        WriteAddon("Questie", "## Interface: 16001\n", "Questie_Camelot.toc");
+
+        Assert.Equal("Questie.toc", TocPathFor("Questie", null));
+    }
+
+    [Fact]
+    public void Scan_QuestieShape_ReadsTheClientsTocAndIsNotOutOfDate()
+    {
+        WriteAddon("Questie", "## Interface: 0\n## Title: stub\n## Version: 0\n");
+        WriteAddon("Questie", "## Interface: 16001\n## Title: Questie\n## Version: 9.1.0\n", "Questie_Camelot.toc");
+
+        var addon = Assert.Single(LocalAddons.Scan(_addOnsPath, [], clientInterface: 16001));
+
+        Assert.Equal("9.1.0", addon.Version);
+        Assert.True(TocFile.MatchesInterface(addon.Interface, 16001));
+    }
 }

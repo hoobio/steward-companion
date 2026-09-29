@@ -312,7 +312,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             var excluded = _excludedFolders(this);
             var identify = _hasFeature(GigagrugClient.CurseForgeFeature);
             var scanned = HasGameVersion
-                ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, excluded, _logger)).ConfigureAwait(false)
+                ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, excluded, _logger, TocFile.InterfaceNumber(ClientVersion))).ConfigureAwait(false)
                 : [];
             var identified = HasGameVersion && identify ? await _identifyProviderAddons(this, scanned).ConfigureAwait(false) : [];
             await OnUiThreadAsync(() =>

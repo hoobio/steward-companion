@@ -452,7 +452,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     private string AddonFolderPath => Path.Combine(_install.AddOnsPath, _addon.FolderName);
 
-    private string TocPath => (Directory.Exists(AddonFolderPath) ? LocalAddons.TopLevelToc(AddonFolderPath, _addon.FolderName) : null)
+    private string TocPath => (Directory.Exists(AddonFolderPath) ? LocalAddons.TopLevelToc(AddonFolderPath, _addon.FolderName, TocFile.InterfaceNumber(_install.ClientVersion)) : null)
         ?? Path.Combine(AddonFolderPath, $"{_addon.FolderName}.toc");
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;

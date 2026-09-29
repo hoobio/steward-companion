@@ -14,7 +14,7 @@ public static class LocalAddons
 {
     private sealed record Candidate(string FolderName, string Name, string? Version, string? Interface, IReadOnlyList<string> Deps);
 
-    public static IReadOnlyList<LocalAddon> Scan(string addOnsPath, IEnumerable<string> excludedFolders, ILogger? logger = null)
+    public static IReadOnlyList<LocalAddon> Scan(string addOnsPath, IEnumerable<string> excludedFolders, ILogger? logger = null, int? clientInterface = null)
     {
         if (!Directory.Exists(addOnsPath))
         {
@@ -45,7 +45,7 @@ public static class LocalAddons
 
             try
             {
-                if (ReadCandidate(dir, folderName) is { } candidate)
+                if (ReadCandidate(dir, folderName, clientInterface) is { } candidate)
                 {
                     candidates[folderName] = candidate;
                 }
@@ -91,20 +91,30 @@ public static class LocalAddons
         return results.OrderBy(addon => addon.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    public static string? TopLevelToc(string folderPath, string folderName)
+    public static string? TopLevelToc(string folderPath, string folderName, int? clientInterface = null)
     {
         var exact = Path.Combine(folderPath, folderName + ".toc");
-        return File.Exists(exact)
-            ? exact
-            : Directory.EnumerateFiles(folderPath, folderName + "_*.toc")
-                .OrderBy(Path.GetFileName, StringComparer.Ordinal)
-                .FirstOrDefault();
+        var suffixed = Directory.EnumerateFiles(folderPath, folderName + "_*.toc")
+            .OrderBy(Path.GetFileName, StringComparer.Ordinal)
+            .ToList();
+
+        if (clientInterface is { } client)
+        {
+            var match = suffixed.Concat(File.Exists(exact) ? [exact] : [])
+                .FirstOrDefault(toc => TocFile.MatchesInterface(TocFile.ReadDirective(toc, "Interface"), client));
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return File.Exists(exact) ? exact : suffixed.FirstOrDefault();
     }
 
-    public static DeclaredAddonIds? ReadDeclaredIds(string addOnsPath, string folderName)
+    public static DeclaredAddonIds? ReadDeclaredIds(string addOnsPath, string folderName, int? clientInterface = null)
     {
         var folderPath = Path.Combine(addOnsPath, folderName);
-        if (!Directory.Exists(folderPath) || TopLevelToc(folderPath, folderName) is not { } tocPath)
+        if (!Directory.Exists(folderPath) || TopLevelToc(folderPath, folderName, clientInterface) is not { } tocPath)
         {
             return null;
         }
@@ -115,9 +125,9 @@ public static class LocalAddons
             TocFile.ReadDirective(tocPath, "X-WoWI-ID"));
     }
 
-    private static Candidate? ReadCandidate(string folderPath, string folderName)
+    private static Candidate? ReadCandidate(string folderPath, string folderName, int? clientInterface)
     {
-        if (TopLevelToc(folderPath, folderName) is not { } tocPath)
+        if (TopLevelToc(folderPath, folderName, clientInterface) is not { } tocPath)
         {
             return null;
         }

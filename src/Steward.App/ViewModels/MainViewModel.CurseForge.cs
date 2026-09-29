@@ -122,7 +122,7 @@ public sealed partial class MainViewModel
         try
         {
             var folders = scanned.SelectMany(addon => addon.FoldedFolders.Prepend(addon.FolderName)).ToList();
-            var request = await Task.Run(() => CurseForgeAddons.MatchRequest(install.AddOnsPath, folders)).ConfigureAwait(false);
+            var request = await Task.Run(() => CurseForgeAddons.MatchRequest(install.AddOnsPath, folders, TocFile.InterfaceNumber(install.ClientVersion))).ConfigureAwait(false);
             var matches = await _gigagrugClient.MatchCurseForgeAsync(versionType, request, CancellationToken.None).ConfigureAwait(false);
             var titles = scanned.ToDictionary(addon => addon.FolderName, addon => addon.Name, StringComparer.OrdinalIgnoreCase);
             var adopted = CurseForgeAddons.Adopt(
