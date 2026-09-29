@@ -35,10 +35,10 @@
                     <Border
                         VerticalAlignment="Center"
                         CornerRadius="4"
-                        Padding="8,2"
-                        Background="{ThemeResource AccentFillColorTertiaryBrush}"
+                        Padding="6,2"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
                         Visibility="{x:Bind AddedByYouVisibility, Mode=OneWay}">
-                        <TextBlock Text="Added by you" FontSize="12" />
+                        <TextBlock Text="Added by you" Foreground="{ThemeResource AccentButtonForeground}" FontSize="12" />
                     </Border>
                     <Button Content="Edit" Tag="{x:Bind}" AutomationProperties.Name="{x:Bind EditAccessibleName, Mode=OneWay}" Click="OnEditInstallClick" />
                     <Button Content="Remove" Command="{x:Bind RemoveCommand}" />
