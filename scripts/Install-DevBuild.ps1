@@ -53,14 +53,16 @@ try {
 
     $versionText = (Get-Content -LiteralPath $versionPath -Raw).Trim()
     if ($versionText -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') { throw "version.txt does not hold a numeric version: '$versionText'" }
-    $fourPartVersion = if ($versionText -match '^\d+\.\d+\.\d+$') { "$versionText.0" } else { $versionText }
+    $commitCount = [Math]::Min([int](& git -C $repoRoot rev-list --count HEAD), 65535)
+    if ($LASTEXITCODE -ne 0) { throw "git rev-list failed (exit $LASTEXITCODE)" }
+    $fourPartVersion = (($versionText -split '\.')[0..2] -join '.') + ".$commitCount"
 
     $originalManifest = [System.IO.File]::ReadAllText($manifestPath)
     $stampedManifest = $originalManifest `
         -replace '(?<=<Identity\s[^>]*)Name="Hoobi\.Steward"', 'Name="Hoobi.Steward.Dev"' `
         -replace '(?<=<Identity\s[^>]*)Publisher="CN=D74C026B-1081-4787-BDE6-0CFA2F1EDD71"', 'Publisher="CN=Hoobi Dev"' `
         -replace '(?<=<Identity\s[^>]*)Version="[\d.]+"', "Version=`"$fourPartVersion`"" `
-        -replace '<DisplayName>Steward</DisplayName>', '<DisplayName>Steward (Development)</DisplayName>' `
+        -replace '(?<=<(?:uap:)?DisplayName>)Steward(?=</)', 'Steward (Development)' `
         -replace '(?<=<uap:VisualElements\s[^>]*)DisplayName="Steward"', 'DisplayName="Steward (Development)"'
     if ($stampedManifest -eq $originalManifest) { throw 'Manifest stamp made no change; the identity markers in Package.appxmanifest moved' }
     [System.IO.File]::WriteAllText($manifestPath, $stampedManifest, [System.Text.UTF8Encoding]::new($false))
@@ -94,6 +96,12 @@ try {
     if (Test-Path -LiteralPath $appDir) { Remove-Item -LiteralPath $appDir -Recurse -Force }
     Expand-Archive -LiteralPath $msix.FullName -DestinationPath $appDir -Force
     if (-not (Test-Path -LiteralPath (Join-Path $appDir 'AppxManifest.xml'))) { throw "Extracted layout at '$appDir' has no AppxManifest.xml" }
+
+    $registered = Get-AppxPackage -Name $devPackageName
+    if ($registered -and [version]$registered.Version -ge [version]$fourPartVersion) {
+        Write-Information "Removing $devPackageName $($registered.Version), keeping app data" -InformationAction Continue
+        Remove-AppxPackage -Package $registered.PackageFullName -PreserveApplicationData
+    }
 
     Write-Information "Registering $devPackageName from $appDir" -InformationAction Continue
     Add-AppxPackage -Register (Join-Path $appDir 'AppxManifest.xml') -ForceApplicationShutdown
