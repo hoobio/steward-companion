@@ -189,6 +189,43 @@ public sealed partial class MainViewModel
         _stateStore.Save(state);
     }
 
+    private async Task<bool> ConfirmAdoptAsync()
+    {
+        IReadOnlyList<AddonManagerApp> apps;
+        try
+        {
+            apps = await Task.Run(AddonManagerApps.Detect).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or COMException or InvalidOperationException)
+        {
+            _logger.Warn(ex, "Addon manager detection failed");
+            return true;
+        }
+
+        if (apps.Count == 0 || ShowConfirmDialog is not { } show)
+        {
+            return true;
+        }
+
+        _logger.Info($"Adopt warning: {string.Join(", ", apps.Select(app => $"{app.Name} running={app.IsRunning} startup={app.StartsWithWindows}"))}");
+        var facts = string.Join(" ", apps.Select(app => $"{app.Name} {(app.IsRunning, app.StartsWithWindows) switch
+        {
+            (true, true) => "is running and starts with Windows",
+            (true, false) => "is running",
+            _ => "starts with Windows",
+        }}."));
+        var (it, its) = apps.Count == 1 ? ("It", "its") : ("They", "their");
+        var steps = string.Join(" and ", new[]
+        {
+            apps.Any(app => app.IsRunning) ? $"close {it.ToLowerInvariant()}" : null,
+            apps.Any(app => app.StartsWithWindows) ? $"turn off {its} startup in Windows Settings > Apps > Startup" : null,
+        }.OfType<string>());
+        return await show(
+            "Adopt from CurseForge?",
+            $"{facts} {it} will update the same addons as Steward and overwrite each other's changes, so {steps}.",
+            "Adopt anyway").ConfigureAwait(true);
+    }
+
     private void UnmanageProviderAddon(WowInstallViewModel install, string addonId)
     {
         var state = _stateStore.Load();

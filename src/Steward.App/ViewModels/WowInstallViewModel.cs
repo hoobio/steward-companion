@@ -38,6 +38,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> _identifyProviderAddons;
     private readonly Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> _reconcileProviderAddons;
     private readonly Action<WowInstallViewModel, string> _unmanageProviderAddon;
+    private readonly Func<Task<bool>> _confirmAdopt;
     private readonly Func<CancellationToken, Task<bool>> _ensureAuthorized;
     private readonly Func<string, bool> _hasFeature;
     private readonly Action<string> _changeChannelRequested;
@@ -60,6 +61,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> identifyProviderAddons,
         Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> reconcileProviderAddons,
         Action<WowInstallViewModel, string> unmanageProviderAddon,
+        Func<Task<bool>> confirmAdopt,
         AddonUpdater updater,
         AppStateStore stateStore,
         Func<CancellationToken, Task<bool>> ensureAuthorized,
@@ -81,6 +83,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         _identifyProviderAddons = identifyProviderAddons;
         _reconcileProviderAddons = reconcileProviderAddons;
         _unmanageProviderAddon = unmanageProviderAddon;
+        _confirmAdopt = confirmAdopt;
         _remove = remove;
         _clientExited = clientExited;
         _updater = updater;
@@ -410,7 +413,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
                     OnLocalRemoved,
                     match,
                     match is not null && kept.Contains(CurseForgeAddons.KeptLocalKey(FlavourPath, match)),
-                    row => Adopt([row.Match!]),
+                    row => _ = AdoptAsync([row.Match!]),
                     _logger);
         }).ToList();
         foreach (var row in wanted)
@@ -439,7 +442,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public IReadOnlyList<LocalAddonRowViewModel> AdoptableRows => [.. LocalRows.Where(row => row.CanAdopt && !row.IsHidden)];
 
-    public void AdoptAll() => Adopt([.. AdoptableRows.Select(row => row.Match!)]);
+    public void AdoptAll() => _ = AdoptAsync([.. AdoptableRows.Select(row => row.Match!)]);
 
     public void KeepAllLocal()
     {
@@ -465,10 +468,10 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void Adopt(IReadOnlyList<ProviderAddonRecord> matches)
+    private async Task AdoptAsync(IReadOnlyList<ProviderAddonRecord> matches)
     {
         var records = matches.DistinctBy(record => record.Id, StringComparer.OrdinalIgnoreCase).ToList();
-        if (records.Count == 0 || !_hasFeature(GigagrugClient.CurseForgeFeature))
+        if (records.Count == 0 || !_hasFeature(GigagrugClient.CurseForgeFeature) || !await _confirmAdopt().ConfigureAwait(true))
         {
             return;
         }
