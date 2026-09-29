@@ -55,14 +55,17 @@ public static class StewardSyncFile
         ArgumentNullException.ThrowIfNull(payload);
 
         var tocPath = Path.Combine(addOnsPath, StewardSavedVariables.AddonName, $"{StewardSavedVariables.AddonName}.toc");
-        if (!File.Exists(tocPath))
+        lock (AddonUpdater.AddOnsWriteLock)
         {
-            throw new InvalidOperationException(
-                $"{tocPath} does not exist; the Steward addon must be installed before writing {FileName}");
-        }
+            if (!File.Exists(tocPath))
+            {
+                throw new InvalidOperationException(
+                    $"{tocPath} does not exist; the Steward addon must be installed before writing {FileName}");
+            }
 
-        var wroteAvatar = TryWriteAvatar(addOnsPath, payload.Avatar);
-        WriteGuarded(addOnsPath, FileName, Encoding.UTF8.GetBytes(Render(payload, wroteAvatar, Fingerprint(payload))));
+            var wroteAvatar = TryWriteAvatar(addOnsPath, payload.Avatar);
+            WriteGuarded(addOnsPath, FileName, Encoding.UTF8.GetBytes(Render(payload, wroteAvatar, Fingerprint(payload))));
+        }
     }
 
     private static bool TryWriteAvatar(string addOnsPath, AvatarImage? avatar)

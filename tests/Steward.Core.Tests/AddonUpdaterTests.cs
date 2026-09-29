@@ -281,6 +281,36 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
+    public async Task InstallAsync_WaitsForAddOnsWriteLock_BeforeTouchingFolders()
+    {
+        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("QuestieDB/QuestieDB.toc", "Questie/Questie.toc");
+        WriteInstalled(addOnsPath, "Questie", "Questie.toc");
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["QuestieDB", "Questie"]);
+        using var held = new ManualResetEventSlim();
+        using var releaseHolder = new ManualResetEventSlim();
+        var holder = new Thread(() =>
+        {
+            lock (AddonUpdater.AddOnsWriteLock)
+            {
+                held.Set();
+                releaseHolder.Wait();
+            }
+        });
+        holder.Start();
+        held.Wait(TestContext.Current.CancellationToken);
+
+        var install = updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
+        var stillOld = File.Exists(Path.Combine(addOnsPath, "Questie", "stale.lua"));
+        releaseHolder.Set();
+        await install;
+        holder.Join();
+
+        Assert.True(stillOld);
+        Assert.False(File.Exists(Path.Combine(addOnsPath, "Questie", "stale.lua")));
+    }
+
+    [Fact]
     public async Task InstallAsync_ZipWithFolderOutsideFolders_IsRefused_AndNothingDeleted()
     {
         var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", "Intruder/Intruder.toc");

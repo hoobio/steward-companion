@@ -48,6 +48,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     private CancellationTokenSource? _watchCts;
     private int _scanGeneration;
+    private bool _rescanAfterBusy;
 
     public WowInstallViewModel(
         WowInstall install,
@@ -481,8 +482,23 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
         if (e.PropertyName == nameof(AddonRowViewModel.InstalledVersion))
         {
-            _ = RescanLocalAsync();
+            // A scan while another row is still extracting would identify its half-written folders.
+            if (IsAnyRowBusy)
+            {
+                _rescanAfterBusy = true;
+            }
+            else
+            {
+                _ = RescanLocalAsync();
+            }
+
             return;
+        }
+
+        if (e.PropertyName == nameof(AddonRowViewModel.IsBusy) && _rescanAfterBusy && !IsAnyRowBusy)
+        {
+            _rescanAfterBusy = false;
+            _ = RescanLocalAsync();
         }
 
         RaiseRowsChanged();

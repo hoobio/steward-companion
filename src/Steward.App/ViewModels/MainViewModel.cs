@@ -145,6 +145,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool? _pendingPush;
     private bool _isChecking;
     private bool _isAutoApplying;
+    private Task<bool>? _actionAuthorization;
     private bool _isLoadingState;
     private bool _isChoosingGuild;
     private bool _guildPromptDeferred;
@@ -2385,21 +2386,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isAutoApplying = true;
         try
         {
-            foreach (var install in Installs.ToList())
-            {
-                if (mode == AutoUpdateMode.OutOfGame && install.IsClientRunning)
-                {
-                    continue;
-                }
-
-                foreach (var row in install.AddonRows.ToList())
-                {
-                    if (row.CanAutoApply && !AppStateStore.IsExcludedFromUpdates(state, install.FlavourPath, row.AddonId))
-                    {
-                        await row.UpdateCommand.ExecuteAsync(null).ConfigureAwait(true);
-                    }
-                }
-            }
+            await RunBoundedAsync(Installs.ToList().SelectMany(install => install.AddonRows.ToList().Select(row => (Func<Task>)(() =>
+                (mode != AutoUpdateMode.OutOfGame || !install.IsClientRunning)
+                && row.CanAutoApply
+                && !AppStateStore.IsExcludedFromUpdates(state, install.FlavourPath, row.AddonId)
+                    ? row.UpdateCommand.ExecuteAsync(null)
+                    : Task.CompletedTask)))).ConfigureAwait(true);
         }
         finally
         {
@@ -2744,7 +2736,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
     }
 
-    private async Task<bool> EnsureAuthorizedForActionAsync(CancellationToken cancellationToken) =>
+    private Task<bool> EnsureAuthorizedForActionAsync(CancellationToken cancellationToken) =>
+        _actionAuthorization is { IsCompleted: false } inFlight
+            ? inFlight
+            : _actionAuthorization = CheckAuthorizedForActionAsync(cancellationToken);
+
+    private async Task<bool> CheckAuthorizedForActionAsync(CancellationToken cancellationToken) =>
         await RecheckAuthorizationAsync(cancellationToken).ConfigureAwait(true) == AuthCheckResult.Authorized;
 
     private async Task<AuthCheckResult> RecheckAuthorizationAsync(CancellationToken cancellationToken)

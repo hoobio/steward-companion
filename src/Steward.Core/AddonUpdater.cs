@@ -14,6 +14,8 @@ namespace Steward.Core;
 
 public sealed class AddonUpdater
 {
+    internal static readonly Lock AddOnsWriteLock = new();
+
     private readonly HttpClient _httpClient;
     private readonly HttpClient? _sessionClient;
     private readonly ILogger _logger;
@@ -112,8 +114,11 @@ public sealed class AddonUpdater
                 await DownloadAsync(_httpClient, zipUri, tempZipPath, release.Size, progress, cancellationToken).ConfigureAwait(false);
                 await VerifyChecksumAsync(tempZipPath, release.Sha256, release.Sha1, cancellationToken).ConfigureAwait(false);
                 RefuseForeignFolders(tempZipPath, folders);
-                Uninstall(addOnsPath, folders);
-                ExtractZip(tempZipPath, addOnsPath);
+                lock (AddOnsWriteLock)
+                {
+                    Uninstall(addOnsPath, folders);
+                    ExtractZip(tempZipPath, addOnsPath);
+                }
             }
             finally
             {

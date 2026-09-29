@@ -27,6 +27,7 @@ public sealed partial class MainViewModel
     private const int FilterAll = 0;
     private const int FilterUpdates = 1;
     private const int FilterHidden = 2;
+    private const int MaxConcurrentUpdates = 4;
 
     private static readonly TimeSpan CheckStaleAfter = TimeSpan.FromMinutes(5);
 
@@ -317,15 +318,28 @@ public sealed partial class MainViewModel
 
     private async Task UpdatePendingAsync(IReadOnlyList<WowInstallViewModel> installs)
     {
-        foreach (var row in installs.SelectMany(install => install.AddonRows).Where(row => row.IsPendingUpdate).ToList())
-        {
-            if (row.UpdateCommand.CanExecute(null))
-            {
-                await row.UpdateCommand.ExecuteAsync(null).ConfigureAwait(true);
-            }
-        }
+        await RunBoundedAsync(installs.SelectMany(install => install.AddonRows).Where(row => row.IsPendingUpdate).ToList()
+            .Select(row => (Func<Task>)(() => row.UpdateCommand.CanExecute(null) ? row.UpdateCommand.ExecuteAsync(null) : Task.CompletedTask)))
+            .ConfigureAwait(true);
 
         RecomputeSummary();
+    }
+
+    private static async Task RunBoundedAsync(IEnumerable<Func<Task>> updates)
+    {
+        using var slots = new SemaphoreSlim(MaxConcurrentUpdates);
+        await Task.WhenAll(updates.Select(async update =>
+        {
+            await slots.WaitAsync().ConfigureAwait(true);
+            try
+            {
+                await update().ConfigureAwait(true);
+            }
+            finally
+            {
+                slots.Release();
+            }
+        })).ConfigureAwait(true);
     }
 
     [RelayCommand]
