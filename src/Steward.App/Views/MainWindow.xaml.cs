@@ -62,6 +62,7 @@ public sealed partial class MainWindow : Window
         ViewModel.ShowRestedXpSignIn = () => _ = ShowRestedXpSignInAsync();
         ViewModel.ShowChannelDialog = channel => ShowDialogAsync(new ReleaseChannelDialog(channel));
         ViewModel.ShowConfirmDialog = ConfirmAsync;
+        ViewModel.ShowLinkDialog = ShowMessageAsync;
         ViewModel.QuitRequested = QuitCompletely;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         Nav.SelectedItem = AddonsItem;
@@ -267,15 +268,17 @@ public sealed partial class MainWindow : Window
         await dialog.ShowAsync();
     }
 
-    private async Task<bool> ConfirmAsync(string title, string body, string primary)
+    private Task<bool> ConfirmAsync(string title, string body, string primary) => ShowMessageAsync(title, body, primary, "Cancel");
+
+    private async Task<bool> ShowMessageAsync(string title, string body, string? primary, string close)
     {
         var dialog = new ContentDialog
         {
             Style = (Style)Application.Current.Resources["DefaultContentDialogStyle"],
-            Title = title,
+            Title = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap },
             Content = new TextBlock { Text = body, TextWrapping = TextWrapping.Wrap },
-            PrimaryButtonText = primary,
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = primary ?? "",
+            CloseButtonText = close,
             DefaultButton = ContentDialogButton.Close,
             CornerRadius = new CornerRadius(8),
             XamlRoot = Content.XamlRoot,

@@ -47,6 +47,11 @@
         <desktop:Extension Category="windows.startupTask" Executable="Steward.App.exe" EntryPoint="Windows.FullTrustApplication" uap10:Parameters="--tray">
           <desktop:StartupTask TaskId="StewardStartup" Enabled="true" DisplayName="Steward" />
         </desktop:Extension>
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="curseforge">
+            <uap:DisplayName>Steward</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
       </Extensions>
     </Application>
   </Applications>

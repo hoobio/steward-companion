@@ -163,6 +163,32 @@ public sealed class CurseForgeAddonsTests
     }
 
     [Fact]
+    public async Task GetCurseForgeFileAsync_ParsesTheModAndTheFileManifest()
+    {
+        var (client, handler) = ClientFor(HttpStatusCode.OK,
+            """{"modId":3358,"name":"Deadly Boss Mods","iconUrl":"https://media.forgecdn.net/x.png","websiteUrl":"https://www.curseforge.com/wow/addons/deadly-boss-mods","allowDistribution":false,"file":{"version":"11.0.1","size":5,"released":"2026-09-20T00:00:00Z","folders":["DBM-Core"],"distributable":false},"releaseType":2,"gameVersionTypeIds":[517,88568]}""");
+
+        var file = await client.GetCurseForgeFileAsync(3358, 8996374, CancellationToken.None);
+
+        Assert.Equal("https://api.example.com/guild/api/addons/curseforge/3358/files/8996374", handler.Request!.RequestUri!.AbsoluteUri);
+        Assert.NotNull(file);
+        Assert.Equal("Deadly Boss Mods", file.Name);
+        Assert.False(file.AllowDistribution);
+        Assert.False(file.File.Distributable);
+        Assert.Null(file.File.Zip);
+        Assert.Equal(2, file.ReleaseType);
+        Assert.Equal([517, 88568], file.GameVersionTypeIds);
+    }
+
+    [Fact]
+    public async Task GetCurseForgeFileAsync_NotFound_ReturnsNull()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.NotFound, """{"error":"not found"}""");
+
+        Assert.Null(await client.GetCurseForgeFileAsync(1, 2, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task MatchCurseForgeAsync_Unauthorized_ThrowsSessionExpired()
     {
         var (client, _) = ClientFor(HttpStatusCode.Unauthorized, "");

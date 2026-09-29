@@ -2,9 +2,13 @@ using System.Runtime.InteropServices;
 using System.Threading;
 
 using Steward.App.Services;
+using Steward.Core;
 
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppLifecycle;
+
+using Windows.ApplicationModel.Activation;
 
 namespace Steward.App;
 
@@ -13,12 +17,12 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        if (!InstanceCoordination.TryAcquire(out var coordination))
+        ComWrappersSupport.InitializeComWrappers();
+
+        if (!InstanceCoordination.TryAcquire(ActivationLink(args), out var coordination))
         {
             return 0;
         }
-
-        ComWrappersSupport.InitializeComWrappers();
 
         Application.Start(_ =>
         {
@@ -33,6 +37,16 @@ public static class Program
         coordination!.Dispose();
         return 0;
     }
+
+    private const string LinkSwitch = "--curseforge-link=";
+
+    private static string? ActivationLink(string[] args) =>
+        args.Select(arg => arg.StartsWith(LinkSwitch, StringComparison.Ordinal) ? arg[LinkSwitch.Length..] : arg)
+            .FirstOrDefault(arg => arg.StartsWith($"{CurseForgeLinks.Scheme}:", StringComparison.OrdinalIgnoreCase))
+        ?? (App.IsPackaged
+            && AppInstance.GetCurrent().GetActivatedEventArgs() is { Kind: ExtendedActivationKind.Protocol, Data: IProtocolActivatedEventArgs protocol }
+                ? protocol.Uri.AbsoluteUri
+                : null);
 }
 
 internal static class ComWrappersSupport

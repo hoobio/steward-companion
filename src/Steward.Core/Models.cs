@@ -72,6 +72,16 @@ public sealed record CurseForgeMatch(
     [property: JsonPropertyName("name")] string? Name = null,
     [property: JsonPropertyName("websiteUrl")] string? WebsiteUrl = null);
 
+public sealed record CurseForgeModFile(
+    [property: JsonPropertyName("modId")] int ModId,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("iconUrl")] string? IconUrl,
+    [property: JsonPropertyName("websiteUrl")] string? WebsiteUrl,
+    [property: JsonPropertyName("allowDistribution")] bool AllowDistribution,
+    [property: JsonPropertyName("file")] AddonRelease File,
+    [property: JsonPropertyName("releaseType")] int? ReleaseType,
+    [property: JsonPropertyName("gameVersionTypeIds")] IReadOnlyList<int>? GameVersionTypeIds);
+
 public sealed record AddonRelease(
     [property: JsonPropertyName("version")] string Version,
     [property: JsonPropertyName("zip")] string? Zip,
@@ -269,6 +279,7 @@ public sealed record ProviderAddonsState(
 [JsonSerializable(typeof(CurseForgeDiscover))]
 [JsonSerializable(typeof(CurseForgeMatch[]))]
 [JsonSerializable(typeof(CurseForgeMatchRequest))]
+[JsonSerializable(typeof(CurseForgeModFile))]
 [JsonSerializable(typeof(CurseForgeSearch))]
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]

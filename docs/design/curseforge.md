@@ -109,6 +109,8 @@ A non-distributable mod's manifest has `"distributable": false` and no `zip`/`sh
 
 ## Install links from curseforge.com
 
+Built as below; `AGENTS.md` (Managed addons, Microsoft Store) records how. The same-train hand-off is a per-train named pipe beside the existing `InstanceCoordination` events rather than `AppInstance` redirection, and the confirmation dialog's wording sits in its title with a supporting line underneath.
+
 The Install button on a curseforge.com addon page (for example https://www.curseforge.com/wow/addons/atlasloot-forever/install/9001874) launches `curseforge://install?addonId=<modId>&fileId=<fileId>` from JavaScript; WowUp registers and parses the same scheme (`wowup-electron/package.json` test script `curseforge://install?addonId=3358&fileId=3240590`, `parseProtocol` in `curse-addon-provider.ts`). Steward registers it too:
 
 - `Package.appxmanifest` declares a `windows.protocol` extension named `curseforge`, so the Store, flight and dev packages receive these links. With the CurseForge app also installed, Windows asks the user which app opens them. The unpackaged Debug build does not register it.

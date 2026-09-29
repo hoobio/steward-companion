@@ -139,6 +139,10 @@ public partial class App : Application
             _window.ShowFromTray();
         }
         _ = _window.ViewModel.InitializeCommand.ExecuteAsync(null);
+        if (_instanceCoordination.Link is { } link)
+        {
+            _ = _window.ViewModel.ReceiveCurseForgeLinkAsync(link);
+        }
     }
 
     private static bool ResolveIsPackaged()

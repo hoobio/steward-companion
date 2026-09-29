@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 using Steward.Core;
@@ -168,7 +170,108 @@ public sealed partial class MainViewModel
     public static bool IsCurseForgeInstalled(WowInstallViewModel install, int modId, int versionType) =>
         install.AddonRows.Any(row => string.Equals(row.AddonId, CurseForgeAddons.Id(modId, versionType), StringComparison.OrdinalIgnoreCase) && row.IsInstalled);
 
-    public async Task<string?> InstallCurseForgeAsync(WowInstallViewModel install, CurseForgeResult result, int versionType)
+    public Func<string, string, string?, string, Task<bool>>? ShowLinkDialog { get; set; }
+
+    public async Task ReceiveCurseForgeLinkAsync(string uri)
+    {
+        if (CurseForgeLinks.Parse(uri) is not { } link)
+        {
+            _logger.Info($"Ignored a CurseForge link that is not curseforge://install with two positive ids: {uri}");
+            return;
+        }
+
+        _logger.Info($"CurseForge link received: mod {link.ModId}, file {link.FileId}");
+        if (InitializeCommand.ExecutionTask is { } initializing)
+        {
+            await initializing.ConfigureAwait(true);
+        }
+
+        if (!IsSignedIn || !HasCurseForgeFeature)
+        {
+            ShowLocalInfoBanner("CurseForge installs are not enabled for your account.");
+            return;
+        }
+
+        try
+        {
+            await HandleCurseForgeLinkAsync(link).ConfigureAwait(true);
+        }
+        catch (SessionExpiredException)
+        {
+            SignOutTo(GateFailure.SessionExpired);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or TaskCanceledException or JsonException or COMException)
+        {
+            _logger.Warn(ex, $"CurseForge link for mod {link.ModId}, file {link.FileId} failed");
+            StatusMessage = $"Could not open the CurseForge link: {ex.Message}";
+        }
+    }
+
+    private async Task HandleCurseForgeLinkAsync(CurseForgeLink link)
+    {
+        if (await _gigagrugClient.GetCurseForgeFileAsync(link.ModId, link.FileId, CancellationToken.None).ConfigureAwait(true) is not { } file)
+        {
+            StatusMessage = "That CurseForge file was not found.";
+            return;
+        }
+
+        if (SelectedInstall is not { } install || ShowLinkDialog is not { } show)
+        {
+            StatusMessage = "Pick a World of Warcraft install to add CurseForge addons to.";
+            return;
+        }
+
+        var versionType = CurseForgeVersionType(install.Install);
+        var id = versionType is { } type ? CurseForgeAddons.Id(file.ModId, type) : null;
+        var row = install.AddonRows.FirstOrDefault(row => row.AddonId == id && row.IsInstalled);
+        var installedAt = id is null ? null : _stateStore.Load().Installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, id))?.InstalledAt;
+        var installedReleased = id is null ? null : _releases.GetValueOrDefault(id)?.Values.FirstOrDefault(release => release?.Version == row?.InstalledVersion)?.Released;
+        var newer = row is not null && CurseForgeLinks.IsNewer(file.File, row.InstalledVersion, installedReleased, installedAt);
+        var state = CurseForgeLinks.State(file, versionType, row is not null, newer);
+        var name = file.Name;
+        var version = file.File.Version;
+        var game = install.GameVersionName ?? install.Label;
+        var channel = CurseForgeLinks.Channel(file.ReleaseType);
+        _logger.Info($"CurseForge link for {name} {version} on {install.FlavourPath}: {state}");
+
+        switch (state)
+        {
+            case CurseForgeLinkState.NotBuilt:
+                await show($"{name} {version} is not built for {game}.", $"Pick a {game} file on the addon's CurseForge page.", null, "Close").ConfigureAwait(true);
+                return;
+            case CurseForgeLinkState.Installed:
+                await show($"{name} is already installed", $"{row!.InstalledVersion} is installed on {install.Label}.", null, "Close").ConfigureAwait(true);
+                return;
+            case CurseForgeLinkState.NotDistributable:
+                if (await show($"{name} is only available on CurseForge", $"Its author does not allow other apps to download it, so {version} has to be installed from CurseForge.", "Open on CurseForge", "Cancel").ConfigureAwait(true)
+                    && Uri.TryCreate(file.File.Website ?? file.WebsiteUrl, UriKind.Absolute, out var website) && website.Scheme == Uri.UriSchemeHttps)
+                {
+                    Process.Start(new ProcessStartInfo(website.AbsoluteUri) { UseShellExecute = true })?.Dispose();
+                }
+
+                return;
+        }
+
+        var confirmed = state == CurseForgeLinkState.Update
+            ? await show($"{name} is already installed", $"Update it from {row!.InstalledVersion} to {version} on {install.Label}?", "Update", "Cancel").ConfigureAwait(true)
+            : await show($"Install {name} {version} on {install.Label}?", $"Steward keeps it updated from CurseForge on the {channel} channel.", "Install", "Cancel").ConfigureAwait(true);
+        if (!confirmed)
+        {
+            return;
+        }
+
+        NavigateToAddons?.Invoke();
+        var result = new CurseForgeResult(file.ModId, name, null, null, file.IconUrl, file.WebsiteUrl, version, file.AllowDistribution);
+        if (await InstallCurseForgeAsync(install, result, versionType!.Value, (channel, file.File)).ConfigureAwait(true) is { } failure)
+        {
+            StatusMessage = failure;
+        }
+    }
+
+    public Task<string?> InstallCurseForgeAsync(WowInstallViewModel install, CurseForgeResult result, int versionType) =>
+        InstallCurseForgeAsync(install, result, versionType, null);
+
+    private async Task<string?> InstallCurseForgeAsync(WowInstallViewModel install, CurseForgeResult result, int versionType, (string Channel, AddonRelease File)? pinned)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(result);
@@ -196,7 +299,12 @@ public sealed partial class MainViewModel
             return $"Could not reach CurseForge: {ex.Message}";
         }
 
-        var status = AddonChannelStatus.Resolve(_stateStore.Load().Channels.GetValueOrDefault(id), releases, probe.Channels, probe.DefaultPreference);
+        if (pinned is var (pinnedChannel, pinnedFile))
+        {
+            releases = new Dictionary<string, AddonRelease?>(releases) { [pinnedChannel] = pinnedFile };
+        }
+
+        var status = AddonChannelStatus.Resolve(pinned?.Channel ?? _stateStore.Load().Channels.GetValueOrDefault(id), releases, probe.Channels, probe.DefaultPreference);
         if (status.Release is not { Folders: { Count: > 0 } folders })
         {
             return $"No {install.GameVersionName} build of {result.Name} is on CurseForge.";
@@ -210,6 +318,11 @@ public sealed partial class MainViewModel
         var state = _stateStore.Load();
         var records = (state.ProviderAddons.GetValueOrDefault(install.FlavourPath) ?? []).Where(record => record.Id != id).ToList();
         records.Add(draft with { FolderName = CurseForgeAddons.PrimaryFolder(folders), Folders = folders });
+        if (pinned is { Channel: var channel })
+        {
+            state.Channels[id] = channel;
+        }
+
         SaveProviderRecords(state, install.FlavourPath, records);
         _releases[id] = releases;
         _status[id] = status;

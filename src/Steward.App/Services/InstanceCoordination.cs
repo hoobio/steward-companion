@@ -1,3 +1,5 @@
+using System.IO.Pipes;
+
 using Steward.App.Views;
 using Steward.Core.Diagnostics;
 
@@ -7,6 +9,7 @@ public sealed class InstanceCoordination : IDisposable
 {
     private const string GlobalMutexName = "Local\\Steward.App";
     private const string QuitEventName = "Local\\Steward.App.Quit";
+    private const int MaxLinkLength = 2048;
     private static readonly string[] Trains = ["store", "msi", "dev", "debug"];
 
     private readonly Mutex _mutex;
@@ -25,12 +28,19 @@ public sealed class InstanceCoordination : IDisposable
 
     public string? ClosedTrainDisplayName { get; }
 
-    public static bool TryAcquire(out InstanceCoordination? coordination)
+    public string? Link { get; private init; }
+
+    public static bool TryAcquire(string? link, out InstanceCoordination? coordination)
     {
         var ownTrain = App.Train;
         if (EventWaitHandle.TryOpenExisting(RunningEventName(ownTrain), out var sameTrain))
         {
             sameTrain.Dispose();
+            if (link is not null)
+            {
+                SendLink(ownTrain, link);
+            }
+
             using var show = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName(ownTrain));
             show.Set();
             coordination = null;
@@ -84,7 +94,10 @@ public sealed class InstanceCoordination : IDisposable
         var show2 = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName(ownTrain));
         coordination = new InstanceCoordination(
             mutex, running, show2, quit,
-            closedTrain is null ? null : App.TrainDisplayName(closedTrain));
+            closedTrain is null ? null : App.TrainDisplayName(closedTrain))
+        {
+            Link = link,
+        };
         return true;
     }
 
@@ -93,6 +106,44 @@ public sealed class InstanceCoordination : IDisposable
         var dispatcher = window.DispatcherQueue;
         _ = Task.Run(() => WaitLoop(_show, () => dispatcher.TryEnqueue(window.ShowFromTray)));
         _ = Task.Run(() => WaitLoop(_quit, () => dispatcher.TryEnqueue(() => _ = window.QuitFromAnotherBuildAsync())));
+        _ = Task.Run(() => ListenForLinksAsync(link => dispatcher.TryEnqueue(() => _ = window.ViewModel.ReceiveCurseForgeLinkAsync(link))));
+    }
+
+    private static async Task ListenForLinksAsync(Action<string> onLink)
+    {
+        while (true)
+        {
+            try
+            {
+                await using var server = new NamedPipeServerStream(
+                    LinkPipeName(App.Train), PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                await server.WaitForConnectionAsync().ConfigureAwait(false);
+                using var reader = new StreamReader(server);
+                if (await reader.ReadLineAsync().ConfigureAwait(false) is { Length: > 0 and <= MaxLinkLength } link)
+                {
+                    onLink(link);
+                }
+            }
+            catch (IOException ex)
+            {
+                Log(App.Train, ex, "CurseForge link pipe failed; listening again");
+            }
+        }
+    }
+
+    private static void SendLink(string train, string link)
+    {
+        try
+        {
+            using var client = new NamedPipeClientStream(".", LinkPipeName(train), PipeDirection.Out, PipeOptions.CurrentUserOnly);
+            client.Connect(TimeSpan.FromSeconds(5));
+            using var writer = new StreamWriter(client);
+            writer.WriteLine(link);
+        }
+        catch (Exception ex) when (ex is TimeoutException or IOException or UnauthorizedAccessException)
+        {
+            Log(train, ex, "Could not hand a CurseForge link to the running instance");
+        }
     }
 
     private static void WaitLoop(EventWaitHandle handle, Action onSignal)
@@ -104,16 +155,20 @@ public sealed class InstanceCoordination : IDisposable
         }
     }
 
-    private static void LogTimeout(string ownTrain, string? otherTrain)
+    private static void LogTimeout(string ownTrain, string? otherTrain) =>
+        Log(ownTrain, null, $"Gave up waiting 15s for the {otherTrain ?? "other"} build to quit; exiting without starting");
+
+    private static void Log(string ownTrain, Exception? exception, string message)
     {
         var logDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward", "logs");
         using var provider = new FileLoggerProvider(logDirectory, ownTrain);
-        provider.CreateLogger("Steward.App.Program").Warn(
-            null, $"Gave up waiting 15s for the {otherTrain ?? "other"} build to quit; exiting without starting");
+        provider.CreateLogger("Steward.App.Program").Warn(exception, message);
     }
 
     private static string RunningEventName(string train) => $"Local\\Steward.App.Running.{train}";
+
+    private static string LinkPipeName(string train) => $"Steward.App.Link.{train}";
 
     private static string ShowEventName(string train) => $"Local\\Steward.App.Show.{train}";
 
