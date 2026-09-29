@@ -43,6 +43,7 @@ public sealed partial class MainWindow : Window
         FlyoutOpener.TrackActivation(this, logger);
         FlyoutOpener.Attach(InstallPicker, InstallFlyout, "install-picker");
         FlyoutOpener.Attach(AccountButton, AccountFlyout, "account");
+        FlyoutOpener.Attach(GuildRow, GuildFlyout, "guild-switcher");
         InstallFlyout.OverlayInputPassThroughElement = TitleBarButtons;
         AccountFlyout.OverlayInputPassThroughElement = TitleBarButtons;
         ExtendsContentIntoTitleBar = true;
@@ -68,6 +69,7 @@ public sealed partial class MainWindow : Window
         ViewModel.ShowChannelDialog = channel => ShowDialogAsync(new ReleaseChannelDialog(channel));
         ViewModel.ShowConfirmDialog = ConfirmAsync;
         ViewModel.ShowLinkDialog = ShowMessageAsync;
+        ViewModel.ChooseGuild = ChooseGuildAsync;
         ViewModel.QuitRequested = QuitCompletely;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         Nav.SelectedItem = AddonsItem;
@@ -297,6 +299,32 @@ public sealed partial class MainWindow : Window
             DefaultButton = primary is null ? ContentDialogButton.Close : ContentDialogButton.None,
         };
         return await AppDialogs.ShowAsync(dialog, Content.XamlRoot) == ContentDialogResult.Primary;
+    }
+
+    private async Task<GuildOptionViewModel?> ChooseGuildAsync(IReadOnlyList<GuildOptionViewModel> guilds, GuildOptionViewModel preselected)
+    {
+        if (!AppWindow.IsVisible || Content.XamlRoot is not { } root)
+        {
+            return null;
+        }
+
+        var dialog = new ChooseGuildDialog(guilds, preselected);
+        await AppDialogs.ShowAsync(dialog, root);
+        return dialog.Selected;
+    }
+
+    private void OnGuildOptionClick(object sender, RoutedEventArgs e)
+    {
+        GuildFlyout.Hide();
+        AccountFlyout.Hide();
+        if (((FrameworkElement)sender).Tag is GuildOptionViewModel option)
+        {
+            ViewModel.ChooseGuildOption(option);
+        }
+        else
+        {
+            ViewModel.WarnUi($"{nameof(OnGuildOptionClick)} could not resolve its {nameof(GuildOptionViewModel)} from the element's Tag");
+        }
     }
 
     private void OnGuildPanelClick(object sender, RoutedEventArgs e)

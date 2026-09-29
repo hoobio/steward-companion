@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="Steward.App.Views.ChooseGuildDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Choose a guild"
+    PrimaryButtonText="Continue"
+    DefaultButton="Primary">
+
+    <StackPanel Spacing="12">
+        <TextBlock
+            Text="Steward syncs your characters to this guild. You can change it later from the account menu."
+            FontSize="13"
+            TextWrapping="Wrap"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+        <RadioButtons x:Name="Options" />
+    </StackPanel>
+</ContentDialog>

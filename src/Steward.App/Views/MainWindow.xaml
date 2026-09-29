@@ -85,6 +85,59 @@
                     </Button>
                 </Grid>
             </DataTemplate>
+            <DataTemplate x:Key="GuildOptionTemplate" x:DataType="vm:GuildOptionViewModel">
+                <Button
+                    MinHeight="40"
+                    Padding="8,5"
+                    BorderThickness="0"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch"
+                    AutomationProperties.Name="{x:Bind Label}"
+                    Tag="{x:Bind}"
+                    Click="OnGuildOptionClick">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="20" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border
+                            Width="24"
+                            Height="24"
+                            VerticalAlignment="Center"
+                            CornerRadius="6"
+                            Background="{ThemeResource ChipBrush}">
+                            <Grid>
+                                <TextBlock
+                                    Text="{x:Bind Initial}"
+                                    FontSize="11.5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                <Image Source="{x:Bind Icon}" Stretch="UniformToFill" />
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind Label}" FontSize="12.5" TextTrimming="CharacterEllipsis" />
+                            <TextBlock
+                                Text="{x:Bind Detail}"
+                                FontSize="11.5"
+                                TextTrimming="CharacterEllipsis"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        </StackPanel>
+
+                        <FontIcon
+                            Grid.Column="2"
+                            Glyph="&#xE73E;"
+                            FontSize="13"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                            Visibility="{x:Bind CurrentVisibility, Mode=OneWay}" />
+                    </Grid>
+                </Button>
+            </DataTemplate>
         </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -368,6 +421,82 @@
                                         Height="1"
                                         HorizontalAlignment="Stretch"
                                         Background="{ThemeResource RowHairlineBrush}" />
+                                    <Button
+                                        x:Name="GuildRow"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        BorderThickness="0"
+                                        Margin="4,4,4,4"
+                                        Padding="12,6"
+                                        IsHitTestVisible="{x:Bind ViewModel.HasGuildChoice, Mode=OneWay}"
+                                        IsTabStop="{x:Bind ViewModel.HasGuildChoice, Mode=OneWay}"
+                                        AutomationProperties.Name="Guild"
+                                        Visibility="{x:Bind ViewModel.GuildPickerVisibility, Mode=OneWay}">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border
+                                                Width="24"
+                                                Height="24"
+                                                VerticalAlignment="Center"
+                                                CornerRadius="6"
+                                                Background="{ThemeResource ChipBrush}">
+                                                <Grid>
+                                                    <TextBlock
+                                                        Text="{x:Bind ViewModel.SelectedGuild.Initial, Mode=OneWay}"
+                                                        FontSize="11.5"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                                    <Image Source="{x:Bind ViewModel.SelectedGuild.Icon, Mode=OneWay}" Stretch="UniformToFill" />
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind ViewModel.SelectedGuild.Label, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock
+                                                    Text="Guild"
+                                                    FontSize="11.5"
+                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                            </StackPanel>
+                                            <FontIcon
+                                                Grid.Column="2"
+                                                Glyph="&#xE76C;"
+                                                FontSize="11"
+                                                VerticalAlignment="Center"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                Visibility="{x:Bind ViewModel.GuildChevronVisibility, Mode=OneWay}" />
+                                        </Grid>
+                                        <FlyoutBase.AttachedFlyout>
+                                            <Flyout
+                                                x:Name="GuildFlyout"
+                                                Placement="RightEdgeAlignedTop"
+                                                ShouldConstrainToRootBounds="False"
+                                                AreOpenCloseAnimationsEnabled="False"
+                                                FlyoutPresenterStyle="{StaticResource TintedFlyoutPresenterStyle}">
+                                                <Flyout.SystemBackdrop>
+                                                    <services:TintedAcrylicBackdrop />
+                                                </Flyout.SystemBackdrop>
+                                                <StackPanel Width="260" Spacing="2">
+                                                    <StackPanel.Resources>
+                                                        <StaticResource x:Key="ButtonBackground" ResourceKey="MenuFlyoutItemBackground" />
+                                                        <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="MenuFlyoutItemBackgroundPointerOver" />
+                                                        <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="MenuFlyoutItemBackgroundPressed" />
+                                                    </StackPanel.Resources>
+                                                    <ItemsControl
+                                                        ItemsSource="{x:Bind ViewModel.Guilds}"
+                                                        ItemTemplate="{StaticResource GuildOptionTemplate}" />
+                                                </StackPanel>
+                                            </Flyout>
+                                        </FlyoutBase.AttachedFlyout>
+                                    </Button>
+                                    <Border
+                                        Height="1"
+                                        HorizontalAlignment="Stretch"
+                                        Background="{ThemeResource RowHairlineBrush}"
+                                        Visibility="{x:Bind ViewModel.GuildPickerVisibility, Mode=OneWay}" />
                                     <Button
                                         Content="Open guild panel"
                                         HorizontalAlignment="Stretch"

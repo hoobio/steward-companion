@@ -150,7 +150,7 @@ The Addons page itself, the summary banner and per-install expanders, and per-ro
 
 ## Account flyout
 
-Anchored to the account chip, acrylic by default. Avatar at 34px, display name at 14/600, `@handle` in mono beneath, and the role as an accent-tinted badge. Two items below a hairline: Open guild panel, and Sign out in critical.
+Anchored to the account chip, acrylic by default. Avatar at 34px, display name at 14/600, `@handle` in mono beneath, and the role as an accent-tinted badge. Below a hairline, the Guild row (the selected guild, opening a submenu of guilds to the right when there is more than one; see `AGENTS.md` under Auth), then below another hairline two items: Open guild panel, and Sign out in critical.
 
 Role comes from the last `/api/admin/me` response, which the 15-minute timer already refreshes.
 

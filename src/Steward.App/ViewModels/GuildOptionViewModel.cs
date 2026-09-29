@@ -30,13 +30,15 @@ public sealed partial class GuildOptionViewModel : ObservableObject
 
     public string Role { get; }
 
+    public string Detail => $"{MemberCount} members · {Role}";
+
     public string Initial { get; }
 
     public ImageSource? Icon { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CurrentDotVisibility))]
+    [NotifyPropertyChangedFor(nameof(CurrentVisibility))]
     public partial bool IsCurrent { get; set; }
 
-    public Visibility CurrentDotVisibility => IsCurrent ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility CurrentVisibility => IsCurrent ? Visibility.Visible : Visibility.Collapsed;
 }

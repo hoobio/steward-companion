@@ -143,6 +143,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _isChecking;
     private bool _isAutoApplying;
     private bool _isLoadingState;
+    private bool _isChoosingGuild;
     private ImageSource? _avatarImage;
 
     public MainViewModel(
@@ -342,7 +343,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string? Role { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(GuildSubtitle))]
     public partial GuildOptionViewModel? SelectedGuild { get; set; }
 
     [ObservableProperty]
@@ -505,9 +505,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility GuildPickerVisibility => When(Guilds.Count > 0);
 
-    public string GuildSubtitle => SelectedGuild is { } guild
-        ? $"{guild.MemberCount} members · {Guilds.Count} server{(Guilds.Count == 1 ? "" : "s")}"
-        : $"{Guilds.Count} server{(Guilds.Count == 1 ? "" : "s")}";
+    public bool HasGuildChoice => Guilds.Count > 1;
+
+    public Visibility GuildChevronVisibility => When(HasGuildChoice);
+
+    public Func<IReadOnlyList<GuildOptionViewModel>, GuildOptionViewModel, Task<GuildOptionViewModel?>>? ChooseGuild { get; set; }
 
     public string RoleLabel => Role switch
     {
@@ -1406,8 +1408,48 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         _isLoadingState = false;
-        OnPropertyChanged(nameof(GuildSubtitle));
         OnPropertyChanged(nameof(GuildPickerVisibility));
+        OnPropertyChanged(nameof(HasGuildChoice));
+        OnPropertyChanged(nameof(GuildChevronVisibility));
+    }
+
+    public void ChooseGuildOption(GuildOptionViewModel option)
+    {
+        ArgumentNullException.ThrowIfNull(option);
+
+        if (option != SelectedGuild)
+        {
+            SelectedGuild = option;
+            return;
+        }
+
+        _stateStore.Save(_stateStore.Load() with { GuildId = option.Id });
+        _ = NotifySelectedGuildAsync(option.Id);
+    }
+
+    private async Task PromptForGuildAsync(string? storedGuildId)
+    {
+        if (_isChoosingGuild || ChooseGuild is null || !HasGuildChoice || Guilds.Any(option => option.Id == storedGuildId))
+        {
+            return;
+        }
+
+        _isChoosingGuild = true;
+        try
+        {
+            var officerGuild = _meGuilds.FirstOrDefault(guild =>
+                GigagrugClient.ResolveGuildFeatures(guild, _features).Contains(GigagrugClient.StewardFeature));
+            var preselected = Guilds.FirstOrDefault(option => option.Id == officerGuild?.Id) ?? Guilds[0];
+            if (await ChooseGuild([.. Guilds], preselected).ConfigureAwait(true) is { } chosen && Guilds.Contains(chosen))
+            {
+                _logger.Info($"Guild chosen at first run: {chosen.Id}");
+                ChooseGuildOption(chosen);
+            }
+        }
+        finally
+        {
+            _isChoosingGuild = false;
+        }
     }
 
     partial void OnSelectedGuildChanged(GuildOptionViewModel? value)
@@ -2620,7 +2662,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return AuthCheckResult.NotAuthorized;
             }
 
-            var guild = me.ResolveGuild(_stateStore.Load().GuildId);
+            var storedGuildId = _stateStore.Load().GuildId;
+            var guild = me.ResolveGuild(storedGuildId);
             _guildId = guild?.Id;
             _meGuilds = me.Guilds;
 
@@ -2649,6 +2692,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = true;
             SetGuilds(me.Guilds, guild);
+            _ = PromptForGuildAsync(storedGuildId);
             StatusMessage = null;
             Failure = GateFailure.None;
 
