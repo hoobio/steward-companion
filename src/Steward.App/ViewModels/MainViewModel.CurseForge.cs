@@ -52,7 +52,7 @@ public sealed partial class MainViewModel
                 "Open CurseForge links with Steward",
                 DefaultHandlerBannerId,
                 "Set as default",
-                () => _ = Windows.System.Launcher.LaunchUriAsync(new Uri($"ms-settings:defaultapps?registeredAUMID={Uri.EscapeDataString(aumid!)}")),
+                () => _ = PickCurseForgeHandlerAsync(aumid!),
                 () => _stateStore.Save(_stateStore.Load() with
                 {
                     DismissedBanners = new Dictionary<string, int>(_stateStore.Load().DismissedBanners ?? [], StringComparer.Ordinal) { [DefaultHandlerBannerId] = 0 },
@@ -64,6 +64,23 @@ public sealed partial class MainViewModel
             _localBanners.RemoveAll(banner => banner.Id == DefaultHandlerBannerId);
             RefreshBanners();
         }
+    }
+
+    private async Task PickCurseForgeHandlerAsync(string aumid)
+    {
+        try
+        {
+            var options = new Windows.System.LauncherOptions { DisplayApplicationPicker = true };
+            WinRT.Interop.InitializeWithWindow.Initialize(options, OwnerWindowHandle);
+            await Windows.System.Launcher.LaunchUriAsync(new Uri("curseforge://"), options);
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "CurseForge app picker failed, opening Default apps instead");
+        }
+
+        await Windows.System.Launcher.LaunchUriAsync(new Uri($"ms-settings:defaultapps?registeredAUMID={Uri.EscapeDataString(aumid)}"));
     }
 
     public int? CurseForgeVersionType(WowInstall install) =>
