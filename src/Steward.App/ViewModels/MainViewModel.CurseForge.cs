@@ -209,6 +209,7 @@ public sealed partial class MainViewModel
 
         _logger.Info($"CurseForge addon {record.Id} unmanaged on {install.FlavourPath}");
         SaveProviderRecords(state, install.FlavourPath, [.. records.Where(existing => existing != record)]);
+        install.ShowAsLocal(record);
         SyncProviderRows(install);
         _ = install.RescanLocalAsync();
     }

@@ -333,6 +333,17 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         }
     }
 
+    public void ShowAsLocal(ProviderAddonRecord record)
+    {
+        if (IsMissing || !HasGameVersion)
+        {
+            return;
+        }
+
+        var scanned = LocalAddons.Scan(AddOnsPath, _excludedFolders(this), _logger, TocFile.InterfaceNumber(ClientVersion));
+        ApplyLocalScan(Interlocked.Increment(ref _scanGeneration), scanned, [.. LocalRows.Select(row => row.Match).OfType<ProviderAddonRecord>(), record]);
+    }
+
     private Task OnUiThreadAsync(Action action)
     {
         if (_dispatcher is null || _dispatcher.HasThreadAccess)
