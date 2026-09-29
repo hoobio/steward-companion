@@ -210,7 +210,7 @@ public sealed partial class HomePage : Page
             return;
         }
 
-        await AppDialogs.ShowAsync(new ChangelogDialog(row.ChangelogTitle, row.Notes), XamlRoot);
+        await AppDialogs.ShowAsync(new ChangelogDialog(row.ChangelogTitle, row.Changelog), XamlRoot);
     }
 
     private async void OnGetAddonsClick(object sender, RoutedEventArgs e)

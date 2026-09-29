@@ -92,7 +92,18 @@ public sealed record AddonRelease(
     [property: JsonPropertyName("sha1")] string? Sha1 = null,
     [property: JsonPropertyName("folders")] IReadOnlyList<string>? Folders = null,
     [property: JsonPropertyName("website")] string? Website = null,
-    [property: JsonPropertyName("distributable")] bool Distributable = true);
+    [property: JsonPropertyName("distributable")] bool Distributable = true,
+    [property: JsonPropertyName("changelog")] IReadOnlyList<ChangelogBlock>? Changelog = null);
+
+public sealed record ChangelogBlock(
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("level")] int Level,
+    [property: JsonPropertyName("depth")] int Depth,
+    [property: JsonPropertyName("runs")] IReadOnlyList<ChangelogRun>? Runs);
+
+public sealed record ChangelogRun(
+    [property: JsonPropertyName("text")] string Text,
+    [property: JsonPropertyName("href")] string? Href = null);
 
 public sealed record AdminUser(
     [property: JsonPropertyName("id")] string Id,
@@ -275,6 +286,7 @@ public sealed record ProviderAddonsState(
 [JsonSerializable(typeof(AdminUser))]
 [JsonSerializable(typeof(AppState))]
 [JsonSerializable(typeof(Banner))]
+[JsonSerializable(typeof(ChangelogBlock))]
 [JsonSerializable(typeof(CharacterPushRecord))]
 [JsonSerializable(typeof(CharacterSyncRequest))]
 [JsonSerializable(typeof(CharacterSyncResponse))]
