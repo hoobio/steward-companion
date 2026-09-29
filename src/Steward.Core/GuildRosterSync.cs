@@ -14,6 +14,11 @@ public static class GuildRosterSync
         ArgumentNullException.ThrowIfNull(stateStore);
         logger ??= NullLogger.Instance;
 
+        if (install.IsMissing)
+        {
+            return false;
+        }
+
         var fingerprint = StewardSyncFile.Fingerprint(payload);
         var state = stateStore.Load();
         if (!force

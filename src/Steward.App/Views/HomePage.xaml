@@ -993,6 +993,35 @@
             VerticalAlignment="Center"
             MaxWidth="460"
             Spacing="12"
+            Visibility="{x:Bind ViewModel.MissingInstallVisibility, Mode=OneWay}">
+            <FontIcon Glyph="&#xE7BA;" FontSize="36" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+            <TextBlock
+                Text="Folder not found"
+                FontSize="16"
+                FontWeight="SemiBold"
+                HorizontalAlignment="Center"
+                TextAlignment="Center" />
+            <TextBlock
+                TextWrapping="Wrap"
+                HorizontalAlignment="Center"
+                TextAlignment="Center"
+                FontSize="13"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind ViewModel.MissingInstallBody, Mode=OneWay}" />
+            <Button
+                Height="32"
+                HorizontalAlignment="Center"
+                Content="Remove"
+                Style="{StaticResource AccentButtonStyle}"
+                Command="{x:Bind ViewModel.RemoveSelectedInstallCommand}" />
+        </StackPanel>
+
+        <StackPanel
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            MaxWidth="460"
+            Spacing="12"
             Visibility="{x:Bind ViewModel.NoInstallsVisibility, Mode=OneWay}">
             <FontIcon
                 Glyph="&#xE8B7;"

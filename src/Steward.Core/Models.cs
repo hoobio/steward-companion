@@ -198,7 +198,8 @@ public sealed record WowInstall(
     string AddOnsPath,
     string? ProductCode,
     string? ClientVersion,
-    string DisplayName);
+    string DisplayName,
+    bool IsMissing = false);
 
 public sealed record InstalledAddonRecord(
     [property: JsonPropertyName("version")] string Version,

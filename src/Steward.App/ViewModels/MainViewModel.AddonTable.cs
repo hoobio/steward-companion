@@ -54,6 +54,8 @@ public sealed partial class MainViewModel
         nameof(GameVersionPromptVisibility),
         nameof(UpdateAllEnabled),
         nameof(GetAddonsVisibility),
+        nameof(MissingInstallVisibility),
+        nameof(MissingInstallBody),
     ];
 
     private string? _sortKey;
@@ -122,11 +124,11 @@ public sealed partial class MainViewModel
 
     private static string Updates(int count) => $"{count} update{(count == 1 ? "" : "s")}";
 
-    public Visibility TableVisibility => When(SelectedInstall is { HasGameVersion: true });
+    public Visibility TableVisibility => When(SelectedInstall is { HasGameVersion: true, IsMissing: false });
 
-    public Visibility GameVersionPromptVisibility => When(SelectedInstall is { HasGameVersion: false });
+    public Visibility GameVersionPromptVisibility => When(SelectedInstall is { HasGameVersion: false, IsMissing: false });
 
-    public Visibility NoMatchVisibility => When(SelectedInstall is { HasGameVersion: true } && TableRows.Count == 0);
+    public Visibility NoMatchVisibility => When(SelectedInstall is { HasGameVersion: true, IsMissing: false } && TableRows.Count == 0);
 
     public Visibility DefaultOrderVisibility => When(_sortKey is not null);
 
@@ -191,7 +193,7 @@ public sealed partial class MainViewModel
             return;
         }
 
-        IEnumerable<IAddonTableRow> rows = SelectedInstall is { HasGameVersion: true } install ? install.TableRows : [];
+        IEnumerable<IAddonTableRow> rows = SelectedInstall is { HasGameVersion: true, IsMissing: false } install ? install.TableRows : [];
         rows = FilterIndex switch
         {
             FilterHidden => rows.Where(row => row.IsHidden),
@@ -386,7 +388,10 @@ public sealed partial class MainViewModel
     private IReadOnlyList<WowInstall> DiscoverInstalls(AppState state) =>
     [
         .. WowInstalls.Discover(_supportedProducts, state.InstallProducts),
-        .. state.AddedInstalls.Select(path => WowInstalls.FromFlavourPath(path, _supportedProducts, state.InstallProducts)).OfType<WowInstall>(),
+        .. state.AddedInstalls
+            .Select(path => WowInstalls.FromFlavourPath(path, _supportedProducts, state.InstallProducts)
+                ?? (_missingInstalls.Contains(path) ? WowInstalls.MissingFromPath(path, _supportedProducts, state.InstallProducts) : null))
+            .OfType<WowInstall>(),
     ];
 
     public string? DetectedProduct(string flavourPath) => WowInstalls.FromFlavourPath(flavourPath, _supportedProducts)?.ProductCode;

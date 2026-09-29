@@ -59,6 +59,15 @@ public static class WowInstalls
         return BuildInstall(root, flavourPath, supportedProducts, productOverrides);
     }
 
+    public static WowInstall MissingFromPath(
+        string flavourPath,
+        IReadOnlyDictionary<string, string> supportedProducts,
+        IReadOnlyDictionary<string, string>? productOverrides = null)
+    {
+        var root = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(flavourPath)) ?? flavourPath;
+        return BuildInstall(root, flavourPath, supportedProducts, productOverrides) with { IsMissing = true };
+    }
+
     private static IEnumerable<string> CandidateRoots()
     {
         // Registry InstallPath is not trustworthy on its own: on the dev machine that key

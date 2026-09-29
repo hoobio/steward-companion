@@ -131,9 +131,15 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public string StatusText => UserLabel is not null ? $"{GameVersionName} · {ClientVersion}" : ClientVersion ?? "";
 
-    public Visibility StatusVisibility => When(HasGameVersion);
+    public bool IsMissing => Install.IsMissing;
 
-    public Visibility NoGameVersionVisibility => When(!HasGameVersion);
+    public Visibility MissingVisibility => When(IsMissing);
+
+    public double RowOpacity => IsMissing ? 0.55 : 1;
+
+    public Visibility StatusVisibility => When(HasGameVersion && !IsMissing);
+
+    public Visibility NoGameVersionVisibility => When(!HasGameVersion && !IsMissing);
 
     public Visibility GameVersionLineVisibility => When(UserLabel is not null && HasGameVersion);
 
@@ -261,7 +267,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     {
         ArgumentNullException.ThrowIfNull(addons);
 
-        if (!HasGameVersion)
+        if (!HasGameVersion || IsMissing)
         {
             addons = [];
         }
@@ -294,6 +300,11 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public async Task RescanLocalAsync()
     {
+        if (IsMissing)
+        {
+            return;
+        }
+
         var generation = Interlocked.Increment(ref _scanGeneration);
         try
         {
@@ -426,8 +437,13 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private void Remove() => _remove(this);
 
     [RelayCommand]
-    private void OpenFolder() =>
-        Process.Start(new ProcessStartInfo(AddOnsPath) { UseShellExecute = true })?.Dispose();
+    private void OpenFolder()
+    {
+        if (!IsMissing)
+        {
+            Process.Start(new ProcessStartInfo(AddOnsPath) { UseShellExecute = true })?.Dispose();
+        }
+    }
 
     private void StopWatching()
     {

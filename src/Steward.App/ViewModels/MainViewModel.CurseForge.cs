@@ -160,7 +160,7 @@ public sealed partial class MainViewModel
     }
 
     public Visibility GetAddonsVisibility =>
-        HasCurseForgeFeature && SelectedInstall is { } install && CurseForgeVersionType(install.Install) is not null ? Visibility.Visible : Visibility.Collapsed;
+        HasCurseForgeFeature && SelectedInstall is { IsMissing: false } install && CurseForgeVersionType(install.Install) is not null ? Visibility.Visible : Visibility.Collapsed;
 
     public GetAddonsViewModel? CreateGetAddons() =>
         SelectedInstall is { } install && CurseForgeVersionType(install.Install) is { } versionType

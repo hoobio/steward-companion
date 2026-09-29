@@ -17,6 +17,29 @@ public sealed class MissingInstallsTests : IDisposable
         MissingInstalls.Detect(state, now, path => path == Kept || (folderExists && path == Gone), _ => driveExists);
 
     [Fact]
+    public void MissingFromPath_BuildsAFlaggedInstallForAnAbsentFolder()
+    {
+        var products = new Dictionary<string, string> { ["wow_classic_beta"] = "World of Warcraft: Forever" };
+        var overrides = new Dictionary<string, string> { [Gone] = "wow_classic_beta" };
+
+        var install = WowInstalls.MissingFromPath(Gone, products, overrides);
+
+        Assert.True(install.IsMissing);
+        Assert.Equal(Gone, install.FlavourPath);
+        Assert.Equal("wow_classic_beta", install.ProductCode);
+        Assert.Equal("World of Warcraft: Forever", install.DisplayName);
+    }
+
+    [Fact]
+    public void WriteIfChanged_SkipsAMissingInstall()
+    {
+        var install = WowInstalls.MissingFromPath(Gone, new Dictionary<string, string>());
+        var payload = new SyncPayload(Now, null, [], [], [], [], [], []);
+
+        Assert.False(GuildRosterSync.WriteIfChanged(install, payload, new AppStateStore([], Path.Combine(_root, "state.json"))));
+    }
+
+    [Fact]
     public void Detect_FolderMissing_RecordsWhenFirstSeenAndReportsIt()
     {
         var report = Detect(StateWith(Gone, Kept), Now);

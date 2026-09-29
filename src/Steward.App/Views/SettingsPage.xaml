@@ -10,11 +10,12 @@
 
     <Page.Resources>
         <DataTemplate x:Key="InstallCardTemplate" x:DataType="vm:WowInstallViewModel">
-            <controls:SettingsCard Header="{x:Bind Label, Mode=OneWay}" Padding="{StaticResource SettingsExpanderItemPadding}">
+            <controls:SettingsCard Header="{x:Bind Label, Mode=OneWay}" Padding="{StaticResource SettingsExpanderItemPadding}" Opacity="{x:Bind RowOpacity}">
                 <controls:SettingsCard.Description>
                     <StackPanel>
                         <TextBlock Text="{x:Bind GameVersionName}" Visibility="{x:Bind GameVersionLineVisibility}" />
                         <TextBlock Text="{x:Bind FlavourPath}" />
+                        <TextBlock Text="Folder not found" Visibility="{x:Bind MissingVisibility}" />
                     </StackPanel>
                 </controls:SettingsCard.Description>
                 <controls:SettingsCard.HeaderIcon>

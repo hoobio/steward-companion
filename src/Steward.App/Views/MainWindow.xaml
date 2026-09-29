@@ -20,7 +20,7 @@
                         ToolTipService.ToolTip="{x:Bind FlavourPath}"
                         Tag="{x:Bind}"
                         Click="OnInstallOptionClick">
-                        <Grid ColumnSpacing="12">
+                        <Grid ColumnSpacing="12" Opacity="{x:Bind RowOpacity}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
@@ -53,6 +53,11 @@
                                     FontSize="11.5"
                                     Foreground="{ThemeResource SystemFillColorCautionBrush}"
                                     Visibility="{x:Bind NoGameVersionVisibility}" />
+                                <TextBlock
+                                    Text="Folder not found"
+                                    FontSize="11.5"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                    Visibility="{x:Bind MissingVisibility}" />
                             </StackPanel>
 
                             <Ellipse

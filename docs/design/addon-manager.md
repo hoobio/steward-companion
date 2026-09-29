@@ -29,6 +29,14 @@ The picker is a button showing the selected install's label, opening a flyout of
 
 **Selection** is one app-wide `MainViewModel.SelectedInstall`, remembered in `selected_install`, falling back to the first install.
 
+### Missing installs
+
+An install added by hand (`AddedInstalls`) whose folder is gone stays in the list, greyed, with "Folder not found" as its flyout status line and on its Settings card, rather than dropping out silently. `MissingInstalls.Detect` in Core runs on startup and Refresh (`MainViewModel.DetectMissingInstalls`, never the 1-minute background pass) with `Directory.Exists` and a drive-root check. It records when each path was first seen missing in `missing_since` (cleared when the folder returns) and reports the paths missing for at least `MissingInstalls.RemovalDelay` (14 days) whose drive root still exists as due; those are removed through `MainViewModel.RemoveInstall(path)`, logged at Information. A path whose drive root is absent (an unplugged or offline drive) is only ever shown as missing. `WowInstalls.MissingFromPath` builds the install with `WowInstall.IsMissing` set, and a Refresh rebuilds a row whose state changed in place.
+
+A missing install has no addon rows, no local scan, no `StewardSync.lua` or guide writes (`GuildRosterSync.WriteIfChanged` returns for it), no character push and no RestedXP card. Selecting it on the Addons page shows a centred "Folder not found" message with a `Remove` button in place of the toolbar and table.
+
+A local info banner reads "{label}'s folder no longer exists." with a `Remove` action, once per missing episode: closing it records `missing-install|{path}|{missing_since ticks}` in `dismissed_banners`, so it returns only after the folder reappears and goes missing again. Every removal, from that banner, the Addons message, the Settings card or the automatic 14-day rule, goes through `MainViewModel.RemoveInstall`, which calls `AppStateStore.RemoveInstall` (pruning every per-path key and both side files), selects another install when the removed one was selected and drops that path's banner. The user-driven ones confirm first with a `Remove {label}?` dialog through `AppDialogs`; nothing in the folder is deleted.
+
 ### Edit install dialog
 
 A `ContentDialog` titled `Edit install`, hosted by the Settings page. The picker's pencil, the `Choose game version` prompt and each Settings Installs card's `Edit` button all call `MainViewModel.RequestEditInstall`, which records the install's flavour path, navigates to Settings and raises `EditInstallRequested`; the Settings page takes the pending request once it is loaded and shows the dialog, so there is one path that opens it:
@@ -165,6 +173,7 @@ CurseForge addons are persisted in `state.json` under `provider_addons`, per ins
 | `install_labels` | flavour path to string | User label for an install. |
 | `install_products` | flavour path to product code | Game version for an added install, or an override of the detected one; written only when the chosen product differs from the one `.flavor.info` detects, so a plain confirmation of the detected value writes nothing. |
 | `selected_install` | flavour path | The install the page shows. |
+| `missing_since` | flavour path to timestamp | When an added install's folder was first seen missing; cleared when it returns. |
 | `ignored_addons` | list of `AppStateStore.Key` | Per-install ignored addons. |
 | `hidden_addons` | unchanged | |
 | `channels` | unchanged | Written from the channel dialog. |

@@ -595,7 +595,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void SyncGuideInstalls()
     {
-        RestedXp.SetInstalls(Installs);
+        RestedXp.SetInstalls(PresentInstalls);
         SyncRestedXpRows();
     }
 
@@ -743,6 +743,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return;
             }
 
+            DetectMissingInstalls();
             var state = _stateStore.Load();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var install in DiscoverInstalls(state))
@@ -754,6 +755,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             EnsureSelection();
+            ShowMissingInstallBanners();
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
             await PushCharacterSyncAsync().ConfigureAwait(true);
             _lastDirectorySync = DateTimeOffset.Now;
@@ -834,11 +836,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RecomputeSummary();
     }
 
-    private void RemoveInstall(WowInstallViewModel install)
+    private void RemoveInstall(string flavourPath)
     {
-        DetachInstall(install);
-        _stateStore.Save(AppStateStore.RemoveInstall(_stateStore.Load(), install.FlavourPath));
+        if (Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, flavourPath, StringComparison.OrdinalIgnoreCase)) is { } installed)
+        {
+            DetachInstall(installed);
+        }
+
+        _stateStore.Save(AppStateStore.RemoveInstall(_stateStore.Load(), flavourPath));
+        _missingInstalls.Remove(flavourPath);
+        SyncCharacterSyncRows();
         EnsureSelection();
+        ShowMissingInstallBanners();
         RecomputeSummary();
     }
 
@@ -866,6 +875,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return;
             }
 
+            ApplyMissingInstalls();
             foreach (var install in Installs)
             {
                 _ = install.RescanLocalAsync();
@@ -1649,17 +1659,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     // No server banner backs this, so it skips BannerFilter's id/revision dismissal bookkeeping and is never persisted.
-    public void ShowLocalInfoBanner(string message)
+    public void ShowLocalInfoBanner(string message, string? id = null, string? actionLabel = null, Action? action = null, Action? dismissed = null)
     {
         BannerViewModel? banner = null;
         var dismiss = new RelayCommand(() =>
         {
             _localBanners.Remove(banner!);
+            dismissed?.Invoke();
             RefreshBanners();
         });
         banner = new BannerViewModel
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = id ?? Guid.NewGuid().ToString(),
             Revision = 0,
             Title = message,
             Message = string.Empty,
@@ -1667,7 +1678,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IconForeground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"],
             IconGlyph = "",
             IsDismissible = true,
-            Actions = [],
+            Actions = action is null ? [] : [new BannerActionViewModel { Label = actionLabel!, Command = new RelayCommand(action) }],
             DismissCommand = dismiss,
         };
         _localBanners.Add(banner);
@@ -2103,7 +2114,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        foreach (var install in Installs.ToList())
+        foreach (var install in PresentInstalls.ToList())
         {
             if (await PushCharacterSyncAsync(install, guildId, force).ConfigureAwait(true))
             {
@@ -2270,7 +2281,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             install.RefreshClientRunning();
         }
 
-        RestedXp.SetInstalls(Installs);
+        RestedXp.SetInstalls(PresentInstalls);
     }
 
     private async Task AutoApplyAsync()
@@ -2512,7 +2523,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _features.Contains,
             ShowChannelDialogFor,
             ConfirmUninstallAsync,
-            RemoveInstall,
+            install => _ = ConfirmRemoveInstallAsync(install.FlavourPath),
             OnClientExited,
             wowInstall => AfterStewardInstalled?.Invoke(wowInstall) ?? Task.CompletedTask,
             _logger)
