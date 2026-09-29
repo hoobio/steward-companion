@@ -66,6 +66,48 @@ public sealed class CurseForgeAddonsTests
     }
 
     [Fact]
+    public void Adopt_ASingleMatch_GivesOneRecordHoldingEveryModuleOnDisk()
+    {
+        var adopted = Assert.Single(Adopt(new CurseForgeMatch("DBM-Core", 2, 4, ["DBM-Core", "DBM-GUI"], "Deadly Boss Mods", "https://www.curseforge.com/wow/addons/dbm")));
+
+        Assert.Equal(CurseForgeAddons.Id(2, 88568), adopted.Id);
+        Assert.Equal("DBM-Core", adopted.FolderName);
+        Assert.Equal("Deadly Boss Mods", adopted.Name);
+        Assert.Equal(["DBM-Core", "DBM-GUI"], adopted.Folders);
+        Assert.Equal("https://www.curseforge.com/wow/addons/dbm", adopted.WebsiteUrl);
+    }
+
+    [Fact]
+    public void Adoptable_DropsRecordedAndKeptLocalMatches()
+    {
+        const string Flavour = @"C:\wow\_classic_beta_";
+        var questie = new ProviderAddonRecord(CurseForgeAddons.Id(1, 88568), "Questie", "Questie", "CurseForge", 1, 88568, ["Questie"]);
+        var dbm = new ProviderAddonRecord(CurseForgeAddons.Id(2, 88568), "DBM-Core", "DBM", "CurseForge", 2, 88568, ["DBM-Core"]);
+        var details = new ProviderAddonRecord(CurseForgeAddons.Id(3, 88568), "Details", "Details", "CurseForge", 3, 88568, ["Details"]);
+
+        var adoptable = CurseForgeAddons.Adoptable([questie, dbm, details], [dbm], [AppStateStore.Key(Flavour, "DETAILS")], Flavour);
+
+        Assert.Equal([questie], adoptable);
+    }
+
+    [Fact]
+    public void KeptLocalKey_IsTheInstallAndPrimaryFolder() =>
+        Assert.Equal(
+            AppStateStore.Key(@"C:\wow", "Questie"),
+            CurseForgeAddons.KeptLocalKey(@"C:\wow", new ProviderAddonRecord("id", "Questie", "Q", "CurseForge", 1, 2, ["Questie", "QuestieDB"])));
+
+    [Fact]
+    public void MatchFor_FindsTheRecordHoldingAnyOfTheRowsFolders()
+    {
+        var questie = new ProviderAddonRecord("q", "Questie", "Questie", "CurseForge", 1, 2, ["Questie", "QuestieDB"]);
+        var dbm = new ProviderAddonRecord("d", "DBM-Core", "DBM", "CurseForge", 2, 2, ["DBM-Core"]);
+
+        Assert.Same(questie, CurseForgeAddons.MatchFor([dbm, questie], new LocalAddon("QuestieDB", "QuestieDB", null, null, [])));
+        Assert.Same(dbm, CurseForgeAddons.MatchFor([dbm, questie], new LocalAddon("DBM-GUI", "DBM", null, null, ["dbm-core"])));
+        Assert.Null(CurseForgeAddons.MatchFor([dbm, questie], new LocalAddon("Details", "Details", null, null, [])));
+    }
+
+    [Fact]
     public void Folders_PutsTheFolderNameFirstWithoutDuplicates() =>
         Assert.Equal(["Questie", "QuestieDB"], CurseForgeAddons.Folders(new ProviderAddonRecord("id", "Questie", "Q", "CurseForge", 1, 2, ["QuestieDB", "Questie"])));
 

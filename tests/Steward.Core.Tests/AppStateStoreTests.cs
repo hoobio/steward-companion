@@ -434,6 +434,31 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Save_KeptLocalAddons_RoundTrip()
+    {
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+        Assert.Empty(store.Load().KeptLocalAddons);
+
+        store.Save(store.Load() with { KeptLocalAddons = [AppStateStore.Key(@"C:\wow\_retail_", "Questie")] });
+
+        Assert.Equal([AppStateStore.Key(@"C:\wow\_retail_", "Questie")], store.Load().KeptLocalAddons);
+        Assert.Contains("\"kept_local_addons\"", File.ReadAllText(StatePath), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RemoveInstall_DropsKeptLocalAddons_ForThatPathOnly()
+    {
+        var state = new AppState([], [], null, []) with
+        {
+            KeptLocalAddons = [AppStateStore.Key(@"C:\wow\_retail_", "Questie"), AppStateStore.Key(@"C:\wow\_classic_era_", "Questie")],
+        };
+
+        var result = AppStateStore.RemoveInstall(state, @"C:\wow\_retail_");
+
+        Assert.Equal([AppStateStore.Key(@"C:\wow\_classic_era_", "Questie")], result.KeptLocalAddons);
+    }
+
+    [Fact]
     public void Save_TableColumnWidths_RoundTrip()
     {
         var store = new AppStateStore(["hoobiscripts"], StatePath);

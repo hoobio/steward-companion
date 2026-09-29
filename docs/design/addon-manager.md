@@ -53,7 +53,7 @@ Primary `Save`, close `Cancel`.
 
 - Every configured addon in `appsettings.json` that `VisibleAddons()` passes, on every install with a game version, whether installed or not. Feature gating, `WowInstallViewModel.SyncAddons` reconciliation and the `AutoInstall` rules are unchanged.
 - Every other folder in the install's `AddOns` holding its own TOC (`<Folder>.toc`, or a flavour-suffixed `<Folder>_*.toc` when that is all it has), as a Local row. A configured addon's `FolderName` never gets a Local row, whether or not that addon is visible to the user, so feature gating stays exact. `StewardGuides` never gets one either: the app generates it and the Guides page owns it. A folder is folded into another row instead of getting its own when its TOC's `## Dependencies` or `## RequiredDeps` names another unmanaged folder that is present, resolved through chains to the root; the parent row's folder line then reads `DBM-Core + 12 folders`. A folder depending only on a configured addon keeps its own row: `HoobiVersions` depends on `Steward` but is a separate addon. The rule was checked against the Forever beta install on 28 Sep 2026, whose `AddOns` held `HoobiScripts`, `HoobiVersions`, `RXPGuides`, `Steward` and `StewardGuides`; the unmanaged-to-unmanaged folding case (a DBM-style suite) had no real folder there and is covered by tests.
-- CurseForge addons, on the installs they were installed to or found on: those installed through Get addons, and Local folders identified as a CurseForge mod by declared id or fingerprint (`curseforge.md`). A CurseForge addon's sibling folders fold into its row, whose folder line reads `Questie + 1 folder`; its folders never get a Local row, with or without the feature. They sort with the Local rows by name after the configured addons.
+- CurseForge addons, on the installs they were installed to or found on: those installed through Get addons, and Local folders identified as a CurseForge mod by declared id or fingerprint (`curseforge.md`) that the user adopted (see Adopting CurseForge matches). A CurseForge addon's sibling folders fold into its row, whose folder line reads `Questie + 1 folder`; its folders never get a Local row, with or without the feature. They sort with the Local rows by name after the configured addons.
 
 ### Columns
 
@@ -64,7 +64,7 @@ Primary `Save`, close `Cancel`.
 | Version | `Version`, sortable by last updated, resizable | See Version cell. |
 | Channel | `Channel`, resizable | A chip button opening the channel dialog, shown only when the addon has a release on two or more channels; with exactly one release, the channel name renders as plain text with a tooltip ("Only {channel} builds are published for {addon}.") and `Change channel` is left out of the overflow menu. A dim `-` for Local rows and addons with no release on any channel. |
 | Source | `Source`, sortable, resizable | `Steward`, `GitHub`, `CurseForge` or `Local`. |
-| Status | `Status`, sortable | The row's action button when it has one (`Update` and `Switch to {channel}` accent, `Install`, `Retry`, `Sign in to RestedXP`, and `Get on CurseForge` or `Update on CurseForge` for a CurseForge mod that does not allow distribution), otherwise its status: `Updating` in Text secondary, `Not installed` in Text mute when no `Install` is offered, `Update available` or `Switch to {channel} pending` in Accent hover for a row whose button is withheld (not an admin), the success tick and `Up to date`, the `Ignored` and `Hidden` pills, and a dim `-` for no releases and for Local rows (the Source column already says `Local`). Button or status is left-aligned under the header label and vertically centred; buttons are 32px. A failed row shows `Retry` here and its failure line under the folder name. Sorting still uses the state behind the cell. |
+| Status | `Status`, sortable | The row's action button when it has one (`Update` and `Switch to {channel}` accent, `Install`, `Retry`, `Sign in to RestedXP`, and `Get on CurseForge` or `Update on CurseForge` for a CurseForge mod that does not allow distribution), otherwise its status: `Updating` in Text secondary, `Not installed` in Text mute when no `Install` is offered, `Update available` or `Switch to {channel} pending` in Accent hover for a row whose button is withheld (not an admin), `Up to date` in Text secondary, the amber `Adopt` button for a Local row matched to CurseForge (see Adopting CurseForge matches), the `Ignored` and `Hidden` pills, and a dim `-` for no releases and for Local rows (the Source column already says `Local`). Button or status is left-aligned under the header label and vertically centred; buttons are 32px. A failed row shows `Retry` here and its failure line under the folder name. Sorting still uses the state behind the cell. |
 | Overflow | hidden | A fixed 32px column holding only the overflow button. |
 
 **Widths.** Name, Version, Channel and Source take pixel widths, each with a `ColumnResizeGrip` on its right edge in the header: a focus stop named "Resize {column} column" with the SizeWestEast cursor and a hairline shown on hover, focus or drag. Dragging, or Left and Right arrows in 8px steps, changes only that column; nothing to its left moves, the columns to its right shift, and Status absorbs the difference, stopping when Status reaches its minimum. The grip's automation peer exposes `RangeValue` for the same resize. Double-click resets the column to its default. User widths persist in `table_column_widths` in `state.json`, column id to pixels. A column without a stored width takes its share of the table width at first layout by the ratios Name 3, Version 2, Channel 1.2, Source 1, Status 1.5. Status fills the rest up to the overflow column and has no grip; when the table narrows Status gives up space first, then the pixel columns shrink in proportion down to their minimums. Minimums are the header label plus sort arrow (Name 80, Version 64, Channel 64, Source 56); the Status minimum is the widest action button that can appear there (`Switch to pre-release`, `Update on CurseForge`, `Sign in to RestedXP`), measured at the accent button's font and padding, so a button or status never clips. Names and folder names narrower than their column trim with an ellipsis and keep the full name in a tooltip, while versions stack (below). The overflow column is a fixed 32px in every row and the header. The header row sits on `LayerFillColorAltBrush` with the card's top corners, so it reads as the table's title bar. Header and rows share one width set applied from the page (`HomePage.ApplyColumns`) to the header and every realized row, driven by the table's own width rather than a row's, since a `Grid` whose columns exceed its slot is arranged at its desired width.
@@ -124,8 +124,9 @@ The overflow menu is a `MenuFlyout` defined once in the row template's resources
 2. `Change channel`, opening the channel dialog.
 3. `Hide addon` or `Show addon`.
 4. `Open folder`.
-5. `Reinstall`, on an installed addon with a release.
-6. A separator, then `Uninstall` in critical, on an installed row.
+5. `Adopt from CurseForge`, on a matched Local row kept local through `Adopt none`.
+6. `Reinstall`, on an installed addon with a release.
+7. A separator, then `Uninstall` in critical, on an installed row.
 
 Neither Ignore nor Hide is offered on an `AutoInstall` addon.
 
@@ -136,6 +137,12 @@ Neither Ignore nor Hide is offered on an `AutoInstall` addon.
 **Uninstall** opens a confirmation `ContentDialog`, "Uninstall {name}?", body "This deletes {folders} from {install}'s AddOns folder.", primary `Uninstall`; `{folders}` names the first folder and "and n more folders" for a row folded from several unmanaged folders. It removes every folder of the addon (the manifest's `folders` for a CurseForge addon) under the rule that a folder is only deleted when it holds its own top-level TOC, `<Folder>.toc` or `<Folder>_<flavour>.toc`, refusing before deleting anything when any folder fails it, and drops the install record. A configured addon's row stays, with `Install`; a Local or CurseForge row goes.
 
 Local rows are rescanned on startup, on Refresh, and after an install or uninstall on that install (any change to a configured row's installed version, or a Local row's own removal), not on the background pass, so a busy background pass never restructures the folded-folder rows under the user.
+
+## Adopting CurseForge matches
+
+With the `curseforge` feature, the Local scan's CurseForge matches are held in memory per install and never recorded on their own. A Local row whose folder, or one of its folded folders, has a match that is not already recorded shows the match's CurseForge name and icon and an `Adopt` button in the Status column: 32px, 4px corners, no border, `SystemFillColorCaution` amber (`CautionButtonBackground`, with lighter hover and pressed brushes in `App.xaml`) and dark text (`CautionButtonForeground`). Adopting records exactly what the match identifies (`CurseForgeAddons.Adopt`), turns the row into a CurseForge row and fetches its manifest at once.
+
+While the selected install has an adoptable, unhidden row not kept local, the `Update all` slot shows an amber `Adopt all` split button instead: the main part adopts every such row on that install in one reconcile, and its chevron opens a `MenuFlyout` with `Adopt none`. `Adopt none` stores each of those rows as kept local, `AppStateStore.Key(flavourPath, primaryFolder)` in `kept_local_addons`; a kept-local row shows its status dash instead of the button, is left out of `Adopt all`, and offers `Adopt from CurseForge` in its overflow menu, which adopts it and removes the key. With nothing to adopt the slot shows `Update all` exactly as below. A recorded CurseForge addon is never un-adopted.
 
 ## Update all
 
@@ -175,10 +182,11 @@ CurseForge addons are persisted in `provider_addons.json` beside `state.json` (s
 | `selected_install` | flavour path | The install the page shows. |
 | `missing_since` | flavour path to timestamp | When an added install's folder was first seen missing; cleared when it returns. |
 | `ignored_addons` | list of `AppStateStore.Key` | Per-install ignored addons. |
+| `kept_local_addons` | list of `AppStateStore.Key` (flavour path plus primary folder) | CurseForge matches the user chose to keep as Local rows through `Adopt none`. |
 | `hidden_addons` | unchanged | |
 | `channels` | unchanged | Written from the channel dialog. |
 | `table_column_widths` | column id to pixels | User-resized widths of Name, Version, Channel and Source; a column without an entry keeps its proportional default. |
-| `provider_addons` | flavour path to a list of `ProviderAddonRecord` | CurseForge addons installed through Get addons or matched from a Local folder on that install. Held in memory on `AppState` but saved to `provider_addons.json`, not `state.json`. |
+| `provider_addons` | flavour path to a list of `ProviderAddonRecord` | CurseForge addons installed through Get addons or adopted from a matched Local folder on that install. Held in memory on `AppState` but saved to `provider_addons.json`, not `state.json`. |
 
 ## Control mapping
 

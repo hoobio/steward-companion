@@ -315,18 +315,14 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
                 ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, excluded, _logger)).ConfigureAwait(false)
                 : [];
             var identified = HasGameVersion && identify ? await _identifyProviderAddons(this, scanned).ConfigureAwait(false) : [];
-            var adopted = false;
             await OnUiThreadAsync(() =>
             {
-                adopted = generation == _scanGeneration && _reconcileProviderAddons(this, identified);
-                excluded = _excludedFolders(this);
+                if (generation == _scanGeneration)
+                {
+                    _reconcileProviderAddons(this, []);
+                    ApplyLocalScan(generation, scanned, identified);
+                }
             }).ConfigureAwait(false);
-            if (adopted)
-            {
-                scanned = await Task.Run(() => LocalAddons.Scan(AddOnsPath, excluded, _logger)).ConfigureAwait(false);
-            }
-
-            await OnUiThreadAsync(() => ApplyLocalScan(generation, scanned)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -374,18 +370,35 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void ApplyLocalScan(int generation, IReadOnlyList<LocalAddon> scanned)
+    private void ApplyLocalScan(int generation, IReadOnlyList<LocalAddon> scanned, IReadOnlyList<ProviderAddonRecord> identified)
     {
         if (generation != _scanGeneration)
         {
             return;
         }
 
-        var hidden = _stateStore.Load().HiddenAddons.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var state = _stateStore.Load();
+        var hidden = state.HiddenAddons.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var kept = state.KeptLocalAddons.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unrecorded = _hasFeature(GigagrugClient.CurseForgeFeature)
+            ? CurseForgeAddons.Adoptable(identified, state.ProviderAddons.GetValueOrDefault(FlavourPath) ?? [], [], FlavourPath)
+            : [];
         var wanted = scanned.Select(addon =>
-            LocalRows.FirstOrDefault(row => row.Matches(addon))
-            ?? new LocalAddonRowViewModel(Install, addon, _stateStore, OutOfDateTip(addon.Interface), ConfirmUninstallAsync, OnLocalRemoved, _logger))
-            .ToList();
+        {
+            var match = CurseForgeAddons.MatchFor(unrecorded, addon);
+            return LocalRows.FirstOrDefault(row => row.Matches(addon, match))
+                ?? new LocalAddonRowViewModel(
+                    Install,
+                    addon,
+                    _stateStore,
+                    OutOfDateTip(addon.Interface),
+                    ConfirmUninstallAsync,
+                    OnLocalRemoved,
+                    match,
+                    match is not null && kept.Contains(CurseForgeAddons.KeptLocalKey(FlavourPath, match)),
+                    row => Adopt([row.Match!]),
+                    _logger);
+        }).ToList();
         foreach (var row in wanted)
         {
             row.IsHidden = hidden.Contains(row.HiddenId);
@@ -410,9 +423,64 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     private void OnLocalRemoved(LocalAddonRowViewModel row) => _ = RescanLocalAsync();
 
+    public IReadOnlyList<LocalAddonRowViewModel> AdoptableRows => [.. LocalRows.Where(row => row.CanAdopt && !row.IsHidden)];
+
+    public void AdoptAll() => Adopt([.. AdoptableRows.Select(row => row.Match!)]);
+
+    public void KeepAllLocal()
+    {
+        var rows = AdoptableRows;
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        var state = _stateStore.Load();
+        foreach (var key in rows.Select(row => CurseForgeAddons.KeptLocalKey(FlavourPath, row.Match!)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!state.KeptLocalAddons.Contains(key, StringComparer.OrdinalIgnoreCase))
+            {
+                state.KeptLocalAddons.Add(key);
+            }
+        }
+
+        _stateStore.Save(state);
+        foreach (var row in LocalRows.Where(row => rows.Any(adoptable => adoptable.Match!.Id == row.Match?.Id)))
+        {
+            row.IsKeptLocal = true;
+        }
+    }
+
+    private void Adopt(IReadOnlyList<ProviderAddonRecord> matches)
+    {
+        var records = matches.DistinctBy(record => record.Id, StringComparer.OrdinalIgnoreCase).ToList();
+        if (records.Count == 0 || !_hasFeature(GigagrugClient.CurseForgeFeature))
+        {
+            return;
+        }
+
+        var state = _stateStore.Load();
+        var keys = records.Select(record => CurseForgeAddons.KeptLocalKey(FlavourPath, record)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (state.KeptLocalAddons.RemoveAll(keys.Contains) > 0)
+        {
+            _stateStore.Save(state);
+        }
+
+        _logger.Info($"Adopting {string.Join(", ", records.Select(record => record.Id))} on {FlavourPath}");
+        foreach (var row in LocalRows.Where(row => records.Any(record => record.Id == row.Match?.Id)).ToList())
+        {
+            row.PropertyChanged -= OnLocalRowPropertyChanged;
+            LocalRows.Remove(row);
+        }
+
+        _reconcileProviderAddons(this, records);
+        RaiseRowsChanged();
+        _ = RescanLocalAsync();
+    }
+
     private void OnLocalRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(LocalAddonRowViewModel.IsHidden))
+        if (e.PropertyName is nameof(LocalAddonRowViewModel.IsHidden) or nameof(LocalAddonRowViewModel.IsKeptLocal))
         {
             RaiseRowsChanged();
         }

@@ -128,6 +128,9 @@ public sealed class AppStateStore
             IgnoredAddons = (state.IgnoredAddons ?? [])
                 .Where(entry => !entry.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .ToList(),
+            KeptLocalAddons = (state.KeptLocalAddons ?? [])
+                .Where(entry => !entry.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .ToList(),
             ProviderAddons = (state.ProviderAddons ?? [])
                 .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
@@ -155,6 +158,7 @@ public sealed class AppStateStore
         InstallLabels = new Dictionary<string, string>(state.InstallLabels ?? [], StringComparer.OrdinalIgnoreCase),
         InstallProducts = new Dictionary<string, string>(state.InstallProducts ?? [], StringComparer.OrdinalIgnoreCase),
         IgnoredAddons = state.IgnoredAddons ?? [],
+        KeptLocalAddons = state.KeptLocalAddons ?? [],
         LegacyRestedXpGuideChoice = null,
         DismissedBanners = new Dictionary<string, int>(state.DismissedBanners ?? [], StringComparer.Ordinal),
         TableColumnWidths = new Dictionary<string, double>(state.TableColumnWidths ?? [], StringComparer.OrdinalIgnoreCase),

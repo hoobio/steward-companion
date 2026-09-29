@@ -9,6 +9,7 @@ using Steward.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Steward.App.ViewModels;
 
@@ -19,6 +20,7 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
     private readonly AppStateStore _stateStore;
     private readonly Func<string, string, Task<bool>> _confirmUninstall;
     private readonly Action<LocalAddonRowViewModel> _removed;
+    private readonly Action<LocalAddonRowViewModel> _adopt;
     private readonly ILogger _logger;
 
     public LocalAddonRowViewModel(
@@ -28,6 +30,9 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
         string? outOfDateTip,
         Func<string, string, Task<bool>> confirmUninstall,
         Action<LocalAddonRowViewModel> removed,
+        ProviderAddonRecord? match,
+        bool isKeptLocal,
+        Action<LocalAddonRowViewModel> adopt,
         ILogger logger)
     {
         _logger = logger;
@@ -36,6 +41,9 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
         _stateStore = stateStore;
         _confirmUninstall = confirmUninstall;
         _removed = removed;
+        _adopt = adopt;
+        Match = match;
+        IsKeptLocal = isKeptLocal;
         OutOfDateTip = outOfDateTip;
         InitialsBrush = InitialsTile.Brush(addon.FolderName);
         _ = LoadIconAsync();
@@ -55,7 +63,21 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     public int StatusRank => (int)(IsHidden ? AddonRowStatus.Hidden : AddonRowStatus.Local);
 
-    public Visibility StatusDashVisibility => When(!IsHidden);
+    public Visibility StatusDashVisibility => When(!IsHidden && !CanAdopt);
+
+    public ProviderAddonRecord? Match { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAdopt), nameof(AdoptVisibility), nameof(AdoptFromMenuVisibility), nameof(StatusDashVisibility))]
+    public partial bool IsKeptLocal { get; set; }
+
+    public bool CanAdopt => Match is not null && !IsKeptLocal;
+
+    public Visibility AdoptVisibility => When(CanAdopt && !IsHidden);
+
+    public Visibility AdoptFromMenuVisibility => When(Match is not null && IsKeptLocal);
+
+    public string AdoptAccessibleName => $"Adopt {DisplayName} from CurseForge";
 
     private async Task LoadLastUpdatedAsync()
     {
@@ -68,9 +90,12 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
     [ObservableProperty]
     public partial ImageSource? Icon { get; set; }
 
-    private async Task LoadIconAsync() => Icon = await LocalAddonIcon.LoadAsync(_install.AddOnsPath, _addon.FolderName, _logger).ConfigureAwait(true);
+    private async Task LoadIconAsync() =>
+        Icon = Uri.TryCreate(Match?.IconUrl, UriKind.Absolute, out var icon)
+            ? new BitmapImage(icon)
+            : await LocalAddonIcon.LoadAsync(_install.AddOnsPath, _addon.FolderName, _logger).ConfigureAwait(true);
 
-    public string DisplayName => _addon.Name;
+    public string DisplayName => Match?.Name ?? _addon.Name;
 
     public string Source => "Local";
 
@@ -91,7 +116,7 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
     public Visibility OutOfDateVisibility => When(OutOfDateTip is not null);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HideLabel), nameof(HiddenPillVisibility), nameof(StatusDashVisibility), nameof(StatusRank))]
+    [NotifyPropertyChangedFor(nameof(HideLabel), nameof(HiddenPillVisibility), nameof(StatusDashVisibility), nameof(StatusRank), nameof(AdoptVisibility))]
     public partial bool IsHidden { get; set; }
 
     [ObservableProperty]
@@ -108,8 +133,9 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
-    public bool Matches(LocalAddon addon) =>
-        string.Equals(addon.FolderName, _addon.FolderName, StringComparison.OrdinalIgnoreCase)
+    public bool Matches(LocalAddon addon, ProviderAddonRecord? match) =>
+        match?.Id == Match?.Id
+        && string.Equals(addon.FolderName, _addon.FolderName, StringComparison.OrdinalIgnoreCase)
         && addon.Name == _addon.Name
         && addon.Version == _addon.Version
         && addon.Interface == _addon.Interface
@@ -131,6 +157,9 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
         _stateStore.Save(state);
         IsHidden = !IsHidden;
     }
+
+    [RelayCommand]
+    private void Adopt() => _adopt(this);
 
     [RelayCommand]
     private void OpenFolder() =>

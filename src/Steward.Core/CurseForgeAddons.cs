@@ -90,4 +90,35 @@ public static class CurseForgeAddons
 
         return adopted;
     }
+
+    public static string KeptLocalKey(string flavourPath, ProviderAddonRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        return AppStateStore.Key(flavourPath, record.FolderName);
+    }
+
+    public static IReadOnlyList<ProviderAddonRecord> Adoptable(
+        IReadOnlyList<ProviderAddonRecord> identified,
+        IReadOnlyList<ProviderAddonRecord> recorded,
+        IEnumerable<string> keptLocal,
+        string flavourPath)
+    {
+        ArgumentNullException.ThrowIfNull(identified);
+        ArgumentNullException.ThrowIfNull(recorded);
+        ArgumentNullException.ThrowIfNull(keptLocal);
+
+        var kept = keptLocal.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return [.. identified.Where(record =>
+            !recorded.Any(existing => string.Equals(existing.Id, record.Id, StringComparison.OrdinalIgnoreCase))
+            && !kept.Contains(KeptLocalKey(flavourPath, record)))];
+    }
+
+    public static ProviderAddonRecord? MatchFor(IReadOnlyList<ProviderAddonRecord> identified, LocalAddon addon)
+    {
+        ArgumentNullException.ThrowIfNull(identified);
+        ArgumentNullException.ThrowIfNull(addon);
+
+        var folders = addon.FoldedFolders.Prepend(addon.FolderName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return identified.FirstOrDefault(record => Folders(record).Any(folders.Contains));
+    }
 }

@@ -45,6 +45,8 @@ public sealed partial class MainViewModel
         nameof(HiddenCountText),
         nameof(HiddenSegmentVisibility),
         nameof(UpdateAllVisibility),
+        nameof(AdoptAllVisibility),
+        nameof(AdoptAllAccessibleName),
         nameof(UpdateAllOnInstallLabel),
         nameof(SelectedUpdateCountText),
         nameof(TotalUpdateCountText),
@@ -111,7 +113,19 @@ public sealed partial class MainViewModel
 
     public Visibility HiddenSegmentVisibility => When(HiddenCount > 0);
 
-    public Visibility UpdateAllVisibility => When(TotalUpdateCount > 0 && TableVisibility == Visibility.Visible);
+    public Visibility UpdateAllVisibility => When(SelectedAdoptableCount == 0 && TotalUpdateCount > 0 && TableVisibility == Visibility.Visible);
+
+    private int SelectedAdoptableCount => HasCurseForgeFeature && SelectedInstall is { } install ? install.AdoptableRows.Count : 0;
+
+    public Visibility AdoptAllVisibility => When(SelectedAdoptableCount > 0 && TableVisibility == Visibility.Visible);
+
+    public string AdoptAllAccessibleName => $"Adopt all, {SelectedAdoptableCount} CurseForge match{(SelectedAdoptableCount == 1 ? "" : "es")}";
+
+    [RelayCommand]
+    private void AdoptAll() => SelectedInstall?.AdoptAll();
+
+    [RelayCommand]
+    private void AdoptNone() => SelectedInstall?.KeepAllLocal();
 
     public string UpdateAllOnInstallLabel => $"Update all on {SelectedInstall?.Label}";
 
