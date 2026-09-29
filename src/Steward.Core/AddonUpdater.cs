@@ -42,6 +42,9 @@ public sealed class AddonUpdater
         return await FetchManifestAsync(client, ManifestUri(addon, channel), cancellationToken).ConfigureAwait(false);
     }
 
+    public Task<byte[]> GetIconAsync(Uri iconUri, CancellationToken cancellationToken) =>
+        _httpClient.GetByteArrayAsync(iconUri, cancellationToken);
+
     public static async Task<AddonRelease?> FetchManifestAsync(HttpClient httpClient, Uri manifestUri, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(httpClient);

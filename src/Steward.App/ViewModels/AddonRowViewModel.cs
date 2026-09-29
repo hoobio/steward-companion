@@ -585,6 +585,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             var state = _stateStore.Load();
             state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, release.Sha1);
             _stateStore.Save(state);
+            await InGameIcon.EnsureAsync(_updater, _install.AddOnsPath, _addon, _logger).ConfigureAwait(true);
 
             RefreshInstalledVersion();
             ReloadPendingSince = DateTimeOffset.Now;
@@ -605,6 +606,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             IsBusy = false;
         }
     }
+
+    public Task EnsureInGameIconAsync() =>
+        IsBusy || IsHidden || !IsInstalled ? Task.CompletedTask : InGameIcon.EnsureAsync(_updater, _install.AddOnsPath, _addon, _logger);
 
     private bool CanUninstall => !IsBusy;
 

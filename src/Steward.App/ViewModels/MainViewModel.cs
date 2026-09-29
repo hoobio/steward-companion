@@ -776,6 +776,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             EnsureSelection();
             ShowMissingInstallBanners();
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
+            EnsureInGameIcons();
             await PushCharacterSyncAsync().ConfigureAwait(true);
             _lastDirectorySync = DateTimeOffset.Now;
             await SyncDirectoryAsync().ConfigureAwait(true);
@@ -855,6 +856,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RecomputeSummary();
     }
 
+    private void EnsureInGameIcons()
+    {
+        foreach (var row in Installs.SelectMany(install => install.AddonRows))
+        {
+            _ = row.EnsureInGameIconAsync();
+        }
+    }
+
     private void RemoveInstall(string flavourPath)
     {
         if (Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, flavourPath, StringComparison.OrdinalIgnoreCase)) is { } installed)
@@ -902,6 +911,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
+            EnsureInGameIcons();
             await PushCharacterSyncAsync().ConfigureAwait(true);
             _lastDirectorySync = DateTimeOffset.Now;
             await SyncDirectoryAsync().ConfigureAwait(true);
