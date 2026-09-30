@@ -436,10 +436,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private IReadOnlyList<ManagedAddon> VisibleAddons() => AddonCatalogue.Visible(_addonCatalogue, _addons, _features);
 
     private bool IsAdminFor(string addonId) =>
-        IsAuthorized || (IsSignedIn && Failure == GateFailure.Unreachable && AddonCatalogue.UpdatesWhileUnreachable(_addonCatalogue, addonId));
+        Failure != GateFailure.ClientOutdated
+        && (IsAuthorized || (IsSignedIn && Failure == GateFailure.Unreachable && AddonCatalogue.UpdatesWhileUnreachable(_addonCatalogue, addonId)));
 
     private bool SetAddonCatalogue(IReadOnlyList<CatalogueAddon>? catalogue)
     {
+        _addonCatalogue = catalogue?.Select(addon => addon.ToManagedAddon()).ToList();
         var state = _stateStore.Load();
         if (AddonCatalogue.Same(state.AddonCatalogue, catalogue))
         {
@@ -447,7 +449,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         _stateStore.Save(state with { AddonCatalogue = catalogue?.ToList() });
-        _addonCatalogue = catalogue?.Select(addon => addon.ToManagedAddon()).ToList();
         return true;
     }
 
@@ -668,6 +669,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsSignedIn = _sessionService.TryRestoreSession();
         if (!IsSignedIn)
         {
+            SetAddonCatalogue(null);
             return;
         }
 
@@ -1338,6 +1340,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _clientOutdatedAt = DateTimeOffset.Now;
         Failure = GateFailure.ClientOutdated;
         StatusMessage = message;
+        PropagateAuthorized();
     }
 
     private async Task CheckAndConfirmAppUpdateAsync()
@@ -2798,7 +2801,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task<bool> EnsureAuthorizedForAddonAsync(string flavourPath, ManagedAddon addon, CancellationToken cancellationToken)
     {
         var result = await RecheckForActionAsync(cancellationToken).ConfigureAwait(true);
-        return AddonsFor(flavourPath).Any(visible => string.Equals(visible.Id, addon.Id, StringComparison.OrdinalIgnoreCase))
+        return Failure != GateFailure.ClientOutdated
+            && AddonsFor(flavourPath).Any(visible => string.Equals(visible.Id, addon.Id, StringComparison.OrdinalIgnoreCase))
             && (result == AuthCheckResult.Authorized
                 || (result == AuthCheckResult.Unreachable && AddonCatalogue.UpdatesWhileUnreachable(_addonCatalogue, addon.Id)));
     }
@@ -2839,7 +2843,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ReconcileFeatureGating();
             }
 
-            if (previousFeatures.Contains(GigagrugClient.CurseForgeFeature) != HasCurseForgeFeature)
+            if (catalogueChanged || previousFeatures.Contains(GigagrugClient.CurseForgeFeature) != HasCurseForgeFeature)
             {
                 foreach (var install in Installs)
                 {
@@ -2891,8 +2895,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             _logger.Warn(ex, "/api/me recheck: gigagrug unreachable");
-            Failure = GateFailure.Unreachable;
-            StatusMessage = ex.Message;
+            if (Failure != GateFailure.ClientOutdated)
+            {
+                Failure = GateFailure.Unreachable;
+                StatusMessage = ex.Message;
+            }
+
+            PropagateAuthorized();
             UpdateEventStream();
             UpdateAccessEventStream();
             return AuthCheckResult.Unreachable;

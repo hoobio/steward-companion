@@ -533,7 +533,7 @@ public sealed partial class MainViewModel
         var installs = _stateStore.Load().Installs;
         return
         [
-            .. _addons.Select(addon => addon.FolderName),
+            .. _addons.Concat(_addonCatalogue ?? []).Select(addon => addon.FolderName),
             StewardGuidesAddon.FolderName,
             .. ProviderRecords(install.FlavourPath).Where(record => record.Id != id).SelectMany(record =>
                 CurseForgeAddons.Folders(record).Concat(installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, record.Id))?.Folders ?? [])),

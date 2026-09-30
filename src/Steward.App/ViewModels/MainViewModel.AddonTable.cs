@@ -270,7 +270,7 @@ public sealed partial class MainViewModel
     }
 
     private bool IsConfigured(IAddonTableRow row) =>
-        row is AddonRowViewModel addon && _addons.Any(configured => string.Equals(configured.Id, addon.AddonId, StringComparison.OrdinalIgnoreCase));
+        row is AddonRowViewModel addon && (_addonCatalogue ?? _addons).Any(configured => string.Equals(configured.Id, addon.AddonId, StringComparison.OrdinalIgnoreCase));
 
     [RelayCommand]
     private void SortBy(string key)

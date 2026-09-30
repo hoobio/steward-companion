@@ -53,7 +53,9 @@ public sealed class GigagrugClient
             .ReadFromJsonAsync(CompanionJsonContext.Default.AdminMe, cancellationToken)
             .ConfigureAwait(false);
 
-        return me ?? throw new HttpRequestException("GET /api/me returned an empty body");
+        return me is null
+            ? throw new HttpRequestException("GET /api/me returned an empty body")
+            : me with { Addons = me.Addons is null ? null : [.. me.Addons.Where(AddonCatalogue.IsComplete)] };
     }
 
     // Works signed in or out, so a 401 is not a lost session here; the caller keeps its last good banner set on any failure.

@@ -29,11 +29,11 @@ public sealed record CatalogueAddon(
     [property: JsonPropertyName("folder_name")] string FolderName,
     [property: JsonPropertyName("manifest_base_url")] string ManifestBaseUrl,
     [property: JsonPropertyName("name")] string? Name = null,
-    [property: JsonPropertyName("source")] string Source = "Steward",
-    [property: JsonPropertyName("auto_install")] bool AutoInstall = false,
+    [property: JsonPropertyName("source")] string? Source = null,
+    [property: JsonPropertyName("auto_install")] bool? AutoInstall = null,
     [property: JsonPropertyName("features")] IReadOnlyList<string>? Features = null)
 {
-    public ManagedAddon ToManagedAddon() => new(Id, FolderName, ManifestBaseUrl, AutoInstall, Name, Features, Source);
+    public ManagedAddon ToManagedAddon() => new(Id, FolderName, ManifestBaseUrl, AutoInstall ?? false, Name, Features, Source ?? AddonCatalogue.StewardSource);
 }
 
 public sealed record ProviderAddonRecord(

@@ -13,6 +13,9 @@ public static class AddonCatalogue
     public static bool UpdatesWhileUnreachable(IReadOnlyList<ManagedAddon>? server, string addonId) =>
         server?.Any(addon => string.Equals(addon.Id, addonId, StringComparison.OrdinalIgnoreCase) && addon.Source == StewardSource) == true;
 
+    public static bool IsComplete(CatalogueAddon? addon) =>
+        addon is { Id.Length: > 0, FolderName.Length: > 0, ManifestBaseUrl.Length: > 0 };
+
     public static bool Same(IReadOnlyList<CatalogueAddon>? left, IReadOnlyList<CatalogueAddon>? right) =>
         Json(left) == Json(right);
 

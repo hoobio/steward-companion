@@ -259,7 +259,7 @@ public sealed class GigagrugClientTests
             """
             {"user":{"id":"1","name":"Hoobi"},"guilds":[],"addons":[
             {"id":"steward","name":"Steward","folder_name":"Steward","manifest_base_url":"https://addon.hoobi.io/steward/","source":"Steward","auto_install":true,"features":["steward_addon"]},
-            {"id":"hoobiscripts-actionbars","name":"HoobiScripts: ActionBars","folder_name":"HoobiScripts_ActionBars","manifest_base_url":"https://addon.hoobi.io/hoobiscripts-actionbars/","source":"Steward","auto_install":false,"features":["hoobiscripts.actionbars"]}]}
+            {"id":"hoobiscripts-actionbars","name":"Hoobi Scripts: ActionBars","folder_name":"HoobiScripts_ActionBars","manifest_base_url":"https://addon.hoobi.io/hoobiscripts-actionbars/","source":"Steward","auto_install":false,"features":["hoobiscripts.actionbars"]}]}
             """);
 
         var me = await client.GetMeAsync(CancellationToken.None);
@@ -267,12 +267,33 @@ public sealed class GigagrugClientTests
         var addons = me.Addons!.Select(addon => addon.ToManagedAddon()).ToList();
         Assert.Equal(["steward", "hoobiscripts-actionbars"], addons.Select(addon => addon.Id));
         Assert.Equal("HoobiScripts_ActionBars", addons[1].FolderName);
-        Assert.Equal("HoobiScripts: ActionBars", addons[1].DisplayName);
+        Assert.Equal("Hoobi Scripts: ActionBars", addons[1].DisplayName);
         Assert.Equal("https://addon.hoobi.io/hoobiscripts-actionbars/", addons[1].ManifestBaseUrl);
         Assert.True(addons[0].AutoInstall);
         Assert.False(addons[1].AutoInstall);
         Assert.Equal("Steward", addons[0].Source);
         Assert.Equal(["steward_addon"], addons[0].Features);
+    }
+
+    [Fact]
+    public async Task GetMeAsync_SkipsAnIncompleteAddonAndDefaultsNullFields()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.OK,
+            """
+            {"user":{"id":"1","name":"Hoobi"},"guilds":[],"addons":[
+            {"name":"No id","folder_name":"NoId","manifest_base_url":"https://addon.hoobi.io/noid/"},
+            {"id":"nofolder","manifest_base_url":"https://addon.hoobi.io/nofolder/"},
+            {"id":"nomanifest","folder_name":"NoManifest","manifest_base_url":null},
+            null,
+            {"id":"steward","folder_name":"Steward","manifest_base_url":"https://addon.hoobi.io/steward/","source":null,"auto_install":null}]}
+            """);
+
+        var me = await client.GetMeAsync(CancellationToken.None);
+
+        var addon = Assert.Single(me.Addons!).ToManagedAddon();
+        Assert.Equal("steward", addon.Id);
+        Assert.False(addon.AutoInstall);
+        Assert.Equal("Steward", addon.Source);
     }
 
     [Fact]

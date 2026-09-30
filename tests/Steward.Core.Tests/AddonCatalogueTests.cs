@@ -17,7 +17,7 @@ public sealed class AddonCatalogueTests : IDisposable
 
     private static readonly CatalogueAddon ActionBars = new(
         "hoobiscripts-actionbars", "HoobiScripts_ActionBars", "https://addon.hoobi.io/hoobiscripts-actionbars/",
-        "HoobiScripts: ActionBars", "Steward", false, ["hoobiscripts.actionbars"]);
+        "Hoobi Scripts: ActionBars", "Steward", false, ["hoobiscripts.actionbars"]);
 
     [Fact]
     public void Visible_WithAServerList_UsesItAsIs()
