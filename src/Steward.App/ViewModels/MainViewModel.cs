@@ -1325,6 +1325,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OpenUri(_appUpdater.StoreUpdatesUri);
     }
 
+    public event EventHandler? AppUpdateFocusRequested;
+
+    private bool _pendingAppUpdateFocus;
+
+    public bool TakeAppUpdateFocusRequest()
+    {
+        var pending = _pendingAppUpdateFocus;
+        _pendingAppUpdateFocus = false;
+        return pending;
+    }
+
+    private async Task HandleStoreUpdateBannerActionFromBannerAsync()
+    {
+        if (!IsSignedIn)
+        {
+            await HandleStoreUpdateBannerActionAsync().ConfigureAwait(true);
+            return;
+        }
+
+        _pendingAppUpdateFocus = true;
+        NavigateToPageTag?.Invoke("settings");
+        AppUpdateFocusRequested?.Invoke(this, EventArgs.Empty);
+        if (CheckOrInstallAppUpdateCommand.CanExecute(null))
+        {
+            await CheckOrInstallAppUpdateCommand.ExecuteAsync(null).ConfigureAwait(true);
+        }
+    }
+
     [RelayCommand]
     private Task StatusActionAsync() =>
         Failure == GateFailure.ClientOutdated ? HandleStoreUpdateBannerActionAsync() : RefreshAsync();
@@ -1831,7 +1859,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             switch (BannerActions.Parse(action.Type))
             {
                 case BannerActionKind.StoreUpdate:
-                    actions.Add(new BannerActionViewModel { Label = action.Label, Command = new AsyncRelayCommand(HandleStoreUpdateBannerActionAsync) });
+                    actions.Add(new BannerActionViewModel { Label = action.Label, Command = new AsyncRelayCommand(HandleStoreUpdateBannerActionFromBannerAsync) });
                     break;
                 case BannerActionKind.OpenUrl when BannerActions.IsAllowedUrl(action.Url):
                     actions.Add(new BannerActionViewModel { Label = action.Label, Command = new RelayCommand(() => OpenUri(new Uri(action.Url!))) });
