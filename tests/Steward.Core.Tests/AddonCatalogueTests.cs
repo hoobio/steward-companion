@@ -1,0 +1,90 @@
+namespace Steward.Core.Tests;
+
+public sealed class AddonCatalogueTests : IDisposable
+{
+    private readonly string _root = Directory.CreateTempSubdirectory("steward-catalogue-").FullName;
+
+    public void Dispose() => Directory.Delete(_root, recursive: true);
+
+    private static readonly IReadOnlyList<ManagedAddon> Configured =
+    [
+        new("steward", "Steward", "https://addon.hoobi.io/steward/", Features: ["sync"]),
+        new("hoobiscripts", "HoobiScripts", "https://addon.hoobi.io/hoobiscripts/", Features: ["hoobiscripts"]),
+        new("unflagged", "Unflagged", "https://addon.hoobi.io/unflagged/"),
+    ];
+
+    private static readonly HashSet<string> Features = new(["sync"], StringComparer.Ordinal);
+
+    private static readonly CatalogueAddon ActionBars = new(
+        "hoobiscripts-actionbars", "HoobiScripts_ActionBars", "https://addon.hoobi.io/hoobiscripts-actionbars/",
+        "HoobiScripts: ActionBars", "Steward", false, ["hoobiscripts.actionbars"]);
+
+    [Fact]
+    public void Visible_WithAServerList_UsesItAsIs()
+    {
+        IReadOnlyList<ManagedAddon> server = [ActionBars.ToManagedAddon()];
+
+        var visible = AddonCatalogue.Visible(server, Configured, new HashSet<string>());
+
+        Assert.Equal(["hoobiscripts-actionbars"], visible.Select(addon => addon.Id));
+    }
+
+    [Fact]
+    public void Visible_WithNoServerList_FiltersTheConfiguredListByFeature()
+    {
+        var visible = AddonCatalogue.Visible(null, Configured, Features);
+
+        Assert.Equal(["steward"], visible.Select(addon => addon.Id));
+    }
+
+    [Fact]
+    public void Visible_WithAnEmptyServerList_IsEmpty()
+    {
+        Assert.Empty(AddonCatalogue.Visible([], Configured, Features));
+    }
+
+    [Fact]
+    public void UpdatesWhileUnreachable_OnlyForAStewardSourcedAddonInTheServerList()
+    {
+        IReadOnlyList<ManagedAddon> server =
+        [
+            ActionBars.ToManagedAddon(),
+            new("bugsack", "BugSack", "https://api.hoobi.io/guild/api/addons/bugsack/", Source: "GitHub"),
+        ];
+
+        Assert.True(AddonCatalogue.UpdatesWhileUnreachable(server, "HoobiScripts-ActionBars"));
+        Assert.False(AddonCatalogue.UpdatesWhileUnreachable(server, "bugsack"));
+        Assert.False(AddonCatalogue.UpdatesWhileUnreachable(server, "steward"));
+        Assert.False(AddonCatalogue.UpdatesWhileUnreachable(null, "hoobiscripts-actionbars"));
+    }
+
+    [Fact]
+    public void Same_ComparesByValue()
+    {
+        Assert.True(AddonCatalogue.Same([ActionBars], [ActionBars with { Features = ["hoobiscripts.actionbars"] }]));
+        Assert.False(AddonCatalogue.Same([ActionBars], [ActionBars with { AutoInstall = true }]));
+        Assert.False(AddonCatalogue.Same(null, []));
+        Assert.True(AddonCatalogue.Same(null, null));
+    }
+
+    [Fact]
+    public void AddonCatalogue_RoundTripsThroughStateJson()
+    {
+        var path = Path.Combine(_root, "state.json");
+        var store = new AppStateStore([], path);
+
+        store.Save(store.Load() with { AddonCatalogue = [ActionBars] });
+
+        Assert.Contains("\"addon_catalogue\"", File.ReadAllText(path));
+        Assert.True(AddonCatalogue.Same([ActionBars], store.Load().AddonCatalogue));
+    }
+
+    [Fact]
+    public void AddonCatalogue_AbsentFromStateJson_LoadsAsUnknown()
+    {
+        var path = Path.Combine(_root, "state.json");
+        File.WriteAllText(path, """{"channels":{},"installs":{}}""");
+
+        Assert.Null(new AppStateStore([], path).Load().AddonCatalogue);
+    }
+}

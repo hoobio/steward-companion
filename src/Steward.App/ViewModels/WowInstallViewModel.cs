@@ -39,7 +39,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> _reconcileProviderAddons;
     private readonly Action<WowInstallViewModel, string> _unmanageProviderAddon;
     private readonly Func<Task<bool>> _confirmAdopt;
-    private readonly Func<CancellationToken, Task<bool>> _ensureAuthorized;
+    private readonly Func<ManagedAddon, CancellationToken, Task<bool>> _ensureAuthorized;
     private readonly Func<string, bool> _hasFeature;
     private readonly Action<string> _changeChannelRequested;
     private readonly Func<string, string, string, Task<bool>> _confirmUninstall;
@@ -64,7 +64,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         Func<Task<bool>> confirmAdopt,
         AddonUpdater updater,
         AppStateStore stateStore,
-        Func<CancellationToken, Task<bool>> ensureAuthorized,
+        Func<ManagedAddon, CancellationToken, Task<bool>> ensureAuthorized,
         Func<string, bool> hasFeature,
         Action<string> changeChannelRequested,
         Func<string, string, string, Task<bool>> confirmUninstall,
@@ -254,11 +254,12 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public void Dispose() => StopWatching();
 
-    public void SetIsAdmin(bool isAdmin)
+    public void SetIsAdmin(Func<string, bool> isAdmin)
     {
+        ArgumentNullException.ThrowIfNull(isAdmin);
         foreach (var row in AddonRows)
         {
-            row.IsAdmin = isAdmin;
+            row.IsAdmin = isAdmin(row.AddonId);
         }
     }
 
@@ -505,13 +506,12 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     private AddonRowViewModel CreateRow(ManagedAddon addon)
     {
-        var features = addon.Features;
         return new AddonRowViewModel(
             Install,
             addon,
             _updater,
             _stateStore,
-            async ct => features.Any(_hasFeature) && await _ensureAuthorized(ct).ConfigureAwait(true),
+            ct => _ensureAuthorized(addon, ct),
             _changeChannelRequested,
             ConfirmUninstallAsync,
             OutOfDateTipForToc,

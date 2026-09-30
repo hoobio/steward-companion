@@ -254,7 +254,7 @@ public sealed partial class MainViewModel
     private void SyncProviderRows(WowInstallViewModel install)
     {
         install.SyncAddons(AddonsFor(install.FlavourPath));
-        install.SetIsAdmin(IsAuthorized);
+        install.SetIsAdmin(IsAdminFor);
         install.ApplyStatus(_status, background: false);
         RebuildAddonChannels();
         RecomputeSummary();

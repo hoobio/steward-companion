@@ -242,6 +242,50 @@ public sealed class GigagrugClientTests
         Assert.Equal("https://api.example.com/guild/api/me", handler.RequestUrl);
     }
 
+    [Fact]
+    public async Task GetMeAsync_WithoutAddons_LeavesTheCatalogueUnknown()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.OK, """{"user":{"id":"1","name":"Hoobi"},"guilds":[]}""");
+
+        var me = await client.GetMeAsync(CancellationToken.None);
+
+        Assert.Null(me.Addons);
+    }
+
+    [Fact]
+    public async Task GetMeAsync_WithAddons_MapsEachEntryToAManagedAddon()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.OK,
+            """
+            {"user":{"id":"1","name":"Hoobi"},"guilds":[],"addons":[
+            {"id":"steward","name":"Steward","folder_name":"Steward","manifest_base_url":"https://addon.hoobi.io/steward/","source":"Steward","auto_install":true,"features":["steward_addon"]},
+            {"id":"hoobiscripts-actionbars","name":"HoobiScripts: ActionBars","folder_name":"HoobiScripts_ActionBars","manifest_base_url":"https://addon.hoobi.io/hoobiscripts-actionbars/","source":"Steward","auto_install":false,"features":["hoobiscripts.actionbars"]}]}
+            """);
+
+        var me = await client.GetMeAsync(CancellationToken.None);
+
+        var addons = me.Addons!.Select(addon => addon.ToManagedAddon()).ToList();
+        Assert.Equal(["steward", "hoobiscripts-actionbars"], addons.Select(addon => addon.Id));
+        Assert.Equal("HoobiScripts_ActionBars", addons[1].FolderName);
+        Assert.Equal("HoobiScripts: ActionBars", addons[1].DisplayName);
+        Assert.Equal("https://addon.hoobi.io/hoobiscripts-actionbars/", addons[1].ManifestBaseUrl);
+        Assert.True(addons[0].AutoInstall);
+        Assert.False(addons[1].AutoInstall);
+        Assert.Equal("Steward", addons[0].Source);
+        Assert.Equal(["steward_addon"], addons[0].Features);
+    }
+
+    [Fact]
+    public async Task GetMeAsync_WithAnEmptyAddonList_KeepsItEmptyRatherThanUnknown()
+    {
+        var (client, _) = ClientFor(HttpStatusCode.OK, """{"user":{"id":"1","name":"Hoobi"},"guilds":[],"addons":[]}""");
+
+        var me = await client.GetMeAsync(CancellationToken.None);
+
+        Assert.NotNull(me.Addons);
+        Assert.Empty(me.Addons);
+    }
+
     private const string MemberRosterBody =
         """
         {"people":[{"id":"1","name":"Hoobi","main_guid":"Player-4395-0A1B2C3D"}],

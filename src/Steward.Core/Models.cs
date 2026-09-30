@@ -24,6 +24,18 @@ public sealed record ManagedAddon(string Id, string FolderName, string? Manifest
         : new(new Uri(ManifestBaseUrl ?? throw new InvalidOperationException($"{Id} has no ManifestBaseUrl")), "icon.png");
 }
 
+public sealed record CatalogueAddon(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("folder_name")] string FolderName,
+    [property: JsonPropertyName("manifest_base_url")] string ManifestBaseUrl,
+    [property: JsonPropertyName("name")] string? Name = null,
+    [property: JsonPropertyName("source")] string Source = "Steward",
+    [property: JsonPropertyName("auto_install")] bool AutoInstall = false,
+    [property: JsonPropertyName("features")] IReadOnlyList<string>? Features = null)
+{
+    public ManagedAddon ToManagedAddon() => new(Id, FolderName, ManifestBaseUrl, AutoInstall, Name, Features, Source);
+}
+
 public sealed record ProviderAddonRecord(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("folder_name")] string FolderName,
@@ -140,7 +152,8 @@ public sealed record AdminGuild(
 
 public sealed record AdminMe(
     [property: JsonPropertyName("user")] AdminUser User,
-    [property: JsonPropertyName("guilds")] IReadOnlyList<AdminGuild> Guilds)
+    [property: JsonPropertyName("guilds")] IReadOnlyList<AdminGuild> Guilds,
+    [property: JsonPropertyName("addons")] IReadOnlyList<CatalogueAddon>? Addons = null)
 {
     public AdminGuild? ResolveGuild(string? guildId) =>
         Guilds.FirstOrDefault(guild => string.Equals(guild.Id, guildId, StringComparison.Ordinal))
@@ -287,6 +300,10 @@ public sealed record AppState(
 
     [JsonPropertyName("kept_local_addons")]
     public List<string> KeptLocalAddons { get; init; } = null!;
+
+    [JsonPropertyName("addon_catalogue")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<CatalogueAddon>? AddonCatalogue { get; init; }
 }
 
 public sealed record AppUpdateCheck(
@@ -307,6 +324,7 @@ public sealed record ProviderAddonsState(
 [JsonSerializable(typeof(AdminUser))]
 [JsonSerializable(typeof(AppState))]
 [JsonSerializable(typeof(Banner))]
+[JsonSerializable(typeof(IReadOnlyList<CatalogueAddon>))]
 [JsonSerializable(typeof(ChangelogBlock))]
 [JsonSerializable(typeof(CharacterPushRecord))]
 [JsonSerializable(typeof(CharacterSyncRequest))]

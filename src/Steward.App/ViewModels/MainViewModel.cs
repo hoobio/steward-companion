@@ -99,6 +99,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly HashSet<string> _features = new(StringComparer.Ordinal);
     private readonly HashSet<string> _guildFeatures = new(StringComparer.Ordinal);
     private IReadOnlyList<AdminGuild> _meGuilds = [];
+    private IReadOnlyList<ManagedAddon>? _addonCatalogue;
 
     private DispatcherQueueTimer? _recheckTimer;
     private CancellationTokenSource? _signInCts;
@@ -148,7 +149,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool? _pendingPush;
     private bool _isChecking;
     private bool _isAutoApplying;
-    private Task<bool>? _actionAuthorization;
+    private Task<AuthCheckResult>? _actionAuthorization;
     private bool _isLoadingState;
     private bool _isChoosingGuild;
     private bool _guildPromptDeferred;
@@ -185,6 +186,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Installs.CollectionChanged += (_, _) => RenumberInstalls();
 
         var state = stateStore.Load();
+        _addonCatalogue = state.AddonCatalogue?.Select(addon => addon.ToManagedAddon()).ToList();
         _isLoadingState = true;
         MinimizeToTray = state.MinimizeToTray;
         CloseToTray = state.CloseToTray;
@@ -431,8 +433,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool IsProfessionsOnlySync => HasSyncFeature && !HasStewardFeature;
 
-    private IReadOnlyList<ManagedAddon> VisibleAddons() =>
-        [.. _addons.Where(addon => addon.Features.Any(_features.Contains))];
+    private IReadOnlyList<ManagedAddon> VisibleAddons() => AddonCatalogue.Visible(_addonCatalogue, _addons, _features);
+
+    private bool IsAdminFor(string addonId) =>
+        IsAuthorized || (IsSignedIn && Failure == GateFailure.Unreachable && AddonCatalogue.UpdatesWhileUnreachable(_addonCatalogue, addonId));
+
+    private bool SetAddonCatalogue(IReadOnlyList<CatalogueAddon>? catalogue)
+    {
+        var state = _stateStore.Load();
+        if (AddonCatalogue.Same(state.AddonCatalogue, catalogue))
+        {
+            return false;
+        }
+
+        _stateStore.Save(state with { AddonCatalogue = catalogue?.ToList() });
+        _addonCatalogue = catalogue?.Select(addon => addon.ToManagedAddon()).ToList();
+        return true;
+    }
 
     public int InstallCount => Installs.Count;
 
@@ -1403,22 +1420,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task CheckAsync(bool background, CancellationToken cancellationToken, bool pullGuildRoster = true)
     {
         var succeeded = true;
-        try
+        var state = _stateStore.Load();
+        foreach (var addon in VisibleAddons())
         {
-            var state = _stateStore.Load();
-            foreach (var addon in VisibleAddons())
+            try
             {
                 var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken)
                     .ConfigureAwait(true);
                 _releases[addon.Id] = releases;
                 _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases, addon.Channels, addon.DefaultPreference);
             }
-        }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
-        {
-            _logger.Warn(ex, "Addon manifest check failed");
-            StatusMessage = ex.Message;
-            succeeded = false;
+            catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
+            {
+                _logger.Warn(ex, $"Addon manifest check failed for {addon.Id}");
+                StatusMessage = ex.Message;
+                succeeded = false;
+            }
         }
 
         _lastCheckFailed = !succeeded;
@@ -2624,7 +2641,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ConfirmAdoptAsync,
             _addonUpdater,
             _stateStore,
-            EnsureAuthorizedForActionAsync,
+            (addon, ct) => EnsureAuthorizedForAddonAsync(install.FlavourPath, addon, ct),
             _features.Contains,
             ShowChannelDialogFor,
             ConfirmUninstallAsync,
@@ -2635,7 +2652,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             IsAddedByUser = isAddedByUser,
         };
-        viewModel.SetIsAdmin(IsAuthorized);
+        viewModel.SetIsAdmin(IsAdminFor);
         viewModel.RowsChanged += OnInstallRowsChanged;
         Installs.Add(viewModel);
         RebuildAddonChannels();
@@ -2738,6 +2755,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     await CheckAppUpdateAsync().ConfigureAwait(true);
                 }
             }
+            else if (result == AuthCheckResult.Unreachable && _addonCatalogue is not null)
+            {
+                await CheckAsync(background: true, CancellationToken.None, pullGuildRoster: false).ConfigureAwait(true);
+            }
 
             await RestedXp.RefreshSessionAsync().ConfigureAwait(true);
             if (DateTimeOffset.Now - _lastGuideCheck >= _nextGuideCheckDue)
@@ -2771,13 +2792,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
     }
 
-    private Task<bool> EnsureAuthorizedForActionAsync(CancellationToken cancellationToken) =>
+    private async Task<bool> EnsureAuthorizedForActionAsync(CancellationToken cancellationToken) =>
+        await RecheckForActionAsync(cancellationToken).ConfigureAwait(true) == AuthCheckResult.Authorized;
+
+    private async Task<bool> EnsureAuthorizedForAddonAsync(string flavourPath, ManagedAddon addon, CancellationToken cancellationToken)
+    {
+        var result = await RecheckForActionAsync(cancellationToken).ConfigureAwait(true);
+        return AddonsFor(flavourPath).Any(visible => string.Equals(visible.Id, addon.Id, StringComparison.OrdinalIgnoreCase))
+            && (result == AuthCheckResult.Authorized
+                || (result == AuthCheckResult.Unreachable && AddonCatalogue.UpdatesWhileUnreachable(_addonCatalogue, addon.Id)));
+    }
+
+    private Task<AuthCheckResult> RecheckForActionAsync(CancellationToken cancellationToken) =>
         _actionAuthorization is { IsCompleted: false } inFlight
             ? inFlight
-            : _actionAuthorization = CheckAuthorizedForActionAsync(cancellationToken);
-
-    private async Task<bool> CheckAuthorizedForActionAsync(CancellationToken cancellationToken) =>
-        await RecheckAuthorizationAsync(cancellationToken).ConfigureAwait(true) == AuthCheckResult.Authorized;
+            : _actionAuthorization = RecheckAuthorizationAsync(cancellationToken);
 
     private async Task<AuthCheckResult> RecheckAuthorizationAsync(CancellationToken cancellationToken)
     {
@@ -2804,15 +2833,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _features.Clear();
             _features.UnionWith(features);
             UpdateGuildFeatures();
-            if (!previousFeatures.SetEquals(_features))
+            var catalogueChanged = SetAddonCatalogue(me.Addons);
+            if (catalogueChanged || !previousFeatures.SetEquals(_features))
             {
                 ReconcileFeatureGating();
-                if (previousFeatures.Contains(GigagrugClient.CurseForgeFeature) != HasCurseForgeFeature)
+            }
+
+            if (previousFeatures.Contains(GigagrugClient.CurseForgeFeature) != HasCurseForgeFeature)
+            {
+                foreach (var install in Installs)
                 {
-                    foreach (var install in Installs)
-                    {
-                        _ = install.RescanLocalAsync();
-                    }
+                    _ = install.RescanLocalAsync();
                 }
             }
 
@@ -2874,6 +2905,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var installs = Installs.Select(install => install.Install).ToList();
         var lastOfficerPayload = _lastOfficerPayload;
         _sessionService.ClearSession();
+        SetAddonCatalogue(null);
         ResetInstalls();
         IsAuthorized = false;
         IsGlobalAdmin = false;
@@ -2949,7 +2981,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         foreach (var install in Installs)
         {
-            install.SetIsAdmin(IsAuthorized);
+            install.SetIsAdmin(IsAdminFor);
         }
 
         ApplyChannelStatus();
