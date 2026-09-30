@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.3](https://github.com/hoobio/steward-companion/compare/v0.18.2...v0.18.3) (2026-09-30)
+
+
+### Bug Fixes
+
+* 🐛 show each RestedXP guide's cover on the Guides page ([4ffe005](https://github.com/hoobio/steward-companion/commit/4ffe00545b2f4cf30c1f5ca782022323172452a9))
+
 ## [0.18.2](https://github.com/hoobio/steward-companion/compare/v0.18.1...v0.18.2) (2026-09-30)
 
 
