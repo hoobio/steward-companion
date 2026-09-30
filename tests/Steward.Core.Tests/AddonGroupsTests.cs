@@ -5,7 +5,7 @@ public sealed class AddonGroupsTests
     private static readonly ManagedAddon Scripts = new("hoobiscripts", "HoobiScripts", "https://addon.hoobi.io/hoobiscripts/");
 
     private static readonly ManagedAddon ActionBars =
-        new("hoobiscripts-actionbars", "HoobiScripts_ActionBars", "https://addon.hoobi.io/hoobiscripts-actionbars/") { Parent = "HoobiScripts" };
+        new("hoobiscripts-actionbars", "HoobiScripts_ActionBars", "https://addon.hoobi.io/hoobiscripts-actionbars/") { Parent = "hoobiscripts" };
 
     private static readonly ManagedAddon Steward = new("steward", "Steward", "https://addon.hoobi.io/steward/");
 
@@ -30,6 +30,24 @@ public sealed class AddonGroupsTests
         var nested = new ManagedAddon("nested", "Nested", "https://addon.hoobi.io/nested/") { Parent = "hoobiscripts-actionbars" };
 
         Assert.DoesNotContain("nested", AddonGroups.FoldedInto([Scripts, ActionBars, nested]).Keys);
+    }
+
+    [Fact]
+    public void FoldedInto_ToleratesDuplicateIds()
+    {
+        var folded = AddonGroups.FoldedInto([Scripts, Scripts with { Name = "Again" }, ActionBars, ActionBars]);
+
+        Assert.Equal("hoobiscripts", Assert.Single(folded).Value);
+    }
+
+    [Theory]
+    [InlineData(true, false, false, true)]
+    [InlineData(false, false, false, false)]
+    [InlineData(true, true, false, false)]
+    [InlineData(true, false, true, false)]
+    public void IsRolledUp_SkipsAHiddenIgnoredOrUndistributableChild(bool distributable, bool hidden, bool ignored, bool expected)
+    {
+        Assert.Equal(expected, AddonGroups.IsRolledUp(distributable, hidden, ignored));
     }
 
     [Fact]

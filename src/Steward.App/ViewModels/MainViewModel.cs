@@ -306,7 +306,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string? SignInError { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(NotAuthorizedVisibility), nameof(SignInFailedVisibility), nameof(IsApiReachable), nameof(StatusActionVisibility), nameof(StatusActionLabel), nameof(ClientOutdatedVisibility))]
+    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(NotAuthorizedVisibility), nameof(SignInFailedVisibility), nameof(IsApiReachable), nameof(StatusActionVisibility), nameof(StatusActionLabel), nameof(ClientOutdatedVisibility), nameof(UpdateAllEnabled))]
+    [NotifyCanExecuteChangedFor(nameof(UpdateAllCommand), nameof(UpdateAllInstallsCommand))]
     public partial GateFailure Failure { get; set; }
 
     [ObservableProperty]

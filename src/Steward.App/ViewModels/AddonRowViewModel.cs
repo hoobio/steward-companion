@@ -228,9 +228,10 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             return;
         }
 
-        if (e.PropertyName == nameof(AvailableVersion))
+        if (e.PropertyName == nameof(AvailableVersion) && HasFailed)
         {
             HasFailed = false;
+            StatusMessage = null;
         }
 
         NotifyDerived();
@@ -311,13 +312,16 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
 
     public bool HasUpdateAvailable => AddonGroups.NeedsUpdate(
-        HasOwnUpdate, IsInstalled, _children.Where(child => child.IsDistributable).Select(child => (child.IsInstalled, child.HasOwnUpdate)));
+        HasOwnUpdate, IsInstalled, RolledUpChildren.Select(child => (child.IsInstalled, child.HasOwnUpdate)));
+
+    private IEnumerable<AddonRowViewModel> RolledUpChildren =>
+        _children.Where(child => AddonGroups.IsRolledUp(child.IsDistributable, child.IsHidden, child.IsIgnored));
 
     private bool HasOwnUpdate =>
         _status?.Release is { } release && Channel is not null && TocFile.HasUpdate(release.Version, InstalledVersion);
 
     private IEnumerable<AddonRowViewModel> ChildrenNeedingInstall =>
-        _children.Where(child => child.IsDistributable && child.HasOwnUpdate && !child.IsBusy);
+        RolledUpChildren.Where(child => child.HasOwnUpdate && !child.IsBusy);
 
     public bool IsPendingUpdate => !IsHidden && !IsIgnored && IsDistributable && State == AddonRowState.UpdateAvailable;
 
@@ -379,7 +383,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility ReleasedVisibility => When(ShowsReleased && !IsCompact && !IsStacked);
 
-    public Visibility CurrentVersionVisibility => When(State == AddonRowState.Current || (State == AddonRowState.UpdateAvailable && !HasOwnUpdate));
+    public Visibility CurrentVersionVisibility => When(State == AddonRowState.Current || (State is AddonRowState.UpdateAvailable or AddonRowState.Failed && !HasOwnUpdate));
 
     public Visibility NoReleasesVisibility => When(State == AddonRowState.NoReleases);
 
@@ -640,6 +644,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
         foreach (var child in ChildrenNeedingInstall.ToList())
         {
+            UpdateProgress = 0;
             await child.InstallSelfAsync().ConfigureAwait(true);
             if (child.HasFailed)
             {

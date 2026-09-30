@@ -4,12 +4,25 @@ public static class AddonGroups
 {
     public static IReadOnlyDictionary<string, string> FoldedInto(IReadOnlyList<ManagedAddon> visible)
     {
-        var parents = visible.Where(addon => addon.Parent is null)
-            .ToDictionary(addon => addon.Id, addon => addon.Id, StringComparer.OrdinalIgnoreCase);
-        return visible
-            .Where(addon => addon.Parent is { } parent && parents.ContainsKey(parent))
-            .ToDictionary(addon => addon.Id, addon => parents[addon.Parent!], StringComparer.OrdinalIgnoreCase);
+        var parents = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var addon in visible.Where(addon => addon.Parent is null))
+        {
+            parents.TryAdd(addon.Id, addon.Id);
+        }
+
+        var folded = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var addon in visible)
+        {
+            if (addon.Parent is { } parent && parents.TryGetValue(parent, out var parentId))
+            {
+                folded.TryAdd(addon.Id, parentId);
+            }
+        }
+
+        return folded;
     }
+
+    public static bool IsRolledUp(bool distributable, bool hidden, bool ignored) => distributable && !hidden && !ignored;
 
     public static string? StoredChannel(IReadOnlyDictionary<string, string> channels, ManagedAddon addon) =>
         addon.Parent is { } parent && channels.TryGetValue(parent, out var channel) ? channel : channels.GetValueOrDefault(addon.Id);

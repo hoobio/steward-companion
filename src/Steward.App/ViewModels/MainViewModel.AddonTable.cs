@@ -318,12 +318,12 @@ public sealed partial class MainViewModel
         Resort();
     }
 
-    private bool CanUpdateAll => IsAuthorized && SelectedUpdateCount > 0 && !IsAnyRowBusy;
+    private bool CanUpdateAll => IsAuthorized && Failure != GateFailure.ClientOutdated && SelectedUpdateCount > 0 && !IsAnyRowBusy;
 
     [RelayCommand(CanExecute = nameof(CanUpdateAll))]
     private Task UpdateAllAsync() => UpdatePendingAsync(SelectedInstall is { } install ? [install] : []);
 
-    private bool CanUpdateAllInstalls => IsAuthorized && TotalUpdateCount > 0 && !IsAnyRowBusy;
+    private bool CanUpdateAllInstalls => IsAuthorized && Failure != GateFailure.ClientOutdated && TotalUpdateCount > 0 && !IsAnyRowBusy;
 
     public bool UpdateAllEnabled => CanUpdateAllInstalls;
 
