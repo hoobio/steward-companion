@@ -50,6 +50,7 @@ public sealed class BannerTests
     [Theory]
     [InlineData("https://hoobi.io", true)]
     [InlineData("ms-windows-store://pdp/?productid=1", true)]
+    [InlineData("discord://-/users/176691404469174272", true)]
     [InlineData("http://hoobi.io", false)]
     [InlineData("javascript:alert(1)", false)]
     [InlineData(null, false)]

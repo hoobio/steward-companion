@@ -67,7 +67,7 @@ public enum BannerActionKind
 
 public static class BannerActions
 {
-    private static readonly string[] AllowedUrlSchemes = ["https", "ms-windows-store"];
+    private static readonly string[] AllowedUrlSchemes = ["https", "ms-windows-store", "discord"];
 
     // An unknown type hides its button only; the rest of the banner still renders.
     public static BannerActionKind Parse(string? type) => type switch
