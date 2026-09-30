@@ -181,7 +181,7 @@ public static partial class StewardGuidesAddon
     public static string Toc(string interfaceNumbers) => string.Join('\n',
         $"## Interface: {interfaceNumbers}",
         TitleLine,
-        "## Category: Hoobi",
+        "## Category: Steward",
         "## Notes: Purchased RestedXP guides, kept current by the Steward desktop app, with no settings of its own.",
         AuthorLine,
         @"## IconTexture: Interface\AddOns\StewardGuides\Icon",

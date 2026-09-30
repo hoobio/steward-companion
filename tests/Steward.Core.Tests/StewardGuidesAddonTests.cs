@@ -54,7 +54,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
 
         Assert.Equal($"## Interface: {Interface}", lines[0]);
         Assert.Equal("## Title: Steward Guides", lines[1]);
-        Assert.Equal("## Category: Hoobi", lines[2]);
+        Assert.Equal("## Category: Steward", lines[2]);
         Assert.Equal(
             "## Notes: Purchased RestedXP guides, kept current by the Steward desktop app, with no settings of its own.",
             lines[3]);
