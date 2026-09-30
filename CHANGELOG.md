@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/hoobio/steward-companion/compare/v0.18.0...v0.18.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* 🐛 open Settings and run the About update from a store_update banner ([5534097](https://github.com/hoobio/steward-companion/commit/5534097aeaee665629c9d05ec9741d04dc5db068))
+
 ## [0.18.0](https://github.com/hoobio/steward-companion/compare/v0.17.3...v0.18.0) (2026-09-30)
 
 
