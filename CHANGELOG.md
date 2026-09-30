@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.18.0](https://github.com/hoobio/steward-companion/compare/v0.17.3...v0.18.0) (2026-09-30)
+
+
+### Features
+
+* ✨ fold sub-addons into their parent's row with one rolled-up update ([6f26a56](https://github.com/hoobio/steward-companion/commit/6f26a56b255f167814ae8559439cc42d05927d01))
+* ✨ take the managed addon list from the Steward API ([df42438](https://github.com/hoobio/steward-companion/commit/df424381573a5cb9fd55cba1b5d361c987e51763))
+
+
+### Bug Fixes
+
+* 🐛 centre the install picker label ([5107779](https://github.com/hoobio/steward-companion/commit/51077795b0f76ffb4520f28110fbcd21bc3dddd8))
+* 🐛 group the generated StewardGuides addon under the Steward category ([1cfc9f4](https://github.com/hoobio/steward-companion/commit/1cfc9f4f9b33292e47242afde1e780f5eccab707))
+* 🐛 keep server-listed addons out of the Local scan and refuse updates while outdated ([a92f067](https://github.com/hoobio/steward-companion/commit/a92f067bcf16907c189bbdc8afb4e217bbbc0826))
+* 🐛 open discord: links from banner actions ([1baa123](https://github.com/hoobio/steward-companion/commit/1baa123da63b9b69522143a84aae0aa2a346649e))
+* 🐛 skip hidden or ignored sub-addons in the rollup and tolerate duplicate ids ([4d24401](https://github.com/hoobio/steward-companion/commit/4d2440164be480697e92e43866593263f0d7b9c4))
+
 ## [0.17.3](https://github.com/hoobio/steward-companion/compare/v0.17.2...v0.17.3) (2026-09-29)
 
 
