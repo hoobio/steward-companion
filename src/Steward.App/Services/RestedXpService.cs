@@ -199,14 +199,13 @@ public sealed class RestedXpService : IDisposable
         try
         {
             Products = [.. (await _client.GetProductsAsync(session, cancellationToken).ConfigureAwait(true)).Select(p => p.ProductName)];
+            Timestamps = await _client.GetTimestampsAsync(session, cancellationToken).ConfigureAwait(true);
         }
         catch (RestedXpSessionExpiredException)
         {
             SignOut();
             throw;
         }
-
-        Timestamps = await _client.GetTimestampsAsync(cancellationToken).ConfigureAwait(true);
     }
 
     public bool IsAllowed(WowInstall install, string productName)

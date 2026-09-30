@@ -147,10 +147,15 @@ public sealed class RestedXpClient
             .ConfigureAwait(false) ?? [];
     }
 
-    public async Task<IReadOnlyDictionary<string, long>> GetTimestampsAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyDictionary<string, long>> GetTimestampsAsync(RestedXpSession session, CancellationToken cancellationToken)
     {
-        using var request = Build(HttpMethod.Get, $"{_guidesBaseUrl}/addon/get-all-timestamps", null);
+        using var request = Build(HttpMethod.Get, $"{_guidesBaseUrl}/addon/get-all-timestamps", session);
         using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode is HttpStatusCode.Unauthorized)
+        {
+            throw new RestedXpSessionExpiredException();
+        }
+
         response.EnsureSuccessStatusCode();
 
         var timestamps = await response.Content
