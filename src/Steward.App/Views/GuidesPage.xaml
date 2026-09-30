@@ -17,6 +17,7 @@
                 ToolTipService.ToolTip="{x:Bind RowTooltip}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -34,23 +35,40 @@
                     IsEnabled="{x:Bind IsAllowed}"
                     IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
 
-                <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind ProductName}" FontSize="13.5" TextWrapping="NoWrap" Foreground="{x:Bind NameBrush}" />
+                <Border
+                    Grid.Column="1"
+                    Width="36"
+                    Height="36"
+                    VerticalAlignment="Center"
+                    CornerRadius="6"
+                    Background="{ThemeResource ChipBrush}"
+                    Opacity="{x:Bind ImageOpacity}">
+                    <Border CornerRadius="6">
+                        <Border.Background>
+                            <ImageBrush ImageSource="{x:Bind Image}" Stretch="UniformToFill" />
+                        </Border.Background>
+                    </Border>
+                </Border>
+
+                <StackPanel Grid.Column="2" Spacing="1" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ProductName}" FontSize="13.5" TextWrapping="NoWrap" TextLineBounds="TrimToCapHeight" Foreground="{x:Bind NameBrush}" />
                     <TextBlock
                         Text="{x:Bind UpdatedText}"
                         FontSize="12"
+                        TextLineBounds="TrimToBaseline"
                         Foreground="{x:Bind UpdatedBrush}"
                         Visibility="{x:Bind UpdatedVisibility, Mode=OneWay}" />
                     <TextBlock
                         Text="{x:Bind MessageText, Mode=OneWay}"
                         FontSize="12"
+                        TextLineBounds="TrimToBaseline"
                         TextWrapping="Wrap"
                         Foreground="{x:Bind MessageBrush, Mode=OneWay}"
                         Visibility="{x:Bind MessageVisibility, Mode=OneWay}" />
                 </StackPanel>
 
                 <Border
-                    Grid.Column="2"
+                    Grid.Column="3"
                     VerticalAlignment="Center"
                     CornerRadius="4"
                     Padding="9,3"
@@ -63,7 +81,7 @@
                 </Border>
 
                 <Button
-                    Grid.Column="3"
+                    Grid.Column="4"
                     Height="32"
                     Content="Retry"
                     VerticalAlignment="Center"
@@ -72,7 +90,7 @@
 
                 <Grid
                     Grid.Row="1"
-                    Grid.ColumnSpan="4"
+                    Grid.ColumnSpan="5"
                     Margin="0,10,0,0"
                     Visibility="{x:Bind ProgressVisibility, Mode=OneWay}">
                     <Border Height="3" CornerRadius="2" Background="{ThemeResource ChipBrush}" />

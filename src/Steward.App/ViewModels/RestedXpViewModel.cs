@@ -46,16 +46,21 @@ public sealed partial class GuideRowViewModel : ObservableObject
     private readonly RestedXpInstallViewModel _card;
     private readonly DateTimeOffset? _updatedAt;
 
-    public GuideRowViewModel(RestedXpInstallViewModel card, string productName, DateTimeOffset? updatedAt, bool isFirst, bool isAllowed)
+    public GuideRowViewModel(RestedXpInstallViewModel card, string productName, Uri? imageUri, DateTimeOffset? updatedAt, bool isFirst, bool isAllowed)
     {
         _card = card;
         _updatedAt = updatedAt;
         ProductName = productName;
+        Image = imageUri is null ? null : ManifestIcon.For($"restedxp-{productName}", imageUri);
         IsFirst = isFirst;
         IsAllowed = isAllowed;
     }
 
     public string ProductName { get; }
+
+    public ImageSource? Image { get; }
+
+    public double ImageOpacity => IsAllowed ? 1 : 0.4;
 
     public bool IsFirst { get; }
 
@@ -223,11 +228,13 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
         IReadOnlyList<string> products,
         IReadOnlyCollection<string> selected,
         IReadOnlyDictionary<string, long> timestamps,
+        IReadOnlyDictionary<string, Uri> images,
         Func<string, bool> isAllowed)
     {
         ArgumentNullException.ThrowIfNull(products);
         ArgumentNullException.ThrowIfNull(selected);
         ArgumentNullException.ThrowIfNull(timestamps);
+        ArgumentNullException.ThrowIfNull(images);
         ArgumentNullException.ThrowIfNull(isAllowed);
 
         _isLoading = true;
@@ -238,7 +245,7 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
                 ? DateTimeOffset.FromUnixTimeMilliseconds(timestamp)
                 : (DateTimeOffset?)null;
             var allowed = isAllowed(product);
-            Rows.Add(new GuideRowViewModel(this, product, updatedAt, Rows.Count == 0, allowed)
+            Rows.Add(new GuideRowViewModel(this, product, images.GetValueOrDefault(product), updatedAt, Rows.Count == 0, allowed)
             {
                 IsSelected = allowed && selected.Contains(product, StringComparer.Ordinal),
             });
@@ -501,6 +508,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
             _service.Products,
             [.. _service.GuideChoices(card.Install)],
             _service.Timestamps,
+            _service.ProductImages,
             product => _service.IsAllowed(card.Install, product));
         card.WrittenAt = _service.WrittenAt(card.Install);
     }
@@ -601,7 +609,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         ErrorMessage = null;
         foreach (var card in Guides)
         {
-            card.SetProducts([], [], _service.Timestamps, _ => false);
+            card.SetProducts([], [], _service.Timestamps, _service.ProductImages, _ => false);
             card.IsSessionActive = false;
         }
     }

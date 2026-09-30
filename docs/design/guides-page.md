@@ -24,7 +24,7 @@ The layout follows the approved Sync page pattern in `docs/design/mockups/page-h
 6. In the card, one row per owned product: checkbox, product name at 13.5px, "Updated {relative time}" in dim beneath, and a status pill at the right on each kept row. With no products, the "No guides on this account" row stands in their place.
 7. The card's last row: a document glyph, "Guides.lua · written {relative time}" (the file name in mono, the time from the install's recorded `restedxp_guides_generation`, "not written yet" when there is none), the full path of `Interface\AddOns\StewardGuides\Guides.lua` as the row's tooltip, and `Write again` with its busy ring at the right.
 
-`productName` from `/user-products` is the row's name, and the relative time comes from that product's entry in `/addon/get-all-timestamps`.
+`productName` from `/user-products` is the row's name, and the relative time comes from that product's entry in `/addon/get-all-timestamps`. `productImageUrl` from the same response is the row's 36px cover beside the checkbox (6px corners, dimmed on a row for another client), cached through `ManifestIcon` in `%LocalAppData%\Steward\icons` under `restedxp-{productName}` and refetched once per run.
 
 ## Several products per install
 

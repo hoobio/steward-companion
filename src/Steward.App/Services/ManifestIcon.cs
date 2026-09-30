@@ -19,8 +19,16 @@ public static class ManifestIcon
     {
         ArgumentNullException.ThrowIfNull(addon);
 
-        var path = Path.Combine(CacheFolder, $"{addon.Id}.png");
-        Refreshes.GetOrAdd(addon.Id, _ => Task.Run(() => RefreshAsync(addon.IconUri, path)));
+        return For(addon.Id, addon.IconUri);
+    }
+
+    public static ImageSource For(string cacheKey, Uri source)
+    {
+        ArgumentNullException.ThrowIfNull(cacheKey);
+        ArgumentNullException.ThrowIfNull(source);
+
+        var path = Path.Combine(CacheFolder, string.Join('_', cacheKey.Split(Path.GetInvalidFileNameChars())) + ".png");
+        Refreshes.GetOrAdd(cacheKey, _ => Task.Run(() => RefreshAsync(source, path)));
 
         try
         {
@@ -30,7 +38,7 @@ public static class ManifestIcon
         }
         catch (IOException)
         {
-            return new BitmapImage(addon.IconUri);
+            return new BitmapImage(source);
         }
     }
 

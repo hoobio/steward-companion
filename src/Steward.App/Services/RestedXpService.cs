@@ -59,6 +59,8 @@ public sealed class RestedXpService : IDisposable
 
     public IReadOnlyList<string> Products { get; private set; } = [];
 
+    public IReadOnlyDictionary<string, Uri> ProductImages { get; private set; } = new Dictionary<string, Uri>();
+
     public IReadOnlyDictionary<string, long> Timestamps { get; private set; } = new Dictionary<string, long>();
 
     public bool IsSignedIn => Session is not null;
@@ -151,6 +153,7 @@ public sealed class RestedXpService : IDisposable
         _pendingPassword = null;
         BattleTag = null;
         Products = [];
+        ProductImages = new Dictionary<string, Uri>();
         _lastFailure.Clear();
         _stateStore.Save(_stateStore.Load() with { EncryptedRestedXpSession = null });
     }
@@ -198,7 +201,12 @@ public sealed class RestedXpService : IDisposable
 
         try
         {
-            Products = [.. (await _client.GetProductsAsync(session, cancellationToken).ConfigureAwait(true)).Select(p => p.ProductName)];
+            var products = await _client.GetProductsAsync(session, cancellationToken).ConfigureAwait(true);
+            Products = [.. products.Select(p => p.ProductName)];
+            ProductImages = products
+                .Where(p => Uri.TryCreate(p.ProductImageUrl, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps)
+                .DistinctBy(p => p.ProductName, StringComparer.Ordinal)
+                .ToDictionary(p => p.ProductName, p => new Uri(p.ProductImageUrl!), StringComparer.Ordinal);
             Timestamps = await _client.GetTimestampsAsync(session, cancellationToken).ConfigureAwait(true);
         }
         catch (RestedXpSessionExpiredException)

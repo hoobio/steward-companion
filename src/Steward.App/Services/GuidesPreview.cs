@@ -63,6 +63,7 @@ public static class GuidesPreview
             [.. products.Select(entry => entry.Product)],
             selected,
             timestamps,
+            new Dictionary<string, Uri>(),
             product => !string.Equals(product, WarWithin, StringComparison.Ordinal));
 
         var signedIn = !OpensDialog(scenario) && scenario != "expired";
