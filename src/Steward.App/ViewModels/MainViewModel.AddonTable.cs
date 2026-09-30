@@ -332,7 +332,7 @@ public sealed partial class MainViewModel
 
     private async Task UpdatePendingAsync(IReadOnlyList<WowInstallViewModel> installs)
     {
-        await RunBoundedAsync(installs.SelectMany(install => install.AddonRows).Where(row => row.IsPendingUpdate).ToList()
+        await RunBoundedAsync(installs.SelectMany(install => install.TopRows).Where(row => row.IsPendingUpdate).ToList()
             .Select(row => (Func<Task>)(() => row.UpdateCommand.CanExecute(null) ? row.UpdateCommand.ExecuteAsync(null) : Task.CompletedTask)))
             .ConfigureAwait(true);
 

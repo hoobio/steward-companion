@@ -100,8 +100,21 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(HiddenPillVisibility),
         nameof(RestedXpSignInVisibility),
         nameof(FolderLine),
+        nameof(FolderTip),
         nameof(IsDistributable),
     ];
+
+    private static readonly string[] ChildTriggers =
+    [
+        nameof(IsBusy),
+        nameof(InstalledVersion),
+        nameof(AvailableVersion),
+        nameof(Channel),
+        nameof(HasFailed),
+        nameof(UpdateProgress),
+    ];
+
+    private IReadOnlyList<AddonRowViewModel> _children = [];
 
     private readonly WowInstall _install;
     private readonly ManagedAddon _addon;
@@ -178,9 +191,52 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public string FolderName => _addon.FolderName;
 
-    public string FolderLine => (_addon.Folders ?? _status?.Release?.Folders ?? []).Union(Record?.Folders ?? [], StringComparer.OrdinalIgnoreCase).Count(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)) is var others and > 0
+    public string FolderLine => (_addon.Folders ?? _status?.Release?.Folders ?? []).Union(Record?.Folders ?? [], StringComparer.OrdinalIgnoreCase).Count(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)) + _children.Count is var others and > 0
         ? $"{FolderName} + {others} folder{(others == 1 ? "" : "s")}"
         : FolderName;
+
+    public string? FolderTip => _children.Count == 0 ? null : $"Includes {string.Join(", ", _children.Select(child => $"{child.DisplayName} ({child.FolderName})"))}";
+
+    public bool IsFolded { get; set; }
+
+    public void SetChildren(IReadOnlyList<AddonRowViewModel> children)
+    {
+        foreach (var child in _children)
+        {
+            child.PropertyChanged -= OnChildPropertyChanged;
+        }
+
+        _children = children;
+        foreach (var child in _children)
+        {
+            child.PropertyChanged += OnChildPropertyChanged;
+        }
+
+        NotifyDerived();
+    }
+
+    private void OnChildPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (sender is not AddonRowViewModel child || e.PropertyName is null || !ChildTriggers.Contains(e.PropertyName))
+        {
+            return;
+        }
+
+        if (e.PropertyName == nameof(UpdateProgress) && child.IsBusy)
+        {
+            UpdateProgress = child.UpdateProgress;
+            return;
+        }
+
+        if (e.PropertyName == nameof(AvailableVersion))
+        {
+            HasFailed = false;
+        }
+
+        NotifyDerived();
+    }
+
+    private bool IsGroupBusy => IsBusy || _children.Any(child => child.IsBusy);
 
     public bool IsDistributable => _status?.Release?.Distributable ?? true;
 
@@ -254,8 +310,14 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public bool CanAutoApply => IsAdmin && IsDistributable
         && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
 
-    public bool HasUpdateAvailable =>
+    public bool HasUpdateAvailable => AddonGroups.NeedsUpdate(
+        HasOwnUpdate, IsInstalled, _children.Where(child => child.IsDistributable).Select(child => (child.IsInstalled, child.HasOwnUpdate)));
+
+    private bool HasOwnUpdate =>
         _status?.Release is { } release && Channel is not null && TocFile.HasUpdate(release.Version, InstalledVersion);
+
+    private IEnumerable<AddonRowViewModel> ChildrenNeedingInstall =>
+        _children.Where(child => child.IsDistributable && child.HasOwnUpdate && !child.IsBusy);
 
     public bool IsPendingUpdate => !IsHidden && !IsIgnored && IsDistributable && State == AddonRowState.UpdateAvailable;
 
@@ -269,7 +331,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public AddonRowState State => true switch
     {
-        _ when IsBusy => AddonRowState.Updating,
+        _ when IsGroupBusy => AddonRowState.Updating,
         _ when HasFailed => AddonRowState.Failed,
         _ when HasNoReleases => AddonRowState.NoReleases,
         _ when !IsInstalled => AddonRowState.Missing,
@@ -279,7 +341,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public string ActionLabel => true switch
     {
-        _ when IsBusy => "Updating",
+        _ when IsGroupBusy => "Updating",
         _ when !IsDistributable => $"{(State == AddonRowState.Missing ? "Get" : "Update")} on {Source}",
         _ when State == AddonRowState.Missing => "Install",
         _ when RecordedChannelDiffers && Channel is { } channel => $"Switch to {channel}",
@@ -291,7 +353,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public string ProgressText => UpdateProgress.ToString("P0", CultureInfo.CurrentCulture);
 
-    public string UpdatingLine => $"Installing {_status?.Release?.Version}, verifying download";
+    public string UpdatingLine => !IsBusy && _children.FirstOrDefault(child => child.IsBusy) is { } child
+        ? $"Installing {child.DisplayName} {child._status?.Release?.Version}, verifying download"
+        : $"Installing {_status?.Release?.Version}, verifying download";
 
     public string ReleasedText => _status?.Release is { } release
         ? $"Released {RelativeTime.Describe(release.Released, DateTimeOffset.Now)}"
@@ -301,7 +365,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         IsIgnoredUpdate ? "TextFillColorTertiaryBrush" : "AvailableVersionBrush"];
 
     private bool ShowsVersionPair =>
-        State is AddonRowState.UpdateAvailable or AddonRowState.Missing || (State == AddonRowState.Failed && HasUpdateAvailable);
+        State == AddonRowState.Missing || (State is AddonRowState.UpdateAvailable or AddonRowState.Failed && HasOwnUpdate);
 
     public Visibility VersionPairVisibility => When(ShowsVersionPair);
 
@@ -311,11 +375,11 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility StackedVersionPairVisibility => When(IsStacked);
 
-    private bool ShowsReleased => State is AddonRowState.UpdateAvailable or AddonRowState.Missing && !IsIgnoredUpdate;
+    private bool ShowsReleased => (State == AddonRowState.Missing || (State == AddonRowState.UpdateAvailable && HasOwnUpdate)) && !IsIgnoredUpdate;
 
     public Visibility ReleasedVisibility => When(ShowsReleased && !IsCompact && !IsStacked);
 
-    public Visibility CurrentVersionVisibility => When(State == AddonRowState.Current);
+    public Visibility CurrentVersionVisibility => When(State == AddonRowState.Current || (State == AddonRowState.UpdateAvailable && !HasOwnUpdate));
 
     public Visibility NoReleasesVisibility => When(State == AddonRowState.NoReleases);
 
@@ -340,7 +404,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public AddonRowStatus Status => true switch
     {
-        _ when IsBusy => AddonRowStatus.Updating,
+        _ when IsGroupBusy => AddonRowStatus.Updating,
         _ when HasFailed => AddonRowStatus.Failed,
         _ when IsHidden => AddonRowStatus.Hidden,
         _ when IsIgnored && State is AddonRowState.UpdateAvailable or AddonRowState.Current => AddonRowStatus.Ignored,
@@ -385,10 +449,11 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility IgnoredUpdateVisibility => When(Status == AddonRowStatus.Ignored && IsIgnoredUpdate);
 
-    public IReadOnlyList<ChangelogBlock> Changelog => Changelogs.For(_status?.Release);
+    public IReadOnlyList<ChangelogBlock> Changelog =>
+        Changelogs.Combine(_status?.Release, _children.Select(child => (child.DisplayName, child._status?.Release)));
 
     public Visibility ChangelogVisibility =>
-        When(Changelog.Count > 0 && (VersionPairVisibility == Visibility.Visible || State == AddonRowState.Current));
+        When(Changelog.Count > 0 && (VersionPairVisibility == Visibility.Visible || CurrentVersionVisibility == Visibility.Visible));
 
     public string ChangelogTitle => $"{DisplayName} {AvailableVersion}";
 
@@ -433,7 +498,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility UninstallErrorVisibility => When(UninstallError is not null && State != AddonRowState.Failed);
 
-    public Visibility UninstallVisibility => When(IsInstalled && !IsBusy && !_addon.AutoInstall);
+    public Visibility UninstallVisibility => When(IsInstalled && !IsGroupBusy && !_addon.AutoInstall);
 
     private bool CanIgnoreOrHide => !_addon.AutoInstall;
 
@@ -552,12 +617,43 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     private bool CanUpdate => !IsHidden && (!IsIgnored || !IsInstalled) && IsAdmin && HasUpdateAvailable;
 
     [RelayCommand(CanExecute = nameof(CanUpdate))]
-    private Task UpdateAsync() => RunInstallAsync();
+    private Task UpdateAsync() => RunGroupInstallAsync(HasOwnUpdate);
 
     [RelayCommand]
-    private Task ReinstallAsync() => RunInstallAsync();
+    private Task ReinstallAsync() => RunGroupInstallAsync(includeSelf: true);
 
-    private async Task RunInstallAsync()
+    private async Task RunGroupInstallAsync(bool includeSelf)
+    {
+        if (includeSelf)
+        {
+            await InstallSelfAsync().ConfigureAwait(true);
+            if (HasFailed || !IsInstalled)
+            {
+                return;
+            }
+        }
+        else if (HasFailed)
+        {
+            HasFailed = false;
+            StatusMessage = null;
+        }
+
+        foreach (var child in ChildrenNeedingInstall.ToList())
+        {
+            await child.InstallSelfAsync().ConfigureAwait(true);
+            if (child.HasFailed)
+            {
+                HasFailed = true;
+                StatusMessage = $"{child.DisplayName}: {child.StatusMessage}";
+                return;
+            }
+
+            ReloadPendingSince = child.ReloadPendingSince;
+            NeedsReload = child.NeedsReload;
+        }
+    }
+
+    private async Task InstallSelfAsync()
     {
         var release = _status?.Release;
         var channel = Channel;
@@ -622,30 +718,41 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public Task EnsureInGameIconAsync() =>
         IsBusy || IsHidden || !IsInstalled ? Task.CompletedTask : InGameIcon.EnsureAsync(_updater, _install.AddOnsPath, _addon, _logger);
 
-    private bool CanUninstall => !IsBusy;
+    private bool CanUninstall => !IsGroupBusy;
+
+    private IEnumerable<string> OwnFolders() =>
+        AddonUpdater.InstallFolders(_addon, _status?.Release).Union(Record?.Folders ?? [], StringComparer.OrdinalIgnoreCase);
 
     [RelayCommand(CanExecute = nameof(CanUninstall))]
     private async Task UninstallAsync()
     {
         try
         {
-            var folders = AddonUpdater.InstallFolders(_addon, _status?.Release).Union(Record?.Folders ?? [], StringComparer.OrdinalIgnoreCase).OrderBy(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)).ToList();
+            var members = _children.Where(child => child.IsInstalled).Prepend(this).ToList();
+            var folders = members.SelectMany(member => member.OwnFolders()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)).ToList();
             var described = folders.Count == 1 ? folders[0] : $"{folders[0]} and {folders.Count - 1} more folder{(folders.Count == 2 ? "" : "s")}";
-            if (!await _confirmUninstall(DisplayName, described).ConfigureAwait(true) || IsBusy)
+            if (!await _confirmUninstall(DisplayName, described).ConfigureAwait(true) || IsGroupBusy)
             {
                 return;
             }
 
             AddonUpdater.Uninstall(_install.AddOnsPath, folders);
             var state = _stateStore.Load();
-            state.Installs.Remove(Key);
-            state.IgnoredAddons.RemoveAll(key => string.Equals(key, Key, StringComparison.OrdinalIgnoreCase));
+            foreach (var member in members)
+            {
+                state.Installs.Remove(member.Key);
+                state.IgnoredAddons.RemoveAll(key => string.Equals(key, member.Key, StringComparison.OrdinalIgnoreCase));
+            }
+
             _stateStore.Save(state);
-            IsIgnored = false;
-            NeedsReload = false;
-            HasFailed = false;
-            UninstallError = null;
-            RefreshInstalledVersion();
+            foreach (var member in members)
+            {
+                member.IsIgnored = false;
+                member.NeedsReload = false;
+                member.HasFailed = false;
+                member.UninstallError = null;
+                member.RefreshInstalledVersion();
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {

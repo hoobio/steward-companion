@@ -154,7 +154,9 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<LocalAddonRowViewModel> LocalRows { get; } = [];
 
-    public IEnumerable<IAddonTableRow> TableRows => AddonRows.Cast<IAddonTableRow>().Concat(LocalRows);
+    public IEnumerable<AddonRowViewModel> TopRows => AddonRows.Where(row => !row.IsFolded);
+
+    public IEnumerable<IAddonTableRow> TableRows => TopRows.Cast<IAddonTableRow>().Concat(LocalRows);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AddedByYouVisibility))]
@@ -178,7 +180,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public Visibility SelectionIndicatorVisibility => When(IsSelected);
 
-    public int UpdateCount => AddonRows.Count(row => row.IsPendingUpdate);
+    public int UpdateCount => TopRows.Count(row => row.IsPendingUpdate);
 
     public int HiddenCount => TableRows.Count(row => row.IsHidden);
 
@@ -284,6 +286,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         foreach (var gone in AddonRows.Where(row => !wantedIds.Contains(row.AddonId)).ToList())
         {
             gone.PropertyChanged -= OnRowPropertyChanged;
+            gone.SetChildren([]);
             AddonRows.Remove(gone);
         }
 
@@ -301,6 +304,13 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             {
                 AddonRows.Move(AddonRows.IndexOf(existing), index);
             }
+        }
+
+        var foldedInto = AddonGroups.FoldedInto(addons);
+        foreach (var row in AddonRows)
+        {
+            row.IsFolded = foldedInto.ContainsKey(row.AddonId);
+            row.SetChildren([.. AddonRows.Where(child => foldedInto.TryGetValue(child.AddonId, out var parent) && string.Equals(parent, row.AddonId, StringComparison.OrdinalIgnoreCase))]);
         }
 
         RaiseRowsChanged();

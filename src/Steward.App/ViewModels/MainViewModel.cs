@@ -1431,7 +1431,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken)
                     .ConfigureAwait(true);
                 _releases[addon.Id] = releases;
-                _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases, addon.Channels, addon.DefaultPreference);
+                _status[addon.Id] = AddonChannelStatus.Resolve(AddonGroups.StoredChannel(state.Channels, addon), releases, addon.Channels, addon.DefaultPreference);
             }
             catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
             {
@@ -2433,7 +2433,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isAutoApplying = true;
         try
         {
-            await RunBoundedAsync(Installs.ToList().SelectMany(install => install.AddonRows.ToList().Select(row => (Func<Task>)(() =>
+            await RunBoundedAsync(Installs.ToList().SelectMany(install => install.TopRows.ToList().Select(row => (Func<Task>)(() =>
                 (mode != AutoUpdateMode.OutOfGame || !install.IsClientRunning)
                 && row.CanAutoApply
                 && !AppStateStore.IsExcludedFromUpdates(state, install.FlavourPath, row.AddonId)
@@ -2626,6 +2626,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         _status[addonId] = AddonChannelStatus.Resolve(channel, releases, addon.Channels, addon.DefaultPreference);
+        foreach (var child in AllVisibleAddons().Where(child => string.Equals(child.Parent, addonId, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (_releases.TryGetValue(child.Id, out var childReleases))
+            {
+                _status[child.Id] = AddonChannelStatus.Resolve(channel, childReleases, child.Channels, child.DefaultPreference);
+            }
+        }
+
         ApplyStatus(background: false);
         RecomputeSummary();
     }

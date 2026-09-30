@@ -19,6 +19,8 @@ public sealed record ManagedAddon(string Id, string FolderName, string? Manifest
 
     public string? Website { get; init; }
 
+    public string? Parent { get; init; }
+
     public Uri IconUri => IconUrl is not null
         ? new Uri(IconUrl)
         : new(new Uri(ManifestBaseUrl ?? throw new InvalidOperationException($"{Id} has no ManifestBaseUrl")), "icon.png");
@@ -31,9 +33,11 @@ public sealed record CatalogueAddon(
     [property: JsonPropertyName("name")] string? Name = null,
     [property: JsonPropertyName("source")] string? Source = null,
     [property: JsonPropertyName("auto_install")] bool? AutoInstall = null,
-    [property: JsonPropertyName("features")] IReadOnlyList<string>? Features = null)
+    [property: JsonPropertyName("features")] IReadOnlyList<string>? Features = null,
+    [property: JsonPropertyName("parent")] string? Parent = null)
 {
-    public ManagedAddon ToManagedAddon() => new(Id, FolderName, ManifestBaseUrl, AutoInstall ?? false, Name, Features, Source ?? AddonCatalogue.StewardSource);
+    public ManagedAddon ToManagedAddon() =>
+        new(Id, FolderName, ManifestBaseUrl, AutoInstall ?? false, Name, Features, Source ?? AddonCatalogue.StewardSource) { Parent = Parent };
 }
 
 public sealed record ProviderAddonRecord(
