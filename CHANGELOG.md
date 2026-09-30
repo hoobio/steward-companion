@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.2](https://github.com/hoobio/steward-companion/compare/v0.18.1...v0.18.2) (2026-09-30)
+
+
+### Bug Fixes
+
+* 🐛 send the RestedXP session cookie on the guide timestamps check ([4bee8ae](https://github.com/hoobio/steward-companion/commit/4bee8aea55945e62ee2b85f9f32512e75e2690e2))
+
 ## [0.18.1](https://github.com/hoobio/steward-companion/compare/v0.18.0...v0.18.1) (2026-09-30)
 
 
