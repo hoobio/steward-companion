@@ -179,7 +179,7 @@
                             Visibility="{x:Bind StackedVersionPairVisibility, Mode=OneWay}">
                             <Run Text="{x:Bind NotInstalledRunText, Mode=OneWay}" /><Run Text="{x:Bind InstalledRunText, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" />
                         </TextBlock>
-                        <Grid HorizontalAlignment="Left" ColumnSpacing="4">
+                        <Grid ColumnSpacing="4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -198,6 +198,7 @@
                             <TextBlock
                                 FontSize="12"
                                 TextWrapping="NoWrap"
+                                TextTrimming="CharacterEllipsis"
                                 VerticalAlignment="Center"
                                 SizeChanged="OnVersionSizeChanged"
                                 Foreground="{ThemeResource TextFillColorTertiaryBrush}"
