@@ -491,13 +491,13 @@ public sealed partial class MainViewModel
             }
         }
 
-        if (string.IsNullOrWhiteSpace(label))
+        if (InstallNames.Clean(label) is { } cleaned)
         {
-            state.InstallLabels.Remove(flavourPath);
+            state.InstallLabels[flavourPath] = cleaned;
         }
         else
         {
-            state.InstallLabels[flavourPath] = label.Trim();
+            state.InstallLabels.Remove(flavourPath);
         }
 
         if (string.Equals(DetectedProduct(flavourPath), productCode, StringComparison.Ordinal))

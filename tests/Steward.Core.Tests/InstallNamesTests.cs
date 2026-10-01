@@ -20,6 +20,15 @@ public sealed class InstallNamesTests
     public void Resolve_KeepsALabelEqualToADefaultNameVerbatim() =>
         Assert.Equal([Beta, Beta], InstallNames.Resolve([(Beta, Beta), (null, Beta)]));
 
+    [Theory]
+    [InlineData("\U0001F4D5 Forever", "Forever")]
+    [InlineData("  Café\tUI  ", "CafUI")]
+    [InlineData("\U0001F4D5", null)]
+    [InlineData("   ", null)]
+    [InlineData(null, null)]
+    public void Clean_KeepsPrintableAsciiTrimmed(string? label, string? expected) =>
+        Assert.Equal(expected, InstallNames.Clean(label));
+
     [Fact]
     public void Resolve_LeavesDistinctDefaultsPlain() =>
         Assert.Equal([Beta, "Forever"], InstallNames.Resolve([(null, Beta), (null, "Forever")]));

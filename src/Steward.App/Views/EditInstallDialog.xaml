@@ -12,7 +12,7 @@
 
     <StackPanel Spacing="16">
         <StackPanel Spacing="6">
-            <TextBox x:Name="NameBox" Header="Name" />
+            <TextBox x:Name="NameBox" Header="Name" TextChanging="OnNameTextChanging" />
             <TextBlock
                 Text="Shown in the install picker. Leave empty to use the game version name."
                 FontSize="12"

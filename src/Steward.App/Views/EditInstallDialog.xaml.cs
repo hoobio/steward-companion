@@ -1,4 +1,5 @@
 using Steward.App.ViewModels;
+using Steward.Core;
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -33,6 +34,19 @@ public sealed partial class EditInstallDialog : ContentDialog
     }
 
     private void OnRowsChanged(object? sender, EventArgs e) => UpdateBusyState();
+
+    private void OnNameTextChanging(TextBox sender, TextBoxTextChangingEventArgs args)
+    {
+        var stripped = InstallNames.StripNonAscii(NameBox.Text);
+        if (stripped == NameBox.Text)
+        {
+            return;
+        }
+
+        var caret = Math.Max(0, NameBox.SelectionStart - (NameBox.Text.Length - stripped.Length));
+        NameBox.Text = stripped;
+        NameBox.SelectionStart = Math.Min(caret, stripped.Length);
+    }
 
     private GameVersionOption? SelectedGameVersion => GameVersionBox.SelectedItem as GameVersionOption;
 

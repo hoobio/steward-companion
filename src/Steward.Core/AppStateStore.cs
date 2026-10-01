@@ -155,7 +155,10 @@ public sealed class AppStateStore
         GuildRosterSync = new Dictionary<string, string>(state.GuildRosterSync ?? [], StringComparer.OrdinalIgnoreCase),
         CharacterSync = new Dictionary<string, CharacterPushRecord>(state.CharacterSync ?? [], StringComparer.OrdinalIgnoreCase),
         CharacterSyncBatches = new Dictionary<string, CharacterSyncBatch>(state.CharacterSyncBatches ?? [], StringComparer.OrdinalIgnoreCase),
-        InstallLabels = new Dictionary<string, string>(state.InstallLabels ?? [], StringComparer.OrdinalIgnoreCase),
+        InstallLabels = (state.InstallLabels ?? [])
+            .Select(entry => (entry.Key, Label: InstallNames.Clean(entry.Value)))
+            .Where(entry => entry.Label is not null)
+            .ToDictionary(entry => entry.Key, entry => entry.Label!, StringComparer.OrdinalIgnoreCase),
         InstallProducts = new Dictionary<string, string>(state.InstallProducts ?? [], StringComparer.OrdinalIgnoreCase),
         IgnoredAddons = state.IgnoredAddons ?? [],
         KeptLocalAddons = state.KeptLocalAddons ?? [],
