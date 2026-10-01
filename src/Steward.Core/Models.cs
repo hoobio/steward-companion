@@ -132,7 +132,11 @@ public sealed record ChangelogBlock(
     [property: JsonPropertyName("kind")] string Kind,
     [property: JsonPropertyName("level")] int Level,
     [property: JsonPropertyName("depth")] int Depth,
-    [property: JsonPropertyName("runs")] IReadOnlyList<ChangelogRun>? Runs);
+    [property: JsonPropertyName("runs")] IReadOnlyList<ChangelogRun>? Runs)
+{
+    [JsonIgnore]
+    public bool Muted { get; init; }
+}
 
 public sealed record ChangelogRun(
     [property: JsonPropertyName("text")] string Text,

@@ -88,12 +88,21 @@ public sealed class AddonGroupsTests
         var parent = Release("1.2.0", ["Parent fix"]);
         var child = Release("0.3.0-pre-release.4", ["Bars fix"]);
 
-        var combined = Changelogs.Combine(parent, [("Hoobi Scripts: ActionBars", child), ("Empty", Release("1.0.0", [])), ("None", null)]);
+        var combined = Changelogs.Combine((parent, false), [("Hoobi Scripts: ActionBars", child, true), ("Empty", Release("1.0.0", []), false), ("None", null, false)]);
 
         Assert.Equal(["item", "heading", "item"], combined.Select(block => block.Kind));
+        Assert.Equal([true, false, false], combined.Select(block => block.Muted));
         Assert.Equal("Parent fix", combined[0].Runs![0].Text);
         Assert.Equal("Hoobi Scripts: ActionBars 0.3.0-pre-release.4", combined[1].Runs![0].Text);
         Assert.Equal("Bars fix", combined[2].Runs![0].Text);
+    }
+
+    [Fact]
+    public void CombineChangelogs_MutesNothingWhenNoMemberIsPending()
+    {
+        var combined = Changelogs.Combine((Release("1.2.0", ["Parent fix"]), false), [("Bars", Release("0.3.0", ["Bars fix"]), false)]);
+
+        Assert.All(combined, block => Assert.False(block.Muted));
     }
 
     private static AddonRelease Release(string version, IReadOnlyList<string> notes) =>

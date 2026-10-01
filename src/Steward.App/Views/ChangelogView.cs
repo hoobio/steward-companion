@@ -15,7 +15,9 @@ public static class ChangelogView
         var panel = new StackPanel { Spacing = 6 };
         foreach (var block in blocks)
         {
-            panel.Children.Add(BuildBlock(block, first: panel.Children.Count == 0));
+            var element = BuildBlock(block, first: panel.Children.Count == 0);
+            element.Opacity = block.Muted ? 0.5 : 1;
+            panel.Children.Add(element);
         }
 
         return panel;
