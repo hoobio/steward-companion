@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.18.5](https://github.com/hoobio/steward-companion/compare/v0.18.4...v0.18.5) (2026-10-01)
+
+
+### Bug Fixes
+
+* 🐛 fade up-to-date addons in a group's combined changelog ([a968a34](https://github.com/hoobio/steward-companion/commit/a968a34ec30607282b64d3603c6cccb9626df828))
+* 🐛 open the changelog from the whole version line ([7507701](https://github.com/hoobio/steward-companion/commit/7507701a008e620e8c5cb6b1c1cb81c7b5fcdd3f))
+* 🐛 strip non-ASCII characters from install names ([1c2edbc](https://github.com/hoobio/steward-companion/commit/1c2edbc1f30ba1892c9650130fbdb556c0798b97))
+
 ## [0.18.4](https://github.com/hoobio/steward-companion/compare/v0.18.3...v0.18.4) (2026-10-01)
 
 
