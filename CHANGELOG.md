@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.4](https://github.com/hoobio/steward-companion/compare/v0.18.3...v0.18.4) (2026-10-01)
+
+
+### Bug Fixes
+
+* 🐛 keep the changelog button at the right of the Version column ([2d86a38](https://github.com/hoobio/steward-companion/commit/2d86a380e99224e59e21b9cc277babe7147d776f))
+
 ## [0.18.3](https://github.com/hoobio/steward-companion/compare/v0.18.2...v0.18.3) (2026-09-30)
 
 
