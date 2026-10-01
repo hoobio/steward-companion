@@ -134,7 +134,7 @@ public sealed partial class HomePage : Page
 
     private void FitVersion(Grid row)
     {
-        if (row.Tag is not AddonRowViewModel item || row.FindName("VersionPair") is not TextBlock pair || row.FindName("Changelog") is not Button changelog)
+        if (row.Tag is not AddonRowViewModel item || row.FindName("VersionPair") is not TextBlock pair || row.FindName("ChangelogIcon") is not FontIcon icon)
         {
             return;
         }
@@ -156,7 +156,7 @@ public sealed partial class HomePage : Page
 
         _versionMeasure.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         var needed = Math.Ceiling(_versionMeasure.DesiredSize.Width) + VersionLineSpacing
-            + (item.ChangelogVisibility == Visibility.Visible ? changelog.Width : 0);
+            + (item.HasChangelog ? icon.Width + VersionLineSpacing : 0);
         item.IsVersionStacked = item.VersionPairVisibility == Visibility.Visible && needed > row.ColumnDefinitions[VersionIndex].Width.Value;
     }
 

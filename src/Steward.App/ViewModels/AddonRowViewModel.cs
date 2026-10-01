@@ -79,7 +79,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(StatusBrush),
         nameof(StatusTextVisibility),
         nameof(Changelog),
-        nameof(ChangelogVisibility),
+        nameof(HasChangelog),
         nameof(ChangelogTitle),
         nameof(VersionCellTip),
         nameof(HasVersionCellTip),
@@ -454,10 +454,12 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public Visibility IgnoredUpdateVisibility => When(Status == AddonRowStatus.Ignored && IsIgnoredUpdate);
 
     public IReadOnlyList<ChangelogBlock> Changelog =>
-        Changelogs.Combine(_status?.Release, _children.Select(child => (child.DisplayName, child._status?.Release)));
+        Changelogs.Combine(
+            (_status?.Release, HasOwnUpdate),
+            [.. _children.Select(child => (child.DisplayName, child._status?.Release, child.HasOwnUpdate && RolledUpChildren.Contains(child)))]);
 
-    public Visibility ChangelogVisibility =>
-        When(Changelog.Count > 0 && (VersionPairVisibility == Visibility.Visible || CurrentVersionVisibility == Visibility.Visible));
+    public bool HasChangelog =>
+        Changelog.Count > 0 && (VersionPairVisibility == Visibility.Visible || CurrentVersionVisibility == Visibility.Visible);
 
     public string ChangelogTitle => $"{DisplayName} {AvailableVersion}";
 

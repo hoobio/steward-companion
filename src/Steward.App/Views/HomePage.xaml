@@ -179,7 +179,24 @@
                             Visibility="{x:Bind StackedVersionPairVisibility, Mode=OneWay}">
                             <Run Text="{x:Bind NotInstalledRunText, Mode=OneWay}" /><Run Text="{x:Bind InstalledRunText, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" />
                         </TextBlock>
-                        <Grid ColumnSpacing="4">
+                        <Button
+                            HorizontalAlignment="Left"
+                            HorizontalContentAlignment="Left"
+                            MinHeight="0"
+                            Margin="-4,0,0,0"
+                            Padding="4,2"
+                            IsEnabled="{x:Bind HasChangelog, Mode=OneWay}"
+                            AutomationProperties.Name="Changelog"
+                            ToolTipService.ToolTip="Changelog"
+                            Tag="{x:Bind}"
+                            Click="OnChangelogClick">
+                            <Button.Resources>
+                                <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SubtleFillColorTransparentBrush" />
+                            </Button.Resources>
+                            <Grid ColumnSpacing="4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -221,29 +238,20 @@
                                 VerticalAlignment="Center"
                                 Foreground="{ThemeResource AvailableVersionBrush}"
                                 Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
-                            <Button
-                                x:Name="Changelog"
+                            <!-- E8FD's own ink sits ~1.2px above the version text's ink centre (measured via screenshot pixel scan); nudged down to match. -->
+                            <FontIcon
+                                x:Name="ChangelogIcon"
                                 Grid.Column="1"
-                                Width="22"
-                                Height="22"
-                                MinHeight="0"
-                                Padding="0"
+                                Width="12"
+                                Glyph="&#xE8FD;"
+                                FontSize="12"
+                                Margin="0,1,0,0"
                                 VerticalAlignment="Center"
                                 SizeChanged="OnVersionSizeChanged"
-                                AutomationProperties.Name="Changelog"
-                                ToolTipService.ToolTip="Changelog"
-                                Tag="{x:Bind}"
-                                Click="OnChangelogClick"
-                                Visibility="{x:Bind ChangelogVisibility, Mode=OneWay}">
-                                <Button.Resources>
-                                    <StaticResource x:Key="ButtonBackground" ResourceKey="SubtleFillColorTransparentBrush" />
-                                    <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
-                                    <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
-                                </Button.Resources>
-                                <!-- E8FD's own ink sits ~1.2px above the version text's ink centre (measured via screenshot pixel scan); nudged down to match. -->
-                                <FontIcon Glyph="&#xE8FD;" FontSize="12" Margin="0,1,0,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            </Button>
-                        </Grid>
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Visibility="{x:Bind HasChangelog, Mode=OneWay}" />
+                            </Grid>
+                        </Button>
                         <TextBlock
                             Text="{x:Bind ReleasedText, Mode=OneWay}"
                             FontSize="11.5"
