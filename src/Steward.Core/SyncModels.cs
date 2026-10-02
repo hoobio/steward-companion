@@ -404,7 +404,10 @@ public static class CharacterPushRouting
     }
 
     public static ProfessionsCharacterState? StateOf(CharacterPushOutcome? outcome, bool professionsOnly, string? professionsFingerprint, bool batchCurrent) =>
-        outcome is { Accepted: false, Reason: CharacterSyncRejectionCopy.GuildNotAllowedReason } ? null
+        outcome is { Accepted: false, Reason: CharacterSyncRejectionCopy.GuildNotAllowedReason }
+            ? (professionsOnly ? string.Equals(outcome.Fingerprint, professionsFingerprint, StringComparison.Ordinal) : batchCurrent)
+                ? null
+                : ProfessionsCharacterState.Pending
         : professionsOnly ? ProfessionsPushSelection.StateOf(outcome, professionsFingerprint ?? string.Empty)
         : !batchCurrent || outcome is null ? ProfessionsCharacterState.Pending
         : outcome.Accepted ? ProfessionsCharacterState.Synced

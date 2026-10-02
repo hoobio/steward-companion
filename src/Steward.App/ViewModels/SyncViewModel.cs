@@ -71,7 +71,7 @@ public sealed partial class SyncViewModel : ObservableObject
         };
         _main.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(MainViewModel.HasSyncFeature))
+            if (e.PropertyName == nameof(MainViewModel.CanPushCharacters))
             {
                 SyncCharacterPushRows();
                 Recompute();
@@ -104,7 +104,7 @@ public sealed partial class SyncViewModel : ObservableObject
     public bool IsProfessionsOnlySync => _main.IsProfessionsOnlySync;
 
 
-    public bool HasWaiting => _main.HasSyncFeature && Installs.Any(install =>
+    public bool HasWaiting => _main.CanPushCharacters && Installs.Any(install =>
         install.ExportState == SyncExportState.Ready
         && install.Datasets.FirstOrDefault(dataset => dataset.Key == ProfessionsDatasetKey) is { } pushRow
         && (pushRow.CharacterSync is null || pushRow.CharacterSync.Error is not null));
@@ -161,7 +161,7 @@ public sealed partial class SyncViewModel : ObservableObject
 
     public bool UnreachableIsOpen => IsUnreachable;
 
-    public Visibility SyncNowVisibility => When(_main.HasSyncFeature);
+    public Visibility SyncNowVisibility => When(_main.CanPushCharacters);
 
     private static Visibility When(bool condition) => condition ? Visibility.Visible : Visibility.Collapsed;
 
@@ -237,7 +237,7 @@ public sealed partial class SyncViewModel : ObservableObject
                 continue;
             }
 
-            pushRow.CharacterSync = _main.HasSyncFeature
+            pushRow.CharacterSync = _main.CanPushCharacters
                 ? _main.CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath)
                 : null;
             pushRow.Note = pushRow.CharacterSync is null
@@ -302,9 +302,16 @@ public sealed partial class SyncViewModel : ObservableObject
                 Observation: group.First().Observation,
                 ProfessionsOnly: group.Any(r => r.Route.ProfessionsOnly),
                 State: CharacterPushRouting.Combine(group.Select(r => r.State)),
-                Reason: group.FirstOrDefault(r => r.State == ProfessionsCharacterState.Rejected).Outcome?.Reason))
+                Rejection: group
+                    .Where(r => r.State == ProfessionsCharacterState.Rejected)
+                    .Select(r => (r.Route.GuildId, r.Outcome?.Reason))
+                    .FirstOrDefault()))
             .Where(c => c.State is not null)
-            .Select(c => (c.Observation, c.ProfessionsOnly, c.Reason, View: Character(c.Observation, snapshot!.Professions, c.State!.Value, c.Reason)))
+            .Select(c => (
+                c.Observation,
+                c.ProfessionsOnly,
+                c.Rejection.Reason,
+                View: Character(c.Observation, snapshot!.Professions, c.State!.Value, c.Rejection.GuildId, c.Rejection.Reason)))
             .ToList();
         var servers = routed.Where(r => r.State is not null).Select(r => r.Route.GuildId).Distinct(StringComparer.Ordinal).Count();
         var rosterCharacters = _main.LastDirectory?.Characters;
@@ -386,14 +393,15 @@ public sealed partial class SyncViewModel : ObservableObject
         CharacterObservation character,
         IReadOnlyDictionary<string, CharacterProfessions> professions,
         ProfessionsCharacterState state,
+        string? rejectingGuildId,
         string? rejection) => new(
             character.Name,
             character.Level,
             WowClasses.NameFor(character.ClassId),
             ProfessionsSkillSummary.Format(professions.GetValueOrDefault(character.CharacterGuid)?.Skills),
             state,
-            state == ProfessionsCharacterState.Rejected && rejection is not null
-                ? _main.DescribeRejection(character.CharacterGuid, rejection)
+            state == ProfessionsCharacterState.Rejected && rejectingGuildId is not null && rejection is not null
+                ? _main.DescribeRejection(rejectingGuildId, character.CharacterGuid, rejection)
                 : null);
 
     private static void AddPullDataset(SyncInstallViewModel view, SyncDatasetViewModel dataset, bool pulled, bool written)

@@ -113,13 +113,45 @@ public sealed class CharacterPushRoutingTests
     [Fact]
     public void StateOf_TreatsGuildNotAllowedAsSkipped()
     {
-        var outcome = new CharacterPushOutcome(false, CharacterSyncRejectionCopy.GuildNotAllowedReason);
+        var outcome = new CharacterPushOutcome(false, CharacterSyncRejectionCopy.GuildNotAllowedReason, "fp");
 
         Assert.Null(CharacterPushRouting.StateOf(outcome, false, null, true));
         Assert.Null(CharacterPushRouting.StateOf(outcome, true, "fp", true));
         Assert.Equal(
             ProfessionsCharacterState.Rejected,
             CharacterPushRouting.StateOf(new CharacterPushOutcome(false, CharacterSyncRejectionCopy.NotLinkedReason), false, null, true));
+    }
+
+    [Fact]
+    public void StateOf_GuildNotAllowedIsPending_WhenTheCharacterWillBeResent()
+    {
+        var outcome = new CharacterPushOutcome(false, CharacterSyncRejectionCopy.GuildNotAllowedReason, "old");
+
+        Assert.Equal(ProfessionsCharacterState.Pending, CharacterPushRouting.StateOf(outcome, true, "new", true));
+        Assert.Equal(ProfessionsCharacterState.Pending, CharacterPushRouting.StateOf(outcome, false, null, false));
+    }
+
+    [Fact]
+    public void Route_DropsGuildlessCharacters_WhenAListIsKnown()
+    {
+        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"), Character(AltGuid, ""), Character(ThirdGuid, "  "));
+
+        var route = Assert.Single(CharacterPushRouting.Route(snapshot, [new("a", false, ["Gigagrug"])], "a"));
+
+        Assert.Equal([HomeGuid], Guids(route));
+    }
+
+    [Fact]
+    public void Route_WithNoSelectedGuild_UsesEveryListedServer()
+    {
+        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"), Character(AltGuid, "Other"));
+
+        var routes = CharacterPushRouting.Route(
+            snapshot,
+            [new("a", false, ["Gigagrug"]), new("b", false, ["Other"]), new("c", false, null)],
+            null);
+
+        Assert.Equal(["a", "b"], routes.Select(r => r.GuildId));
     }
 
     [Fact]

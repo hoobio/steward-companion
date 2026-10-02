@@ -80,6 +80,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(TitleBarPickerVisibility),
         nameof(SyncVisibility),
         nameof(HasSyncFeature),
+        nameof(CanPushCharacters),
         nameof(IsProfessionsOnlySync),
     ];
 
@@ -497,7 +498,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility TitleBarPickerVisibility => When(SelectedInstall is not null && !IsSettingsShown);
 
-    public Visibility SyncVisibility => When(HasStewardFeature || HasSyncFeature);
+    public Visibility SyncVisibility => When(HasStewardFeature || CanPushCharacters);
+
+    public bool CanPushCharacters => CharacterPushTargets().Count > 0;
 
     public ObservableCollection<CharacterSyncRowViewModel> CharacterSyncRows { get; } = [];
 
@@ -1649,6 +1652,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public IReadOnlyList<CharacterPushRoute> CharacterRoutes(SavedVariablesSnapshot snapshot) =>
         CharacterPushRouting.Route(snapshot, CharacterPushTargets(), _guildId);
 
+    private string CharacterPushTargetsKey() => string.Join(
+        '|',
+        CharacterPushTargets().Select(target =>
+            $"{target.GuildId}/{target.ProfessionsOnly}/{(target.SyncGuildNames is null ? "-" : string.Join(',', target.SyncGuildNames))}"));
+
     private IReadOnlyList<CharacterPushTarget> CharacterPushTargets() =>
     [
         .. _meGuilds
@@ -2239,8 +2247,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _stateStore.Load().CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(guildId, flavourPath))?.Characters
         ?? new Dictionary<string, CharacterPushOutcome>();
 
-    public string DescribeRejection(string characterGuid, string reason) =>
-        reason == CharacterSyncRejectionCopy.NotLinkedReason
+    public string DescribeRejection(string guildId, string characterGuid, string reason) =>
+        reason == CharacterSyncRejectionCopy.NotLinkedReason && guildId == _guildId
             ? CharacterSyncRejectionCopy.DescribeNotLinked(
                 characterGuid,
                 HasRosterFeature ? _lastDirectory?.Characters : null,
@@ -2306,7 +2314,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            SetCharacterSyncRow(install, $"Could not read the Steward saved variables: {ex.Message}");
+            SetCharacterSyncRow(install, $"Could not read the Steward saved variables: {ex.Message}", CharacterPushTargets().Select(target => target.GuildId));
             return false;
         }
 
@@ -2319,7 +2327,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     install,
                     snapshot is { HasAccountData: true, Characters.Count: > 0 }
                         ? "No characters on a server's guild list."
-                        : "No Steward saved variables with characters found for this install.");
+                        : "No Steward saved variables with characters found for this install.",
+                    []);
             }
 
             return false;
@@ -2343,7 +2352,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (attempted)
         {
-            SetCharacterSyncRow(install, error);
+            SetCharacterSyncRow(install, error, routes.Select(route => route.GuildId));
         }
 
         if (posted)
@@ -2472,14 +2481,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return batchId;
     }
 
-    private DateTimeOffset? LastCharacterPushAt(AppState state, string flavourPath) =>
-        CharacterPushTargets()
-            .Select(target => state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(target.GuildId, flavourPath))?.PushedAt)
+    private IReadOnlyList<string> RoutedGuildIds(string flavourPath)
+    {
+        try
+        {
+            return StewardSavedVariables.Read(flavourPath) is { } snapshot ? [.. CharacterRoutes(snapshot).Select(route => route.GuildId)] : [];
+        }
+        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    private static DateTimeOffset? LastCharacterPushAt(AppState state, string flavourPath, IEnumerable<string> guildIds) =>
+        guildIds
+            .Select(guildId => state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(guildId, flavourPath))?.PushedAt)
             .Max();
 
-    private void SetCharacterSyncRow(WowInstallViewModel install, string? error)
+    private void SetCharacterSyncRow(WowInstallViewModel install, string? error, IEnumerable<string> routedGuildIds)
     {
-        var pushedAt = LastCharacterPushAt(_stateStore.Load(), install.FlavourPath);
+        var pushedAt = LastCharacterPushAt(_stateStore.Load(), install.FlavourPath, routedGuildIds);
         var existing = CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath);
         var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, pushedAt, error);
         if (existing is null)
@@ -2582,13 +2603,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void SyncCharacterSyncRows()
     {
-        if (!HasSyncFeature)
+        if (!CanPushCharacters)
         {
             CharacterSyncRows.Clear();
             return;
         }
 
-        var known = new HashSet<string>(Installs.Select(install => install.FlavourPath), StringComparer.OrdinalIgnoreCase);
+        var known =new HashSet<string>(Installs.Select(install => install.FlavourPath), StringComparer.OrdinalIgnoreCase);
         foreach (var gone in CharacterSyncRows.Where(row => !known.Contains(row.FlavourPath)).ToList())
         {
             CharacterSyncRows.Remove(gone);
@@ -2603,10 +2624,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 continue;
             }
 
-            var error = CharacterPushTargets()
-                .Select(target => state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(target.GuildId, install.FlavourPath))?.Error)
+            var routed = RoutedGuildIds(install.FlavourPath);
+            var error = routed
+                .Select(guildId => state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(guildId, install.FlavourPath))?.Error)
                 .FirstOrDefault(message => message is not null);
-            var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, LastCharacterPushAt(state, install.FlavourPath), error);
+            var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, LastCharacterPushAt(state, install.FlavourPath, routed), error);
             if (existing is null)
             {
                 CharacterSyncRows.Add(row);
@@ -2947,6 +2969,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var storedGuildId = _stateStore.Load().GuildId;
             var guild = me.ResolveGuild(storedGuildId);
             _guildId = guild?.Id;
+            var previousPushTargets = CharacterPushTargetsKey();
             _meGuilds = me.Guilds;
 
             var previousFeatures = new HashSet<string>(_features, StringComparer.Ordinal);
@@ -2997,6 +3020,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             PropagateAuthorized();
             UpdateEventStream();
             UpdateAccessEventStream();
+            if (previousPushTargets != CharacterPushTargetsKey())
+            {
+                _characterRowsGuildId = null;
+                SyncCharacterSyncRows();
+                OnPropertyChanged(nameof(CanPushCharacters));
+                OnPropertyChanged(nameof(SyncVisibility));
+                _ = SavedVariablesWrittenAsync();
+            }
+
             _logger.Info($"/api/me recheck: authorized, role={Role}, {_features.Count} feature(s)");
             return AuthCheckResult.Authorized;
         }
