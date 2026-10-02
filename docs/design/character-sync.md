@@ -147,6 +147,43 @@ Agreed direction on 26 Sep 2026, built: raiders push their own characters' profe
 - The app's roster pull (`/roster`, `/members`) and the event stream stay officer-only (`HasStewardFeature`); for a raider the catalogue fetch runs on its own.
 - The app's access gate no longer needs `addons`, `guides` or `steward` alongside `sync`: `GigagrugClient.IsAuthorizing` treats `sync` alone as authorizing.
 
+## Gear
+
+The logged-in character's equipped items, bags and bank. The addon writes `StewardDB.gear[guid]` (schema 1, the only version this app accepts; any other `schema` skips the record) in the account file beside `professions`. The app parses it and forwards the raw values untouched as `gear` on that character's record, since the server recomputes `fp` over them: nothing signed is normalised, trimmed or reordered. `gear` is omitted when the character has none, and a raider's professions-only push carries it for the same guids as `professions`.
+
+```
+gear: {
+  schema: 1,
+  observedAt: <unix s>,
+  level: <character level at capture>,
+  equipped: {"<slot 1..19>": entry, ...},
+  bags: [entry, ...],
+  bank: {observedAt: <unix s>, items: [entry, ...]} | null,
+  fp: "<8 lowercase hex>"
+}
+entry: {link, itemID, quality, enchantID?, suffixID?, count?, equipLoc?, ilvl?}
+```
+
+- `link` is the bare `item:...` string (the part inside `|H...|h`), never the coloured hyperlink. One entry per container slot; a stack carries `count`. Absent optional fields are omitted, not zero.
+- `equipped` holds every equipped item at any quality. `bags` and `bank` are empty below `MAX_LEVEL` (60) and hold only entries with `quality >= 3` and an `equipLoc`. `bank` is null until the bank has been opened once with Steward running, and then keeps its last scan.
+- `observedAt`, `level` and `schema` are not signed. A gear change is a changed push fingerprint (the record with `observedAt` left out), so it triggers a push on the full path and on the professions-only path.
+- `fp` is the keyed FNV-1a 32-bit over the professions `FINGERPRINT_KEY` followed by the `g1` canonical text, as 8 lowercase hex characters. The canonical text is UTF-8 with `\n` after every line, over the raw pushed values: `g1`, the character guid, one `e|<slot>|<entry line>` per equipped slot by slot number ascending, one `b|<entry line>` per bags entry sorted by entry line in code-point order, then `k|-` when `bank` is null, else `k|<bank observedAt>` followed by one `k|<entry line>` per bank entry sorted by entry line. `<entry line>` is `<link>|<quality>|<count>|<equipLoc>|<ilvl>` with an empty string for an absent field.
+- Test vector (guid `Player-5826-0A1B2C3D`), canonical text:
+
+```
+g1
+Player-5826-0A1B2C3D
+e|1|item:12640:1508:0:0:0:0:0:0:60:0:0:0:0|4||INVTYPE_HEAD|63
+e|4|item:45:0:0:0:0:0:0:0:60:0:0:0:0|1||INVTYPE_BODY|1
+e|16|item:19019:1900:0:0:0:0:0:0:60:0:0:0:0|5||INVTYPE_WEAPON|80
+b|item:10247:0:0:0:0:0:1050:0:60:0:0:0:0|3||INVTYPE_HEAD|57
+b|item:17063:0:0:0:0:0:0:0:60:0:0:0:0|4||INVTYPE_FINGER|71
+k|1790900000
+k|item:18813:0:0:0:0:0:0:0:60:0:0:0:0|4||INVTYPE_FINGER|71
+```
+
+  gives `fp` `8bb1ce6a`; the same with the three `k` lines replaced by `k|-` (bank null) gives `cd7ea981`. `GearFingerprintTests` pins both.
+
 ## Merge rules
 
 - The newest `observed_at` wins per character; absence from a push never deletes.

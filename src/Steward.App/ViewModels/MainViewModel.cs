@@ -2386,7 +2386,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 last,
                 guildId == _guildId ? _lastDirectory?.Characters : null,
                 _userId,
-                force)
+                force,
+                snapshot.Gear)
             : null;
         var gateOpen = plan is null
             ? CharacterPushGate.ShouldPush(fingerprint, state.CharacterSync, key)
@@ -2403,12 +2404,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var sentCharacters = plan?.Characters ?? characters;
         var sentCatalogue = plan is { SendCatalogue: false } || snapshot.Catalogue.Count == 0 ? null : snapshot.Catalogue;
-        var batchFingerprint = plan is null ? fingerprint : CharacterSyncMapping.Fingerprint(sentCharacters, snapshot.Professions, sentCatalogue);
+        var batchFingerprint = plan is null ? fingerprint : CharacterSyncMapping.Fingerprint(sentCharacters, snapshot.Professions, sentCatalogue, gear: snapshot.Gear);
         var batchId = ResolveBatchId(state, key, batchFingerprint);
         var request = new CharacterSyncRequest(
             batchId,
             InstalledVersion,
-            [.. sentCharacters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot.Professions))],
+            [.. sentCharacters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot.Professions, snapshot.Gear))],
             sentCatalogue,
             route.Scope.GuildRanks is null ? null : CharacterSyncMapping.ToSync(route.Scope.GuildRanks));
 

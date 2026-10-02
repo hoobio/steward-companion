@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Steward.Core;
 
 public static class StewardSavedVariables
@@ -54,6 +56,7 @@ public static class StewardSavedVariables
         var characters = new List<(string Id, DateTimeOffset Rank, CharacterObservation Item)>();
         var professions = new List<(string Id, DateTimeOffset Rank, CharacterProfessions Item)>();
         var catalogue = new List<(string Id, DateTimeOffset Rank, ProfessionCatalogue Item)>();
+        var gear = new List<(string Id, DateTimeOffset Rank, CharacterGear Item)>();
         GuildRanks? guildRanks = null;
         var hasAccount = false;
         var skipped = 0;
@@ -81,6 +84,8 @@ public static class StewardSavedVariables
                     .Select(c => (c.CharacterGuid, c.ObservedAt ?? DateTimeOffset.MinValue, c)));
                 professions.AddRange(MapProfessionsByGuid(account.GetTable("professions"), ref skipped, ref outdatedProfessions)
                     .Select(p => (p.Guid, ToTimestamp(p.Professions.ObservedAt) ?? DateTimeOffset.MinValue, p.Professions)));
+                gear.AddRange(MapGearByGuid(account.GetTable("gear"), ref skipped)
+                    .Select(g => (g.Guid, ToTimestamp(g.Gear.ObservedAt) ?? DateTimeOffset.MinValue, g.Gear)));
                 catalogue.AddRange(MapCatalogueByProfession(account.GetTable("catalogue"), ref skipped)
                     .Select(c => (c.Profession, ToTimestamp(c.Catalogue.ScannedAt) ?? DateTimeOffset.MinValue, c.Catalogue)));
                 if (MapGuildRanks(account.GetTable("guildRanks"), ref skipped) is { } ranks
@@ -99,6 +104,7 @@ public static class StewardSavedVariables
         var dedupedCharacters = Dedupe(characters);
         var dedupedProfessions = DedupeByKey(professions);
         var dedupedCatalogue = DedupeByKey(catalogue);
+        var dedupedGear = DedupeByKey(gear);
         return new SavedVariablesSnapshot(
             descriptors,
             descriptors.Select(f => f.ExportedAt).Max(),
@@ -107,12 +113,15 @@ public static class StewardSavedVariables
             Dedupe(attendance),
             skipped,
             dedupedCharacters,
-            hasAccount ? CharacterSyncMapping.Fingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue, guildRanks) : null,
+            hasAccount ? CharacterSyncMapping.Fingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue, guildRanks, dedupedGear) : null,
             dedupedProfessions,
             dedupedCatalogue,
             guildRanks,
             hasAccount,
-            outdatedProfessions);
+            outdatedProfessions)
+        {
+            Gear = dedupedGear,
+        };
     }
 
     private static Dictionary<string, T> DedupeByKey<T>(List<(string Id, DateTimeOffset Rank, T Item)> records) =>
@@ -345,6 +354,121 @@ public static class StewardSavedVariables
             MapProfessionSkills(value.GetTable("skills"), ref skipped),
             recipes,
             value.GetString("fp"));
+    }
+
+    private static List<(string Guid, CharacterGear Gear)> MapGearByGuid(LuaValue? table, ref int skipped)
+    {
+        var mapped = new List<(string, CharacterGear)>();
+        foreach (var entry in table?.Table ?? [])
+        {
+            var gear = entry.Value.Kind is LuaKind.Table ? MapGear(entry.Value) : null;
+            if (entry.Key is not { Kind: LuaKind.Text } key || gear is null)
+            {
+                skipped++;
+                continue;
+            }
+
+            mapped.Add((key.Text!, gear));
+        }
+
+        return mapped;
+    }
+
+    private static CharacterGear? MapGear(LuaValue value)
+    {
+        if (ToNullableInt(value.GetNumber("schema")) != GearSchema.Current)
+        {
+            return null;
+        }
+
+        var equipped = MapEquippedGear(value.GetTable("equipped"));
+        var bags = MapGearEntries(value.GetTable("bags"));
+        GearBank? bank = null;
+        if (value.GetTable("bank") is { } bankTable)
+        {
+            var items = MapGearEntries(bankTable.GetTable("items"));
+            if (items is null)
+            {
+                return null;
+            }
+
+            bank = new GearBank(ToNullableLong(bankTable.GetNumber("observedAt")), items);
+        }
+
+        return equipped is null || bags is null
+            ? null
+            : new CharacterGear(
+                GearSchema.Current,
+                ToNullableLong(value.GetNumber("observedAt")),
+                ToInt(value.GetNumber("level")),
+                equipped,
+                bags,
+                bank,
+                value.GetString("fp"));
+    }
+
+    private static SortedDictionary<string, GearEntry>? MapEquippedGear(LuaValue? table)
+    {
+        var mapped = new SortedDictionary<string, GearEntry>(StringComparer.Ordinal);
+        var position = 0;
+        foreach (var entry in table?.Table ?? [])
+        {
+            var slot = entry.Key is null ? ++position : entry.Key is { Kind: LuaKind.Number } key ? (int)key.Number : (int?)null;
+            var gear = entry.Value.Kind is LuaKind.Table ? MapGearEntry(entry.Value) : null;
+            if (slot is null || gear is null)
+            {
+                return null;
+            }
+
+            mapped[slot.Value.ToString(CultureInfo.InvariantCulture)] = gear;
+        }
+
+        return mapped;
+    }
+
+    private static List<GearEntry>? MapGearEntries(LuaValue? table)
+    {
+        var mapped = new List<GearEntry>();
+        if (table is null)
+        {
+            return mapped;
+        }
+
+        if (table.Table.Count != table.Items.Count)
+        {
+            return null;
+        }
+
+        foreach (var item in table.Items)
+        {
+            var entry = item.Kind is LuaKind.Table ? MapGearEntry(item) : null;
+            if (entry is null)
+            {
+                return null;
+            }
+
+            mapped.Add(entry);
+        }
+
+        return mapped;
+    }
+
+    private static GearEntry? MapGearEntry(LuaValue value)
+    {
+        var link = value.GetString("link");
+        var itemId = ToNullableInt(value.GetNumber("itemID"));
+        var quality = ToNullableInt(value.GetNumber("quality"));
+        return link is null || itemId is null || quality is null
+            ? null
+            : new GearEntry(
+                link,
+                itemId.Value,
+                quality.Value,
+                ToNullableInt(value.GetNumber("enchantID")),
+                ToNullableInt(value.GetNumber("suffixID")),
+                ToNullableInt(value.GetNumber("count")),
+                value.GetString("equipLoc"),
+                ToNullableInt(value.GetNumber("ilvl")));
     }
 
     private static List<ProfessionSkill>? MapProfessionSkills(LuaValue? table, ref int skipped)

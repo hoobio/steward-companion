@@ -292,7 +292,7 @@ public sealed partial class SyncViewModel : ObservableObject
             return route.Scope.Characters.Select(c =>
             {
                 var outcome = outcomes.GetValueOrDefault(c.CharacterGuid);
-                var fingerprint = route.ProfessionsOnly ? CharacterSyncMapping.ProfessionsFingerprint(snapshot!.Professions[c.CharacterGuid]) : null;
+                var fingerprint = route.ProfessionsOnly ? CharacterSyncMapping.ProfessionsFingerprint(snapshot!.Professions[c.CharacterGuid], snapshot.Gear.GetValueOrDefault(c.CharacterGuid)) : null;
                 return (Route: route, Observation: c, Outcome: outcome, State: CharacterPushRouting.StateOf(outcome, route.ProfessionsOnly, fingerprint, batchCurrent));
             });
         }).ToList();
