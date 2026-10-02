@@ -656,6 +656,25 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal("Classic Beta PvP 2", snapshot.GuildRanks!.RealmName);
     }
 
+    [Theory]
+    [InlineData("[\"gender\"] = 2,", 2)]
+    [InlineData("[\"gender\"] = 3,", 3)]
+    [InlineData("[\"gender\"] = 1,", null)]
+    [InlineData("[\"gender\"] = 4,", null)]
+    [InlineData("", null)]
+    public void Read_MapsGender_OnlyWhenMaleOrFemale(string field, int? expected)
+    {
+        var snapshot = ReadFiles(("account.lua", $$"""
+            StewardDB = {
+            ["characters"] = {
+                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "ClassicBetaPvP2", ["guild"] = "Gigagrug", {{field}} },
+            },
+            }
+            """));
+
+        Assert.Equal(expected, Assert.Single(snapshot.Characters).Gender);
+    }
+
     [Fact]
     public void Read_MapsPositionalGuildRanksTheWayTheClientWritesThem()
     {

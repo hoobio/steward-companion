@@ -29,7 +29,7 @@ StewardDB = {
   ["characters"] = {
     ["Player-4395-0A1B2C3D"] = {
       ["name"] = "Hoobi Furry", ["realm"] = "Nightslayer", ["realmName"] = "Nightslayer", ["guild"] = "Gigagrug",
-      ["level"] = 60, ["classID"] = 1, ["raceID"] = 2, ["rankIndex"] = 1,
+      ["level"] = 60, ["classID"] = 1, ["raceID"] = 2, ["gender"] = 2, ["rankIndex"] = 1,
       ["lastOnline"] = 1758250000, ["linkedUserId"] = "123456789012345678",
       ["linkKnown"] = true, ["observedAt"] = 1758260000,
     },

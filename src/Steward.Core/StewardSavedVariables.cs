@@ -253,7 +253,8 @@ public static class StewardSavedVariables
             value.GetString("linkedUserId"),
             value.Get("linkKnown") is { Kind: LuaKind.Boolean, Boolean: true },
             ToTimestamp(value.GetNumber("observedAt")),
-            value.GetString("realmName"));
+            value.GetString("realmName"),
+            value.GetNumber("gender") is 2d or 3d ? ToInt(value.GetNumber("gender")) : null);
     }
 
     private static GuildRanks? MapGuildRanks(LuaValue? table, ref int skipped)

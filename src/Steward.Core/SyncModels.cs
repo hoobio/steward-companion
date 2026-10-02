@@ -140,7 +140,8 @@ public sealed record CharacterObservation(
     string? LinkedUserId,
     bool LinkKnown,
     DateTimeOffset? ObservedAt,
-    string? RealmName = null);
+    string? RealmName = null,
+    int? Gender = null);
 
 public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("guid")] string CharacterGuid,
@@ -156,7 +157,8 @@ public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("linkKnown")] bool LinkKnown,
     [property: JsonPropertyName("observedAt")] long? ObservedAt,
     [property: JsonPropertyName("professions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CharacterProfessions? Professions = null,
-    [property: JsonPropertyName("realmName"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RealmName = null);
+    [property: JsonPropertyName("realmName"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RealmName = null,
+    [property: JsonPropertyName("gender"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Gender = null);
 
 public static class ProfessionsSchema
 {
@@ -443,7 +445,8 @@ public static class CharacterSyncMapping
         observation.LinkKnown,
         observation.ObservedAt?.ToUnixTimeSeconds(),
         professions.GetValueOrDefault(observation.CharacterGuid),
-        observation.RealmName);
+        observation.RealmName,
+        observation.Gender);
 
     public static GuildRanksSync ToSync(GuildRanks ranks) => new(
         ranks.Realm,

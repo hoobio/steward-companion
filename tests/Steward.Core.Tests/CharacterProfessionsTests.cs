@@ -327,6 +327,37 @@ public sealed class CharacterProfessionsTests
     }
 
     [Fact]
+    public void CharacterSyncRequest_SerialisesGender_AndOmitsItWhenNull()
+    {
+        var female = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "ClassicBetaPvP2", "Gigagrug", 60, 1, 2, 1, null, null, false, null, null, 3);
+        var unknown = female with { Gender = null };
+        var professions = new Dictionary<string, CharacterProfessions>();
+
+        var withGender = JsonSerializer.Serialize(
+            new CharacterSyncRequest("b", "1", [CharacterSyncMapping.ToEntry(female, professions)], null, null),
+            CompanionJsonContext.Default.CharacterSyncRequest);
+        var withoutGender = JsonSerializer.Serialize(
+            new CharacterSyncRequest("b", "1", [CharacterSyncMapping.ToEntry(unknown, professions)], null, null),
+            CompanionJsonContext.Default.CharacterSyncRequest);
+
+        Assert.Contains("\"gender\":3", withGender, StringComparison.Ordinal);
+        Assert.DoesNotContain("gender", withoutGender, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Fingerprint_ChangesWhenGenderChanges()
+    {
+        var male = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "ClassicBetaPvP2", "Gigagrug", 60, 1, 2, 1, null, null, false, null, null, 2);
+        var professions = new Dictionary<string, CharacterProfessions>();
+
+        Assert.NotEqual(
+            CharacterSyncMapping.Fingerprint([male], professions),
+            CharacterSyncMapping.Fingerprint([male with { Gender = 3 }], professions));
+    }
+
+    [Fact]
     public void Fingerprint_ChangesWhenRealmNameChanges()
     {
         var named = new CharacterObservation(
