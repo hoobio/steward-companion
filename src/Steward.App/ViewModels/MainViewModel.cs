@@ -1644,13 +1644,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var guild = _meGuilds.FirstOrDefault(g => g.Id == _guildId);
         _guildFeatures.Clear();
         _guildFeatures.UnionWith(GigagrugClient.ResolveGuildFeatures(guild, _features));
-        SyncGuildNames = guild?.SyncGuildNames;
     }
 
-    public IReadOnlyList<string>? SyncGuildNames { get; private set; }
+    public IReadOnlyList<CharacterPushRoute> CharacterRoutes(SavedVariablesSnapshot snapshot) =>
+        CharacterPushRouting.Route(snapshot, CharacterPushTargets(), _guildId);
 
-    public CharacterPushScope ScopeCharacters(SavedVariablesSnapshot snapshot) =>
-        CharacterSyncMapping.Scope(snapshot, IsProfessionsOnlySync, SyncGuildNames);
+    private IReadOnlyList<CharacterPushTarget> CharacterPushTargets() =>
+    [
+        .. _meGuilds
+            .Select(guild => (guild.Id, guild.SyncGuildNames, Features: GigagrugClient.ResolveGuildFeatures(guild, _features)))
+            .Where(guild => guild.Features.Contains(GigagrugClient.SyncFeature))
+            .Select(guild => new CharacterPushTarget(guild.Id, !guild.Features.Contains(GigagrugClient.StewardFeature), guild.SyncGuildNames)),
+    ];
 
     public async Task<string?> RewriteGuildDataAsync()
     {
@@ -2213,9 +2218,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
     }
 
-    public bool IsCharacterPushCurrent(string flavourPath, string? charactersFingerprint)
+    public bool IsCharacterPushCurrent(string guildId, string flavourPath, string? charactersFingerprint)
     {
-        if (charactersFingerprint is null || _guildId is not { } guildId)
+        if (charactersFingerprint is null)
         {
             return false;
         }
@@ -2230,16 +2235,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _stateStore.Load().GuildRosterSync.TryGetValue(flavourPath, out var written)
         && written == StewardSyncFile.ReadFingerprint(addOnsPath);
 
-    public IReadOnlyDictionary<string, CharacterPushOutcome> GetCharacterOutcomes(string flavourPath)
-    {
-        if (_guildId is not { } guildId)
-        {
-            return new Dictionary<string, CharacterPushOutcome>();
-        }
-
-        var key = AppStateStore.CharacterSyncKey(guildId, flavourPath);
-        return _stateStore.Load().CharacterSync.GetValueOrDefault(key)?.Characters ?? new Dictionary<string, CharacterPushOutcome>();
-    }
+    public IReadOnlyDictionary<string, CharacterPushOutcome> GetCharacterOutcomes(string guildId, string flavourPath) =>
+        _stateStore.Load().CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(guildId, flavourPath))?.Characters
+        ?? new Dictionary<string, CharacterPushOutcome>();
 
     public string DescribeRejection(string characterGuid, string reason) =>
         reason == CharacterSyncRejectionCopy.NotLinkedReason
@@ -2275,7 +2273,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task PushCharacterSyncOnceAsync(bool force)
     {
-        if (!HasSyncFeature)
+        if (CharacterPushTargets().Count == 0)
         {
             return;
         }
@@ -2285,23 +2283,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (!HasSyncFeature || _guildId is not { } guildId)
+        if (CharacterPushTargets().Count == 0)
         {
             return;
         }
 
         foreach (var install in PresentInstalls.ToList())
         {
-            if (await PushCharacterSyncAsync(install, guildId, force).ConfigureAwait(true))
+            if (await PushCharacterSyncAsync(install, force).ConfigureAwait(true))
             {
                 return;
             }
         }
     }
 
-    private async Task<bool> PushCharacterSyncAsync(WowInstallViewModel install, string guildId, bool force)
+    private async Task<bool> PushCharacterSyncAsync(WowInstallViewModel install, bool force)
     {
-        var key = AppStateStore.CharacterSyncKey(guildId, install.FlavourPath);
         SavedVariablesSnapshot? snapshot;
         try
         {
@@ -2309,42 +2306,85 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            SetCharacterSyncRow(install, key, null, [], $"Could not read the Steward saved variables: {ex.Message}");
+            SetCharacterSyncRow(install, $"Could not read the Steward saved variables: {ex.Message}");
             return false;
         }
 
-        var professionsOnly = IsProfessionsOnlySync;
-        var scope = snapshot is null ? null : ScopeCharacters(snapshot);
-        IReadOnlyList<CharacterObservation> characters = scope?.Characters ?? [];
-        var fingerprint = scope?.Fingerprint;
-        var state = _stateStore.Load();
-        if (fingerprint is null)
+        var routes = snapshot is null ? [] : CharacterRoutes(snapshot);
+        if (routes.Count == 0)
         {
             if (force)
             {
                 SetCharacterSyncRow(
                     install,
-                    key,
-                    null,
-                    [],
-                    SyncGuildNames is { Count: 0 }
-                        ? "No WoW guild is set up for syncing on this server."
+                    snapshot is { HasAccountData: true, Characters.Count: > 0 }
+                        ? "No characters on a server's guild list."
                         : "No Steward saved variables with characters found for this install.");
             }
 
             return false;
         }
 
+        var attempted = false;
+        var posted = false;
+        string? error = null;
+        foreach (var route in routes)
+        {
+            var result = await PushCharacterRouteAsync(install, snapshot!, route, force).ConfigureAwait(true);
+            if (result.SignedOut)
+            {
+                return true;
+            }
+
+            attempted |= result.Attempted;
+            posted |= result.Posted;
+            error ??= result.Error is null || routes.Count == 1 ? result.Error : $"{GuildName(route.GuildId)}: {result.Error}";
+        }
+
+        if (attempted)
+        {
+            SetCharacterSyncRow(install, error);
+        }
+
+        if (posted)
+        {
+            _lastDirectorySync = DateTimeOffset.Now;
+            await SyncDirectoryAsync().ConfigureAwait(true);
+        }
+
+        return false;
+    }
+
+    private string GuildName(string guildId) => _meGuilds.FirstOrDefault(g => g.Id == guildId)?.Name ?? guildId;
+
+    private async Task<(bool Attempted, bool Posted, bool SignedOut, string? Error)> PushCharacterRouteAsync(
+        WowInstallViewModel install,
+        SavedVariablesSnapshot snapshot,
+        CharacterPushRoute route,
+        bool force)
+    {
+        var guildId = route.GuildId;
+        var key = AppStateStore.CharacterSyncKey(guildId, install.FlavourPath);
+        var characters = route.Scope.Characters;
+        var fingerprint = route.Scope.Fingerprint!;
+        var state = _stateStore.Load();
         var last = state.CharacterSync.GetValueOrDefault(key);
-        var plan = professionsOnly
-            ? ProfessionsPushSelection.Select(characters, snapshot!.Professions, snapshot.Catalogue, last, _lastDirectory?.Characters, _userId, force)
+        var plan = route.ProfessionsOnly
+            ? ProfessionsPushSelection.Select(
+                characters,
+                snapshot.Professions,
+                snapshot.Catalogue,
+                last,
+                guildId == _guildId ? _lastDirectory?.Characters : null,
+                _userId,
+                force)
             : null;
         var gateOpen = plan is null
             ? CharacterPushGate.ShouldPush(fingerprint, state.CharacterSync, key)
             : plan.HasWork && !(last is { Error: not null } && last.Fingerprint == fingerprint);
-        if ((!force && !gateOpen) || !HasSyncFeature)
+        if ((!force && !gateOpen) || !CharacterPushTargets().Any(target => target.GuildId == guildId))
         {
-            return false;
+            return (false, false, false, null);
         }
 
         if (force)
@@ -2353,15 +2393,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var sentCharacters = plan?.Characters ?? characters;
-        var sentCatalogue = plan is { SendCatalogue: false } || snapshot!.Catalogue.Count == 0 ? null : snapshot.Catalogue;
-        var batchFingerprint = plan is null ? fingerprint! : CharacterSyncMapping.Fingerprint(sentCharacters, snapshot!.Professions, sentCatalogue);
+        var sentCatalogue = plan is { SendCatalogue: false } || snapshot.Catalogue.Count == 0 ? null : snapshot.Catalogue;
+        var batchFingerprint = plan is null ? fingerprint : CharacterSyncMapping.Fingerprint(sentCharacters, snapshot.Professions, sentCatalogue);
         var batchId = ResolveBatchId(state, key, batchFingerprint);
         var request = new CharacterSyncRequest(
             batchId,
             InstalledVersion,
-            [.. sentCharacters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot!.Professions))],
+            [.. sentCharacters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot.Professions))],
             sentCatalogue,
-            scope!.GuildRanks is null ? null : CharacterSyncMapping.ToSync(scope.GuildRanks));
+            route.Scope.GuildRanks is null ? null : CharacterSyncMapping.ToSync(route.Scope.GuildRanks));
 
         try
         {
@@ -2372,7 +2412,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 state = _stateStore.Load();
                 state.CharacterSyncBatches.Remove(key);
                 _stateStore.Save(state);
-                return false;
+                return (false, false, false, null);
             }
 
             var rejections = result.Rejected.ToDictionary(r => r.CharacterGuid, r => r.Reason, StringComparer.Ordinal);
@@ -2386,19 +2426,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     StringComparer.Ordinal);
             var catalogueFingerprint = plan is null ? null : plan.SendCatalogue ? plan.CatalogueFingerprint : last?.CatalogueFingerprint;
             state = _stateStore.Load();
-            state.CharacterSync[key] = new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, result.Accepted, Characters: outcomes, CatalogueFingerprint: catalogueFingerprint);
+            state.CharacterSync[key] = new CharacterPushRecord(fingerprint, DateTimeOffset.Now, result.Accepted, Characters: outcomes, CatalogueFingerprint: catalogueFingerprint);
             _stateStore.Save(state);
-            SetCharacterSyncRow(install, key, result.Accepted, result.Rejected, null);
             _logger.Info(
                 $"Character push for {guildId} {install.FlavourPath}: {result.Accepted} accepted, {result.Rejected.Count} rejected");
-            _lastDirectorySync = DateTimeOffset.Now;
-            await SyncDirectoryAsync().ConfigureAwait(true);
+            return (true, true, false, null);
         }
         catch (SessionExpiredException)
         {
             _logger.Info($"Character push for {guildId} {install.FlavourPath}: 401, session expired");
             SignOutTo(GateFailure.SessionExpired);
-            return true;
+            return (true, false, true, null);
         }
         catch (GigagrugRequestException ex)
         {
@@ -2408,23 +2446,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 : ex.Body ?? ex.Message;
             state = _stateStore.Load();
             state.CharacterSync[key] = plan is null
-                ? new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, 0, message)
-                : new CharacterPushRecord(fingerprint!, DateTimeOffset.Now, 0, message, last?.Characters, last?.CatalogueFingerprint);
+                ? new CharacterPushRecord(fingerprint, DateTimeOffset.Now, 0, message)
+                : new CharacterPushRecord(fingerprint, DateTimeOffset.Now, 0, message, last?.Characters, last?.CatalogueFingerprint);
             _stateStore.Save(state);
-            SetCharacterSyncRow(install, key, null, [], message);
+            return (true, false, false, message);
         }
         catch (GigagrugThrottledException)
         {
             _logger.Info($"Character push for {guildId} {install.FlavourPath}: 429, throttled");
-            SetCharacterSyncRow(install, key, null, [], "Sent too recently, trying again shortly");
+            return (true, false, false, "Sent too recently, trying again shortly");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             _logger.Warn(ex, $"Character push for {guildId} {install.FlavourPath} failed, gigagrug unreachable");
-            SetCharacterSyncRow(install, key, null, [], "gigagrug unreachable, retrying");
+            return (true, false, false, "gigagrug unreachable, retrying");
         }
-
-        return false;
     }
 
     private string ResolveBatchId(AppState state, string key, string fingerprint)
@@ -2436,14 +2472,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return batchId;
     }
 
-    private void SetCharacterSyncRow(WowInstallViewModel install, string key, int? accepted, IReadOnlyList<CharacterSyncRejection> rejected, string? error)
-    {
-        var pushedAt = accepted is null
-            ? _stateStore.Load().CharacterSync.GetValueOrDefault(key)?.PushedAt
-            : DateTimeOffset.Now;
+    private DateTimeOffset? LastCharacterPushAt(AppState state, string flavourPath) =>
+        CharacterPushTargets()
+            .Select(target => state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(target.GuildId, flavourPath))?.PushedAt)
+            .Max();
 
+    private void SetCharacterSyncRow(WowInstallViewModel install, string? error)
+    {
+        var pushedAt = LastCharacterPushAt(_stateStore.Load(), install.FlavourPath);
         var existing = CharacterSyncRows.FirstOrDefault(row => row.FlavourPath == install.FlavourPath);
-        var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, pushedAt, accepted, error, rejected);
+        var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, pushedAt, error);
         if (existing is null)
         {
             CharacterSyncRows.Add(row);
@@ -2559,17 +2597,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var state = _stateStore.Load();
         foreach (var install in Installs)
         {
-            var last = _guildId is { } guildId
-                ? state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(guildId, install.FlavourPath))
-                : null;
-            var accepted = last?.Error is null ? last?.Accepted : null;
             var existing = CharacterSyncRows.FirstOrDefault(r => r.FlavourPath == install.FlavourPath);
             if (existing is not null && _characterRowsGuildId == _guildId)
             {
                 continue;
             }
 
-            var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, last?.PushedAt, accepted, last?.Error, []);
+            var error = CharacterPushTargets()
+                .Select(target => state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(target.GuildId, install.FlavourPath))?.Error)
+                .FirstOrDefault(message => message is not null);
+            var row = new CharacterSyncRowViewModel(install.DisplayName, install.FlavourPath, LastCharacterPushAt(state, install.FlavourPath), error);
             if (existing is null)
             {
                 CharacterSyncRows.Add(row);
@@ -3058,7 +3095,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _releases.Clear();
         _features.Clear();
         _guildFeatures.Clear();
-        SyncGuildNames = null;
         _meGuilds = [];
         _lastDirectory = null;
         _lastMemberCatalogue = null;

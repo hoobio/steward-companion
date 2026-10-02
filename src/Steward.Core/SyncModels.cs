@@ -380,9 +380,45 @@ public sealed record CharacterSyncBatch(
 
 public sealed record CharacterPushScope(
     IReadOnlyList<CharacterObservation> Characters,
-    IReadOnlyList<CharacterObservation> Excluded,
     GuildRanks? GuildRanks,
     string? Fingerprint);
+
+public sealed record CharacterPushTarget(string GuildId, bool ProfessionsOnly, IReadOnlyList<string>? SyncGuildNames);
+
+public sealed record CharacterPushRoute(string GuildId, bool ProfessionsOnly, CharacterPushScope Scope);
+
+public static class CharacterPushRouting
+{
+    public static IReadOnlyList<CharacterPushRoute> Route(
+        SavedVariablesSnapshot snapshot,
+        IReadOnlyList<CharacterPushTarget> targets,
+        string? selectedGuildId)
+    {
+        var selected = targets.FirstOrDefault(t => t.GuildId == selectedGuildId);
+        IEnumerable<CharacterPushTarget> routed = selected is { SyncGuildNames: null }
+            ? [selected]
+            : targets.Where(t => t.SyncGuildNames is { Count: > 0 });
+        return [.. routed
+            .Select(t => new CharacterPushRoute(t.GuildId, t.ProfessionsOnly, CharacterSyncMapping.Scope(snapshot, t.ProfessionsOnly, t.SyncGuildNames)))
+            .Where(r => r.Scope.Fingerprint is not null)];
+    }
+
+    public static ProfessionsCharacterState? StateOf(CharacterPushOutcome? outcome, bool professionsOnly, string? professionsFingerprint, bool batchCurrent) =>
+        outcome is { Accepted: false, Reason: CharacterSyncRejectionCopy.GuildNotAllowedReason } ? null
+        : professionsOnly ? ProfessionsPushSelection.StateOf(outcome, professionsFingerprint ?? string.Empty)
+        : !batchCurrent || outcome is null ? ProfessionsCharacterState.Pending
+        : outcome.Accepted ? ProfessionsCharacterState.Synced
+        : ProfessionsCharacterState.Rejected;
+
+    public static ProfessionsCharacterState? Combine(IEnumerable<ProfessionsCharacterState?> states)
+    {
+        var sent = states.OfType<ProfessionsCharacterState>().ToList();
+        return sent.Count == 0 ? null
+            : sent.Contains(ProfessionsCharacterState.Pending) ? ProfessionsCharacterState.Pending
+            : sent.Contains(ProfessionsCharacterState.Rejected) ? ProfessionsCharacterState.Rejected
+            : ProfessionsCharacterState.Synced;
+    }
+}
 
 public static class CharacterSyncMapping
 {
@@ -424,7 +460,7 @@ public static class CharacterSyncMapping
         var fingerprint = !snapshot.HasAccountData || (allowedGuilds is not null && characters.Count == 0) ? null
             : allowedGuilds is null && !professionsOnly ? snapshot.CharactersFingerprint
             : Fingerprint(characters, snapshot.Professions, snapshot.Catalogue, guildRanks);
-        return new CharacterPushScope(characters, [.. candidates.Except(characters)], guildRanks, fingerprint);
+        return new CharacterPushScope(characters, guildRanks, fingerprint);
     }
 
     public static string? EffectiveLinkedUserId(CharacterObservation observation, IReadOnlyList<DirectoryCharacter>? rosterCharacters)

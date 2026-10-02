@@ -284,19 +284,34 @@ public sealed partial class SyncViewModel : ObservableObject
             OutdatedProfessions = snapshot?.OutdatedProfessions ?? 0,
         };
 
-        var professionsOnly = _main.IsProfessionsOnlySync;
-        var scope = snapshot is null ? null : _main.ScopeCharacters(snapshot);
-        IReadOnlyList<CharacterObservation> covered = scope?.Characters ?? [];
-        var outcomes = _main.GetCharacterOutcomes(install.FlavourPath);
-        var batchCurrent = !professionsOnly && _main.IsCharacterPushCurrent(install.FlavourPath, scope?.Fingerprint);
-        var coveredCharacters = covered
-            .Select(c => (Observation: c, View: Character(c, snapshot!.Professions, outcomes, professionsOnly, batchCurrent)))
+        IReadOnlyList<CharacterPushRoute> routes = snapshot is null ? [] : _main.CharacterRoutes(snapshot);
+        var routed = routes.SelectMany(route =>
+        {
+            var outcomes = _main.GetCharacterOutcomes(route.GuildId, install.FlavourPath);
+            var batchCurrent = !route.ProfessionsOnly && _main.IsCharacterPushCurrent(route.GuildId, install.FlavourPath, route.Scope.Fingerprint);
+            return route.Scope.Characters.Select(c =>
+            {
+                var outcome = outcomes.GetValueOrDefault(c.CharacterGuid);
+                var fingerprint = route.ProfessionsOnly ? CharacterSyncMapping.ProfessionsFingerprint(snapshot!.Professions[c.CharacterGuid]) : null;
+                return (Route: route, Observation: c, Outcome: outcome, State: CharacterPushRouting.StateOf(outcome, route.ProfessionsOnly, fingerprint, batchCurrent));
+            });
+        }).ToList();
+        var coveredCharacters = routed
+            .GroupBy(r => r.Observation.CharacterGuid, StringComparer.Ordinal)
+            .Select(group => (
+                Observation: group.First().Observation,
+                ProfessionsOnly: group.Any(r => r.Route.ProfessionsOnly),
+                State: CharacterPushRouting.Combine(group.Select(r => r.State)),
+                Reason: group.FirstOrDefault(r => r.State == ProfessionsCharacterState.Rejected).Outcome?.Reason))
+            .Where(c => c.State is not null)
+            .Select(c => (c.Observation, c.ProfessionsOnly, c.Reason, View: Character(c.Observation, snapshot!.Professions, c.State!.Value, c.Reason)))
             .ToList();
+        var servers = routed.Where(r => r.State is not null).Select(r => r.Route.GuildId).Distinct(StringComparer.Ordinal).Count();
         var rosterCharacters = _main.LastDirectory?.Characters;
         var myUserId = _main.UserId;
-        var shown = professionsOnly
-            ? coveredCharacters
-            : coveredCharacters.Where(c => CharacterSyncMapping.IsOwnCharacter(c.Observation, rosterCharacters, myUserId)).ToList();
+        var shown = coveredCharacters
+            .Where(c => c.ProfessionsOnly || CharacterSyncMapping.IsOwnCharacter(c.Observation, rosterCharacters, myUserId))
+            .ToList();
         foreach (var character in shown
             .Select(c => c.View)
             .OrderBy(c => c.State)
@@ -308,22 +323,24 @@ public sealed partial class SyncViewModel : ObservableObject
         var synced = coveredCharacters.Count(c => c.View.State == ProfessionsCharacterState.Synced);
         var pending = coveredCharacters.Count(c => c.View.State == ProfessionsCharacterState.Pending);
         var rejected = coveredCharacters.Count(c => c.View.State == ProfessionsCharacterState.Rejected);
-        var notLinked = covered.Count(c => outcomes.GetValueOrDefault(c.CharacterGuid) is { Accepted: false, Reason: CharacterSyncRejectionCopy.NotLinkedReason });
-        view.HasNoOwnCharacters = !professionsOnly && covered.Count > 0 && shown.Count == 0;
+        var notLinked = coveredCharacters.Count(c => c.View.State == ProfessionsCharacterState.Rejected && c.Reason == CharacterSyncRejectionCopy.NotLinkedReason);
+        view.HasNoOwnCharacters = coveredCharacters.Count > 0 && shown.Count == 0;
+        var serversText = $"{servers} server{(servers == 1 ? "" : "s")}";
         var professions = Dataset(
             ProfessionsDatasetKey,
             "Your characters",
-            professionsOnly ? "characters" : batchCurrent ? "guild characters synced" : "guild characters, sending shortly",
-            covered.Count,
+            coveredCharacters.Count == 0 ? "characters"
+                : $"character{(coveredCharacters.Count == 1 ? "" : "s")} {(pending == 0 ? $"synced to {serversText}" : $"for {serversText}, sending shortly")}",
+            coveredCharacters.Count,
             sourceFile,
             exportedAt,
             isStale,
             isFirst: true,
             isSynced: synced > 0 && pending == 0);
         professions.IconSource = ProfessionsIcon;
-        professions.StatusText = _main.SyncGuildNames is { Count: 0 }
-            ? "No WoW guild is set up for syncing on this server"
-            : JoinStatus(ProfessionsStatus(synced, pending, notLinked, rejected - notLinked), ExcludedNote(scope?.Excluded));
+        professions.StatusText = coveredCharacters.Count == 0 && snapshot is { HasAccountData: true, Characters.Count: > 0 }
+            ? "No characters on a server's guild list"
+            : ProfessionsStatus(synced, pending, notLinked, rejected - notLinked);
         view.Datasets.Add(professions);
         view.ProfessionsDataset = professions;
         view.ApplyExpansion(_expansionChoices.GetValueOrDefault(install.FlavourPath));
@@ -368,27 +385,16 @@ public sealed partial class SyncViewModel : ObservableObject
     private ProfessionsCharacterViewModel Character(
         CharacterObservation character,
         IReadOnlyDictionary<string, CharacterProfessions> professions,
-        IReadOnlyDictionary<string, CharacterPushOutcome> outcomes,
-        bool professionsOnly,
-        bool batchCurrent)
-    {
-        var outcome = outcomes.GetValueOrDefault(character.CharacterGuid);
-        var characterProfessions = professions.GetValueOrDefault(character.CharacterGuid);
-        var state = professionsOnly
-            ? ProfessionsPushSelection.StateOf(outcome, CharacterSyncMapping.ProfessionsFingerprint(characterProfessions!))
-            : !batchCurrent || outcome is null ? ProfessionsCharacterState.Pending
-            : outcome.Accepted ? ProfessionsCharacterState.Synced
-            : ProfessionsCharacterState.Rejected;
-        return new ProfessionsCharacterViewModel(
+        ProfessionsCharacterState state,
+        string? rejection) => new(
             character.Name,
             character.Level,
             WowClasses.NameFor(character.ClassId),
-            ProfessionsSkillSummary.Format(characterProfessions?.Skills),
+            ProfessionsSkillSummary.Format(professions.GetValueOrDefault(character.CharacterGuid)?.Skills),
             state,
-            state == ProfessionsCharacterState.Rejected && outcome?.Reason is { } reason
-                ? _main.DescribeRejection(character.CharacterGuid, reason)
+            state == ProfessionsCharacterState.Rejected && rejection is not null
+                ? _main.DescribeRejection(character.CharacterGuid, rejection)
                 : null);
-    }
 
     private static void AddPullDataset(SyncInstallViewModel view, SyncDatasetViewModel dataset, bool pulled, bool written)
     {
@@ -414,20 +420,6 @@ public sealed partial class SyncViewModel : ObservableObject
         ];
         return string.Join(", ", parts.OfType<string>());
     }
-
-    private static string? ExcludedNote(IReadOnlyList<CharacterObservation>? excluded)
-    {
-        if (excluded is not { Count: > 0 })
-        {
-            return null;
-        }
-
-        var guilds = string.Join(", ", excluded.Select(c => c.Guild.Trim()).Where(g => g.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase));
-        return $"{Characters(excluded.Count)}{(guilds.Length > 0 ? $" from {guilds}" : "")} not synced: not on this server's guild list";
-    }
-
-    private static string? JoinStatus(string? status, string? note) =>
-        status is null ? note : note is null ? status : $"{status}. {note}";
 
     private static string Characters(int count) => $"{count} character{(count == 1 ? "" : "s")}";
 

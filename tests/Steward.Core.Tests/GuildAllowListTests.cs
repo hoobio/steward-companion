@@ -38,14 +38,13 @@ public sealed class GuildAllowListTests
     }
 
     [Fact]
-    public void Scope_KeepsOnlyAllowedCharacters_AndReportsTheRest()
+    public void Scope_KeepsOnlyAllowedCharacters()
     {
         var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"), Character(AltGuid, "Other"));
 
         var scope = CharacterSyncMapping.Scope(snapshot, false, ["gigagrug"]);
 
         Assert.Equal(HomeGuid, Assert.Single(scope.Characters).CharacterGuid);
-        Assert.Equal(AltGuid, Assert.Single(scope.Excluded).CharacterGuid);
     }
 
     [Fact]
@@ -56,7 +55,6 @@ public sealed class GuildAllowListTests
         var scope = CharacterSyncMapping.Scope(snapshot, false, null);
 
         Assert.Equal(2, scope.Characters.Count);
-        Assert.Empty(scope.Excluded);
         Assert.Equal("snapshot-fingerprint", scope.Fingerprint);
     }
 

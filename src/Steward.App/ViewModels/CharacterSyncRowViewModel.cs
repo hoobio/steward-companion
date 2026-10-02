@@ -1,5 +1,3 @@
-using Steward.Core;
-
 using Microsoft.UI.Xaml;
 
 namespace Steward.App.ViewModels;
@@ -8,9 +6,7 @@ public sealed record CharacterSyncRowViewModel(
     string DisplayName,
     string FlavourPath,
     DateTimeOffset? PushedAt,
-    int? Accepted,
-    string? Error,
-    IReadOnlyList<CharacterSyncRejection> Rejected)
+    string? Error)
 {
     public string LastPushText => PushedAt is null ? "Not pushed yet" : $"Pushed {Relative(PushedAt.Value)}";
 
