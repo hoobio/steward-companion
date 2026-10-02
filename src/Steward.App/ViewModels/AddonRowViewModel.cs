@@ -55,6 +55,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(InstalledVersionShort),
         nameof(AvailableVersionShort),
         nameof(ReleasedText),
+        nameof(ReleasedTip),
         nameof(NewVersionBrush),
         nameof(VersionPairVisibility),
         nameof(WideVersionPairVisibility),
@@ -361,9 +362,13 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         ? $"Installing {child.DisplayName} {child._status?.Release?.Version}, verifying download"
         : $"Installing {_status?.Release?.Version}, verifying download";
 
-    public string ReleasedText => _status?.Release is { } release
-        ? $"Released {RelativeTime.Describe(release.Released, DateTimeOffset.Now)}"
+    private DateTimeOffset? ReleasedAt => _status?.Release?.Released is { } released && released != default ? released : null;
+
+    public string ReleasedText => ReleasedAt is { } released
+        ? $"Released {RelativeTime.Describe(released, DateTimeOffset.Now)}"
         : "";
+
+    public string ReleasedTip => ReleasedAt?.ToLocalTime().ToString("f", CultureInfo.CurrentCulture) ?? "";
 
     public Brush NewVersionBrush => (Brush)Application.Current.Resources[
         IsIgnoredUpdate ? "TextFillColorTertiaryBrush" : "AvailableVersionBrush"];
@@ -379,7 +384,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility StackedVersionPairVisibility => When(IsStacked);
 
-    private bool ShowsReleased => (State == AddonRowState.Missing || (State == AddonRowState.UpdateAvailable && HasOwnUpdate)) && !IsIgnoredUpdate;
+    private bool ShowsReleased => ReleasedAt is not null && State != AddonRowState.NoReleases;
 
     public Visibility ReleasedVisibility => When(ShowsReleased && !IsCompact && !IsStacked);
 
@@ -481,7 +486,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         : null;
 
     public string? VersionCellTip =>
-        string.Join("\n", new[] { VersionTip, (IsCompact || IsStacked) && ShowsReleased ? ReleasedText : null, TipChannelLine }
+        string.Join("\n", new[] { VersionTip, (IsCompact || IsStacked) && ShowsReleased ? $"{ReleasedText} ({ReleasedTip})" : null, TipChannelLine }
             .Where(line => !string.IsNullOrEmpty(line))) is { Length: > 0 } tip ? tip : null;
 
     public bool HasVersionCellTip => VersionCellTip is not null;

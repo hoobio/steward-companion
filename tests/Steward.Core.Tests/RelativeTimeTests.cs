@@ -5,7 +5,8 @@ public sealed class RelativeTimeTests
     private static readonly DateTimeOffset Now = new(2026, 9, 20, 12, 0, 0, TimeSpan.Zero);
 
     [Theory]
-    [InlineData(0.5, "just now")]
+    [InlineData(0.01, "just now")]
+    [InlineData(0.05, "3 minutes ago")]
     [InlineData(1, "1 hour ago")]
     [InlineData(2, "2 hours ago")]
     [InlineData(26, "yesterday")]

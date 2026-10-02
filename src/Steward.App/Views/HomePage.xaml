@@ -254,6 +254,7 @@
                         </Button>
                         <TextBlock
                             Text="{x:Bind ReleasedText, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind ReleasedTip, Mode=OneWay}"
                             FontSize="11.5"
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                             Visibility="{x:Bind ReleasedVisibility, Mode=OneWay}" />

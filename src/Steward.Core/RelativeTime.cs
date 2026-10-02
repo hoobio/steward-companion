@@ -8,7 +8,8 @@ public static class RelativeTime
         var days = (int)elapsed.TotalDays;
         return true switch
         {
-            _ when elapsed < TimeSpan.FromHours(1) => "just now",
+            _ when elapsed < TimeSpan.FromMinutes(1) => "just now",
+            _ when elapsed < TimeSpan.FromHours(1) => $"{Plural((int)elapsed.TotalMinutes, "minute")} ago",
             _ when days < 1 => $"{Plural((int)elapsed.TotalHours, "hour")} ago",
             _ when days == 1 => "yesterday",
             _ when days < 30 => $"{Plural(days, "day")} ago",
