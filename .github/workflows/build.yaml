@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: "${{ github.workflow }}-${{ github.ref }}-${{ startsWith(github.event.head_commit.message, 'chore(main): release') && 'release' || 'build' }}"
+  group: "${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ startsWith(github.event.head_commit.message, 'chore(main): release') && 'release' || 'build' }}"
   cancel-in-progress: true
 
 env:
@@ -61,7 +61,10 @@ jobs:
   build-msix:
     name: Build MSIX
     needs: [release-please]
-    if: always() && github.event_name == 'push' && needs.release-please.result != 'failure'
+    if: >-
+      always()
+      && needs.release-please.result != 'failure'
+      && (github.event_name == 'workflow_dispatch' || needs.release-please.outputs.release_created == 'true')
     runs-on: windows-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -321,7 +324,6 @@ jobs:
     needs: [release-please, build-msix]
     if: >-
       always()
-      && github.event_name == 'push'
       && needs.build-msix.result == 'success'
       && vars.STORE_FLIGHT_ID != ''
       && vars.AZURE_CLIENT_ID != ''
