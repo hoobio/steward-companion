@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.19.0](https://github.com/hoobio/steward-companion/compare/v0.18.5...v0.19.0) (2026-10-02)
+
+
+### Features
+
+* ✨ add optional character gender to the sync payload ([45ea077](https://github.com/hoobio/steward-companion/commit/45ea07736335551847924b4683fa6ecab487c1c2))
+* ✨ sync character gear with the g1 fingerprint pinned ([d1bd495](https://github.com/hoobio/steward-companion/commit/d1bd49567133762e1125e0102cab7a21028458f9))
+
+
+### Bug Fixes
+
+* 🐛 forward the realm display name with character syncs ([bbc1f8c](https://github.com/hoobio/steward-companion/commit/bbc1f8cfa6a9978b980449ed756b8464223c43bb))
+* 🐛 gate CurseForge on the addons feature and add a setting to turn it off ([7aa2ba3](https://github.com/hoobio/steward-companion/commit/7aa2ba30eacd675ff4370f6685ab98f72f561c1d))
+* 🐛 route each character sync to every server that lists its WoW guild ([22e8236](https://github.com/hoobio/steward-companion/commit/22e823644fa530646957f57b4a5fc13acacfdf06))
+* 🐛 shorten the /reload hint ([a4a66d8](https://github.com/hoobio/steward-companion/commit/a4a66d8a6305c602afe2b5e96a431378716a9040))
+* 🐛 show every addon's release age with its local timestamp on hover ([450fc31](https://github.com/hoobio/steward-companion/commit/450fc315a51f5265df1fba3a50b64306bbd402fd))
+* 🐛 skip empty equipped slots instead of dropping the whole gear record ([1a45568](https://github.com/hoobio/steward-companion/commit/1a4556895958d8ba8af041c3d4ae00b88588f7fc))
+* 🐛 sync only characters from the server's allowed WoW guilds ([94844e0](https://github.com/hoobio/steward-companion/commit/94844e0be66213a20dddce45b518cfb6b7a1a30c))
+* 🐛 tidy up multi-server character sync status and edge cases ([8a3156d](https://github.com/hoobio/steward-companion/commit/8a3156d84e33a56e2ef52b81dd4f6ed874f8071a))
+* 🐛 widen the Version column before stacking an update's versions ([1ea824d](https://github.com/hoobio/steward-companion/commit/1ea824d7ea828ab25500983112b5aa4c7bd705f7))
+
 ## [0.18.5](https://github.com/hoobio/steward-companion/compare/v0.18.4...v0.18.5) (2026-10-01)
 
 
