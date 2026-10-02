@@ -79,6 +79,58 @@ public sealed class CharacterGearTests
     }
 
     [Fact]
+    public void Read_MapsAForeverCapture_WithEmptySlotsAsPositionalNils()
+    {
+        var snapshot = StewardSavedVariables.Read([("account.lua", DateTimeOffset.UnixEpoch, """
+            StewardDB = {
+            ["gear"] = {
+            ["Player-4619-00B33CCD"] = {
+            ["fp"] = "057cf2e8",
+            ["observedAt"] = 1790948931,
+            ["bags"] = {
+            },
+            ["equipped"] = {
+            {
+            ["equipLoc"] = "INVTYPE_HEAD",
+            ["itemID"] = 4373,
+            ["link"] = "item:4373::::::::15:1484::::::::Player-4619-00B33CCD:",
+            ["ilvl"] = 24,
+            ["quality"] = 2,
+            },
+            nil,
+            nil,
+            nil,
+            {
+            ["equipLoc"] = "INVTYPE_ROBE",
+            ["itemID"] = 9598,
+            ["link"] = "item:9598::::::::15:1484::11:::::::",
+            ["ilvl"] = 10,
+            ["quality"] = 2,
+            },
+            [16] = {
+            ["equipLoc"] = "INVTYPE_2HWEAPON",
+            ["itemID"] = 15397,
+            ["link"] = "item:15397::::::::15:1484::11:::::::",
+            ["ilvl"] = 14,
+            ["quality"] = 2,
+            },
+            },
+            ["level"] = 15,
+            ["schema"] = 1,
+            },
+            },
+            }
+            """)]);
+
+        var gear = snapshot.Gear["Player-4619-00B33CCD"];
+        Assert.Equal(0, snapshot.Skipped);
+        Assert.Equal(["1", "16", "5"], gear.Equipped.Keys);
+        Assert.Equal("item:4373::::::::15:1484::::::::Player-4619-00B33CCD:", gear.Equipped["1"].Link);
+        Assert.Equal(9598, gear.Equipped["5"].ItemId);
+        Assert.Equal(15, gear.Level);
+    }
+
+    [Fact]
     public void Read_LeavesBankNull_WhenAbsent()
     {
         var snapshot = ReadAccount(GearLua(1));

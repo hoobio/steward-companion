@@ -414,6 +414,11 @@ public static class StewardSavedVariables
         foreach (var entry in table?.Table ?? [])
         {
             var slot = entry.Key is null ? ++position : entry.Key is { Kind: LuaKind.Number } key ? (int)key.Number : (int?)null;
+            if (entry.Value.Kind is LuaKind.Nil)
+            {
+                continue;
+            }
+
             var gear = entry.Value.Kind is LuaKind.Table ? MapGearEntry(entry.Value) : null;
             if (slot is null || gear is null)
             {
