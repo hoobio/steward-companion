@@ -190,6 +190,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isLoadingState = true;
         MinimizeToTray = state.MinimizeToTray;
         CloseToTray = state.CloseToTray;
+        CurseForgeEnabled = state.CurseForgeEnabled;
         AutoUpdateIndex = AppStateStore.ParseAutoUpdate(state.AutoUpdate) switch
         {
             AutoUpdateMode.Always => 0,
@@ -317,6 +318,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool CloseToTray { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCurseForgeEnabled))]
+    public partial bool CurseForgeEnabled { get; set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LiveUpdatesLiveVisibility), nameof(LiveUpdatesReconnectingVisibility), nameof(LiveUpdatesTooltip), nameof(AccountAutomationName))]
     public partial LiveUpdatesState LiveUpdatesState { get; set; }
 
@@ -414,7 +419,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasGuidesFeature => _features.Contains(GigagrugClient.GuidesFeature);
 
-    public bool HasCurseForgeFeature => _features.Contains(GigagrugClient.CurseForgeFeature);
+    public bool HasAddonsFeature => _features.Contains(GigagrugClient.AddonsFeature);
+
+    public bool IsCurseForgeEnabled => CurseForgeEnabled && HasAddonsFeature;
+
+    public Visibility CurseForgeSettingVisibility => When(HasAddonsFeature);
 
     public bool HasStewardFeature => _guildFeatures.Contains(GigagrugClient.StewardFeature);
 
@@ -2518,7 +2527,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RebuildAddonChannels();
         SyncRestedXpRows();
         SyncCharacterSyncRows();
-        OnPropertyChanged(nameof(HasCurseForgeFeature));
+        OnPropertyChanged(nameof(IsCurseForgeEnabled));
+        OnPropertyChanged(nameof(CurseForgeSettingVisibility));
         OnPropertyChanged(nameof(GetAddonsVisibility));
     }
 
@@ -2603,6 +2613,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _stateStore.Save(_stateStore.Load() with { CloseToTray = value });
     }
 
+    partial void OnCurseForgeEnabledChanged(bool value)
+    {
+        if (_isLoadingState)
+        {
+            return;
+        }
+
+        _stateStore.Save(_stateStore.Load() with { CurseForgeEnabled = value });
+        ReconcileFeatureGating();
+        foreach (var install in Installs)
+        {
+            _ = install.RescanLocalAsync();
+        }
+
+        OnPropertyChanged(nameof(UpdateAllVisibility));
+        OnPropertyChanged(nameof(AdoptAllVisibility));
+        OnPropertyChanged(nameof(AdoptAllAccessibleName));
+        _ = EvaluateCurseForgeDefaultHandlerAsync();
+        if (value && IsCurseForgeEnabled)
+        {
+            _ = ProbeAddedProviderAddonsAsync(AllProviderAddons());
+        }
+    }
+
     partial void OnAutoUpdateIndexChanged(int value)
     {
         if (_isLoadingState)
@@ -2682,7 +2716,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _addonUpdater,
             _stateStore,
             (addon, ct) => EnsureAuthorizedForAddonAsync(install.FlavourPath, addon, ct),
-            _features.Contains,
+            () => IsCurseForgeEnabled,
             ShowChannelDialogFor,
             ConfirmUninstallAsync,
             install => _ = ConfirmRemoveInstallAsync(install.FlavourPath),
@@ -2869,6 +2903,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _meGuilds = me.Guilds;
 
             var previousFeatures = new HashSet<string>(_features, StringComparer.Ordinal);
+            var wasCurseForgeEnabled = IsCurseForgeEnabled;
             var previousRole = Role;
             var previousUserId = _userId;
             _features.Clear();
@@ -2880,7 +2915,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ReconcileFeatureGating();
             }
 
-            if (catalogueChanged || previousFeatures.Contains(GigagrugClient.CurseForgeFeature) != HasCurseForgeFeature)
+            if (catalogueChanged || wasCurseForgeEnabled != IsCurseForgeEnabled)
             {
                 foreach (var install in Installs)
                 {
@@ -3019,7 +3054,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastDirectorySync = default;
         _lastOfficerPayload = null;
         _lastOfficerPayloadGuild = null;
-        OnPropertyChanged(nameof(HasCurseForgeFeature));
+        OnPropertyChanged(nameof(IsCurseForgeEnabled));
+        OnPropertyChanged(nameof(CurseForgeSettingVisibility));
         OnPropertyChanged(nameof(GetAddonsVisibility));
     }
 

@@ -309,6 +309,19 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_CurseForgeEnabled_DefaultsToTrue_AndRoundTrips()
+    {
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+
+        Assert.True(store.Load().CurseForgeEnabled);
+
+        store.Save(store.Load() with { CurseForgeEnabled = false });
+
+        Assert.False(store.Load().CurseForgeEnabled);
+    }
+
+    [Fact]
     public void Load_AutoUpdate_DefaultsToOutOfGame_AndRoundTrips()
     {
         File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");

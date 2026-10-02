@@ -9,7 +9,7 @@ public static class CurseForgeAddons
     public static ManagedAddon ToManagedAddon(ProviderAddonRecord record, string manifestBaseUrl)
     {
         ArgumentNullException.ThrowIfNull(record);
-        return new ManagedAddon(record.Id, record.FolderName, manifestBaseUrl, Name: record.Name, Features: [GigagrugClient.CurseForgeFeature], Source: record.Source)
+        return new ManagedAddon(record.Id, record.FolderName, manifestBaseUrl, Name: record.Name, Features: [GigagrugClient.AddonsFeature], Source: record.Source)
         {
             IconUrl = record.IconUrl,
             Folders = Folders(record),

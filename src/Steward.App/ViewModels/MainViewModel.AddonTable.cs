@@ -115,7 +115,7 @@ public sealed partial class MainViewModel
 
     public Visibility UpdateAllVisibility => When(SelectedAdoptableCount == 0 && TotalUpdateCount > 0 && TableVisibility == Visibility.Visible);
 
-    private int SelectedAdoptableCount => HasCurseForgeFeature && SelectedInstall is { } install ? install.AdoptableRows.Count : 0;
+    private int SelectedAdoptableCount => IsCurseForgeEnabled && SelectedInstall is { } install ? install.AdoptableRows.Count : 0;
 
     public Visibility AdoptAllVisibility => When(SelectedAdoptableCount > 0 && TableVisibility == Visibility.Visible);
 

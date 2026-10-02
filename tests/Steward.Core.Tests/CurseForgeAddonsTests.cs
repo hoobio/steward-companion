@@ -112,13 +112,13 @@ public sealed class CurseForgeAddonsTests
         Assert.Equal(["Questie", "QuestieDB"], CurseForgeAddons.Folders(new ProviderAddonRecord("id", "Questie", "Q", "CurseForge", 1, 2, ["QuestieDB", "Questie"])));
 
     [Fact]
-    public void ToManagedAddon_IsGatedOnCurseForge_AndUsesTheStoredIcon()
+    public void ToManagedAddon_IsGatedOnAddons_AndUsesTheStoredIcon()
     {
         var addon = CurseForgeAddons.ToManagedAddon(
             new ProviderAddonRecord("curseforge-1-2", "Questie", "Questie", "CurseForge", 1, 2, ["Questie"], "https://media.forgecdn.net/x.png"),
             "https://api.example.com/guild/api/addons/curseforge/1/2/");
 
-        Assert.Equal([GigagrugClient.CurseForgeFeature], addon.Features);
+        Assert.Equal([GigagrugClient.AddonsFeature], addon.Features);
         Assert.Equal(new Uri("https://media.forgecdn.net/x.png"), addon.IconUri);
         Assert.Equal("CurseForge", addon.Source);
     }

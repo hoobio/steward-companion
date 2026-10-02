@@ -272,6 +272,7 @@ public sealed record AppState(
     [property: JsonPropertyName("guild_roster_sync")] Dictionary<string, string> GuildRosterSync = null!,
     [property: JsonPropertyName("guild_id")] string? GuildId = null,
     [property: JsonPropertyName("close_to_tray")] bool CloseToTray = false,
+    [property: JsonPropertyName("curseforge_enabled")] bool CurseForgeEnabled = true,
     [property: JsonPropertyName("auto_update")] string AutoUpdate = "out-of-game",
     [property: JsonPropertyName("character_sync"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Dictionary<string, CharacterPushRecord> CharacterSync = null!,
     [property: JsonPropertyName("character_sync_batches"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Dictionary<string, CharacterSyncBatch> CharacterSyncBatches = null!,

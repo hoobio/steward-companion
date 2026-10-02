@@ -30,7 +30,7 @@ public sealed partial class MainViewModel
 
         var aumid = CurseForgeDefaultQuery.Aumid;
         bool? isDefault = false;
-        if (aumid is not null && IsAuthorized && HasCurseForgeFeature)
+        if (aumid is not null && IsAuthorized && IsCurseForgeEnabled)
         {
             try
             {
@@ -44,7 +44,7 @@ public sealed partial class MainViewModel
         }
 
         var shown = _localBanners.Any(banner => banner.Id == DefaultHandlerBannerId);
-        var wanted = aumid is not null && IsAuthorized && HasCurseForgeFeature && isDefault == false
+        var wanted = aumid is not null && IsAuthorized && IsCurseForgeEnabled && isDefault == false
             && !(_stateStore.Load().DismissedBanners ?? []).ContainsKey(DefaultHandlerBannerId);
         if (wanted && !shown)
         {
@@ -96,7 +96,7 @@ public sealed partial class MainViewModel
     private List<ProviderAddonRecord> ProviderRecords(string flavourPath) =>
         _stateStore.Load().ProviderAddons.GetValueOrDefault(flavourPath) ?? [];
 
-    private IReadOnlyList<ManagedAddon> ProviderAddons(string flavourPath) => HasCurseForgeFeature
+    private IReadOnlyList<ManagedAddon> ProviderAddons(string flavourPath) => IsCurseForgeEnabled
         ? [.. ProviderRecords(flavourPath)
             .Where(record => record.Source == CurseForgeAddons.Source)
             .OrderBy(record => record.Name, StringComparer.OrdinalIgnoreCase)
@@ -149,6 +149,11 @@ public sealed partial class MainViewModel
 
     private bool ReconcileProviderAddons(WowInstallViewModel install, IReadOnlyList<ProviderAddonRecord> identified)
     {
+        if (!CurseForgeEnabled)
+        {
+            return false;
+        }
+
         var state = _stateStore.Load();
         var records = state.ProviderAddons.GetValueOrDefault(install.FlavourPath) ?? [];
         var busy = install.AddonRows.Where(row => row.IsBusy).Select(row => row.AddonId).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -167,7 +172,7 @@ public sealed partial class MainViewModel
 
         SaveProviderRecords(state, install.FlavourPath, [.. kept, .. added]);
         SyncProviderRows(install);
-        if (added.Count > 0 && HasCurseForgeFeature)
+        if (added.Count > 0 && IsCurseForgeEnabled)
         {
             _ = ProbeAddedProviderAddonsAsync(ProviderAddons(install.FlavourPath).Where(addon => added.Any(record => record.Id == addon.Id)).ToList());
         }
@@ -297,7 +302,7 @@ public sealed partial class MainViewModel
     }
 
     public Visibility GetAddonsVisibility =>
-        HasCurseForgeFeature && SelectedInstall is { IsMissing: false } install && CurseForgeVersionType(install.Install) is not null ? Visibility.Visible : Visibility.Collapsed;
+        IsCurseForgeEnabled && SelectedInstall is { IsMissing: false } install && CurseForgeVersionType(install.Install) is not null ? Visibility.Visible : Visibility.Collapsed;
 
     public GetAddonsViewModel? CreateGetAddons() =>
         SelectedInstall is { } install && CurseForgeVersionType(install.Install) is { } versionType
@@ -325,9 +330,15 @@ public sealed partial class MainViewModel
             await initializing.ConfigureAwait(true);
         }
 
-        if (!IsSignedIn || !HasCurseForgeFeature)
+        if (!IsSignedIn || !HasAddonsFeature)
         {
             ShowLocalInfoBanner("CurseForge installs are not enabled for your account.");
+            return;
+        }
+
+        if (!CurseForgeEnabled)
+        {
+            ShowLocalInfoBanner("CurseForge addon management is turned off in Settings.");
             return;
         }
 
@@ -466,9 +477,14 @@ public sealed partial class MainViewModel
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(result);
-        if (!HasCurseForgeFeature)
+        if (!HasAddonsFeature)
         {
             return "CurseForge is not enabled for your account.";
+        }
+
+        if (!CurseForgeEnabled)
+        {
+            return "CurseForge addon management is turned off in Settings.";
         }
 
         var id = CurseForgeAddons.Id(result.Id, versionType);
@@ -535,7 +551,7 @@ public sealed partial class MainViewModel
         [
             .. _addons.Concat(_addonCatalogue ?? []).Select(addon => addon.FolderName),
             StewardGuidesAddon.FolderName,
-            .. ProviderRecords(install.FlavourPath).Where(record => record.Id != id).SelectMany(record =>
+            .. ProviderRecords(install.FlavourPath).Where(record => CurseForgeEnabled && record.Id != id).SelectMany(record =>
                 CurseForgeAddons.Folders(record).Concat(installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, record.Id))?.Folders ?? [])),
         ];
     }

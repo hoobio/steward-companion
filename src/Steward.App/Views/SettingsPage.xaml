@@ -154,6 +154,17 @@
                 </controls:SettingsCard>
 
                 <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Enable CurseForge addon management"
+                    Description="Find, install and update CurseForge addons, and adopt the ones already installed"
+                    Visibility="{x:Bind ViewModel.CurseForgeSettingVisibility, Mode=OneWay}">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE896;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind ViewModel.CurseForgeEnabled, Mode=TwoWay}" />
+                </controls:SettingsCard>
+
+                <controls:SettingsCard
                     CornerRadius="{StaticResource GroupBottomCornerRadius}"
                     Header="Start with Windows"
                     Description="{x:Bind ViewModel.StartWithWindowsDescription, Mode=OneWay}"

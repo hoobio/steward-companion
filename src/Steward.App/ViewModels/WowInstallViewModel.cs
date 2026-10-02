@@ -40,7 +40,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Action<WowInstallViewModel, string> _unmanageProviderAddon;
     private readonly Func<Task<bool>> _confirmAdopt;
     private readonly Func<ManagedAddon, CancellationToken, Task<bool>> _ensureAuthorized;
-    private readonly Func<string, bool> _hasFeature;
+    private readonly Func<bool> _isCurseForgeEnabled;
     private readonly Action<string> _changeChannelRequested;
     private readonly Func<string, string, string, Task<bool>> _confirmUninstall;
     private readonly Func<WowInstall, Task> _afterStewardInstalled;
@@ -65,7 +65,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         AddonUpdater updater,
         AppStateStore stateStore,
         Func<ManagedAddon, CancellationToken, Task<bool>> ensureAuthorized,
-        Func<string, bool> hasFeature,
+        Func<bool> isCurseForgeEnabled,
         Action<string> changeChannelRequested,
         Func<string, string, string, Task<bool>> confirmUninstall,
         Action<WowInstallViewModel> remove,
@@ -89,7 +89,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         _updater = updater;
         _stateStore = stateStore;
         _ensureAuthorized = ensureAuthorized;
-        _hasFeature = hasFeature;
+        _isCurseForgeEnabled = isCurseForgeEnabled;
         _changeChannelRequested = changeChannelRequested;
         _confirmUninstall = confirmUninstall;
         _afterStewardInstalled = afterStewardInstalled;
@@ -327,7 +327,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         try
         {
             var excluded = _excludedFolders(this);
-            var identify = _hasFeature(GigagrugClient.CurseForgeFeature);
+            var identify = _isCurseForgeEnabled();
             var scanned = HasGameVersion
                 ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, excluded, _logger, TocFile.InterfaceNumber(ClientVersion))).ConfigureAwait(false)
                 : [];
@@ -408,7 +408,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         var state = _stateStore.Load();
         var hidden = state.HiddenAddons.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var kept = state.KeptLocalAddons.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var unrecorded = _hasFeature(GigagrugClient.CurseForgeFeature)
+        var unrecorded = _isCurseForgeEnabled()
             ? CurseForgeAddons.Adoptable(identified, state.ProviderAddons.GetValueOrDefault(FlavourPath) ?? [], [], FlavourPath)
             : [];
         var wanted = scanned.Select(addon =>
@@ -482,7 +482,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private async Task AdoptAsync(IReadOnlyList<ProviderAddonRecord> matches)
     {
         var records = matches.DistinctBy(record => record.Id, StringComparer.OrdinalIgnoreCase).ToList();
-        if (records.Count == 0 || !_hasFeature(GigagrugClient.CurseForgeFeature) || !await _confirmAdopt().ConfigureAwait(true))
+        if (records.Count == 0 || !_isCurseForgeEnabled() || !await _confirmAdopt().ConfigureAwait(true))
         {
             return;
         }
