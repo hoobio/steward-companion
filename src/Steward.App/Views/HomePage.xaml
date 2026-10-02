@@ -136,7 +136,7 @@
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
                     <TextBlock
-                        Text="Type /reload in game to load the updated files"
+                        Text="/reload in-game to update"
                         TextWrapping="Wrap"
                         Style="{StaticResource CaptionTextBlockStyle}"
                         Foreground="{ThemeResource SystemFillColorSuccessBrush}"
