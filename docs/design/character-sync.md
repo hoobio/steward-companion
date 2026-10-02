@@ -16,7 +16,7 @@ gigagrug's `_same_site` check (`auth.py:146-153`, `255-256`) rejects a non-GET w
 
 ## Identity and scope
 
-A character is identified by its WoW GUID (`Player-<serverId>-<8 hex>`), which survives renames and is unique across realms. Each observation carries its scope, `(realm, guildName)` from `GetRealmName()` and `GetGuildInfo("player")`, because beta realm and guild names change at release; the SPA picks a scope from a dropdown defaulting to the most recently observed one.
+A character is identified by its WoW GUID (`Player-<serverId>-<8 hex>`), which survives renames and is unique across realms. Each observation carries its scope, `(realm, guildName)` from `GetGuildInfo("player")`, because beta realm and guild names change at release; the SPA picks a scope from a dropdown defaulting to the most recently observed one. `realm` is the guild's realm as a compact key (no spaces or hyphens, e.g. `ClassicBetaPvP2`): the fourth return of `GetGuildInfo("player")` when the guild is on another realm, else the player's own realm compacted. The optional `realmName` is the display name (`GetRealmName()`), written only when the guild is on the player's own realm, since another realm's display name is not available; it rides on each character entry and on `guildRanks`, is part of the push-gate fingerprint like `realm`, and is omitted from the request when absent.
 
 Each Discord guild carries an allow-list of WoW guild names, sent as `sync_guild_names` (original casing) on that guild's `/api/me` entry. The server rejects a character from a non-allowed guild with the reason `guild not allowed` and ignores `guildRanks` for a non-allowed guild. The app routes each push by those lists: every Discord guild whose own resolved features hold `sync` and whose `sync_guild_names` is a non-empty list receives the characters whose trimmed `guild` matches a listed name case-insensitively, in that guild's own officer or professions-only mode, with `guildRanks` only for an officer guild that lists its guild (`CharacterPushRouting.Route`). A WoW guild on several lists goes to each, and a character on no list is not sent anywhere. Each guild's push-gate fingerprint covers only what was routed to it, and its push records, batch id, per-character outcomes and catalogue fingerprint are kept per Discord guild id and install, so the guilds gate and diff independently. When the selected guild's entry has no `sync_guild_names` (an older gigagrug), the whole batch goes to the selected guild only and the server decides. A `guild not allowed` rejection counts as skipped rather than rejected. The Sync page's "Your characters" row reads "{n} characters synced to {m} servers", or "{n} characters for {m} servers, sending shortly" while any is unsent, and "No characters on a server's guild list" when no list covers an observed character.
 
@@ -28,14 +28,14 @@ Each Discord guild carries an allow-list of WoW guild names, sent as `sync_guild
 StewardDB = {
   ["characters"] = {
     ["Player-4395-0A1B2C3D"] = {
-      ["name"] = "Hoobi Furry", ["realm"] = "Nightslayer", ["guild"] = "Gigagrug",
+      ["name"] = "Hoobi Furry", ["realm"] = "Nightslayer", ["realmName"] = "Nightslayer", ["guild"] = "Gigagrug",
       ["level"] = 60, ["classID"] = 1, ["raceID"] = 2, ["rankIndex"] = 1,
       ["lastOnline"] = 1758250000, ["linkedUserId"] = "123456789012345678",
       ["linkKnown"] = true, ["observedAt"] = 1758260000,
     },
   },
   ["guildRanks"] = {
-    ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758260000,
+    ["realm"] = "Nightslayer", ["realmName"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758260000,
     ["ranks"] = { [1] = "Guild Master", [2] = "Officer", [3] = "Member" },
   },
 }

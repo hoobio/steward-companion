@@ -124,7 +124,8 @@ public sealed record GuildRanks(
     string Realm,
     string Guild,
     DateTimeOffset? ObservedAt,
-    IReadOnlyDictionary<int, string> Ranks);
+    IReadOnlyDictionary<int, string> Ranks,
+    string? RealmName = null);
 
 public sealed record CharacterObservation(
     string CharacterGuid,
@@ -138,7 +139,8 @@ public sealed record CharacterObservation(
     DateTimeOffset? LastOnline,
     string? LinkedUserId,
     bool LinkKnown,
-    DateTimeOffset? ObservedAt);
+    DateTimeOffset? ObservedAt,
+    string? RealmName = null);
 
 public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("guid")] string CharacterGuid,
@@ -153,7 +155,8 @@ public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("linkedUserId")] string? LinkedUserId,
     [property: JsonPropertyName("linkKnown")] bool LinkKnown,
     [property: JsonPropertyName("observedAt")] long? ObservedAt,
-    [property: JsonPropertyName("professions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CharacterProfessions? Professions = null);
+    [property: JsonPropertyName("professions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CharacterProfessions? Professions = null,
+    [property: JsonPropertyName("realmName"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RealmName = null);
 
 public static class ProfessionsSchema
 {
@@ -189,7 +192,8 @@ public sealed record GuildRanksSync(
     [property: JsonPropertyName("realm")] string Realm,
     [property: JsonPropertyName("guild")] string Guild,
     [property: JsonPropertyName("observedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ObservedAt,
-    [property: JsonPropertyName("ranks")] IReadOnlyDictionary<string, string> Ranks);
+    [property: JsonPropertyName("ranks")] IReadOnlyDictionary<string, string> Ranks,
+    [property: JsonPropertyName("realmName"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RealmName = null);
 
 public sealed record ProfessionCatalogue(
     [property: JsonPropertyName("scannedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ScannedAt,
@@ -438,13 +442,15 @@ public static class CharacterSyncMapping
         observation.LinkedUserId,
         observation.LinkKnown,
         observation.ObservedAt?.ToUnixTimeSeconds(),
-        professions.GetValueOrDefault(observation.CharacterGuid));
+        professions.GetValueOrDefault(observation.CharacterGuid),
+        observation.RealmName);
 
     public static GuildRanksSync ToSync(GuildRanks ranks) => new(
         ranks.Realm,
         ranks.Guild,
         ranks.ObservedAt?.ToUnixTimeSeconds(),
-        ranks.Ranks.ToDictionary(entry => entry.Key.ToString(CultureInfo.InvariantCulture), entry => entry.Value, StringComparer.Ordinal));
+        ranks.Ranks.ToDictionary(entry => entry.Key.ToString(CultureInfo.InvariantCulture), entry => entry.Value, StringComparer.Ordinal),
+        ranks.RealmName);
 
     public static IReadOnlyList<CharacterObservation> FilterToProfessionsOnly(SavedVariablesSnapshot snapshot) =>
         [.. snapshot.Characters.Where(c => snapshot.Professions.ContainsKey(c.CharacterGuid))];

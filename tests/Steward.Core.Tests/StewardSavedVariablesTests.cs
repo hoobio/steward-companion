@@ -636,6 +636,27 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void Read_MapsRealmName_OnCharactersAndGuildRanks_WhenPresent()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["characters"] = {
+                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "ClassicBetaPvP2", ["realmName"] = "Classic Beta PvP 2", ["guild"] = "Gigagrug" },
+                ["Player-4395-11111111"] = { ["name"] = "Grug", ["realm"] = "ClassicBetaPvP2", ["guild"] = "Gigagrug" },
+            },
+            ["guildRanks"] = {
+                ["realm"] = "ClassicBetaPvP2", ["realmName"] = "Classic Beta PvP 2", ["guild"] = "Gigagrug",
+                ["ranks"] = { [1] = "Guild Master" },
+            },
+            }
+            """));
+
+        Assert.Equal("Classic Beta PvP 2", snapshot.Characters.Single(c => c.Name == "Hoobi").RealmName);
+        Assert.Null(snapshot.Characters.Single(c => c.Name == "Grug").RealmName);
+        Assert.Equal("Classic Beta PvP 2", snapshot.GuildRanks!.RealmName);
+    }
+
+    [Fact]
     public void Read_MapsPositionalGuildRanksTheWayTheClientWritesThem()
     {
         var snapshot = ReadFiles(("account.lua", """

@@ -252,7 +252,8 @@ public static class StewardSavedVariables
             ToTimestamp(value.GetNumber("lastOnline")),
             value.GetString("linkedUserId"),
             value.Get("linkKnown") is { Kind: LuaKind.Boolean, Boolean: true },
-            ToTimestamp(value.GetNumber("observedAt")));
+            ToTimestamp(value.GetNumber("observedAt")),
+            value.GetString("realmName"));
     }
 
     private static GuildRanks? MapGuildRanks(LuaValue? table, ref int skipped)
@@ -292,7 +293,7 @@ public static class StewardSavedVariables
             return null;
         }
 
-        return new GuildRanks(realm, guild, ToTimestamp(table.GetNumber("observedAt")), ranks);
+        return new GuildRanks(realm, guild, ToTimestamp(table.GetNumber("observedAt")), ranks, table.GetString("realmName"));
     }
 
     private static List<(string Guid, CharacterProfessions Professions)> MapProfessionsByGuid(

@@ -307,6 +307,42 @@ public sealed class CharacterProfessionsTests
     }
 
     [Fact]
+    public void CharacterSyncRequest_SerialisesRealmName_AndOmitsItWhenNull()
+    {
+        var named = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "ClassicBetaPvP2", "Gigagrug", 60, 1, 2, 1, null, null, false, null, "Classic Beta PvP 2");
+        var unnamed = named with { RealmName = null };
+        var ranks = new GuildRanks("ClassicBetaPvP2", "Gigagrug", null, new Dictionary<int, string> { [1] = "Guild Master" }, "Classic Beta PvP 2");
+        var professions = new Dictionary<string, CharacterProfessions>();
+
+        var withName = JsonSerializer.Serialize(
+            new CharacterSyncRequest("b", "1", [CharacterSyncMapping.ToEntry(named, professions)], null, CharacterSyncMapping.ToSync(ranks)),
+            CompanionJsonContext.Default.CharacterSyncRequest);
+        var withoutName = JsonSerializer.Serialize(
+            new CharacterSyncRequest("b", "1", [CharacterSyncMapping.ToEntry(unnamed, professions)], null, CharacterSyncMapping.ToSync(ranks with { RealmName = null })),
+            CompanionJsonContext.Default.CharacterSyncRequest);
+
+        Assert.Equal(2, withName.Split("\"realmName\":\"Classic Beta PvP 2\"").Length - 1);
+        Assert.DoesNotContain("realmName", withoutName, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Fingerprint_ChangesWhenRealmNameChanges()
+    {
+        var named = new CharacterObservation(
+            "Player-4395-0A1B2C3D", "Hoobi", "ClassicBetaPvP2", "Gigagrug", 60, 1, 2, 1, null, null, false, null, "Classic Beta PvP 2");
+        var professions = new Dictionary<string, CharacterProfessions>();
+
+        var before = CharacterSyncMapping.Fingerprint([named], professions);
+        var after = CharacterSyncMapping.Fingerprint([named with { RealmName = "Renamed" }], professions);
+        var ranksBefore = CharacterSyncMapping.Fingerprint([], professions, null, new GuildRanks("R", "G", null, new Dictionary<int, string> { [1] = "GM" }, "A"));
+        var ranksAfter = CharacterSyncMapping.Fingerprint([], professions, null, new GuildRanks("R", "G", null, new Dictionary<int, string> { [1] = "GM" }, "B"));
+
+        Assert.NotEqual(before, after);
+        Assert.NotEqual(ranksBefore, ranksAfter);
+    }
+
+    [Fact]
     public void MemberCatalogueMapping_ToCatalogue_MapsEachRecipeAndReagent()
     {
         var directoryCatalogue = new Dictionary<string, IReadOnlyList<DirectoryRecipe>>
