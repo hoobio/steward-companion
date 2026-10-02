@@ -33,6 +33,7 @@ public sealed partial class HomePage : Page
 
     private readonly HashSet<Grid> _tableRows = [];
     private readonly TextBlock _versionMeasure = new() { TextWrapping = TextWrapping.NoWrap };
+    private readonly Dictionary<Grid, double> _versionNeeds = [];
     private readonly Dictionary<string, ColumnResizeGrip> _grips;
     private double _statusMinWidth;
     private double _defaultSpace;
@@ -58,6 +59,8 @@ public sealed partial class HomePage : Page
     }
 
     public MainViewModel ViewModel { get; }
+
+    private double VersionFloor => _versionNeeds.Values.DefaultIfEmpty().Max();
 
     private double StatusMinWidth => _statusMinWidth > 0 ? _statusMinWidth : _statusMinWidth = WidestActions.Max(MeasureAction);
 
@@ -113,11 +116,16 @@ public sealed partial class HomePage : Page
         var total = widths.Values.Sum();
         var available = Math.Max(0, space - StatusMinWidth);
         var scale = total > available && total > 0 ? available / total : 1;
-
-        foreach (var (id, index, _, minWidth, _) in TableColumns)
+        var applied = shown.ToDictionary(column => column.Id, column => Math.Max(widths[column.Id] * scale, column.MinWidth));
+        if (applied.TryGetValue("version", out var version) && VersionFloor > version)
         {
-            var isShown = widths.TryGetValue(id, out var pixels);
-            row.ColumnDefinitions[index].Width = new GridLength(isShown ? Math.Max(pixels * scale, minWidth) : 0);
+            applied["version"] = Math.Min(VersionFloor, version + Math.Max(0, available - applied.Values.Sum()));
+        }
+
+        foreach (var (id, index, _, _, _) in TableColumns)
+        {
+            var isShown = applied.TryGetValue(id, out var pixels);
+            row.ColumnDefinitions[index].Width = new GridLength(isShown ? pixels : 0);
             if (row == TableHeader)
             {
                 _grips[id].Visibility = isShown ? Visibility.Visible : Visibility.Collapsed;
@@ -126,7 +134,7 @@ public sealed partial class HomePage : Page
 
         if (row.Tag is IAddonTableRow item)
         {
-            item.IsCompact = !widths.ContainsKey(CompactColumnId);
+            item.IsCompact = !applied.ContainsKey(CompactColumnId);
         }
 
         FitVersion(row);
@@ -155,9 +163,18 @@ public sealed partial class HomePage : Page
         }
 
         _versionMeasure.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var needed = Math.Ceiling(_versionMeasure.DesiredSize.Width) + VersionLineSpacing
-            + (item.HasChangelog ? icon.Width + VersionLineSpacing : 0);
-        item.IsVersionStacked = item.VersionPairVisibility == Visibility.Visible && needed > row.ColumnDefinitions[VersionIndex].Width.Value;
+        var needed = item.VersionPairVisibility == Visibility.Visible
+            ? Math.Ceiling(_versionMeasure.DesiredSize.Width) + VersionLineSpacing + (item.HasChangelog ? icon.Width + VersionLineSpacing : 0)
+            : 0;
+        var floor = VersionFloor;
+        _versionNeeds[row] = needed;
+        if (VersionFloor != floor)
+        {
+            ApplyColumnsToAll();
+            return;
+        }
+
+        item.IsVersionStacked = needed > row.ColumnDefinitions[VersionIndex].Width.Value;
     }
 
     private void OnVersionSizeChanged(object sender, SizeChangedEventArgs e)
@@ -188,6 +205,12 @@ public sealed partial class HomePage : Page
         if (args.Element is Grid row)
         {
             _tableRows.Remove(row);
+            var floor = VersionFloor;
+            _versionNeeds.Remove(row);
+            if (VersionFloor != floor)
+            {
+                ApplyColumnsToAll();
+            }
         }
     }
 
