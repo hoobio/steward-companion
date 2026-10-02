@@ -324,6 +324,7 @@ public sealed record CharacterPushRecord(
 public static class CharacterSyncRejectionCopy
 {
     public const string NotLinkedReason = "not linked to you";
+    public const string GuildNotAllowedReason = "guild not allowed";
     private const string FingerprintMissing = "professions fingerprint missing";
     private const string FingerprintMismatch = "professions integrity check failed";
 
@@ -331,6 +332,7 @@ public static class CharacterSyncRejectionCopy
     {
         NotLinkedReason => "Not linked to you in the guild roster yet: ask an officer",
         FingerprintMissing or FingerprintMismatch => "Changed outside the game, not sent",
+        GuildNotAllowedReason => "Not in a WoW guild this server syncs",
         _ => reason,
     };
 
@@ -376,6 +378,12 @@ public sealed record CharacterSyncBatch(
     [property: JsonPropertyName("fingerprint")] string Fingerprint,
     [property: JsonPropertyName("batch_id")] string BatchId);
 
+public sealed record CharacterPushScope(
+    IReadOnlyList<CharacterObservation> Characters,
+    IReadOnlyList<CharacterObservation> Excluded,
+    GuildRanks? GuildRanks,
+    string? Fingerprint);
+
 public static class CharacterSyncMapping
 {
     public static CharacterSyncEntry ToEntry(CharacterObservation observation, IReadOnlyDictionary<string, CharacterProfessions> professions) => new(
@@ -401,6 +409,23 @@ public static class CharacterSyncMapping
 
     public static IReadOnlyList<CharacterObservation> FilterToProfessionsOnly(SavedVariablesSnapshot snapshot) =>
         [.. snapshot.Characters.Where(c => snapshot.Professions.ContainsKey(c.CharacterGuid))];
+
+    public static bool IsAllowedGuild(string? guild, IReadOnlyList<string>? allowedGuilds) =>
+        allowedGuilds is null
+        || allowedGuilds.Any(allowed => string.Equals(allowed.Trim(), guild?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    public static CharacterPushScope Scope(SavedVariablesSnapshot snapshot, bool professionsOnly, IReadOnlyList<string>? allowedGuilds)
+    {
+        var candidates = professionsOnly ? FilterToProfessionsOnly(snapshot) : snapshot.Characters;
+        var characters = allowedGuilds is null ? candidates : [.. candidates.Where(c => IsAllowedGuild(c.Guild, allowedGuilds))];
+        var guildRanks = professionsOnly || snapshot.GuildRanks is null || !IsAllowedGuild(snapshot.GuildRanks.Guild, allowedGuilds)
+            ? null
+            : snapshot.GuildRanks;
+        var fingerprint = !snapshot.HasAccountData || (allowedGuilds is not null && characters.Count == 0) ? null
+            : allowedGuilds is null && !professionsOnly ? snapshot.CharactersFingerprint
+            : Fingerprint(characters, snapshot.Professions, snapshot.Catalogue, guildRanks);
+        return new CharacterPushScope(characters, [.. candidates.Except(characters)], guildRanks, fingerprint);
+    }
 
     public static string? EffectiveLinkedUserId(CharacterObservation observation, IReadOnlyList<DirectoryCharacter>? rosterCharacters)
     {

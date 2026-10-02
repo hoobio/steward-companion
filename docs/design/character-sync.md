@@ -18,6 +18,8 @@ gigagrug's `_same_site` check (`auth.py:146-153`, `255-256`) rejects a non-GET w
 
 A character is identified by its WoW GUID (`Player-<serverId>-<8 hex>`), which survives renames and is unique across realms. Each observation carries its scope, `(realm, guildName)` from `GetRealmName()` and `GetGuildInfo("player")`, because beta realm and guild names change at release; the SPA picks a scope from a dropdown defaulting to the most recently observed one.
 
+Each Discord guild carries an allow-list of WoW guild names, sent as `sync_guild_names` (original casing) on that guild's `/api/me` entry. The server rejects a character from a non-allowed guild with the reason `guild not allowed` and ignores `guildRanks` for a non-allowed guild. The app filters before sending: `CharacterSyncMapping.Scope` keeps the characters whose trimmed `guild` matches a listed name case-insensitively, drops `guildRanks` when its guild is not listed, and builds the push-gate fingerprint from the filtered set, so a guild outside the list never triggers a push. An absent `sync_guild_names` (an older gigagrug) means no client-side filtering and the server decides; an empty list means nothing is pushed. The Sync page's "Your characters" row counts only the allowed characters and names how many were left out and from which WoW guilds.
+
 ## Addon (`hoobio/Steward`)
 
 `StewardDB` joins `## SavedVariables:`. Every roster rebuild writes the whole table:

@@ -1644,7 +1644,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var guild = _meGuilds.FirstOrDefault(g => g.Id == _guildId);
         _guildFeatures.Clear();
         _guildFeatures.UnionWith(GigagrugClient.ResolveGuildFeatures(guild, _features));
+        SyncGuildNames = guild?.SyncGuildNames;
     }
+
+    public IReadOnlyList<string>? SyncGuildNames { get; private set; }
+
+    public CharacterPushScope ScopeCharacters(SavedVariablesSnapshot snapshot) =>
+        CharacterSyncMapping.Scope(snapshot, IsProfessionsOnlySync, SyncGuildNames);
 
     public async Task<string?> RewriteGuildDataAsync()
     {
@@ -2308,18 +2314,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var professionsOnly = IsProfessionsOnlySync;
-        IReadOnlyList<CharacterObservation> characters = snapshot is null ? []
-            : professionsOnly ? CharacterSyncMapping.FilterToProfessionsOnly(snapshot)
-            : snapshot.Characters;
-        var fingerprint = snapshot is not { HasAccountData: true } ? null
-            : professionsOnly ? CharacterSyncMapping.Fingerprint(characters, snapshot.Professions, snapshot.Catalogue)
-            : snapshot.CharactersFingerprint;
+        var scope = snapshot is null ? null : ScopeCharacters(snapshot);
+        IReadOnlyList<CharacterObservation> characters = scope?.Characters ?? [];
+        var fingerprint = scope?.Fingerprint;
         var state = _stateStore.Load();
         if (fingerprint is null)
         {
             if (force)
             {
-                SetCharacterSyncRow(install, key, null, [], "No Steward saved variables with characters found for this install.");
+                SetCharacterSyncRow(
+                    install,
+                    key,
+                    null,
+                    [],
+                    SyncGuildNames is { Count: 0 }
+                        ? "No WoW guild is set up for syncing on this server."
+                        : "No Steward saved variables with characters found for this install.");
             }
 
             return false;
@@ -2351,7 +2361,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             InstalledVersion,
             [.. sentCharacters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot!.Professions))],
             sentCatalogue,
-            professionsOnly || snapshot!.GuildRanks is null ? null : CharacterSyncMapping.ToSync(snapshot.GuildRanks));
+            scope!.GuildRanks is null ? null : CharacterSyncMapping.ToSync(scope.GuildRanks));
 
         try
         {
@@ -3048,6 +3058,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _releases.Clear();
         _features.Clear();
         _guildFeatures.Clear();
+        SyncGuildNames = null;
         _meGuilds = [];
         _lastDirectory = null;
         _lastMemberCatalogue = null;

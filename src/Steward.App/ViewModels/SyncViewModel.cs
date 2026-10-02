@@ -285,11 +285,10 @@ public sealed partial class SyncViewModel : ObservableObject
         };
 
         var professionsOnly = _main.IsProfessionsOnlySync;
-        IReadOnlyList<CharacterObservation> covered = snapshot is null ? []
-            : professionsOnly ? CharacterSyncMapping.FilterToProfessionsOnly(snapshot)
-            : snapshot.Characters;
+        var scope = snapshot is null ? null : _main.ScopeCharacters(snapshot);
+        IReadOnlyList<CharacterObservation> covered = scope?.Characters ?? [];
         var outcomes = _main.GetCharacterOutcomes(install.FlavourPath);
-        var batchCurrent = !professionsOnly && _main.IsCharacterPushCurrent(install.FlavourPath, snapshot?.CharactersFingerprint);
+        var batchCurrent = !professionsOnly && _main.IsCharacterPushCurrent(install.FlavourPath, scope?.Fingerprint);
         var coveredCharacters = covered
             .Select(c => (Observation: c, View: Character(c, snapshot!.Professions, outcomes, professionsOnly, batchCurrent)))
             .ToList();
@@ -322,7 +321,9 @@ public sealed partial class SyncViewModel : ObservableObject
             isFirst: true,
             isSynced: synced > 0 && pending == 0);
         professions.IconSource = ProfessionsIcon;
-        professions.StatusText = ProfessionsStatus(synced, pending, notLinked, rejected - notLinked);
+        professions.StatusText = _main.SyncGuildNames is { Count: 0 }
+            ? "No WoW guild is set up for syncing on this server"
+            : JoinStatus(ProfessionsStatus(synced, pending, notLinked, rejected - notLinked), ExcludedNote(scope?.Excluded));
         view.Datasets.Add(professions);
         view.ProfessionsDataset = professions;
         view.ApplyExpansion(_expansionChoices.GetValueOrDefault(install.FlavourPath));
@@ -413,6 +414,20 @@ public sealed partial class SyncViewModel : ObservableObject
         ];
         return string.Join(", ", parts.OfType<string>());
     }
+
+    private static string? ExcludedNote(IReadOnlyList<CharacterObservation>? excluded)
+    {
+        if (excluded is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var guilds = string.Join(", ", excluded.Select(c => c.Guild.Trim()).Where(g => g.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase));
+        return $"{Characters(excluded.Count)}{(guilds.Length > 0 ? $" from {guilds}" : "")} not synced: not on this server's guild list";
+    }
+
+    private static string? JoinStatus(string? status, string? note) =>
+        status is null ? note : note is null ? status : $"{status}. {note}";
 
     private static string Characters(int count) => $"{count} character{(count == 1 ? "" : "s")}";
 

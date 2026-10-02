@@ -156,7 +156,8 @@ public sealed record AdminGuild(
     [property: JsonPropertyName("icon_url")] string? IconUrl,
     [property: JsonPropertyName("member_count")] int MemberCount,
     [property: JsonPropertyName("nick")] string? Nick,
-    [property: JsonPropertyName("features")] IReadOnlyList<string>? Features = null);
+    [property: JsonPropertyName("features")] IReadOnlyList<string>? Features = null,
+    [property: JsonPropertyName("sync_guild_names")] IReadOnlyList<string>? SyncGuildNames = null);
 
 public sealed record AdminMe(
     [property: JsonPropertyName("user")] AdminUser User,
