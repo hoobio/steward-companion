@@ -28,6 +28,7 @@ public static partial class StewardGuidesAddon
         local frame = CreateFrame("Frame")
         local index = 0
         local playerTag
+        local importedAny = false
         local Import
 
         local function Say(text)
@@ -36,6 +37,42 @@ public static partial class StewardGuidesAddon
 
         local function Hash(text)
             return text:match("^%d+|([^:]+):")
+        end
+
+        local function KeysId(hash)
+            return hash .. "|" .. (UnitFactionGroup("player") or "Neutral")
+        end
+
+        local function IsLoaded(rxp, key)
+            if rxp.guideCache and rxp.guideCache[key] then
+                return true
+            end
+            for _, guide in pairs(rxp.guides or {}) do
+                if type(guide) == "table" and guide.key == key then
+                    return true
+                end
+            end
+            return false
+        end
+
+        local function AlreadyLoaded(rxp, keys)
+            if not keys or #keys == 0 then
+                return false
+            end
+            for _, key in ipairs(keys) do
+                if not IsLoaded(rxp, key) then
+                    return false
+                end
+            end
+            return true
+        end
+
+        local function CachedGuides(rxp)
+            local entries = {}
+            for profileKey, entry in pairs(rxp.db.profile.guides or {}) do
+                entries[profileKey] = entry
+            end
+            return entries
         end
 
         local function Guard(rxp)
@@ -75,7 +112,9 @@ public static partial class StewardGuidesAddon
             index = index + 1
             local guide = guides[index]
             if not guide then
-                Say("all guide strings handed to RXPGuides")
+                if importedAny then
+                    Say("all guide strings handed to RXPGuides")
+                end
                 return
             end
             local hash = Hash(guide.text)
@@ -84,6 +123,14 @@ public static partial class StewardGuidesAddon
                 ImportNext(rxp)
                 return
             end
+            -- ponytail: skip only when RXPGuides itself has every guide this string produced last time; our own mark alone left the game with no guides on 20 Sep 2026
+            if hash and AlreadyLoaded(rxp, StewardGuidesDB.keys[KeysId(hash)]) then
+                StewardGuidesDB.imported[hash] = true
+                StewardGuidesDB.status[hash] = nil
+                ImportNext(rxp)
+                return
+            end
+            importedAny = true
             Import(rxp, guide, hash, false)
         end
 
@@ -91,6 +138,7 @@ public static partial class StewardGuidesAddon
             if rxp.guideImporter.gui then
                 rxp.guideImporter.gui.importStatusHistory = {}
             end
+            local before = CachedGuides(rxp)
             local ok, err = rxp.guideImporter:ImportString(guide.text)
             Say(guide.name .. ": " .. (ok and "importing" or ("rejected: " .. tostring(err))))
             local function WaitForIdle()
@@ -104,6 +152,13 @@ public static partial class StewardGuidesAddon
                     if hash then
                         StewardGuidesDB.imported[hash] = true
                         StewardGuidesDB.status[hash] = nil
+                        local keys = {}
+                        for profileKey, entry in pairs(CachedGuides(rxp)) do
+                            if before[profileKey] ~= entry and type(entry) == "table" and entry.key then
+                                tinsert(keys, entry.key)
+                            end
+                        end
+                        StewardGuidesDB.keys[KeysId(hash)] = keys
                     end
                 elseif type(status) == "string" then
                     if not retried and status:find("restart your game client", 1, true) then
@@ -152,6 +207,7 @@ public static partial class StewardGuidesAddon
             StewardGuidesDB = StewardGuidesDB or { imported = {}, status = {} }
             StewardGuidesDB.imported = StewardGuidesDB.imported or {}
             StewardGuidesDB.status = StewardGuidesDB.status or {}
+            StewardGuidesDB.keys = StewardGuidesDB.keys or {}
             StewardGuidesDB.generation = generation
             C_Timer.After(3, function()
                 local rxp = LibStub("AceAddon-3.0"):GetAddon("RXPGuides", true)
@@ -181,7 +237,7 @@ public static partial class StewardGuidesAddon
     public static string Toc(string interfaceNumbers) => string.Join('\n',
         $"## Interface: {interfaceNumbers}",
         TitleLine,
-        "## Category: Steward",
+        "## Group: RXPGuides",
         "## Notes: Purchased RestedXP guides, kept current by the Steward desktop app, with no settings of its own.",
         AuthorLine,
         @"## IconTexture: Interface\AddOns\StewardGuides\Icon",

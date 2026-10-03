@@ -54,7 +54,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
 
         Assert.Equal($"## Interface: {Interface}", lines[0]);
         Assert.Equal("## Title: Steward Guides", lines[1]);
-        Assert.Equal("## Category: Steward", lines[2]);
+        Assert.Equal("## Group: RXPGuides", lines[2]);
         Assert.Equal(
             "## Notes: Purchased RestedXP guides, kept current by the Steward desktop app, with no settings of its own.",
             lines[3]);
@@ -84,6 +84,7 @@ public sealed class StewardGuidesAddonTests : IDisposable
             StringComparison.Ordinal);
         Assert.Contains("rxp.guideImporter:ImportString(guide.text)", lua, StringComparison.Ordinal);
         Assert.Contains("StewardGuidesDB = StewardGuidesDB or { imported = {}, status = {} }", lua, StringComparison.Ordinal);
+        Assert.Contains("if hash and AlreadyLoaded(rxp, StewardGuidesDB.keys[KeysId(hash)]) then", lua, StringComparison.Ordinal);
         Assert.Contains("StewardGuidesDB.generation = generation", lua, StringComparison.Ordinal);
         Assert.Contains("\"IsJunkIconEnabled\", \"GetModKey\"", lua, StringComparison.Ordinal);
         Assert.Contains("Guides Loaded Successfully", lua, StringComparison.Ordinal);
