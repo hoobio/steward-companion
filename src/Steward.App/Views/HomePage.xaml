@@ -1029,10 +1029,6 @@
                                     <FontIcon Glyph="{x:Bind ViewModel.StatusSortGlyph, Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
                             </Button>
-                            <views:ColumnResizeGrip x:Name="NameGrip" Grid.Column="1" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Name column" />
-                            <views:ColumnResizeGrip x:Name="VersionGrip" Grid.Column="2" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Version column" />
-                            <views:ColumnResizeGrip x:Name="ChannelGrip" Grid.Column="3" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Channel column" />
-                            <views:ColumnResizeGrip x:Name="SourceGrip" Grid.Column="4" Margin="0,-6,-10,-6" HorizontalAlignment="Right" AutomationProperties.Name="Resize Source column" />
                         </Grid>
 
                         <ItemsRepeater

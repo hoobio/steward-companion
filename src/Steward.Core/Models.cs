@@ -298,9 +298,6 @@ public sealed record AppState(
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AppUpdateCheck? AppUpdateCheck { get; init; }
 
-    [JsonPropertyName("table_column_widths")]
-    public Dictionary<string, double> TableColumnWidths { get; init; } = null!;
-
     [JsonPropertyName("provider_addons")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, List<ProviderAddonRecord>> ProviderAddons { get; init; } = null!;

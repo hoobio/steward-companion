@@ -12,21 +12,21 @@ namespace Steward.App.Views;
 
 public sealed partial class HomePage : Page
 {
-    private static readonly (string Id, int Index, double Stars, double MinWidth, double MinTableWidth)[] TableColumns =
+    private static readonly (string Id, int Index, double MinWidth, double MinTableWidth)[] TableColumns =
     [
-        ("name", 1, 3, 80, 0),
-        ("version", 2, 2, 64, 0),
-        ("channel", 3, 1.2, 64, 760),
-        ("source", 4, 1, 56, 840),
+        ("version", 2, 64, 0),
+        ("channel", 3, 64, 760),
+        ("source", 4, 56, 840),
     ];
 
-    private static readonly string[] WidestActions = ["Switch to pre-release", "Update on CurseForge", "Sign in to RestedXP"];
+    private static readonly string[] ShrinkOrder = ["source", "channel", "version"];
 
+    private const int NameIndex = 1;
+    private const double NameMinWidth = 80;
+    private const int ChannelIndex = 3;
+    private const int SourceIndex = 4;
     private const int StatusIndex = 5;
     private const int OverflowIndex = 6;
-    private const double StatusStars = 1.5;
-    private const double ActionFontSize = 13;
-    private const double ActionPadding = 26;
     private const string CompactColumnId = "channel";
     private const int VersionIndex = 2;
     private const double VersionLineSpacing = 4;
@@ -34,63 +34,66 @@ public sealed partial class HomePage : Page
     private readonly HashSet<Grid> _tableRows = [];
     private readonly TextBlock _versionMeasure = new() { TextWrapping = TextWrapping.NoWrap };
     private readonly Dictionary<Grid, double> _versionNeeds = [];
-    private readonly Dictionary<string, ColumnResizeGrip> _grips;
-    private double _statusMinWidth;
-    private double _defaultSpace;
+    private double _channelNeed;
+    private double _sourceNeed;
+    private double _statusWidth;
+    private bool _needsQueued;
 
     public HomePage(MainViewModel viewModel)
     {
         ViewModel = viewModel;
         InitializeComponent();
-        _grips = new()
-        {
-            ["name"] = NameGrip,
-            ["version"] = VersionGrip,
-            ["channel"] = ChannelGrip,
-            ["source"] = SourceGrip,
-        };
-        foreach (var (id, grip) in _grips)
-        {
-            grip.ColumnRange = () => MeasureColumn(id);
-            grip.WidthRequested += (_, width) => ResizeColumn(id, width);
-            grip.WidthCommitted += (_, _) => ViewModel?.SaveColumnWidths();
-            grip.ResetRequested += (_, _) => ResetColumn(id);
-        }
     }
 
     public MainViewModel ViewModel { get; }
 
     private double VersionFloor => _versionNeeds.Values.DefaultIfEmpty().Max();
 
-    private double StatusMinWidth => _statusMinWidth > 0 ? _statusMinWidth : _statusMinWidth = WidestActions.Max(MeasureAction);
-
-    private static double MeasureAction(string label)
+    private static double MeasureColumnContent(Grid row, int index)
     {
-        var text = new TextBlock { Text = label, FontSize = ActionFontSize, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-        text.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        return Math.Ceiling(text.DesiredSize.Width + ActionPadding);
+        var need = 0.0;
+        foreach (var child in row.Children)
+        {
+            if (child.Visibility != Visibility.Visible || Grid.GetColumn((FrameworkElement)child) != index)
+            {
+                continue;
+            }
+
+            child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            need = Math.Max(need, Math.Ceiling(child.DesiredSize.Width));
+            child.InvalidateMeasure();
+        }
+
+        return need;
     }
 
-    private (double Width, double Minimum, double Maximum) MeasureColumn(string id)
+    private void QueueNeeds()
     {
-        var column = TableColumns.First(column => column.Id == id);
-        var width = TableHeader.ColumnDefinitions[column.Index].ActualWidth;
-        var statusSlack = TableHeader.ColumnDefinitions[StatusIndex].ActualWidth - StatusMinWidth;
-        return (width, column.MinWidth, width + Math.Max(0, statusSlack));
+        if (!_needsQueued && DispatcherQueue.TryEnqueue(RefreshNeeds))
+        {
+            _needsQueued = true;
+        }
     }
 
-    private void ResizeColumn(string id, double width)
+    private void RefreshNeeds()
     {
-        ViewModel?.SetColumnWidth(id, width);
-        ApplyColumnsToAll();
+        _needsQueued = false;
+        double channel = 0, source = 0, status = 0;
+        foreach (var row in _tableRows.Append(TableHeader))
+        {
+            channel = Math.Max(channel, MeasureColumnContent(row, ChannelIndex));
+            source = Math.Max(source, MeasureColumnContent(row, SourceIndex));
+            status = Math.Max(status, MeasureColumnContent(row, StatusIndex));
+        }
+
+        if (channel != _channelNeed || source != _sourceNeed || status != _statusWidth)
+        {
+            (_channelNeed, _sourceNeed, _statusWidth) = (channel, source, status);
+            ApplyColumnsToAll();
+        }
     }
 
-    private void ResetColumn(string id)
-    {
-        ViewModel?.SetColumnWidth(id, null);
-        ViewModel?.SaveColumnWidths();
-        ApplyColumnsToAll();
-    }
+    private void OnRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => QueueNeeds();
 
     private void ApplyColumnsToAll()
     {
@@ -106,30 +109,26 @@ public sealed partial class HomePage : Page
         var shown = TableColumns.Where(column => tableWidth >= column.MinTableWidth).ToList();
         var space = tableWidth - row.Padding.Left - row.Padding.Right - row.ColumnSpacing * (row.ColumnDefinitions.Count - 1)
             - row.ColumnDefinitions[0].Width.Value - row.ColumnDefinitions[OverflowIndex].Width.Value;
-        if (_defaultSpace <= 0 && space > 0)
+        var budget = Math.Max(0, space - _statusWidth - NameMinWidth);
+        var applied = shown.ToDictionary(column => column.Id, column => Math.Max(DefaultWidth(column.Id), column.MinWidth));
+        applied["version"] = Math.Max(applied["version"], VersionFloor);
+        foreach (var id in ShrinkOrder.Where(applied.ContainsKey))
         {
-            _defaultSpace = space;
-        }
-
-        var stars = TableColumns.Sum(column => column.Stars) + StatusStars;
-        var widths = shown.ToDictionary(column => column.Id, column => ViewModel?.ColumnWidth(column.Id) ?? _defaultSpace * column.Stars / stars);
-        var total = widths.Values.Sum();
-        var available = Math.Max(0, space - StatusMinWidth);
-        var scale = total > available && total > 0 ? available / total : 1;
-        var applied = shown.ToDictionary(column => column.Id, column => Math.Max(widths[column.Id] * scale, column.MinWidth));
-        if (applied.TryGetValue("version", out var version) && VersionFloor > version)
-        {
-            applied["version"] = Math.Min(VersionFloor, version + Math.Max(0, available - applied.Values.Sum()));
-        }
-
-        foreach (var (id, index, _, _, _) in TableColumns)
-        {
-            var isShown = applied.TryGetValue(id, out var pixels);
-            row.ColumnDefinitions[index].Width = new GridLength(isShown ? pixels : 0);
-            if (row == TableHeader)
+            var excess = applied.Values.Sum() - budget;
+            if (excess <= 0)
             {
-                _grips[id].Visibility = isShown ? Visibility.Visible : Visibility.Collapsed;
+                break;
             }
+
+            applied[id] = Math.Max(TableColumns.First(column => column.Id == id).MinWidth, applied[id] - excess);
+        }
+
+        row.ColumnDefinitions[NameIndex].MinWidth = NameMinWidth;
+        row.ColumnDefinitions[NameIndex].Width = new GridLength(1, GridUnitType.Star);
+        row.ColumnDefinitions[StatusIndex].Width = new GridLength(_statusWidth);
+        foreach (var (id, index, _, _) in TableColumns)
+        {
+            row.ColumnDefinitions[index].Width = new GridLength(applied.GetValueOrDefault(id));
         }
 
         if (row.Tag is IAddonTableRow item)
@@ -139,6 +138,13 @@ public sealed partial class HomePage : Page
 
         FitVersion(row);
     }
+
+    private double DefaultWidth(string id) => id switch
+    {
+        "version" => VersionFloor,
+        "channel" => _channelNeed,
+        _ => _sourceNeed,
+    };
 
     private void FitVersion(Grid row)
     {
@@ -189,14 +195,24 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private void OnTableSizeChanged(object sender, SizeChangedEventArgs e) => ApplyColumnsToAll();
+    private void OnTableSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        ApplyColumnsToAll();
+        QueueNeeds();
+    }
 
     private void OnTableRowPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
     {
         if (args.Element is Grid row)
         {
             _tableRows.Add(row);
+            if (row.Tag is System.ComponentModel.INotifyPropertyChanged item)
+            {
+                item.PropertyChanged += OnRowPropertyChanged;
+            }
+
             ApplyColumns(row);
+            QueueNeeds();
         }
     }
 
@@ -205,6 +221,12 @@ public sealed partial class HomePage : Page
         if (args.Element is Grid row)
         {
             _tableRows.Remove(row);
+            if (row.Tag is System.ComponentModel.INotifyPropertyChanged item)
+            {
+                item.PropertyChanged -= OnRowPropertyChanged;
+            }
+
+            QueueNeeds();
             var floor = VersionFloor;
             _versionNeeds.Remove(row);
             if (VersionFloor != floor)
