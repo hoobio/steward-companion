@@ -210,6 +210,11 @@ public sealed class StewardGuidesAddonTests : IDisposable
         var afterIconDeleted = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 3);
         Assert.Equal(StewardGuidesWriteOutcome.Written, afterIconDeleted.Outcome);
         Assert.True(File.Exists(Path.Combine(addOnsPath, "StewardGuides", "Icon.tga")));
+
+        File.WriteAllText(TocPath(addOnsPath), File.ReadAllText(TocPath(addOnsPath)).Replace("## Group: RXPGuides", "## Category: Hoobi", StringComparison.Ordinal));
+        var afterTocLineChange = StewardGuidesAddon.Write(addOnsPath, SampleGuides(), 4);
+        Assert.Equal(StewardGuidesWriteOutcome.Written, afterTocLineChange.Outcome);
+        Assert.Contains("## Group: RXPGuides", File.ReadAllText(TocPath(addOnsPath)), StringComparison.Ordinal);
     }
 
     [Fact]

@@ -368,7 +368,7 @@ public static partial class StewardGuidesAddon
             return null;
         }
 
-        if (!string.Equals(InterfaceLine(File.ReadAllText(tocPath)), InterfaceLine(toc), StringComparison.Ordinal))
+        if (!string.Equals(WithoutVersion(File.ReadAllText(tocPath)), WithoutVersion(toc), StringComparison.Ordinal))
         {
             return null;
         }
@@ -386,8 +386,8 @@ public static partial class StewardGuidesAddon
         return onDisk.SetEquals(wanted);
     }
 
-    private static string? InterfaceLine(string toc) => toc.ReplaceLineEndings("\n").Split('\n')
-        .FirstOrDefault(line => line.StartsWith("## Interface:", StringComparison.Ordinal));
+    private static string WithoutVersion(string toc) => string.Join('\n', toc.ReplaceLineEndings("\n").Split('\n')
+        .Where(line => !line.StartsWith("## Version:", StringComparison.Ordinal)));
 
     private static string Sha256Hex(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
