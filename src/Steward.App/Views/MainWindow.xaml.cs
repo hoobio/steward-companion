@@ -105,8 +105,8 @@ public sealed partial class MainWindow : Window
 
         AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(980 * scale), (int)(720 * scale)));
 
-        // A packaged app cannot load a BitmapImage from a file path under WindowsApps, and an unpackaged one has no ms-appx root.
-        TrayIcon.IconSource = new BitmapImage(new Uri(App.IsPackaged ? "ms-appx:///Assets/Steward.ico" : App.IconPath));
+        // A packaged IconSource resolves asynchronously, so the icon was added with no HICON and the later modify did not repaint it on Windows 10.
+        TrayIcon.Icon = new System.Drawing.Icon(App.IconPath, Native.SmallIconSize, Native.SmallIconSize);
         // x:Bind in a Window evaluates only once its content loads, which a --tray launch never does.
         TrayIcon.LeftClickCommand = TrayIcon.DoubleClickCommand = new RelayCommand(ShowFromTray);
         TrayIcon.ForceCreate();
@@ -582,6 +582,13 @@ public sealed partial class MainWindow : Window
 
 internal static class Native
 {
+    private const int SM_CXSMICON = 49;
+
+    public static int SmallIconSize => GetSystemMetrics(SM_CXSMICON);
+
+    [DllImport("user32.dll")]
+    private static extern int GetSystemMetrics(int nIndex);
+
     [DllImport("user32.dll")]
     private static extern nint GetForegroundWindow();
 
