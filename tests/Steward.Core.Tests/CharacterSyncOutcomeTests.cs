@@ -5,7 +5,7 @@ namespace Steward.Core.Tests;
 public sealed class CharacterSyncOutcomeTests
 {
     [Fact]
-    public void CharacterSyncResponse_ParsesGigagrugsShape()
+    public void CharacterSyncResponse_ParsesStewardApisShape()
     {
         var json = """
             {"accepted":1,"rejected":[{"guid":"Player-4395-11111111","reason":"not linked to you"}]}

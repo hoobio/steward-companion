@@ -100,7 +100,7 @@ public sealed partial class MainViewModel
         ? [.. ProviderRecords(flavourPath)
             .Where(record => record.Source == CurseForgeAddons.Source)
             .OrderBy(record => record.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(record => CurseForgeAddons.ToManagedAddon(record, _gigagrugClient.CurseForgeManifestBaseUrl(record.ModId, record.VersionType)))]
+            .Select(record => CurseForgeAddons.ToManagedAddon(record, _stewardClient.CurseForgeManifestBaseUrl(record.ModId, record.VersionType)))]
         : [];
 
     private IReadOnlyList<ManagedAddon> AddonsFor(string flavourPath) => [.. VisibleAddons(), .. ProviderAddons(flavourPath)];
@@ -123,7 +123,7 @@ public sealed partial class MainViewModel
         {
             var folders = scanned.SelectMany(addon => addon.FoldedFolders.Prepend(addon.FolderName)).ToList();
             var request = await Task.Run(() => CurseForgeAddons.MatchRequest(install.AddOnsPath, folders, TocFile.InterfaceNumber(install.ClientVersion))).ConfigureAwait(false);
-            var matches = await _gigagrugClient.MatchCurseForgeAsync(versionType, request, CancellationToken.None).ConfigureAwait(false);
+            var matches = await _stewardClient.MatchCurseForgeAsync(versionType, request, CancellationToken.None).ConfigureAwait(false);
             var titles = scanned.ToDictionary(addon => addon.FolderName, addon => addon.Name, StringComparer.OrdinalIgnoreCase);
             var adopted = CurseForgeAddons.Adopt(
                 matches,
@@ -134,13 +134,13 @@ public sealed partial class MainViewModel
             var withIcons = new List<ProviderAddonRecord>(adopted.Count);
             foreach (var record in adopted)
             {
-                withIcons.Add(record with { IconUrl = await _gigagrugClient.GetCurseForgeIconUrlAsync(record.ModId, versionType, CancellationToken.None).ConfigureAwait(false) });
+                withIcons.Add(record with { IconUrl = await _stewardClient.GetCurseForgeIconUrlAsync(record.ModId, versionType, CancellationToken.None).ConfigureAwait(false) });
             }
 
             _logger.Info($"CurseForge match on {install.FlavourPath}: {folders.Count} folder(s) sent, {request.Declared.Count} declared, {matches.Count} match(es), {withIcons.Count} addon(s) identified");
             return withIcons;
         }
-        catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or SessionExpiredException or TaskCanceledException or JsonException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or SessionExpiredException or TaskCanceledException or JsonException or IOException or UnauthorizedAccessException)
         {
             _logger.Warn(ex, $"CurseForge match failed on {install.FlavourPath}");
             return [];
@@ -295,7 +295,12 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
         {
             _logger.Warn(ex, "CurseForge manifest check failed");
-            StatusMessage = $"CurseForge check failed: {ex.Message}";
+            if (TransientHttp.IsTransient(ex))
+            {
+                _lastCurseForgeCheck = default;
+            }
+
+            ShowFailure(ex, $"CurseForge check failed: {ex.Message}");
         }
 
         return true;
@@ -306,7 +311,7 @@ public sealed partial class MainViewModel
 
     public GetAddonsViewModel? CreateGetAddons() =>
         SelectedInstall is { } install && CurseForgeVersionType(install.Install) is { } versionType
-            ? new GetAddonsViewModel(this, install, versionType, _gigagrugClient, _logger)
+            ? new GetAddonsViewModel(this, install, versionType, _stewardClient, _logger)
             : null;
 
     public static bool IsCurseForgeInstalled(WowInstallViewModel install, int modId, int versionType) =>
@@ -350,7 +355,7 @@ public sealed partial class MainViewModel
         {
             SignOutTo(GateFailure.SessionExpired);
         }
-        catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or TaskCanceledException or JsonException or COMException)
+        catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or TaskCanceledException or JsonException or COMException)
         {
             _logger.Warn(ex, $"CurseForge link for mod {link.ModId}, file {link.FileId} failed");
             StatusMessage = $"Could not open the CurseForge link: {ex.Message}";
@@ -359,7 +364,7 @@ public sealed partial class MainViewModel
 
     private async Task HandleCurseForgeLinkAsync(CurseForgeLink link)
     {
-        if (await _gigagrugClient.GetCurseForgeFileAsync(link.ModId, link.FileId, CancellationToken.None).ConfigureAwait(true) is not { } file)
+        if (await _stewardClient.GetCurseForgeFileAsync(link.ModId, link.FileId, CancellationToken.None).ConfigureAwait(true) is not { } file)
         {
             StatusMessage = "That CurseForge file was not found.";
             return;
@@ -412,7 +417,7 @@ public sealed partial class MainViewModel
     private async Task InstallForThisClientAsync(WowInstallViewModel install, CurseForgeLink link, CurseForgeModFile file, int versionType, string game, AddonRowViewModel? row)
     {
         var record = new ProviderAddonRecord(CurseForgeAddons.Id(file.ModId, versionType), file.Name, file.Name, CurseForgeAddons.Source, file.ModId, versionType, []);
-        var probe = CurseForgeAddons.ToManagedAddon(record, _gigagrugClient.CurseForgeManifestBaseUrl(file.ModId, versionType));
+        var probe = CurseForgeAddons.ToManagedAddon(record, _stewardClient.CurseForgeManifestBaseUrl(file.ModId, versionType));
         var releases = await _addonUpdater.ProbeChannelsAsync(probe, AddonChannelStatus.Ordered, CancellationToken.None).ConfigureAwait(true);
         if (CurseForgeLinks.Alternative(releases) is (var altChannel, var alt))
         {
@@ -435,7 +440,7 @@ public sealed partial class MainViewModel
             return;
         }
 
-        var choices = CurseForgeLinks.Choices(await _gigagrugClient.GetCurseForgeLatestFilesAsync(file.ModId, CancellationToken.None).ConfigureAwait(true), file, link.FileId);
+        var choices = CurseForgeLinks.Choices(await _stewardClient.GetCurseForgeLatestFilesAsync(file.ModId, CancellationToken.None).ConfigureAwait(true), file, link.FileId);
         if (await choose(
                 $"{file.Name} has no build for {game}.",
                 [.. choices.Select(choice => $"{choice.Client} · {choice.Version}")],
@@ -447,7 +452,7 @@ public sealed partial class MainViewModel
 
         var chosen = choices[index].FileId == link.FileId
             ? file
-            : await _gigagrugClient.GetCurseForgeFileAsync(file.ModId, choices[index].FileId, CancellationToken.None).ConfigureAwait(true);
+            : await _stewardClient.GetCurseForgeFileAsync(file.ModId, choices[index].FileId, CancellationToken.None).ConfigureAwait(true);
         if (chosen is null)
         {
             StatusMessage = "That CurseForge file was not found.";
@@ -489,7 +494,7 @@ public sealed partial class MainViewModel
 
         var id = CurseForgeAddons.Id(result.Id, versionType);
         var draft = new ProviderAddonRecord(id, result.Name, result.Name, CurseForgeAddons.Source, result.Id, versionType, [], result.IconUrl, result.WebsiteUrl);
-        var probe = CurseForgeAddons.ToManagedAddon(draft, _gigagrugClient.CurseForgeManifestBaseUrl(result.Id, versionType));
+        var probe = CurseForgeAddons.ToManagedAddon(draft, _stewardClient.CurseForgeManifestBaseUrl(result.Id, versionType));
         IReadOnlyDictionary<string, AddonRelease?> releases;
         try
         {

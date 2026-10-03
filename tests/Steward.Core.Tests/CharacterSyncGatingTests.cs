@@ -5,68 +5,68 @@ public sealed class CharacterSyncGatingTests
     [Fact]
     public void IsAuthorizing_IsTrue_WhenSyncIsTheOnlyFeature()
     {
-        var features = new HashSet<string>([GigagrugClient.SyncFeature], StringComparer.Ordinal);
+        var features = new HashSet<string>([StewardClient.SyncFeature], StringComparer.Ordinal);
 
-        Assert.True(GigagrugClient.IsAuthorizing(features));
+        Assert.True(StewardClient.IsAuthorizing(features));
     }
 
     [Fact]
     public void IsAuthorizing_IsTrue_WhenSyncIsHeldAlongsideAnAuthorizingFeature()
     {
         var features = new HashSet<string>(
-            [GigagrugClient.SyncFeature, GigagrugClient.StewardFeature], StringComparer.Ordinal);
+            [StewardClient.SyncFeature, StewardClient.StewardFeature], StringComparer.Ordinal);
 
-        Assert.True(GigagrugClient.IsAuthorizing(features));
+        Assert.True(StewardClient.IsAuthorizing(features));
     }
 
     [Fact]
     public void IsAuthorizing_IsFalse_WhenFeatureSetIsEmpty()
     {
-        Assert.False(GigagrugClient.IsAuthorizing(new HashSet<string>(StringComparer.Ordinal)));
+        Assert.False(StewardClient.IsAuthorizing(new HashSet<string>(StringComparer.Ordinal)));
     }
 
     [Fact]
     public void IsAuthorizing_IsFalse_WhenCurseForgeIsTheOnlyFeature() =>
-        Assert.False(GigagrugClient.IsAuthorizing(new HashSet<string>(["curseforge"], StringComparer.Ordinal)));
+        Assert.False(StewardClient.IsAuthorizing(new HashSet<string>(["curseforge"], StringComparer.Ordinal)));
 
     [Fact]
     public void IsAuthorizing_IsTrue_WhenRosterIsTheOnlyFeature()
     {
-        var features = new HashSet<string>([GigagrugClient.RosterFeature], StringComparer.Ordinal);
+        var features = new HashSet<string>([StewardClient.RosterFeature], StringComparer.Ordinal);
 
-        Assert.True(GigagrugClient.IsAuthorizing(features));
+        Assert.True(StewardClient.IsAuthorizing(features));
     }
 
     [Fact]
     public void IsAuthorizing_IsTrue_WhenProfessionsIsTheOnlyFeature()
     {
-        var features = new HashSet<string>([GigagrugClient.ProfessionsFeature], StringComparer.Ordinal);
+        var features = new HashSet<string>([StewardClient.ProfessionsFeature], StringComparer.Ordinal);
 
-        Assert.True(GigagrugClient.IsAuthorizing(features));
+        Assert.True(StewardClient.IsAuthorizing(features));
     }
 
     [Fact]
     public void IsAuthorizing_IsFalse_WhenSignupsIsTheOnlyFeature()
     {
-        var features = new HashSet<string>([GigagrugClient.SignupsFeature], StringComparer.Ordinal);
+        var features = new HashSet<string>([StewardClient.SignupsFeature], StringComparer.Ordinal);
 
-        Assert.False(GigagrugClient.IsAuthorizing(features));
+        Assert.False(StewardClient.IsAuthorizing(features));
     }
 
     [Fact]
     public void IsAuthorizing_IsTrue_WhenHoobiScriptsIsTheOnlyFeature()
     {
-        var features = new HashSet<string>([GigagrugClient.HoobiScriptsFeature], StringComparer.Ordinal);
+        var features = new HashSet<string>([StewardClient.HoobiScriptsFeature], StringComparer.Ordinal);
 
-        Assert.True(GigagrugClient.IsAuthorizing(features));
+        Assert.True(StewardClient.IsAuthorizing(features));
     }
 
     [Fact]
     public void IsAuthorizing_IsTrue_WhenAddonsIsTheOnlyFeature()
     {
-        var features = new HashSet<string>([GigagrugClient.AddonsFeature], StringComparer.Ordinal);
+        var features = new HashSet<string>([StewardClient.AddonsFeature], StringComparer.Ordinal);
 
-        Assert.True(GigagrugClient.IsAuthorizing(features));
+        Assert.True(StewardClient.IsAuthorizing(features));
     }
 
     [Fact]

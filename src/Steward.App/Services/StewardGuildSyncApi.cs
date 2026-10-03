@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Steward.App.Services;
 
-public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore stateStore, DiscordImage images, ILogger<GigagrugGuildSyncApi> logger)
+public sealed class StewardGuildSyncApi(StewardClient client, AppStateStore stateStore, DiscordImage images, ILogger<StewardGuildSyncApi> logger)
 {
     private static readonly IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> NoCatalogue = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
 
@@ -29,13 +29,13 @@ public sealed class GigagrugGuildSyncApi(GigagrugClient client, AppStateStore st
         logger.Info(
             $"Guild roster pulled for {guildId}: {members.Count} members, {discord.Count} Discord members, {catalogue.Count} catalogue recipe(s)");
 
-        var syncMe = new SyncMe(me.User.Id, me.User.Role, [.. GigagrugClient.EffectiveFeatures(me)]);
+        var syncMe = new SyncMe(me.User.Id, me.User.Role, [.. StewardClient.EffectiveFeatures(me)]);
         return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue, Me = syncMe };
     }
 
     private async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> TryGetCatalogueAsync(AdminMe me, string guildId, CancellationToken ct)
     {
-        if (!GigagrugClient.EffectiveFeatures(me).Contains(GigagrugClient.SyncFeature))
+        if (!StewardClient.EffectiveFeatures(me).Contains(StewardClient.SyncFeature))
         {
             return NoCatalogue;
         }

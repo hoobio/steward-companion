@@ -4,13 +4,13 @@ The WinUI 3 design for a third page: moving roster, loot history and attendance 
 
 Rendered mockups of every state: https://claude.ai/artifact/1Vyp5Qcg9KzbbtweuNNYRf
 
-Built: the SavedVariables reader, the generated sync-file writer, the freshness judgement in `SavedVariablesFreshness`, the `NavigationView` shell and the page itself, against gigagrug's roster, professions and character-sync routes (`character-sync.md` and `roster-sync.md` are the source of truth for them). Not built: loot and attendance sync, which have no rows and no endpoints. The endpoint table and the fake API below are the original plan and no longer describe the code.
+Built: the SavedVariables reader, the generated sync-file writer, the freshness judgement in `SavedVariablesFreshness`, the `NavigationView` shell and the page itself, against Steward API's roster, professions and character-sync routes (`character-sync.md` and `roster-sync.md` are the source of truth for them). Not built: loot and attendance sync, which have no rows and no endpoints. The endpoint table and the fake API below are the original plan and no longer describe the code.
 
 Foundations, palette, type and surfaces are unchanged from [home-and-settings.md](home-and-settings.md).
 
 ## API origin
 
-`https://api.hoobi.io/guild` (`Gigagrug:BaseUrl`), the same origin and the same `gg_session` credential as `/api/admin/me`. Not `guild.hoobi.io`: that is the Static Web App hosting the SPA, and its navigation fallback answers every `/api/*` path with `index.html` and a 200, so a client pointed there parses HTML as JSON instead of seeing a 401.
+`https://api.hoobi.io/guild` (`Steward:BaseUrl`), the same origin and the same `gg_session` credential as `/api/admin/me`. Not `guild.hoobi.io`: that is the Static Web App hosting the SPA, and its navigation fallback answers every `/api/*` path with `index.html` and a 200, so a client pointed there parses HTML as JSON instead of seeing a 401.
 
 A 401 on any sync call means the session is gone, and it is handled exactly as `/api/admin/me` handles it: clear the persisted token and drop to signed out.
 
@@ -24,7 +24,7 @@ The shapes below are the original plan for loot and attendance, which have no en
 | Push one dataset | `POST /api/guild/sync/{roster\|loot\|attendance}` with the parsed records and the addon's `exportedAt` |
 | Pull the merged view | `GET /api/guild/sync/export` returning the merged datasets for writing into the generated Lua file |
 
-The page ran against an in-memory fake (`InMemoryGuildSyncApi`, behind `IGuildSyncApi`) while the endpoints were absent; the fake was removed on 27 Sep 2026 and the page reads the real routes through `GigagrugGuildSyncApi`. The `Sample` pill, the `Scenario` property and the disabled "Available once the guild API ships" buttons went with it.
+The page ran against an in-memory fake (`InMemoryGuildSyncApi`, behind `IGuildSyncApi`) while the endpoints were absent; the fake was removed on 27 Sep 2026 and the page reads the real routes through `StewardGuildSyncApi`. The `Sample` pill, the `Scenario` property and the disabled "Available once the guild API ships" buttons went with it.
 
 How the server merges overlapping records for loot and attendance is undecided. The page reports a merge result per dataset and never opens a conflict dialog, which assumes the server resolves overlaps and answers with what it took.
 
@@ -153,7 +153,7 @@ New and not only a view change:
 - **A SavedVariables reader.** Parsing the addon's Lua table dump into records. This is the largest piece and belongs in `Steward.Core` with its own tests, ahead of any UI. Built: `LuaSavedVariables` and `StewardSavedVariables`.
 - **A generated Lua writer.** One file, calling a function the addon exposes. Rewritten after every addon update. Built: `StewardSyncFile`.
 - **Running-client detection.** Process enumeration by main module path, per flavour folder, plus an exit hook that triggers a re-read. Built: `WowClient`, and the per-install watcher in `WowInstallViewModel`.
-- **Sync client methods.** On `GigagrugClient`. Built for roster, members, professions and characters; not built for loot and attendance.
+- **Sync client methods.** On `StewardClient`. Built for roster, members, professions and characters; not built for loot and attendance.
 - **`NavigationView` shell.** See [Shell change](#shell-change). Built.
 - **The page itself.** Built: `SyncViewModel` and `SyncPage`.
 

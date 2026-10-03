@@ -37,7 +37,7 @@ public sealed class AdminMeTests
     [Fact]
     public void EffectiveFeatures_FeaturesPresent_UsesThemVerbatim()
     {
-        var features = GigagrugClient.EffectiveFeatures(MeWithRole(null, ["steward"]));
+        var features = StewardClient.EffectiveFeatures(MeWithRole(null, ["steward"]));
 
         Assert.Equal(["steward"], features);
     }
@@ -45,7 +45,7 @@ public sealed class AdminMeTests
     [Fact]
     public void EffectiveFeatures_FeaturesAbsent_OfficerFallsBackToEveryOfficerFeature()
     {
-        var features = GigagrugClient.EffectiveFeatures(MeWithRole("admin"));
+        var features = StewardClient.EffectiveFeatures(MeWithRole("admin"));
 
         Assert.Equal(
             new HashSet<string> { "guides", "steward", "sync", "roster", "professions", "signups", "addons" },
@@ -55,7 +55,7 @@ public sealed class AdminMeTests
     [Fact]
     public void EffectiveFeatures_FeaturesAbsent_NonOfficerFallsBackToNone()
     {
-        var features = GigagrugClient.EffectiveFeatures(MeWithRole(null));
+        var features = StewardClient.EffectiveFeatures(MeWithRole(null));
 
         Assert.Empty(features);
     }
@@ -63,7 +63,7 @@ public sealed class AdminMeTests
     [Fact]
     public void EffectiveFeatures_EmptyFeaturesArray_StaysEmptyEvenForAnOfficer()
     {
-        var features = GigagrugClient.EffectiveFeatures(MeWithRole("global", []));
+        var features = StewardClient.EffectiveFeatures(MeWithRole("global", []));
 
         Assert.Empty(features);
     }
@@ -74,7 +74,7 @@ public sealed class AdminMeTests
         var guild = new AdminGuild("a", "Guild a", null, 10, null, ["roster"]);
         var userFeatures = new HashSet<string> { "steward", "sync", "roster", "professions" };
 
-        var resolved = GigagrugClient.ResolveGuildFeatures(guild, userFeatures);
+        var resolved = StewardClient.ResolveGuildFeatures(guild, userFeatures);
 
         Assert.Equal(new HashSet<string> { "roster" }, resolved);
     }
@@ -85,7 +85,7 @@ public sealed class AdminMeTests
         var guild = new AdminGuild("a", "Guild a", null, 10, null);
         var userFeatures = new HashSet<string> { "steward", "sync" };
 
-        var resolved = GigagrugClient.ResolveGuildFeatures(guild, userFeatures);
+        var resolved = StewardClient.ResolveGuildFeatures(guild, userFeatures);
 
         Assert.Equal(userFeatures, resolved);
     }
@@ -95,7 +95,7 @@ public sealed class AdminMeTests
     {
         var userFeatures = new HashSet<string> { "steward" };
 
-        var resolved = GigagrugClient.ResolveGuildFeatures(null, userFeatures);
+        var resolved = StewardClient.ResolveGuildFeatures(null, userFeatures);
 
         Assert.Equal(userFeatures, resolved);
     }
@@ -107,7 +107,7 @@ public sealed class AdminMeTests
         var foreignGuild = new AdminGuild("b", "Foreign", null, 10, null, ["roster"]);
         var userFeatures = new HashSet<string> { "steward", "sync", "roster", "professions", "signups" };
 
-        Assert.Contains("steward", GigagrugClient.ResolveGuildFeatures(homeGuild, userFeatures));
-        Assert.DoesNotContain("steward", GigagrugClient.ResolveGuildFeatures(foreignGuild, userFeatures));
+        Assert.Contains("steward", StewardClient.ResolveGuildFeatures(homeGuild, userFeatures));
+        Assert.DoesNotContain("steward", StewardClient.ResolveGuildFeatures(foreignGuild, userFeatures));
     }
 }

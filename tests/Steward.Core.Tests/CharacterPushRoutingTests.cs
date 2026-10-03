@@ -26,11 +26,11 @@ public sealed class CharacterPushRoutingTests
     [Fact]
     public void Route_SplitsCharactersAcrossTwoServers()
     {
-        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"), Character(AltGuid, "Other"), Character(ThirdGuid, "Nobody"));
+        var snapshot = Snapshot(null, Character(HomeGuid, "Stormrage"), Character(AltGuid, "Other"), Character(ThirdGuid, "Nobody"));
 
         var routes = CharacterPushRouting.Route(
             snapshot,
-            [new("a", false, ["Gigagrug"]), new("b", false, [" other "])],
+            [new("a", false, ["Stormrage"]), new("b", false, [" other "])],
             "a");
 
         Assert.Equal(["a", "b"], routes.Select(r => r.GuildId));
@@ -41,11 +41,11 @@ public sealed class CharacterPushRoutingTests
     [Fact]
     public void Route_SendsAWowGuildOnTwoListsToBoth()
     {
-        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"));
+        var snapshot = Snapshot(null, Character(HomeGuid, "Stormrage"));
 
         var routes = CharacterPushRouting.Route(
             snapshot,
-            [new("a", false, ["Gigagrug"]), new("b", false, ["GIGAGRUG", "Other"])],
+            [new("a", false, ["Stormrage"]), new("b", false, ["STORMRAGE", "Other"])],
             "a");
 
         Assert.Equal(2, routes.Count);
@@ -55,11 +55,11 @@ public sealed class CharacterPushRoutingTests
     [Fact]
     public void Route_NullListOnTheSelectedServer_SendsEverythingThereOnly()
     {
-        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"), Character(AltGuid, "Other"));
+        var snapshot = Snapshot(null, Character(HomeGuid, "Stormrage"), Character(AltGuid, "Other"));
 
         var routes = CharacterPushRouting.Route(
             snapshot,
-            [new("a", false, null), new("b", false, ["Gigagrug"])],
+            [new("a", false, null), new("b", false, ["Stormrage"])],
             "a");
 
         var route = Assert.Single(routes);
@@ -71,7 +71,7 @@ public sealed class CharacterPushRoutingTests
     [Fact]
     public void Route_EmptyOrMissingLists_RouteNothing()
     {
-        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"));
+        var snapshot = Snapshot(null, Character(HomeGuid, "Stormrage"));
 
         Assert.Empty(CharacterPushRouting.Route(snapshot, [new("a", false, []), new("b", false, null)], "a"));
         Assert.Empty(CharacterPushRouting.Route(snapshot, [new("a", false, ["Other"])], "a"));
@@ -82,11 +82,11 @@ public sealed class CharacterPushRoutingTests
     public void Route_UsesEachServersOwnMode()
     {
         var professions = new Dictionary<string, CharacterProfessions> { [HomeGuid] = new(null, null, null) };
-        var snapshot = Snapshot(Ranks("Gigagrug"), Character(HomeGuid, "Gigagrug"), Character(AltGuid, "Gigagrug")) with { Professions = professions };
+        var snapshot = Snapshot(Ranks("Stormrage"), Character(HomeGuid, "Stormrage"), Character(AltGuid, "Stormrage")) with { Professions = professions };
 
         var routes = CharacterPushRouting.Route(
             snapshot,
-            [new("officer", false, ["Gigagrug"]), new("member", true, ["Gigagrug"])],
+            [new("officer", false, ["Stormrage"]), new("member", true, ["Stormrage"])],
             "officer");
 
         Assert.False(routes[0].ProfessionsOnly);
@@ -98,11 +98,11 @@ public sealed class CharacterPushRoutingTests
     [Fact]
     public void Route_SendsGuildRanksOnlyToAnOfficerServerListingThatGuild()
     {
-        var snapshot = Snapshot(Ranks("Gigagrug"), Character(HomeGuid, "Gigagrug"), Character(AltGuid, "Other"));
+        var snapshot = Snapshot(Ranks("Stormrage"), Character(HomeGuid, "Stormrage"), Character(AltGuid, "Other"));
 
         var routes = CharacterPushRouting.Route(
             snapshot,
-            [new("home", false, ["Gigagrug"]), new("other", false, ["Other"]), new("member", true, ["Gigagrug"])],
+            [new("home", false, ["Stormrage"]), new("other", false, ["Other"]), new("member", true, ["Stormrage"])],
             "home");
 
         Assert.NotNull(routes.Single(r => r.GuildId == "home").Scope.GuildRanks);
@@ -134,9 +134,9 @@ public sealed class CharacterPushRoutingTests
     [Fact]
     public void Route_DropsGuildlessCharacters_WhenAListIsKnown()
     {
-        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"), Character(AltGuid, ""), Character(ThirdGuid, "  "));
+        var snapshot = Snapshot(null, Character(HomeGuid, "Stormrage"), Character(AltGuid, ""), Character(ThirdGuid, "  "));
 
-        var route = Assert.Single(CharacterPushRouting.Route(snapshot, [new("a", false, ["Gigagrug"])], "a"));
+        var route = Assert.Single(CharacterPushRouting.Route(snapshot, [new("a", false, ["Stormrage"])], "a"));
 
         Assert.Equal([HomeGuid], Guids(route));
     }
@@ -144,11 +144,11 @@ public sealed class CharacterPushRoutingTests
     [Fact]
     public void Route_WithNoSelectedGuild_UsesEveryListedServer()
     {
-        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"), Character(AltGuid, "Other"));
+        var snapshot = Snapshot(null, Character(HomeGuid, "Stormrage"), Character(AltGuid, "Other"));
 
         var routes = CharacterPushRouting.Route(
             snapshot,
-            [new("a", false, ["Gigagrug"]), new("b", false, ["Other"]), new("c", false, null)],
+            [new("a", false, ["Stormrage"]), new("b", false, ["Other"]), new("c", false, null)],
             null);
 
         Assert.Equal(["a", "b"], routes.Select(r => r.GuildId));

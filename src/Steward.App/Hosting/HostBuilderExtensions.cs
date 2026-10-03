@@ -28,8 +28,8 @@ internal static class HostBuilderExtensions
         builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
         builder.Logging.AddFilter("System", LogLevel.Warning);
 
-        var baseUrl = builder.Configuration["Gigagrug:BaseUrl"]
-            ?? throw new InvalidOperationException("Gigagrug:BaseUrl is not configured");
+        var baseUrl = builder.Configuration["Steward:BaseUrl"]
+            ?? throw new InvalidOperationException("Steward:BaseUrl is not configured");
         var storeProductId = builder.Configuration["App:StoreProductId"]
             ?? throw new InvalidOperationException("App:StoreProductId is not configured");
         var addons = builder.Configuration.GetSection("Addons").Get<ManagedAddon[]>()
@@ -62,14 +62,15 @@ internal static class HostBuilderExtensions
         var userAgent = $"Steward/{App.StoreDisplayVersion ?? MainViewModel.InstalledVersion} ({(App.IsPreRelease ? "prerelease" : MainViewModel.Channel)})";
 
         builder.Services.AddSingleton<CookieContainer>();
-        builder.Services.AddHttpClient("Gigagrug")
-            // gigagrug's _same_site check accepts Sec-Fetch-Site: none, a value browsers never let a page set.
+        builder.Services.AddHttpClient("Steward")
+            // Steward API's _same_site check accepts Sec-Fetch-Site: none, a value browsers never let a page set.
             .ConfigureHttpClient(c => c.DefaultRequestHeaders.Add("Sec-Fetch-Site", "none"))
             .ConfigurePrimaryHttpMessageHandler(sp => new SocketsHttpHandler
             {
                 CookieContainer = sp.GetRequiredService<CookieContainer>(),
             })
-            .AddHttpMessageHandler(sp => new ClientOutdatedHandler(message => sp.GetRequiredService<MainViewModel>().ReportClientOutdated(message)));
+            .AddHttpMessageHandler(sp => new ClientOutdatedHandler(message => sp.GetRequiredService<MainViewModel>().ReportClientOutdated(message)))
+            .AddHttpMessageHandler(() => new TransientRetryHandler());
         var downloadUserAgent = builder.Configuration["Downloads:UserAgent"];
         builder.Services.AddHttpClient("Addon")
             .ConfigureHttpClient(c =>
@@ -79,7 +80,8 @@ internal static class HostBuilderExtensions
                     c.DefaultRequestHeaders.UserAgent.ParseAdd(downloadUserAgent);
                 }
             })
-            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false });
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false })
+            .AddHttpMessageHandler(() => new TransientRetryHandler());
 
         builder.Services.AddSingleton<IReadOnlyList<ManagedAddon>>(addons);
         builder.Services.AddSingleton<IReadOnlyDictionary<string, string>>(
@@ -88,21 +90,21 @@ internal static class HostBuilderExtensions
             builder.Configuration.GetSection("CurseForge:GameVersionTypes").Get<Dictionary<string, int>>() ?? [],
             StringComparer.OrdinalIgnoreCase));
         builder.Services.AddSingleton(sp => new AppStateStore([.. sp.GetRequiredService<IReadOnlyList<ManagedAddon>>().Select(a => a.Id)]));
-        builder.Services.AddSingleton(sp => new GigagrugClient(
-            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gigagrug"),
+        builder.Services.AddSingleton(sp => new StewardClient(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Steward"),
             baseUrl,
             userAgent));
         builder.Services.AddSingleton<ISessionService>(sp => new SessionService(
             sp.GetRequiredService<CookieContainer>(),
             sp.GetRequiredService<AppStateStore>(),
-            sp.GetRequiredService<GigagrugClient>(),
+            sp.GetRequiredService<StewardClient>(),
             baseUrl,
             sp.GetRequiredService<ILogger<SessionService>>()));
         builder.Services.AddSingleton(sp => new AddonUpdater(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"),
             sp.GetRequiredService<ILogger<AddonUpdater>>(),
-            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gigagrug"),
-            sp.GetRequiredService<GigagrugClient>().ReportCurseForgeDownloadFailureAsync));
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Steward"),
+            sp.GetRequiredService<StewardClient>().ReportCurseForgeDownloadFailureAsync));
         builder.Services.AddSingleton(sp => new AppUpdater(storeProductId));
 
         builder.Services.AddSingleton(sp => new RestedXpClient(
@@ -121,7 +123,7 @@ internal static class HostBuilderExtensions
         builder.Services.AddSingleton(sp => new DiscordImage(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon")));
 
-        builder.Services.AddSingleton<GigagrugGuildSyncApi>();
+        builder.Services.AddSingleton<StewardGuildSyncApi>();
 
         builder.Services.AddSingleton<MainWindow>();
         builder.Services.AddSingleton<MainViewModel>();

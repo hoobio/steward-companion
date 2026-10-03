@@ -118,7 +118,7 @@ public sealed class CurseForgeAddonsTests
             new ProviderAddonRecord("curseforge-1-2", "Questie", "Questie", "CurseForge", 1, 2, ["Questie"], "https://media.forgecdn.net/x.png"),
             "https://api.example.com/guild/api/addons/curseforge/1/2/");
 
-        Assert.Equal([GigagrugClient.AddonsFeature], addon.Features);
+        Assert.Equal([StewardClient.AddonsFeature], addon.Features);
         Assert.Equal(new Uri("https://media.forgecdn.net/x.png"), addon.IconUri);
         Assert.Equal("CurseForge", addon.Source);
     }
@@ -137,10 +137,10 @@ public sealed class CurseForgeAddonsTests
         }
     }
 
-    private static (GigagrugClient Client, StubHandler Handler) ClientFor(HttpStatusCode status, string body)
+    private static (StewardClient Client, StubHandler Handler) ClientFor(HttpStatusCode status, string body)
     {
         var handler = new StubHandler(status, body);
-        return (new GigagrugClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)"), handler);
+        return (new StewardClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)"), handler);
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public sealed class CurseForgeAddonsTests
     {
         var (client, _) = ClientFor(HttpStatusCode.ServiceUnavailable, """{"error":"curseforge_unavailable"}""");
 
-        await Assert.ThrowsAsync<GigagrugRequestException>(() => client.SearchCurseForgeAsync(88568, "questie", CancellationToken.None));
+        await Assert.ThrowsAsync<StewardRequestException>(() => client.SearchCurseForgeAsync(88568, "questie", CancellationToken.None));
     }
 
     [Fact]

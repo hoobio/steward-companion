@@ -10,7 +10,7 @@ namespace Steward.Core;
 
 public sealed class SessionExpiredException() : Exception("The session has expired or been revoked.");
 
-public sealed class GigagrugRequestException(HttpStatusCode statusCode, string? body)
+public sealed class StewardRequestException(HttpStatusCode statusCode, string? body)
     : Exception($"request failed with {(int)statusCode} {statusCode}")
 {
     public HttpStatusCode StatusCode { get; } = statusCode;
@@ -18,14 +18,14 @@ public sealed class GigagrugRequestException(HttpStatusCode statusCode, string? 
     public string? Body { get; } = body;
 }
 
-public sealed class GigagrugThrottledException() : Exception("request was rate limited (429)");
+public sealed class StewardThrottledException() : Exception("request was rate limited (429)");
 
-public sealed class GigagrugClient
+public sealed class StewardClient
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
 
-    public GigagrugClient(HttpClient httpClient, string baseUrl, string userAgent)
+    public StewardClient(HttpClient httpClient, string baseUrl, string userAgent)
     {
         _httpClient = httpClient;
         _baseUrl = baseUrl.TrimEnd('/');
@@ -46,7 +46,7 @@ public sealed class GigagrugClient
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
-                $"GET /api/me returned {(int)response.StatusCode} {response.StatusCode}");
+                $"GET /api/me returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
         }
 
         var me = await response.Content
@@ -73,7 +73,7 @@ public sealed class GigagrugClient
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
-                $"GET /api/banners returned {(int)response.StatusCode} {response.StatusCode}");
+                $"GET /api/banners returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
         }
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -93,7 +93,7 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new GigagrugRequestException(response.StatusCode, null);
+            throw new StewardRequestException(response.StatusCode, null);
         }
 
         var roster = await response.Content
@@ -116,7 +116,7 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new GigagrugRequestException(response.StatusCode, null);
+            throw new StewardRequestException(response.StatusCode, null);
         }
 
         var professions = await response.Content
@@ -139,7 +139,7 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new GigagrugRequestException(response.StatusCode, null);
+            throw new StewardRequestException(response.StatusCode, null);
         }
 
         var catalogue = await response.Content
@@ -163,7 +163,7 @@ public sealed class GigagrugClient
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
-                $"GET /api/admin/{guildId}/roster returned {(int)response.StatusCode} {response.StatusCode}");
+                $"GET /api/admin/{guildId}/roster returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
         }
 
         var roster = await response.Content
@@ -196,7 +196,7 @@ public sealed class GigagrugClient
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
-                $"GET /api/admin/{guildId}/members returned {(int)response.StatusCode} {response.StatusCode}");
+                $"GET /api/admin/{guildId}/members returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
         }
 
         var members = await response.Content
@@ -227,7 +227,7 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new GigagrugRequestException(response.StatusCode, null);
+            throw new StewardRequestException(response.StatusCode, null);
         }
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -255,7 +255,7 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new GigagrugRequestException(response.StatusCode, null);
+            throw new StewardRequestException(response.StatusCode, null);
         }
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -303,7 +303,7 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new GigagrugRequestException(response.StatusCode, null);
+            throw new StewardRequestException(response.StatusCode, null);
         }
     }
 
@@ -325,7 +325,7 @@ public sealed class GigagrugClient
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
-                $"POST /api/auth/desktop/exchange returned {(int)response.StatusCode} {response.StatusCode}");
+                $"POST /api/auth/desktop/exchange returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
         }
 
         var token = await response.Content
@@ -368,7 +368,7 @@ public sealed class GigagrugClient
     public static bool IsAuthorizing(IReadOnlySet<string> features) =>
         AuthorizingFeatures.Any(features.Contains);
 
-    // steward/sync/roster/professions gate per guild, since an officer of one guild is a plain member of another; a guild entry with no features (an older gigagrug) falls back to the user-level set.
+    // steward/sync/roster/professions gate per guild, since an officer of one guild is a plain member of another; a guild entry with no features (an older Steward API) falls back to the user-level set.
     public static IReadOnlySet<string> ResolveGuildFeatures(AdminGuild? guild, IReadOnlySet<string> userFeatures) =>
         guild?.Features is { } features ? new HashSet<string>(features, StringComparer.Ordinal) : userFeatures;
 
@@ -390,7 +390,7 @@ public sealed class GigagrugClient
         {
             return (await SendCurseForgeAsync(request, CompanionJsonContext.Default.CurseForgeSearch, cancellationToken).ConfigureAwait(false)).Results ?? [];
         }
-        catch (GigagrugRequestException ex) when (ex.StatusCode == HttpStatusCode.ServiceUnavailable && ex.Body?.Contains("search_unavailable", StringComparison.Ordinal) == true)
+        catch (StewardRequestException ex) when (ex.StatusCode == HttpStatusCode.ServiceUnavailable && ex.Body?.Contains("search_unavailable", StringComparison.Ordinal) == true)
         {
             return null;
         }
@@ -420,7 +420,7 @@ public sealed class GigagrugClient
         {
             return await SendCurseForgeAsync(request, CompanionJsonContext.Default.CurseForgeModFile, cancellationToken).ConfigureAwait(false);
         }
-        catch (GigagrugRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        catch (StewardRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             return null;
         }
@@ -433,7 +433,7 @@ public sealed class GigagrugClient
         {
             return (await SendCurseForgeAsync(request, CompanionJsonContext.Default.CurseForgeLatestFiles, cancellationToken).ConfigureAwait(false)).Files ?? [];
         }
-        catch (GigagrugRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        catch (StewardRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             return null;
         }
@@ -460,7 +460,7 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new GigagrugRequestException(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+            throw new StewardRequestException(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
         }
 
         return await response.Content.ReadFromJsonAsync(typeInfo, cancellationToken).ConfigureAwait(false)
@@ -482,7 +482,7 @@ public sealed class GigagrugClient
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
-                $"GET /api/admin/{guildId}/recipes/catalogue returned {(int)response.StatusCode} {response.StatusCode}");
+                $"GET /api/admin/{guildId}/recipes/catalogue returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
         }
 
         var body = await response.Content
@@ -508,9 +508,10 @@ public sealed class GigagrugClient
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         content.Headers.ContentEncoding.Add("gzip");
 
-        using var response = await _httpClient
-            .PostAsync($"{_baseUrl}/api/guild/{guildId}/characters/sync", content, cancellationToken)
-            .ConfigureAwait(false);
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/api/guild/{guildId}/characters/sync") { Content = content };
+        // Steward API replays a repeated batchId instead of applying it twice.
+        request.Options.Set(TransientHttp.Idempotent, true);
+        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
@@ -519,20 +520,20 @@ public sealed class GigagrugClient
 
         if (!response.IsSuccessStatusCode)
         {
-            // 429 means the server is up and throttling this route specifically, distinct from a 408/5xx "gigagrug is unreachable" transient; every other 4xx rejects this batch outright, so retrying it unchanged would never succeed.
+            // 429 means the server is up and throttling this route specifically, distinct from a 408/5xx "Steward API is unreachable" transient; every other 4xx rejects this batch outright, so retrying it unchanged would never succeed.
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
-                throw new GigagrugThrottledException();
+                throw new StewardThrottledException();
             }
 
             if ((int)response.StatusCode is >= 400 and < 500 and not 408)
             {
                 var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-                throw new GigagrugRequestException(response.StatusCode, body);
+                throw new StewardRequestException(response.StatusCode, body);
             }
 
             throw new HttpRequestException(
-                $"POST /api/guild/{guildId}/characters/sync returned {(int)response.StatusCode} {response.StatusCode}");
+                $"POST /api/guild/{guildId}/characters/sync returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
         }
 
         var result = await response.Content

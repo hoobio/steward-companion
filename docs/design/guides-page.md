@@ -8,7 +8,7 @@ Fourteen frames at 1100x720 plus a notes frame, in the order below. Foundations,
 
 ## Shell
 
-A third `NavigationView` menu item, `Guides`, after `Addons` and `Sync`, with `Settings` staying on the footer. The item is present only while the RXPGuides addon is installed in at least one WoW install and a RestedXP session exists; otherwise it is collapsed, and leaving either condition while on the page returns the user to Addons. The title bar account chip is the gigagrug identity and does not change; the RestedXP identity is a separate account and lives on the line under the page title, so the two are never confused.
+A third `NavigationView` menu item, `Guides`, after `Addons` and `Sync`, with `Settings` staying on the footer. The item is present only while the RXPGuides addon is installed in at least one WoW install and a RestedXP session exists; otherwise it is collapsed, and leaving either condition while on the page returns the user to Addons. The title bar account chip is the Steward API identity and does not change; the RestedXP identity is a separate account and lives on the line under the page title, so the two are never confused.
 
 The sign-in entry point is on the Addons page, not here: the RestedXP Guides addon row shows a `Sign in to RestedXP` button in its action area while the addon is installed and there is no session. It opens the sign-in dialog, and a successful sign-in reveals the Guides item and navigates to it once. With that gate, the page's own signed-out state (frame 01) is unreachable and is dropped; the header only carries the signed-in treatment.
 

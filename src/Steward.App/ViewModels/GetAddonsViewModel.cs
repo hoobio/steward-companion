@@ -21,12 +21,12 @@ public sealed partial class GetAddonsViewModel : ObservableObject
     private readonly MainViewModel _main;
     private readonly WowInstallViewModel _install;
     private readonly int _versionType;
-    private readonly GigagrugClient _client;
+    private readonly StewardClient _client;
     private readonly ILogger _logger;
     private IReadOnlyList<CurseForgeResult>? _discover;
     private CancellationTokenSource? _searchCts;
 
-    public GetAddonsViewModel(MainViewModel main, WowInstallViewModel install, int versionType, GigagrugClient client, ILogger logger)
+    public GetAddonsViewModel(MainViewModel main, WowInstallViewModel install, int versionType, StewardClient client, ILogger logger)
     {
         _main = main;
         _install = install;
@@ -129,7 +129,7 @@ public sealed partial class GetAddonsViewModel : ObservableObject
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or SessionExpiredException or TaskCanceledException or JsonException)
+        catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or SessionExpiredException or TaskCanceledException or JsonException)
         {
             _logger.Warn(ex, "CurseForge discover or search failed");
             Error = ex is SessionExpiredException ? "Your session has expired. Sign in again to get addons." : $"Could not reach CurseForge: {ex.Message}";
