@@ -145,9 +145,14 @@ public partial class App : Application
             return;
         }
 
-        if (Environment.GetCommandLineArgs().Contains(StartupRegistration.TrayArgument) && _window.ViewModel.MinimizeToTray)
+        var tray = Environment.GetCommandLineArgs().Contains(StartupRegistration.TrayArgument);
+        if (tray && _window.ViewModel.MinimizeToTray)
         {
             _window.HideToTray();
+        }
+        else if (tray || Environment.GetCommandLineArgs().Contains(StartupRegistration.NoActivateArgument))
+        {
+            _window.ShowWithoutFocus();
         }
         else
         {

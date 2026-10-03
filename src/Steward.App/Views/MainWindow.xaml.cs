@@ -536,6 +536,14 @@ public sealed partial class MainWindow : Window
         ViewModel.ResumeGuildPrompt();
     }
 
+    public void ShowWithoutFocus()
+    {
+        EfficiencyModeUtilities.SetEfficiencyMode(false);
+        AppWindow.Show(activateWindow: false);
+        // XAML renders nothing until the first Activate; on an already visible window it is only SetActiveWindow, which a background process cannot turn into foreground.
+        Activate();
+    }
+
     private void QuitCompletely()
     {
         _quitting = true;
@@ -615,9 +623,11 @@ internal static class Native
     // RESTART_NO_CRASH | RESTART_NO_HANG | RESTART_NO_REBOOT: only an update should restart the app, not a crash, hang or reboot.
     private const int RestartNoCrashHangReboot = 1 | 2 | 8;
 
-    // Windows closes the app to apply a Store update and relaunches it under this registration; --tray keeps it from popping the window back up when it was hidden.
+    // Windows closes the app to apply a Store update and relaunches it under this registration; neither argument lets the relaunch take focus.
     public static int RegisterRestartForStoreUpdate(nint handle) =>
-        RegisterApplicationRestart(IsWindowVisible(handle) ? null : "--tray", RestartNoCrashHangReboot);
+        RegisterApplicationRestart(
+            IsWindowVisible(handle) ? StartupRegistration.NoActivateArgument : StartupRegistration.TrayArgument,
+            RestartNoCrashHangReboot);
 
     // Windows refuses SetForegroundWindow to a process that did not receive the last input event; a tray click goes to explorer, so borrow its input queue for the call.
     public static void ForceForeground(nint handle)

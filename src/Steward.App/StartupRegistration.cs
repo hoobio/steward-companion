@@ -7,6 +7,7 @@ internal static class StartupRegistration
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "Steward";
     public const string TrayArgument = "--tray";
+    public const string NoActivateArgument = "--no-activate";
 
     public static bool IsEnabled()
     {
