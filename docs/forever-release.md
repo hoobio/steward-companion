@@ -19,10 +19,11 @@ The flavour folder needs no code change: discovery walks `.flavor.info`, never a
 
 1. `src/Steward.App/appsettings.json`, `SupportedProducts`: add `"<product code>": "World of Warcraft: Forever"` beside the beta entry. Without it the install is not discovered at all. Keep the beta entry until the beta client is retired.
 2. `src/Steward.App/appsettings.json`, `RestedXp:ProductPrefixes`: add `"<product code>": [ "Forever" ]`. Without it the Guides page lists every product as "Not for this client" on the live install and writes nothing.
-3. Generated `StewardGuides` addon: no change. Its TOC copies the `## Interface:` value from the installed RXPGuides TOC at write time, so it follows whatever RestedXP ship for the live client.
-4. `docs/design/home-and-settings.md` and the preview scenarios in `GuidesPreview`: the sample install title reads "World of Warcraft: Forever - Beta"; update the copy when the beta entry goes.
-5. `AGENTS.md`, "WoW install discovery": replace the sentence that says the release entry joins once its code is known.
-6. Test: run a pre-release build on a machine with both clients installed; the Addons page shows two install cards, the Guides page allows the Forever products on both, and the beta card disappears when the beta entry is removed.
+3. CurseForge: add `"<product code>": <version type>` to `CurseForge:GameVersionTypes`. BugSack and BugGrabber are catalogue entries whose `manifest_base_url` bakes in the beta's `88568` (in steward-server's `/api/me` catalogue and this repo's `Addons` fallback), so a live install would get beta builds; give those entries a per-install version type at the same time.
+4. Generated `StewardGuides` addon: no change. Its TOC copies the `## Interface:` value from the installed RXPGuides TOC at write time, so it follows whatever RestedXP ship for the live client.
+5. `docs/design/home-and-settings.md` and the preview scenarios in `GuidesPreview`: the sample install title reads "World of Warcraft: Forever - Beta"; update the copy when the beta entry goes.
+6. `AGENTS.md`, "WoW install discovery": replace the sentence that says the release entry joins once its code is known.
+7. Test: run a pre-release build on a machine with both clients installed; the Addons page shows two install cards, the Guides page allows the Forever products on both, and the beta card disappears when the beta entry is removed.
 
 ## Neighbouring repos
 

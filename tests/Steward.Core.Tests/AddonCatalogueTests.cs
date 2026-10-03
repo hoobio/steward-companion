@@ -59,6 +59,19 @@ public sealed class AddonCatalogueTests : IDisposable
     }
 
     [Fact]
+    public void CurseForgeEntry_CarriesItsIconAndIsNotARecordedAddon()
+    {
+        var bugSack = new CatalogueAddon(
+            "bugsack", "BugSack", "https://api.hoobi.io/guild/api/addons/curseforge/6273/88568/", "BugSack", "CurseForge",
+            IconUrl: "https://media.forgecdn.net/avatars/thumbnails/62/762/256/256/636142192560849763.jpg").ToManagedAddon();
+        var recorded = new ManagedAddon(CurseForgeAddons.Id(6273, 88568), "BugSack", Source: CurseForgeAddons.Source);
+
+        Assert.Equal("https://media.forgecdn.net/avatars/thumbnails/62/762/256/256/636142192560849763.jpg", bugSack.IconUri.AbsoluteUri);
+        Assert.False(CurseForgeAddons.IsRecorded(bugSack));
+        Assert.True(CurseForgeAddons.IsRecorded(recorded));
+    }
+
+    [Fact]
     public void Same_ComparesByValue()
     {
         Assert.True(AddonCatalogue.Same([ActionBars], [ActionBars with { Features = ["hoobiscripts.actionbars"] }]));

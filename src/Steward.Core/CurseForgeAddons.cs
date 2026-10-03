@@ -6,6 +6,9 @@ public static class CurseForgeAddons
 
     public static string Id(int modId, int versionType) => $"curseforge-{modId}-{versionType}";
 
+    public static bool IsRecorded(ManagedAddon addon) =>
+        addon?.Source == Source && addon.Id.StartsWith("curseforge-", StringComparison.OrdinalIgnoreCase);
+
     public static ManagedAddon ToManagedAddon(ProviderAddonRecord record, string manifestBaseUrl)
     {
         ArgumentNullException.ThrowIfNull(record);

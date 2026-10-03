@@ -269,9 +269,12 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     {
         foreach (var row in TableRows)
         {
-            row.IsHidden = hiddenIds.Contains(row.HiddenId);
+            row.IsHidden = IsHiddenRow(row, hiddenIds);
         }
     }
+
+    private bool IsHiddenRow(IAddonTableRow row, IReadOnlySet<string> hiddenIds) =>
+        hiddenIds.Contains(row.HiddenId) || (row is LocalAddonRowViewModel && !_isCurseForgeEnabled());
 
     public void SyncAddons(IReadOnlyList<ManagedAddon> addons)
     {
@@ -429,7 +432,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         }).ToList();
         foreach (var row in wanted)
         {
-            row.IsHidden = hidden.Contains(row.HiddenId);
+            row.IsHidden = IsHiddenRow(row, hidden);
         }
 
         foreach (var row in LocalRows)
@@ -526,7 +529,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             ConfirmUninstallAsync,
             OutOfDateTipForToc,
             _afterStewardInstalled,
-            addon.Source == CurseForgeAddons.Source ? () => _unmanageProviderAddon(this, addon.Id) : null,
+            CurseForgeAddons.IsRecorded(addon) ? () => _unmanageProviderAddon(this, addon.Id) : null,
             _logger);
     }
 

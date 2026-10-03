@@ -444,7 +444,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool IsProfessionsOnlySync => HasSyncFeature && !HasStewardFeature;
 
-    private IReadOnlyList<ManagedAddon> VisibleAddons() => AddonCatalogue.Visible(_addonCatalogue, _addons, _features);
+    private IReadOnlyList<ManagedAddon> VisibleAddons() =>
+        [.. AddonCatalogue.Visible(_addonCatalogue, _addons, _features).Where(addon => IsCurseForgeEnabled || addon.Source != CurseForgeAddons.Source)];
 
     private bool IsAdminFor(string addonId) =>
         Failure != GateFailure.ClientOutdated
