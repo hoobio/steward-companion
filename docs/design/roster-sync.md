@@ -136,7 +136,7 @@ No server change was needed for the first sprint; `/api/me` and the `/api/guild/
 
 The event stream is held open by the desktop app while the user holds `steward`, the same gate as the roster pull. Each event queues a roster pull, debounced 2 seconds. A dropped connection reconnects after 5 seconds, doubling to 5 minutes and reset by the next `ready`, and 60 seconds with no line, pings included, counts as dropped. A 404 is a server without the route: the app stops trying for that run and relies on its timer. The timer pull runs every minute while the stream is down and every 15 minutes while it is connected. The push direction is event-driven too: a write to `Steward.lua` under `WTF\Account` triggers the character push, debounced 1.5 seconds.
 
-The origin is `https://api.hoobi.io/guild` (`Gigagrug:BaseUrl`). Never `guild.hoobi.io`: the Static Web App's navigation fallback answers every `/api/*` path with `index.html` and a 200, so a client pointed there parses HTML as JSON instead of seeing a 401.
+The origin is `https://api.hoobi.io/guild` (`Steward:BaseUrl`). Never `guild.hoobi.io`: the Static Web App's navigation fallback answers every `/api/*` path with `index.html` and a 200, so a client pointed there parses HTML as JSON instead of seeing a 401.
 
 ## Client API facts this sprint established
 
@@ -170,7 +170,7 @@ The companion repo uses no feature branches, no worktrees and no pull requests f
 
 ## Out of scope
 
-- Pushing loot and attendance. No loot or attendance route exists in `GigagrugGuildSyncApi`.
+- Pushing loot and attendance. No loot or attendance route exists in `StewardGuildSyncApi`.
 - A characters table in steward-server.
 - Addon-to-addon messages of any kind.
 - Writing to the addon's own saved variables from the desktop app, in any circumstance.

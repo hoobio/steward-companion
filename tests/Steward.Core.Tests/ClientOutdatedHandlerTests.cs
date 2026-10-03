@@ -54,7 +54,7 @@ public sealed class ClientOutdatedHandlerTests
     [Fact]
     public async Task GetMeAsync_Gone_WithClientOutdated_ThrowsClientOutdated()
     {
-        var client = new GigagrugClient(
+        var client = new StewardClient(
             ClientFor(HttpStatusCode.Gone, """{"error":"client_outdated","message":"Retired."}"""),
             "https://api.example.com/guild",
             "Steward/1.0.0 (dev)");

@@ -60,10 +60,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private static readonly TimeSpan AccessEventDebounce = TimeSpan.FromSeconds(1);
 
-    private static readonly TimeSpan EventStreamMinBackoff = TimeSpan.FromSeconds(5);
-
-    private static readonly TimeSpan EventStreamMaxBackoff = TimeSpan.FromMinutes(5);
-
     private const string StartupTaskId = "StewardStartup";
 
     private static readonly string[] SummaryNames =
@@ -85,8 +81,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     ];
 
     private readonly ISessionService _sessionService;
-    private readonly GigagrugClient _gigagrugClient;
-    private readonly GigagrugGuildSyncApi _guildSyncApi;
+    private readonly StewardClient _stewardClient;
+    private readonly StewardGuildSyncApi _guildSyncApi;
     private readonly AddonUpdater _addonUpdater;
     private readonly AppUpdater _appUpdater;
     private readonly AppStateStore _stateStore;
@@ -158,8 +154,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel(
         ISessionService sessionService,
-        GigagrugClient gigagrugClient,
-        GigagrugGuildSyncApi guildSyncApi,
+        StewardClient stewardClient,
+        StewardGuildSyncApi guildSyncApi,
         AddonUpdater addonUpdater,
         AppUpdater appUpdater,
         AppStateStore stateStore,
@@ -175,7 +171,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _curseForgeVersionTypes = curseForgeVersionTypes;
 
         _sessionService = sessionService;
-        _gigagrugClient = gigagrugClient;
+        _stewardClient = stewardClient;
         _guildSyncApi = guildSyncApi;
         _addonUpdater = addonUpdater;
         _appUpdater = appUpdater;
@@ -418,21 +414,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["release", "pre-release"];
 
-    public bool HasGuidesFeature => _features.Contains(GigagrugClient.GuidesFeature);
+    public bool HasGuidesFeature => _features.Contains(StewardClient.GuidesFeature);
 
-    public bool HasAddonsFeature => _features.Contains(GigagrugClient.AddonsFeature);
+    public bool HasAddonsFeature => _features.Contains(StewardClient.AddonsFeature);
 
     public bool IsCurseForgeEnabled => CurseForgeEnabled && HasAddonsFeature;
 
     public Visibility CurseForgeSettingVisibility => When(HasAddonsFeature);
 
-    public bool HasStewardFeature => _guildFeatures.Contains(GigagrugClient.StewardFeature);
+    public bool HasStewardFeature => _guildFeatures.Contains(StewardClient.StewardFeature);
 
-    public bool HasSyncFeature => _guildFeatures.Contains(GigagrugClient.SyncFeature);
+    public bool HasSyncFeature => _guildFeatures.Contains(StewardClient.SyncFeature);
 
-    public bool HasRosterFeature => _guildFeatures.Contains(GigagrugClient.RosterFeature);
+    public bool HasRosterFeature => _guildFeatures.Contains(StewardClient.RosterFeature);
 
-    public bool HasProfessionsFeature => _guildFeatures.Contains(GigagrugClient.ProfessionsFeature);
+    public bool HasProfessionsFeature => _guildFeatures.Contains(StewardClient.ProfessionsFeature);
 
     public SyncDirectory? LastDirectory => _lastDirectory;
 
@@ -718,7 +714,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (HttpRequestException ex)
         {
-            _logger.Warn(ex, "Sign-in failed, gigagrug unreachable");
+            _logger.Warn(ex, "Sign-in failed, Steward API unreachable");
             Failure = GateFailure.Unreachable;
         }
         catch (Exception ex) when (!IsSignedIn)
@@ -1383,7 +1379,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (Failure != GateFailure.ClientOutdated)
         {
-            _logger.Warn(null, $"gigagrug answered client_outdated: {message}");
+            _logger.Warn(null, $"Steward API answered client_outdated: {message}");
         }
 
         _clientOutdatedAt = DateTimeOffset.Now;
@@ -1573,7 +1569,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private string GuildRoleLabel(AdminGuild guild) =>
-        GigagrugClient.ResolveGuildFeatures(guild, _features).Contains(GigagrugClient.StewardFeature) ? "Officer" : "Member";
+        StewardClient.ResolveGuildFeatures(guild, _features).Contains(StewardClient.StewardFeature) ? "Officer" : "Member";
 
     public void ChooseGuildOption(GuildOptionViewModel option)
     {
@@ -1663,12 +1659,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            await _gigagrugClient.SetSelectedGuildAsync(guildId, CancellationToken.None).ConfigureAwait(true);
-            _logger.Info($"Told gigagrug the selected guild is {guildId}");
+            await _stewardClient.SetSelectedGuildAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+            _logger.Info($"Told Steward API the selected guild is {guildId}");
         }
-        catch (Exception ex) when (ex is GigagrugRequestException or HttpRequestException or SessionExpiredException or OperationCanceledException)
+        catch (Exception ex) when (ex is StewardRequestException or HttpRequestException or SessionExpiredException or OperationCanceledException)
         {
-            _logger.Warn(ex, $"Could not tell gigagrug the selected guild is {guildId}");
+            _logger.Warn(ex, $"Could not tell Steward API the selected guild is {guildId}");
         }
     }
 
@@ -1676,7 +1672,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         var guild = _meGuilds.FirstOrDefault(g => g.Id == _guildId);
         _guildFeatures.Clear();
-        _guildFeatures.UnionWith(GigagrugClient.ResolveGuildFeatures(guild, _features));
+        _guildFeatures.UnionWith(StewardClient.ResolveGuildFeatures(guild, _features));
     }
 
     public IReadOnlyList<CharacterPushRoute> CharacterRoutes(SavedVariablesSnapshot snapshot) =>
@@ -1690,9 +1686,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private IReadOnlyList<CharacterPushTarget> CharacterPushTargets() =>
     [
         .. _meGuilds
-            .Select(guild => (guild.Id, guild.SyncGuildNames, Features: GigagrugClient.ResolveGuildFeatures(guild, _features)))
-            .Where(guild => guild.Features.Contains(GigagrugClient.SyncFeature))
-            .Select(guild => new CharacterPushTarget(guild.Id, !guild.Features.Contains(GigagrugClient.StewardFeature), guild.SyncGuildNames)),
+            .Select(guild => (guild.Id, guild.SyncGuildNames, Features: StewardClient.ResolveGuildFeatures(guild, _features)))
+            .Where(guild => guild.Features.Contains(StewardClient.SyncFeature))
+            .Select(guild => new CharacterPushTarget(guild.Id, !guild.Features.Contains(StewardClient.StewardFeature), guild.SyncGuildNames)),
     ];
 
     public async Task<string?> RewriteGuildDataAsync()
@@ -1728,10 +1724,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             _logger.Warn(ex, $"Guild roster pull failed for {guildId}");
             var message = $"Could not pull the guild roster: {ex.Message}";
-            StatusMessage = message;
+            ReportFailure(ex, "roster", async () => await SyncRosterAsync().ConfigureAwait(true) is null);
+            if (!IsServerError(ex))
+            {
+                StatusMessage = message;
+            }
+
             return message;
         }
 
+        ResolveApiRetry("roster");
         payload = payload with { Directory = _lastDirectory };
         _lastOfficerPayload = payload;
         _lastOfficerPayloadGuild = guildId;
@@ -1778,20 +1780,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             if (pullRoster)
             {
-                var roster = await _gigagrugClient.GetMemberRosterAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+                var roster = await _stewardClient.GetMemberRosterAsync(guildId, CancellationToken.None).ConfigureAwait(true);
                 people = roster.People;
                 characters = roster.Characters;
             }
 
             if (pullProfessions)
             {
-                var response = await _gigagrugClient.GetMemberProfessionsAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+                var response = await _stewardClient.GetMemberProfessionsAsync(guildId, CancellationToken.None).ConfigureAwait(true);
                 professions = response.Professions;
                 catalogue = response.Catalogue;
             }
             else if (pullCatalogue)
             {
-                catalogue = await _gigagrugClient.GetMemberCatalogueAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+                catalogue = await _stewardClient.GetMemberCatalogueAsync(guildId, CancellationToken.None).ConfigureAwait(true);
             }
 
             _lastDirectory = new SyncDirectory(people, characters, professions);
@@ -1805,11 +1807,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SignOutTo(GateFailure.SessionExpired);
             return;
         }
-        // A 403/404 means the guild's features do not allow that route, or an older gigagrug; handled quietly like the events stream, with no error bar.
-        catch (Exception ex) when (ex is GigagrugRequestException or HttpRequestException or TaskCanceledException or JsonException)
+        // A 403/404 means the guild's features do not allow that route, or an older Steward API; handled quietly like the events stream, with no error bar.
+        catch (Exception ex) when (ex is StewardRequestException or HttpRequestException or TaskCanceledException or JsonException)
         {
-            var status = (ex as GigagrugRequestException)?.StatusCode;
+            var status = (ex as StewardRequestException)?.StatusCode;
             _logger.Warn(ex, $"Directory sync for {guildId} failed, status={status}");
+            if (TransientHttp.IsTransient(ex))
+            {
+                _lastDirectorySync = default;
+            }
+
             return;
         }
 
@@ -1826,12 +1833,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            _allBanners = await _gigagrugClient.GetBannersAsync(CancellationToken.None).ConfigureAwait(true);
+            _allBanners = await _stewardClient.GetBannersAsync(CancellationToken.None).ConfigureAwait(true);
         }
         // Banners work signed in or out and must never fail visibly; a failed or malformed fetch keeps the last good set.
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
             _logger.Warn(ex, "Banner fetch failed, keeping the last known banners");
+            if (TransientHttp.IsTransient(ex))
+            {
+                _lastBannersSync = default;
+            }
+
             return;
         }
 
@@ -1955,7 +1967,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void UpdateEventStream()
     {
-        var guildId = IsSignedIn && IsApiReachable && HasStewardFeature && !_eventsUnsupported ? _guildId : null;
+        var guildId = IsSignedIn && HasStewardFeature && !_eventsUnsupported ? _guildId : null;
         if (guildId == _eventsGuildId)
         {
             RecomputeLiveUpdatesState();
@@ -1980,20 +1992,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task RunEventStreamAsync(string guildId, CancellationToken cancellationToken)
     {
-        var backoff = EventStreamMinBackoff;
+        var attempt = 0;
         _logger.Info($"Guild event stream connecting for {guildId}");
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                await foreach (var eventType in _gigagrugClient.StreamGuildEventsAsync(guildId, cancellationToken).ConfigureAwait(true))
+                await foreach (var eventType in _stewardClient.StreamGuildEventsAsync(guildId, cancellationToken).ConfigureAwait(true))
                 {
                     if (eventType == "ready")
                     {
                         _logger.Info($"Guild event stream ready for {guildId}");
                         _isEventStreamLive = true;
-                        backoff = EventStreamMinBackoff;
+                        attempt = 0;
                         RecomputeLiveUpdatesState();
+                        RetryApiNow();
                     }
 
                     if (eventType is "ready" or "roster-changed" or "members-changed" or "characters-changed")
@@ -2021,7 +2034,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 RecomputeLiveUpdatesState();
                 return;
             }
-            catch (GigagrugRequestException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
+            catch (StewardRequestException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
             {
                 _logger.Info($"Guild event stream giving up for {guildId}, status={ex.StatusCode}");
                 _isEventStreamLive = false;
@@ -2029,29 +2042,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 RecomputeLiveUpdatesState();
                 return;
             }
-            catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or TimeoutException or IOException or OperationCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or TimeoutException or IOException or OperationCanceledException)
             {
-                _logger.Warn(ex, $"Guild event stream dropped for {guildId}, retrying in {backoff}");
+                _logger.Warn(ex, $"Guild event stream dropped for {guildId}, retrying in {TransientHttp.Backoff(attempt)}");
             }
 
             _isEventStreamLive = false;
             RecomputeLiveUpdatesState();
             try
             {
-                await Task.Delay(backoff, cancellationToken).ConfigureAwait(true);
+                await Task.Delay(TransientHttp.Backoff(attempt++), cancellationToken).ConfigureAwait(true);
             }
             catch (OperationCanceledException)
             {
                 return;
             }
-
-            backoff = TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, EventStreamMaxBackoff.Ticks));
         }
     }
 
     private void UpdateAccessEventStream()
     {
-        var shouldRun = IsSignedIn && IsApiReachable && !_accessEventsUnsupported;
+        var shouldRun = IsSignedIn && !_accessEventsUnsupported;
         if (shouldRun == _accessEventsRunning)
         {
             RecomputeLiveUpdatesState();
@@ -2076,20 +2087,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task RunAccessEventStreamAsync(CancellationToken cancellationToken)
     {
-        var backoff = EventStreamMinBackoff;
+        var attempt = 0;
         _logger.Info("Access event stream connecting");
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                await foreach (var eventType in _gigagrugClient.StreamAccessEventsAsync(cancellationToken).ConfigureAwait(true))
+                await foreach (var eventType in _stewardClient.StreamAccessEventsAsync(cancellationToken).ConfigureAwait(true))
                 {
-                    if (backoff != EventStreamMinBackoff || !_isAccessEventStreamLive)
+                    if (attempt != 0 || !_isAccessEventStreamLive)
                     {
                         _logger.Info("Access event stream ready");
+                        RetryApiNow();
                     }
 
-                    backoff = EventStreamMinBackoff;
+                    attempt = 0;
                     _isAccessEventStreamLive = true;
                     RecomputeLiveUpdatesState();
                     if (eventType == "accessChanged")
@@ -2122,7 +2134,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 RecomputeLiveUpdatesState();
                 return;
             }
-            catch (GigagrugRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            catch (StewardRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 _logger.Info($"Access event stream giving up, status={ex.StatusCode}");
                 _accessEventsUnsupported = true;
@@ -2130,31 +2142,35 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 RecomputeLiveUpdatesState();
                 return;
             }
-            catch (Exception ex) when (ex is HttpRequestException or GigagrugRequestException or TimeoutException or IOException or OperationCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or TimeoutException or IOException or OperationCanceledException)
             {
-                _logger.Warn(ex, $"Access event stream dropped, retrying in {backoff}");
+                _logger.Warn(ex, $"Access event stream dropped, retrying in {TransientHttp.Backoff(attempt)}");
             }
 
             _isAccessEventStreamLive = false;
             RecomputeLiveUpdatesState();
             try
             {
-                await Task.Delay(backoff, cancellationToken).ConfigureAwait(true);
+                await Task.Delay(TransientHttp.Backoff(attempt++), cancellationToken).ConfigureAwait(true);
             }
             catch (OperationCanceledException)
             {
                 return;
             }
-
-            backoff = TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, EventStreamMaxBackoff.Ticks));
         }
     }
 
     private void RecomputeLiveUpdatesState()
     {
-        if (!IsSignedIn || !IsApiReachable)
+        if (!IsSignedIn)
         {
             LiveUpdatesState = LiveUpdatesState.Hidden;
+            return;
+        }
+
+        if (!IsApiReachable)
+        {
+            LiveUpdatesState = LiveUpdatesState.Reconnecting;
             return;
         }
 
@@ -2445,8 +2461,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            var result = await _gigagrugClient.PostCharacterSyncAsync(guildId, request, CancellationToken.None).ConfigureAwait(true);
-            // gigagrug answers a replayed batchId with accepted 0 and no rejections, which says nothing about each character.
+            var result = await _stewardClient.PostCharacterSyncAsync(guildId, request, CancellationToken.None).ConfigureAwait(true);
+            // Steward API answers a replayed batchId with accepted 0 and no rejections, which says nothing about each character.
             if (plan is not null && result.Replay)
             {
                 state = _stateStore.Load();
@@ -2478,7 +2494,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SignOutTo(GateFailure.SessionExpired);
             return (true, false, true, null);
         }
-        catch (GigagrugRequestException ex)
+        catch (StewardRequestException ex)
         {
             _logger.Warn(ex, $"Character push for {guildId} {install.FlavourPath} rejected, status={ex.StatusCode}");
             var message = ex.StatusCode == HttpStatusCode.Forbidden
@@ -2491,15 +2507,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _stateStore.Save(state);
             return (true, false, false, message);
         }
-        catch (GigagrugThrottledException)
+        catch (StewardThrottledException)
         {
             _logger.Info($"Character push for {guildId} {install.FlavourPath}: 429, throttled");
             return (true, false, false, "Sent too recently, trying again shortly");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            _logger.Warn(ex, $"Character push for {guildId} {install.FlavourPath} failed, gigagrug unreachable");
-            return (true, false, false, "gigagrug unreachable, retrying");
+            _logger.Warn(ex, $"Character push for {guildId} {install.FlavourPath} failed, Steward API unreachable");
+            if (TransientHttp.IsTransient(ex))
+            {
+                _lastGuildSync = default;
+            }
+
+            return (true, false, false, "Steward unreachable, retrying");
         }
     }
 
@@ -2907,7 +2928,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             var result = Failure == GateFailure.ClientOutdated && DateTimeOffset.Now - _clientOutdatedAt < GuildSyncFallbackInterval
                 ? AuthCheckResult.ClientOutdated
-                : _isAccessEventStreamLive && IsAuthorized && !IsDue(_lastAuthCheck, GuildSyncFallbackInterval)
+                : _isAccessEventStreamLive && IsAuthorized && IsApiReachable && !IsDue(_lastAuthCheck, GuildSyncFallbackInterval)
                     ? AuthCheckResult.Authorized
                     : await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
             if (result == AuthCheckResult.Authorized)
@@ -2997,9 +3018,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastAuthCheck = DateTimeOffset.Now;
         try
         {
-            var me = await _gigagrugClient.GetMeAsync(cancellationToken).ConfigureAwait(true);
-            var features = GigagrugClient.EffectiveFeatures(me);
-            if (!GigagrugClient.IsAuthorizing(features))
+            var me = await _stewardClient.GetMeAsync(cancellationToken).ConfigureAwait(true);
+            var features = StewardClient.EffectiveFeatures(me);
+            if (!StewardClient.IsAuthorizing(features))
             {
                 _logger.Info($"/api/me recheck: not authorized, {features.Count} feature(s) held");
                 SignOutTo(GateFailure.NotAuthorized);
@@ -3050,8 +3071,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             ResolveApiRetry("me");
 
-            // Client-side gate only: gigagrug does not restrict who can fetch the unstable manifest.
-            IsGlobalAdmin = GigagrugClient.IsGlobalAdmin(me);
+            // Client-side gate only: Steward API does not restrict who can fetch the unstable manifest.
+            IsGlobalAdmin = StewardClient.IsGlobalAdmin(me);
 
             if (!HasStewardFeature
                 && (!previousFeatures.SetEquals(_features) || previousRole != Role || previousUserId != _userId))
@@ -3087,7 +3108,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            _logger.Warn(ex, "/api/me recheck: gigagrug unreachable");
+            _logger.Warn(ex, "/api/me recheck: Steward API unreachable");
             if (Failure != GateFailure.ClientOutdated)
             {
                 Failure = GateFailure.Unreachable;

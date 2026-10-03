@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace Steward.Core.Tests;
 
-public sealed class GigagrugClientTests
+public sealed class StewardClientTests
 {
     private sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
     {
@@ -30,10 +30,10 @@ public sealed class GigagrugClientTests
         }
     }
 
-    private static (GigagrugClient Client, StubHandler Handler) ClientFor(HttpStatusCode status, string body)
+    private static (StewardClient Client, StubHandler Handler) ClientFor(HttpStatusCode status, string body)
     {
         var handler = new StubHandler(status, body);
-        return (new GigagrugClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)"), handler);
+        return (new StewardClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)"), handler);
     }
 
     private const string RosterBody =
@@ -191,22 +191,22 @@ public sealed class GigagrugClientTests
     }
 
     [Fact]
-    public async Task PostCharacterSyncAsync_TooManyRequests_ThrowsGigagrugThrottledExceptionRatherThanUnreachable()
+    public async Task PostCharacterSyncAsync_TooManyRequests_ThrowsStewardThrottledExceptionRatherThanUnreachable()
     {
         var (client, _) = ClientFor(HttpStatusCode.TooManyRequests, "{}");
         var request = new CharacterSyncRequest("batch-1", "1.0.0", []);
 
-        await Assert.ThrowsAsync<GigagrugThrottledException>(
+        await Assert.ThrowsAsync<StewardThrottledException>(
             () => client.PostCharacterSyncAsync("1", request, TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public async Task PostCharacterSyncAsync_OtherClientError_ThrowsGigagrugRequestException()
+    public async Task PostCharacterSyncAsync_OtherClientError_ThrowsStewardRequestException()
     {
         var (client, _) = ClientFor(HttpStatusCode.BadRequest, "bad batch");
         var request = new CharacterSyncRequest("batch-1", "1.0.0", []);
 
-        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+        var exception = await Assert.ThrowsAsync<StewardRequestException>(
             () => client.PostCharacterSyncAsync("1", request, TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.BadRequest, exception.StatusCode);
     }
@@ -328,11 +328,11 @@ public sealed class GigagrugClientTests
     }
 
     [Fact]
-    public async Task GetMemberRosterAsync_Forbidden_ThrowsGigagrugRequestException()
+    public async Task GetMemberRosterAsync_Forbidden_ThrowsStewardRequestException()
     {
         var (client, _) = ClientFor(HttpStatusCode.Forbidden, "{}");
 
-        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+        var exception = await Assert.ThrowsAsync<StewardRequestException>(
             () => client.GetMemberRosterAsync("1", CancellationToken.None));
         Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
     }
@@ -362,11 +362,11 @@ public sealed class GigagrugClientTests
     }
 
     [Fact]
-    public async Task GetMemberProfessionsAsync_Forbidden_ThrowsGigagrugRequestException()
+    public async Task GetMemberProfessionsAsync_Forbidden_ThrowsStewardRequestException()
     {
         var (client, _) = ClientFor(HttpStatusCode.Forbidden, "{}");
 
-        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+        var exception = await Assert.ThrowsAsync<StewardRequestException>(
             () => client.GetMemberProfessionsAsync("1", CancellationToken.None));
         Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
     }
@@ -383,11 +383,11 @@ public sealed class GigagrugClientTests
     }
 
     [Fact]
-    public async Task GetMemberCatalogueAsync_Forbidden_ThrowsGigagrugRequestException()
+    public async Task GetMemberCatalogueAsync_Forbidden_ThrowsStewardRequestException()
     {
         var (client, _) = ClientFor(HttpStatusCode.Forbidden, "{}");
 
-        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+        var exception = await Assert.ThrowsAsync<StewardRequestException>(
             () => client.GetMemberCatalogueAsync("1", CancellationToken.None));
         Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
     }
@@ -455,11 +455,11 @@ public sealed class GigagrugClientTests
     }
 
     [Fact]
-    public async Task StreamAccessEventsAsync_NotFound_ThrowsGigagrugRequestException()
+    public async Task StreamAccessEventsAsync_NotFound_ThrowsStewardRequestException()
     {
         var (client, _) = ClientFor(HttpStatusCode.NotFound, "{}");
 
-        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(async () =>
+        var exception = await Assert.ThrowsAsync<StewardRequestException>(async () =>
         {
             await foreach (var _ in client.StreamAccessEventsAsync(TestContext.Current.CancellationToken))
             {
@@ -492,21 +492,21 @@ public sealed class GigagrugClientTests
     }
 
     [Fact]
-    public async Task SetSelectedGuildAsync_BadRequest_ThrowsGigagrugRequestException()
+    public async Task SetSelectedGuildAsync_BadRequest_ThrowsStewardRequestException()
     {
         var (client, _) = ClientFor(HttpStatusCode.BadRequest, "{}");
 
-        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+        var exception = await Assert.ThrowsAsync<StewardRequestException>(
             () => client.SetSelectedGuildAsync("1", TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.BadRequest, exception.StatusCode);
     }
 
     [Fact]
-    public async Task SetSelectedGuildAsync_NotFound_ThrowsGigagrugRequestException()
+    public async Task SetSelectedGuildAsync_NotFound_ThrowsStewardRequestException()
     {
         var (client, _) = ClientFor(HttpStatusCode.NotFound, "{}");
 
-        var exception = await Assert.ThrowsAsync<GigagrugRequestException>(
+        var exception = await Assert.ThrowsAsync<StewardRequestException>(
             () => client.SetSelectedGuildAsync("1", TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.NotFound, exception.StatusCode);
     }

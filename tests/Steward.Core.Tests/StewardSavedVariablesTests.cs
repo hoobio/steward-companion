@@ -229,7 +229,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
             StewardDB = {
             ["characters"] = {
             ["Player-4395-0A1B2C3D"] = {
-                ["name"] = "Hoobi Furry", ["realm"] = "Nightslayer", ["guild"] = "Gigagrug",
+                ["name"] = "Hoobi Furry", ["realm"] = "Nightslayer", ["guild"] = "Stormrage",
                 ["level"] = 60, ["classID"] = 1, ["raceID"] = 2, ["rankIndex"] = 1,
                 ["lastOnline"] = 1758250000, ["linkedUserId"] = "123456789012345678",
                 ["linkKnown"] = true, ["observedAt"] = 1758260000,
@@ -242,7 +242,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal("Player-4395-0A1B2C3D", character.CharacterGuid);
         Assert.Equal("Hoobi Furry", character.Name);
         Assert.Equal("Nightslayer", character.Realm);
-        Assert.Equal("Gigagrug", character.Guild);
+        Assert.Equal("Stormrage", character.Guild);
         Assert.Equal(60, character.Level);
         Assert.Equal(1, character.ClassId);
         Assert.Equal(2, character.RaceId);
@@ -619,7 +619,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["guildRanks"] = {
-                ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758260000,
+                ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["observedAt"] = 1758260000,
                 ["ranks"] = { [1] = "Guild Master", [2] = "Officer", [3] = "Member" },
             },
             }
@@ -628,7 +628,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal(0, snapshot.Skipped);
         var ranks = snapshot.GuildRanks!;
         Assert.Equal("Nightslayer", ranks.Realm);
-        Assert.Equal("Gigagrug", ranks.Guild);
+        Assert.Equal("Stormrage", ranks.Guild);
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000), ranks.ObservedAt);
         Assert.Equal("Guild Master", ranks.Ranks[1]);
         Assert.Equal("Officer", ranks.Ranks[2]);
@@ -641,11 +641,11 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["characters"] = {
-                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "ClassicBetaPvP2", ["realmName"] = "Classic Beta PvP 2", ["guild"] = "Gigagrug" },
-                ["Player-4395-11111111"] = { ["name"] = "Grug", ["realm"] = "ClassicBetaPvP2", ["guild"] = "Gigagrug" },
+                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "ClassicBetaPvP2", ["realmName"] = "Classic Beta PvP 2", ["guild"] = "Stormrage" },
+                ["Player-4395-11111111"] = { ["name"] = "Grug", ["realm"] = "ClassicBetaPvP2", ["guild"] = "Stormrage" },
             },
             ["guildRanks"] = {
-                ["realm"] = "ClassicBetaPvP2", ["realmName"] = "Classic Beta PvP 2", ["guild"] = "Gigagrug",
+                ["realm"] = "ClassicBetaPvP2", ["realmName"] = "Classic Beta PvP 2", ["guild"] = "Stormrage",
                 ["ranks"] = { [1] = "Guild Master" },
             },
             }
@@ -667,7 +667,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", $$"""
             StewardDB = {
             ["characters"] = {
-                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "ClassicBetaPvP2", ["guild"] = "Gigagrug", {{field}} },
+                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "ClassicBetaPvP2", ["guild"] = "Stormrage", {{field}} },
             },
             }
             """));
@@ -681,7 +681,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["guildRanks"] = {
-                ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758260000,
+                ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["observedAt"] = 1758260000,
                 ["ranks"] = {
                 "Guild Master", -- [1]
                 "Officer", -- [2]
@@ -704,7 +704,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
     {
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
-            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["ranks"] = {} },
+            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["ranks"] = {} },
             }
             """));
 
@@ -718,7 +718,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["guildRanks"] = {
-                ["guild"] = "Gigagrug",
+                ["guild"] = "Stormrage",
                 ["ranks"] = { [1] = "Guild Master" },
             },
             }
@@ -734,7 +734,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["guildRanks"] = {
-                ["realm"] = "Nightslayer", ["guild"] = "Gigagrug",
+                ["realm"] = "Nightslayer", ["guild"] = "Stormrage",
                 ["ranks"] = { [1] = "Guild Master", ["notARank"] = "Officer" },
             },
             }
@@ -751,12 +751,12 @@ public sealed class StewardSavedVariablesTests : IDisposable
     {
         var older = """
             StewardDB = {
-            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758200000, ["ranks"] = { [1] = "Old Name" } },
+            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["observedAt"] = 1758200000, ["ranks"] = { [1] = "Old Name" } },
             }
             """;
         var newer = """
             StewardDB = {
-            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758260000, ["ranks"] = { [1] = "Guild Master" } },
+            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["observedAt"] = 1758260000, ["ranks"] = { [1] = "Guild Master" } },
             }
             """;
 
@@ -771,7 +771,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["characters"] = {
             ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["level"] = 60, ["observedAt"] = {{observedAt}} },
             },
-            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = {{observedAt}}, ["ranks"] = { [1] = "{{rank1Name}}" } },
+            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["observedAt"] = {{observedAt}}, ["ranks"] = { [1] = "{{rank1Name}}" } },
             }
             """)).CharactersFingerprint;
 

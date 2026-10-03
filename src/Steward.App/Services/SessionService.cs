@@ -59,20 +59,20 @@ public sealed class SessionService : ISessionService
 
     private readonly CookieContainer _cookieContainer;
     private readonly AppStateStore _stateStore;
-    private readonly GigagrugClient _gigagrugClient;
+    private readonly StewardClient _stewardClient;
     private readonly string _baseUrl;
     private readonly ILogger<SessionService> _logger;
 
     public SessionService(
         CookieContainer cookieContainer,
         AppStateStore stateStore,
-        GigagrugClient gigagrugClient,
+        StewardClient stewardClient,
         string baseUrl,
         ILogger<SessionService> logger)
     {
         _cookieContainer = cookieContainer;
         _stateStore = stateStore;
-        _gigagrugClient = gigagrugClient;
+        _stewardClient = stewardClient;
         _baseUrl = baseUrl;
         _logger = logger;
     }
@@ -152,7 +152,7 @@ public sealed class SessionService : ISessionService
                     _logger.Info("Sign-in callback received");
                     try
                     {
-                        var exchanged = await _gigagrugClient.ExchangeDesktopCodeAsync(code, verifier, ct).ConfigureAwait(false);
+                        var exchanged = await _stewardClient.ExchangeDesktopCodeAsync(code, verifier, ct).ConfigureAwait(false);
                         _logger.Info("Sign-in code exchange succeeded");
                         return exchanged;
                     }

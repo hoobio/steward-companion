@@ -57,11 +57,11 @@ public sealed class RecipeCatalogueTests
     [Fact]
     public async Task GetRecipeCatalogueAsync_Success_Deserialises()
     {
-        // gigagrug serves snake_case (recipe_id/item_id), not the camelCase CatalogueRecipe shape the app pushes back.
+        // Steward API serves snake_case (recipe_id/item_id), not the camelCase CatalogueRecipe shape the app pushes back.
         var handler = new StubHandler(HttpStatusCode.OK, """
             {"catalogue":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","header":"Potions","item_id":13446,"tools":"","reagents":[{"item_id":13464,"name":"Golden Sansam","count":2}],"order":3,"grey":320,"orange_to":289,"yellow_from":290,"yellow_to":300,"green_from":310}]}}
             """);
-        var client = new GigagrugClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
+        var client = new StewardClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
 
         var catalogue = await client.GetRecipeCatalogueAsync("1", CancellationToken.None);
 
@@ -77,7 +77,7 @@ public sealed class RecipeCatalogueTests
     [Fact]
     public async Task GetRecipeCatalogueAsync_Unauthorized_ThrowsSessionExpired()
     {
-        var client = new GigagrugClient(new HttpClient(new StubHandler(HttpStatusCode.Unauthorized, "{}")), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
+        var client = new StewardClient(new HttpClient(new StubHandler(HttpStatusCode.Unauthorized, "{}")), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
 
         await Assert.ThrowsAsync<SessionExpiredException>(() => client.GetRecipeCatalogueAsync("1", CancellationToken.None));
     }
@@ -85,7 +85,7 @@ public sealed class RecipeCatalogueTests
     [Fact]
     public async Task GetRecipeCatalogueAsync_NotFound_ThrowsHttpRequestException()
     {
-        var client = new GigagrugClient(new HttpClient(new StubHandler(HttpStatusCode.NotFound, "{}")), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
+        var client = new StewardClient(new HttpClient(new StubHandler(HttpStatusCode.NotFound, "{}")), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
 
         var exception = await Assert.ThrowsAsync<HttpRequestException>(() => client.GetRecipeCatalogueAsync("1", CancellationToken.None));
         Assert.Contains("404", exception.Message, StringComparison.Ordinal);

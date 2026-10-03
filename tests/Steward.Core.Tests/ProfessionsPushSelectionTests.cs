@@ -6,8 +6,8 @@ public sealed class ProfessionsPushSelectionTests
     private const string GrugGuid = "Player-4395-11111111";
     private const string MyUserId = "123";
 
-    private static readonly CharacterObservation Hoobi = new(HoobiGuid, "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, null, false, null);
-    private static readonly CharacterObservation Grug = new(GrugGuid, "Grug", "Nightslayer", "Gigagrug", 58, 7, 3, 2, null, null, false, null);
+    private static readonly CharacterObservation Hoobi = new(HoobiGuid, "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+    private static readonly CharacterObservation Grug = new(GrugGuid, "Grug", "Nightslayer", "Stormrage", 58, 7, 3, 2, null, null, false, null);
 
     private static CharacterProfessions Skills(int rank, long? observedAt = 1) =>
         new(observedAt, [new ProfessionSkill("Mining", rank, 300, false)], null, "fp");

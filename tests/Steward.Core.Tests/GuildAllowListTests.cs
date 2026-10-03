@@ -25,9 +25,9 @@ public sealed class GuildAllowListTests
     [Fact]
     public void IsAllowedGuild_MatchesCaseInsensitivelyOnTheTrimmedName()
     {
-        Assert.True(CharacterSyncMapping.IsAllowedGuild("  gigagrug ", ["Gigagrug"]));
-        Assert.True(CharacterSyncMapping.IsAllowedGuild("Gigagrug", [" GIGAGRUG"]));
-        Assert.False(CharacterSyncMapping.IsAllowedGuild("Other", ["Gigagrug"]));
+        Assert.True(CharacterSyncMapping.IsAllowedGuild("  stormrage ", ["Stormrage"]));
+        Assert.True(CharacterSyncMapping.IsAllowedGuild("Stormrage", [" STORMRAGE"]));
+        Assert.False(CharacterSyncMapping.IsAllowedGuild("Other", ["Stormrage"]));
     }
 
     [Fact]
@@ -40,9 +40,9 @@ public sealed class GuildAllowListTests
     [Fact]
     public void Scope_KeepsOnlyAllowedCharacters()
     {
-        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"), Character(AltGuid, "Other"));
+        var snapshot = Snapshot(null, Character(HomeGuid, "Stormrage"), Character(AltGuid, "Other"));
 
-        var scope = CharacterSyncMapping.Scope(snapshot, false, ["gigagrug"]);
+        var scope = CharacterSyncMapping.Scope(snapshot, false, ["stormrage"]);
 
         Assert.Equal(HomeGuid, Assert.Single(scope.Characters).CharacterGuid);
     }
@@ -50,7 +50,7 @@ public sealed class GuildAllowListTests
     [Fact]
     public void Scope_NullList_PassesEverythingAndKeepsTheSnapshotFingerprint()
     {
-        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"), Character(AltGuid, "Other"));
+        var snapshot = Snapshot(null, Character(HomeGuid, "Stormrage"), Character(AltGuid, "Other"));
 
         var scope = CharacterSyncMapping.Scope(snapshot, false, null);
 
@@ -61,7 +61,7 @@ public sealed class GuildAllowListTests
     [Fact]
     public void Scope_EmptyList_BlocksEverythingAndHasNoFingerprint()
     {
-        var snapshot = Snapshot(Ranks("Gigagrug"), Character(HomeGuid, "Gigagrug"));
+        var snapshot = Snapshot(Ranks("Stormrage"), Character(HomeGuid, "Stormrage"));
 
         var scope = CharacterSyncMapping.Scope(snapshot, false, []);
 
@@ -73,9 +73,9 @@ public sealed class GuildAllowListTests
     [Fact]
     public void Scope_DropsGuildRanks_WhenItsGuildIsNotAllowed()
     {
-        var snapshot = Snapshot(Ranks("Other"), Character(HomeGuid, "Gigagrug"));
+        var snapshot = Snapshot(Ranks("Other"), Character(HomeGuid, "Stormrage"));
 
-        Assert.Null(CharacterSyncMapping.Scope(snapshot, false, ["Gigagrug"]).GuildRanks);
+        Assert.Null(CharacterSyncMapping.Scope(snapshot, false, ["Stormrage"]).GuildRanks);
         Assert.NotNull(CharacterSyncMapping.Scope(snapshot, false, ["other"]).GuildRanks);
         Assert.NotNull(CharacterSyncMapping.Scope(snapshot, false, null).GuildRanks);
     }
@@ -83,10 +83,10 @@ public sealed class GuildAllowListTests
     [Fact]
     public void Scope_FingerprintIgnoresAFilteredOutGuild()
     {
-        var home = Character(HomeGuid, "Gigagrug");
-        var withoutAlt = CharacterSyncMapping.Scope(Snapshot(null, home), false, ["Gigagrug"]);
-        var withAlt = CharacterSyncMapping.Scope(Snapshot(null, home, Character(AltGuid, "Other")), false, ["Gigagrug"]);
-        var altChanged = CharacterSyncMapping.Scope(Snapshot(null, home, Character(AltGuid, "Other") with { Level = 70 }), false, ["Gigagrug"]);
+        var home = Character(HomeGuid, "Stormrage");
+        var withoutAlt = CharacterSyncMapping.Scope(Snapshot(null, home), false, ["Stormrage"]);
+        var withAlt = CharacterSyncMapping.Scope(Snapshot(null, home, Character(AltGuid, "Other")), false, ["Stormrage"]);
+        var altChanged = CharacterSyncMapping.Scope(Snapshot(null, home, Character(AltGuid, "Other") with { Level = 70 }), false, ["Stormrage"]);
 
         Assert.Equal(withoutAlt.Fingerprint, withAlt.Fingerprint);
         Assert.Equal(withoutAlt.Fingerprint, altChanged.Fingerprint);
@@ -100,9 +100,9 @@ public sealed class GuildAllowListTests
             [HomeGuid] = new(null, null, null),
             [AltGuid] = new(null, null, null),
         };
-        var snapshot = Snapshot(null, Character(HomeGuid, "Gigagrug"), Character(AltGuid, "Other")) with { Professions = professions };
+        var snapshot = Snapshot(null, Character(HomeGuid, "Stormrage"), Character(AltGuid, "Other")) with { Professions = professions };
 
-        var scope = CharacterSyncMapping.Scope(snapshot, true, ["Gigagrug"]);
+        var scope = CharacterSyncMapping.Scope(snapshot, true, ["Stormrage"]);
 
         Assert.Equal(HomeGuid, Assert.Single(scope.Characters).CharacterGuid);
         Assert.Null(scope.GuildRanks);
@@ -120,10 +120,10 @@ public sealed class GuildAllowListTests
     public void AdminGuild_ParsesSyncGuildNames_WhenPresent()
     {
         var me = JsonSerializer.Deserialize(
-            """{"user":{"id":"1","name":"H","username":null,"avatar_url":null,"role":null},"guilds":[{"id":"a","name":"A","icon_url":null,"member_count":1,"nick":null,"sync_guild_names":["Gigagrug","Other"]}]}""",
+            """{"user":{"id":"1","name":"H","username":null,"avatar_url":null,"role":null},"guilds":[{"id":"a","name":"A","icon_url":null,"member_count":1,"nick":null,"sync_guild_names":["Stormrage","Other"]}]}""",
             CompanionJsonContext.Default.AdminMe)!;
 
-        Assert.Equal(["Gigagrug", "Other"], me.Guilds[0].SyncGuildNames);
+        Assert.Equal(["Stormrage", "Other"], me.Guilds[0].SyncGuildNames);
     }
 
     [Fact]

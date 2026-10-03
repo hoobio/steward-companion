@@ -195,7 +195,7 @@ public sealed class AddonUpdater
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, $"Could not report the {addon.Id} {release.Version} download failure to gigagrug");
+                _logger.Warn(ex, $"Could not report the {addon.Id} {release.Version} download failure to Steward API");
             }
         });
     }

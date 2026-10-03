@@ -12,7 +12,7 @@ public static class CurseForgeAddons
     public static ManagedAddon ToManagedAddon(ProviderAddonRecord record, string manifestBaseUrl)
     {
         ArgumentNullException.ThrowIfNull(record);
-        return new ManagedAddon(record.Id, record.FolderName, manifestBaseUrl, Name: record.Name, Features: [GigagrugClient.AddonsFeature], Source: record.Source)
+        return new ManagedAddon(record.Id, record.FolderName, manifestBaseUrl, Name: record.Name, Features: [StewardClient.AddonsFeature], Source: record.Source)
         {
             IconUrl = record.IconUrl,
             Folders = Folders(record),
@@ -76,7 +76,7 @@ public static class CurseForgeAddons
         ArgumentNullException.ThrowIfNull(title);
 
         var byFolder = new Dictionary<string, CurseForgeMatch>(StringComparer.OrdinalIgnoreCase);
-        // gigagrug answers a declared-ID match with no fileId; ordering it last lets it win over a fingerprint match for the same folder.
+        // Steward API answers a declared-ID match with no fileId; ordering it last lets it win over a fingerprint match for the same folder.
         foreach (var match in matches.OrderBy(match => match.FileId is null ? 1 : 0))
         {
             byFolder[match.Folder] = match;

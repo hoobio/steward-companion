@@ -6,7 +6,7 @@ namespace Steward.Core;
 
 public sealed class BannerIdConverter : JsonConverter<string>
 {
-    // gigagrug's id is documented as a string but has shipped as a JSON number (5425bf8); either form must parse rather than dropping the banner.
+    // Steward API's id is documented as a string but has shipped as a JSON number (5425bf8); either form must parse rather than dropping the banner.
     public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => reader.TokenType switch
     {
         JsonTokenType.String => reader.GetString() ?? "",
@@ -79,7 +79,7 @@ public static class BannerActions
         _ => BannerActionKind.Unknown,
     };
 
-    // Re-checked client-side regardless of what gigagrug allowed, since the server is a public API and this URL is about to be handed to ShellExecute.
+    // Re-checked client-side regardless of what Steward API allowed, since the server is a public API and this URL is about to be handed to ShellExecute.
     public static bool IsAllowedUrl(string? url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) && AllowedUrlSchemes.Contains(uri.Scheme, StringComparer.OrdinalIgnoreCase);
 }

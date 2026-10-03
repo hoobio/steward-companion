@@ -239,7 +239,7 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     private static readonly Uri QuestieZip = new("https://edge.forgecdn.net/files/1/2/Questie.zip");
-    private static readonly ManagedAddon Questie = new("questie", "Questie", "https://gigagrug.example/api/addons/curseforge/334372/88568/");
+    private static readonly ManagedAddon Questie = new("questie", "Questie", "https://steward.example/api/addons/curseforge/334372/88568/");
 
     private async Task<(AddonUpdater Updater, ZipBytesStubHandler Handler, string AddOnsPath, string Sha1)> QuestieSetupAsync(params string[] entries)
     {
@@ -442,7 +442,7 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     private static readonly ManagedAddon CurseForgeQuestie = new(
-        "curseforge-334372-88568", "Questie", "https://gigagrug.example/api/addons/curseforge/334372/88568/", Source: CurseForgeAddons.Source);
+        "curseforge-334372-88568", "Questie", "https://steward.example/api/addons/curseforge/334372/88568/", Source: CurseForgeAddons.Source);
 
     private static readonly AddonRelease QuestieRelease = new("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: "00");
 

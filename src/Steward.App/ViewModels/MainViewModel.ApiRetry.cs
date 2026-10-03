@@ -41,6 +41,14 @@ public sealed partial class MainViewModel
         }
     }
 
+    private void RetryApiNow()
+    {
+        if (HasApiRetry)
+        {
+            _ = RetryApiAsync();
+        }
+    }
+
     private void ResolveApiRetry(string retryKey)
     {
         if (_apiRetries.Remove(retryKey) && !_isRetryingApi)

@@ -12,7 +12,7 @@ The app treats `sync` as not standalone: the empty-feature-set check that drops 
 
 ## Requests from the app
 
-steward-server's `AdminAccess.IsSameSite` check (`src/Steward.Data/AdminAccess.cs`) rejects a non-GET with neither `Sec-Fetch-Site` nor an allowlisted `Origin`. `GigagrugClient` sends `Sec-Fetch-Site: none` on every request, a value browsers never let a page set and `IsSameSite` already accepts.
+steward-server's `AdminAccess.IsSameSite` check (`src/Steward.Data/AdminAccess.cs`) rejects a non-GET with neither `Sec-Fetch-Site` nor an allowlisted `Origin`. `StewardClient` sends `Sec-Fetch-Site: none` on every request, a value browsers never let a page set and `IsSameSite` already accepts.
 
 ## Identity and scope
 
@@ -28,14 +28,14 @@ Each Discord guild carries an allow-list of WoW guild names, sent as `sync_guild
 StewardDB = {
   ["characters"] = {
     ["Player-4395-0A1B2C3D"] = {
-      ["name"] = "Hoobi Furry", ["realm"] = "Nightslayer", ["realmName"] = "Nightslayer", ["guild"] = "Gigagrug",
+      ["name"] = "Hoobi Furry", ["realm"] = "Nightslayer", ["realmName"] = "Nightslayer", ["guild"] = "Steward",
       ["level"] = 60, ["classID"] = 1, ["raceID"] = 2, ["gender"] = 2, ["rankIndex"] = 1,
       ["lastOnline"] = 1758250000, ["linkedUserId"] = "123456789012345678",
       ["linkKnown"] = true, ["observedAt"] = 1758260000,
     },
   },
   ["guildRanks"] = {
-    ["realm"] = "Nightslayer", ["realmName"] = "Nightslayer", ["guild"] = "Gigagrug", ["observedAt"] = 1758260000,
+    ["realm"] = "Nightslayer", ["realmName"] = "Nightslayer", ["guild"] = "Steward", ["observedAt"] = 1758260000,
     ["ranks"] = { [1] = "Guild Master", [2] = "Officer", [3] = "Member" },
   },
 }
@@ -52,7 +52,7 @@ StewardDB = {
 
 - `StewardSavedVariables` maps `StewardDB.characters` to `CharacterObservation` records through the existing `LuaSavedVariables` parser, skipping and counting malformed records like the other datasets.
 - The background pass, while `sync` is held, pushes the whole `characters` table for an install whenever its `StewardDB` file changed since the last successful push (file fingerprint per install in `state.json`), as one batch with a client-generated `batchId`. No per-character ack: the server discards unchanged observations, and a full push lets a voided batch heal on the next one.
-- `GigagrugClient.PostCharacterSyncAsync(guildId, batch)`; the Sync page shows the last push's time and each character's outcome in the install's "Your characters" row. `Sync now` at the top of the page forces the push for every install even when the fingerprint matches the last attempt, unlike the background pass.
+- `StewardClient.PostCharacterSyncAsync(guildId, batch)`; the Sync page shows the last push's time and each character's outcome in the install's "Your characters" row. `Sync now` at the top of the page forces the push for every install even when the fingerprint matches the last attempt, unlike the background pass.
 
 ## steward-server
 
@@ -145,7 +145,7 @@ Agreed direction on 26 Sep 2026, built: raiders push their own characters' profe
 - Catalogue: only officers update it; a seatless holder's push may add to it. Decided 27 Sep 2026, built in steward-server. Each profession in the seatless `catalogue` is validated like the officer path and kept only when its `fp` matches, whatever `Sync:RequireProfessionsFingerprint` says; a missing or mismatched `fp` drops that profession's additions, the rest of the push proceeds, and the global admins get the same throttled integrity DM with the reason `catalogue fingerprint missing` or `catalogue fingerprint mismatch` and the profession name. A kept recipe is inserted only when that `(guild, profession, recipeId)` is not already in the catalogue, recording the contributor's user id; an existing entry is never updated, replaced or deleted by a seatless push, whatever its `scannedAt`. The officer path is unchanged and ignores `fp`. The app does not send a seatless `catalogue` yet. `GET recipes/catalogue` opens to them so their addon gets the guild catalogue.
 - Catalogue `fp`: keyed FNV-1a 32-bit exactly like the professions `fp` (same key, 8 lowercase hex) over UTF-8 text with `\n` after every line, the last included: `c2`, then the profession name, then one `<recipeId>|<name>|<itemId>|<reagents>|<order>|<grey>|<orangeTo>|<yellowFrom>|<yellowTo>|<greenFrom>` line per recipe in that profession's pushed `list`, sorted by `recipeId` ascending numerically. `itemId` and each level field are empty when absent; `reagents` is each reagent as `<itemId>:<count>` sorted by `itemId` ascending numerically, a reagent with no `itemId` rendering as `:<count>` and sorting first, comma-joined, empty when none. The raw pushed strings are used. A recipe with no `recipeId` renders with an empty `recipeId` and sorts first, though the server never stores it. Test vector: `Blacksmithing` with `2660` "Rough Sharpening Stone" (item `2862`, one `2835`, order 2, grey 55, orangeTo 14, yellowFrom 15, yellowTo 30) and `3115` "Rough Weightstone" (item `3239`, one `2835`, order 1, grey 65, greenFrom 45) has the canonical text `c2\nBlacksmithing\n2660|Rough Sharpening Stone|2862|2835:1|2|55|14|15|30|\n3115|Rough Weightstone|3239|2835:1|1|65||||45\n` and `fp` `8d7355e0`. steward-server still accepts the previous `c1` form from an out-of-date addon: the same lines without the six level fields under a `c1` header (the same two recipes give `c1\nBlacksmithing\n2660|Rough Sharpening Stone|2862|2835:1\n3115|Rough Weightstone|3239|2835:1\n`, `fp` `8744cb70`), and a profession signed that way is kept with its level fields stripped, since `c1` does not sign them.
 - The app's roster pull (`/roster`, `/members`) and the event stream stay officer-only (`HasStewardFeature`); for a raider the catalogue fetch runs on its own.
-- The app's access gate no longer needs `addons`, `guides` or `steward` alongside `sync`: `GigagrugClient.IsAuthorizing` treats `sync` alone as authorizing.
+- The app's access gate no longer needs `addons`, `guides` or `steward` alongside `sync`: `StewardClient.IsAuthorizing` treats `sync` alone as authorizing.
 
 ## Gear
 

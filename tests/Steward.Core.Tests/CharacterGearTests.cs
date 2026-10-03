@@ -7,8 +7,8 @@ public sealed class CharacterGearTests
     private const string Guid = "Player-5826-0A1B2C3D";
     private const string OtherGuid = "Player-5826-11111111";
 
-    private static readonly CharacterObservation Hoobi = new(Guid, "Hoobi", "Nightslayer", "Gigagrug", 60, 1, 2, 1, null, null, false, null);
-    private static readonly CharacterObservation Grug = new(OtherGuid, "Grug", "Nightslayer", "Gigagrug", 58, 7, 3, 2, null, null, false, null);
+    private static readonly CharacterObservation Hoobi = new(Guid, "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+    private static readonly CharacterObservation Grug = new(OtherGuid, "Grug", "Nightslayer", "Stormrage", 58, 7, 3, 2, null, null, false, null);
 
     private static SavedVariablesSnapshot ReadAccount(string gearTable) =>
         StewardSavedVariables.Read([("account.lua", DateTimeOffset.UnixEpoch, $$"""
