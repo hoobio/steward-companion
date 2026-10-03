@@ -34,6 +34,7 @@ public sealed partial class HomePage : Page
     private readonly HashSet<Grid> _tableRows = [];
     private readonly TextBlock _versionMeasure = new() { TextWrapping = TextWrapping.NoWrap };
     private readonly Dictionary<Grid, double> _versionNeeds = [];
+    private double _nameNeed;
     private double _channelNeed;
     private double _sourceNeed;
     private double _statusWidth;
@@ -59,9 +60,13 @@ public sealed partial class HomePage : Page
                 continue;
             }
 
-            child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            need = Math.Max(need, Math.Ceiling(child.DesiredSize.Width));
-            child.InvalidateMeasure();
+            IEnumerable<UIElement> targets = index == NameIndex && child is StackPanel lines ? lines.Children.Take(2) : [child];
+            foreach (var target in targets.Where(target => target.Visibility == Visibility.Visible))
+            {
+                target.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                need = Math.Max(need, Math.Ceiling(target.DesiredSize.Width));
+                target.InvalidateMeasure();
+            }
         }
 
         return need;
@@ -78,17 +83,18 @@ public sealed partial class HomePage : Page
     private void RefreshNeeds()
     {
         _needsQueued = false;
-        double channel = 0, source = 0, status = 0;
+        double name = 0, channel = 0, source = 0, status = 0;
         foreach (var row in _tableRows.Append(TableHeader))
         {
+            name = Math.Max(name, MeasureColumnContent(row, NameIndex));
             channel = Math.Max(channel, MeasureColumnContent(row, ChannelIndex));
             source = Math.Max(source, MeasureColumnContent(row, SourceIndex));
             status = Math.Max(status, MeasureColumnContent(row, StatusIndex));
         }
 
-        if (channel != _channelNeed || source != _sourceNeed || status != _statusWidth)
+        if (name != _nameNeed || channel != _channelNeed || source != _sourceNeed || status != _statusWidth)
         {
-            (_channelNeed, _sourceNeed, _statusWidth) = (channel, source, status);
+            (_nameNeed, _channelNeed, _sourceNeed, _statusWidth) = (name, channel, source, status);
             ApplyColumnsToAll();
         }
     }
@@ -109,22 +115,35 @@ public sealed partial class HomePage : Page
         var shown = TableColumns.Where(column => tableWidth >= column.MinTableWidth).ToList();
         var space = tableWidth - row.Padding.Left - row.Padding.Right - row.ColumnSpacing * (row.ColumnDefinitions.Count - 1)
             - row.ColumnDefinitions[0].Width.Value - row.ColumnDefinitions[OverflowIndex].Width.Value;
-        var budget = Math.Max(0, space - _statusWidth - NameMinWidth);
         var applied = shown.ToDictionary(column => column.Id, column => Math.Max(DefaultWidth(column.Id), column.MinWidth));
-        applied["version"] = Math.Max(applied["version"], VersionFloor);
-        foreach (var id in ShrinkOrder.Where(applied.ContainsKey))
+        var needVersion = applied["version"] = Math.Max(applied["version"], VersionFloor);
+        var needName = Math.Max(_nameNeed, NameMinWidth);
+        var pool = space - _statusWidth - applied.Where(pair => pair.Key != "version").Sum(pair => pair.Value);
+        double name;
+        if (needName + needVersion <= pool)
         {
-            var excess = applied.Values.Sum() - budget;
-            if (excess <= 0)
+            name = pool / 2 >= needName && pool / 2 >= needVersion ? pool / 2 : needName > pool / 2 ? needName : pool - needVersion;
+            applied["version"] = pool - name;
+        }
+        else
+        {
+            var budget = Math.Max(0, space - _statusWidth - NameMinWidth);
+            foreach (var id in ShrinkOrder.Where(applied.ContainsKey))
             {
-                break;
+                var excess = applied.Values.Sum() - budget;
+                if (excess <= 0)
+                {
+                    break;
+                }
+
+                applied[id] = Math.Max(TableColumns.First(column => column.Id == id).MinWidth, applied[id] - excess);
             }
 
-            applied[id] = Math.Max(TableColumns.First(column => column.Id == id).MinWidth, applied[id] - excess);
+            name = Math.Max(NameMinWidth, space - _statusWidth - applied.Values.Sum());
         }
 
         row.ColumnDefinitions[NameIndex].MinWidth = NameMinWidth;
-        row.ColumnDefinitions[NameIndex].Width = new GridLength(1, GridUnitType.Star);
+        row.ColumnDefinitions[NameIndex].Width = new GridLength(name);
         row.ColumnDefinitions[StatusIndex].Width = new GridLength(_statusWidth);
         foreach (var (id, index, _, _) in TableColumns)
         {
