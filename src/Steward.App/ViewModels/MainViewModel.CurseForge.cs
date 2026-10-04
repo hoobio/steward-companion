@@ -302,7 +302,7 @@ public sealed partial class MainViewModel
                 await ProbeProviderAddonsAsync(addons).ConfigureAwait(true);
                 return !_apiRetries.ContainsKey("curseforge");
             });
-            if (!IsServerError(ex))
+            if (!TransientHttp.IsRetryable(ex))
             {
                 StatusMessage = $"CurseForge check failed: {ex.Message}";
             }

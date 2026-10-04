@@ -44,4 +44,17 @@ public sealed class TransientHttpTests
         Assert.False(TransientHttp.IsTransient(new TaskCanceledException()));
         Assert.False(TransientHttp.IsTransient(new HttpRequestException("empty body")));
     }
+
+    [Fact]
+    public void IsRetryable_AnyServerErrorOrTransientFailure()
+    {
+        Assert.True(TransientHttp.IsRetryable(new HttpRequestException("x", null, HttpStatusCode.InternalServerError)));
+        Assert.True(TransientHttp.IsRetryable(new HttpRequestException("x", null, HttpStatusCode.ServiceUnavailable)));
+        Assert.True(TransientHttp.IsRetryable(new HttpRequestException(HttpRequestError.ConnectionError)));
+        Assert.True(TransientHttp.IsRetryable(new TaskCanceledException("timeout", new TimeoutException())));
+        Assert.False(TransientHttp.IsRetryable(new HttpRequestException("x", null, HttpStatusCode.Forbidden)));
+        Assert.False(TransientHttp.IsRetryable(new ClientOutdatedException("old")));
+        Assert.False(TransientHttp.IsRetryable(new SessionExpiredException()));
+        Assert.False(TransientHttp.IsRetryable(new TaskCanceledException()));
+    }
 }

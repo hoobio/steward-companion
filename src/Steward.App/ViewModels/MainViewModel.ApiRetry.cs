@@ -1,5 +1,4 @@
-using System.Net;
-
+using Steward.Core;
 using Steward.Core.Diagnostics;
 
 using Microsoft.UI.Dispatching;
@@ -10,9 +9,6 @@ public sealed partial class MainViewModel
 {
     private const string ApiUnavailableMessage = "Steward APIs are temporarily unavailable.";
 
-    private static readonly TimeSpan ApiRetryFirstDelay = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan ApiRetryMaxDelay = TimeSpan.FromMinutes(5);
-
     private readonly Dictionary<string, Func<Task<bool>>> _apiRetries = [];
     private DispatcherQueueTimer? _apiRetryTimer;
     private int _apiRetryAttempt;
@@ -20,15 +16,12 @@ public sealed partial class MainViewModel
 
     private bool HasApiRetry => _apiRetries.Count > 0;
 
-    private static bool IsServerError(Exception ex) =>
-        ex is HttpRequestException { StatusCode: >= HttpStatusCode.InternalServerError };
-
-    private static string Describe(Exception ex) => IsServerError(ex) ? ApiUnavailableMessage : ex.Message;
+    private static string Describe(Exception ex) => TransientHttp.IsRetryable(ex) ? ApiUnavailableMessage : ex.Message;
 
     private void ReportFailure(Exception ex, string retryKey, Func<Task<bool>> retry)
     {
         StatusMessage = Describe(ex);
-        if (!IsServerError(ex))
+        if (!TransientHttp.IsRetryable(ex))
         {
             return;
         }
@@ -66,8 +59,7 @@ public sealed partial class MainViewModel
             _apiRetryTimer.Tick += (_, _) => _ = RetryApiAsync();
         }
 
-        var delay = ApiRetryFirstDelay * Math.Pow(2, Math.Min(_apiRetryAttempt, 10));
-        _apiRetryTimer.Interval = delay < ApiRetryMaxDelay ? delay : ApiRetryMaxDelay;
+        _apiRetryTimer.Interval = TransientHttp.Backoff(_apiRetryAttempt);
         _apiRetryTimer.Start();
     }
 

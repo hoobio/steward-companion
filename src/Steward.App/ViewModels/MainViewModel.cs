@@ -1725,7 +1725,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _logger.Warn(ex, $"Guild roster pull failed for {guildId}");
             var message = $"Could not pull the guild roster: {ex.Message}";
             ReportFailure(ex, "roster", async () => await SyncRosterAsync().ConfigureAwait(true) is null);
-            if (!IsServerError(ex))
+            if (!TransientHttp.IsRetryable(ex))
             {
                 StatusMessage = message;
             }

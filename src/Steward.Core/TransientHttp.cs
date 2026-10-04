@@ -26,4 +26,7 @@ public static class TransientHttp
         TimeoutException or IOException => true,
         _ => false,
     };
+
+    public static bool IsRetryable(Exception ex) =>
+        ex is HttpRequestException { StatusCode: >= HttpStatusCode.InternalServerError } || IsTransient(ex);
 }
