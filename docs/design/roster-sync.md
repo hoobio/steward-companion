@@ -1,4 +1,4 @@
-# Roster sync between gigagrug, the desktop app and the addon
+# Roster sync between steward-server, the desktop app and the addon
 
 How the three halves of Steward move guild data between Discord and the game. Written at the start of the first roster sprint, 20 Sep 2026, so later sprints do not have to re-derive the contract.
 
@@ -6,17 +6,17 @@ How the three halves of Steward move guild data between Discord and the game. Wr
 
 | Repo | Local clone | Role |
 | --- | --- | --- |
-| `hoobio/gigagrug` | `D:\gigagrug` | Python aiohttp API and React admin SPA. Holds the Discord-side truth: the roster, the Discord member list, sign-ups, attendance. Source of record for people. |
-| `hoobio/steward-companion` | `D:\steward-companion` | .NET 10 WinUI 3 desktop app. The only party that can talk to both sides. Pulls from gigagrug over HTTP, writes files into the addon folder, reads files out of `WTF`. |
+| `steward-server` (ADO Hoobi/Hoobi) | `D:\steward-server` | .NET 10 services and the React web app. Holds the Discord-side truth: the roster, the Discord member list, sign-ups, attendance. Source of record for people. |
+| `hoobio/steward-companion` | `D:\steward-companion` | .NET 10 WinUI 3 desktop app. The only party that can talk to both sides. Pulls from steward-server over HTTP, writes files into the addon folder, reads files out of `WTF`. |
 | `hoobio/Steward` | `D:\Steward` | The in-game addon. Renders what the app writes, records what happens in game. Source of record for characters. |
 
-The addon and gigagrug never speak to each other. The WoW Lua sandbox has no sockets and no file IO, so every exchange goes through the desktop app.
+The addon and steward-server never speak to each other. The WoW Lua sandbox has no sockets and no file IO, so every exchange goes through the desktop app.
 
 ## Direction of travel
 
 ```
-gigagrug  --HTTP-->  desktop app  --StewardSync.lua-->  addon
-gigagrug  <--HTTP--  desktop app  <--StewardDB--------  addon
+steward-server  --HTTP-->  desktop app  --StewardSync.lua-->  addon
+steward-server  <--HTTP--  desktop app  <--StewardDB--------  addon
 ```
 
 Two files, one direction each. The rule exists because the client rewrites its whole saved-variables file from memory at logout, exit or `/reload`, so anything written into that file from outside is discarded on the next serialise.
@@ -49,13 +49,13 @@ Two consequences shape everything above:
 - **The addon has no persistent store of its own.** It cannot remember a link, a setting or a decision between sessions.
 - **`StewardDB` is a write-only outbox.** The addon fills it during a session and the client writes it out at logout. The addon never reads it back; the desktop app does.
 
-A round trip therefore closes through the desktop app, not through addon storage: the addon writes a decision into the outbox, the client serialises it at logout, the app reads it on the next pass, the app pushes it to gigagrug, and the next `StewardSync.lua` carries the settled result back into the game.
+A round trip therefore closes through the desktop app, not through addon storage: the addon writes a decision into the outbox, the client serialises it at logout, the app reads it on the next pass, the app pushes it to steward-server, and the next `StewardSync.lua` carries the settled result back into the game.
 
 Settings that must survive a restart go where HoobiScripts puts them, in a macro body (`Core/Store.lua` there), which is the one store the server holds for an addon. Retire this section once `/sw db` reports the saved-variable tables present after a full client restart.
 
 ## Identity and linking
 
-gigagrug keys a person on `user_id`, the Discord snowflake. `roster_members` has a `character` column but it is dead: roster PATCH rejects writes to it and nothing populates it. So the character to person link does not exist server-side today.
+steward-server keys a person on `user_id`, the Discord snowflake. `roster_members` has a `character` column but it is dead: roster PATCH rejects writes to it and nothing populates it. So the character to person link does not exist server-side today.
 
 The link is a **guild note holding the person's roster name**. That convention already exists in the guild: the public Note column holds people's names.
 
@@ -96,9 +96,9 @@ Two pieces of reasoning were wrong along the way and are recorded so they are no
 
 So the addon **reads** both notes and never writes either. `/janny` is a finder: it resolves who each character is, ranks candidates and lets an officer pick one by hand, and the officer types the name into Blizzard's own dialog. The 31-character cap still governs what can be suggested (`maxLetters` on `SET_GUILD_COMMUNITIY_NOTE`, `GameDialogDefs.lua:1999`), so a longer label is reported rather than offered. `ginv` records no pending link.
 
-The durable fix is to stop using guild notes as the store. A `roster_characters` table in gigagrug keyed on `user_id` needs no protected API, reaches every officer rather than only the one who clicked, and survives a rename or a transfer. Guild notes stay what they already are: a read source and the bootstrap `/janny` mines for suggestions.
+The durable fix is to stop using guild notes as the store. A `roster_characters` table in steward-server keyed on `user_id` needs no protected API, reaches every officer rather than only the one who clicked, and survives a rename or a transfer. Guild notes stay what they already are: a read source and the bootstrap `/janny` mines for suggestions.
 
-A Discord snowflake as the stored value was rejected: 18 to 19 of the 31 characters, unreadable to the humans who also read the column, and the stability it buys is what a re-run of `/janny` gives more cheaply. Moving the link into gigagrug proper, as a characters table keyed on `user_id`, is the right long-term home and is deferred until the note matching has proved itself in use.
+A Discord snowflake as the stored value was rejected: 18 to 19 of the 31 characters, unreadable to the humans who also read the column, and the stability it buys is what a re-run of `/janny` gives more cheaply. Moving the link into steward-server proper, as a characters table keyed on `user_id`, is the right long-term home and is deferred until the note matching has proved itself in use.
 
 ## Freshness
 
@@ -106,35 +106,35 @@ A Discord snowflake as the stored value was rejected: 18 to 19 of the 31 charact
 
 The app judges the freshness of what the addon wrote by the saved-variables file's mtime against the running client's process start time, plus the `exportedAt` the addon stamps into the payload. `WowClient` finds a running client by enumerating processes whose main module sits under that flavour's folder, because the sandbox gives the addon no way to signal that it is running.
 
-Data reaches a second officer's game client by the same route it reached the first: their desktop app pulls the same roster on the same gigagrug change event, or on its fallback timer, and rewrites their own `StewardSync.lua`. There is no addon-to-addon gossip, and adding some would not help, because the only staleness window is between a rewrite and the next `/reload` and no addon message can make the client reload. If officers ask for it later, the cheap version is one number broadcast on `GUILD` saying a newer roster exists.
+Data reaches a second officer's game client by the same route it reached the first: their desktop app pulls the same roster on the same steward-server change event, or on its fallback timer, and rewrites their own `StewardSync.lua`. There is no addon-to-addon gossip, and adding some would not help, because the only staleness window is between a rewrite and the next `/reload` and no addon message can make the client reload. If officers ask for it later, the cheap version is one number broadcast on `GUILD` saying a newer roster exists.
 
 ## The `me` dataset
 
-`StewardSync.lua` carries a `me` table for every signed-in user whose install has the Steward addon, officer or not: `{ id, role, features }`, `role` omitted when null, matching `SyncMe` in `Steward.Core`. An officer's write is the same full payload described above, with `me` added; a non-officer gets a payload holding only `me` and the `directory` dataset below, no roster, members or discord, since they pull none of those. The file is rewritten whenever the signed-in user, their role or their feature set changes, and it is rewritten with `me` dropped on every sign-out, officer or not: a non-officer's write is the same roster-less payload with `me: null`, and an officer's write rewrites the last full payload the app cached from its own roster pull with only `Me` cleared, so the roster, members, discord and catalogue data survives sign-out instead of being wiped by a roster-less rewrite. This is a display gate only: the file is locally editable, so `Steward.IsOfficer()` uses `me.role` to hide officer-only windows and columns for a raider rather than to enforce anything; gigagrug and the game's own permissions are the real enforcement, and a client with no `me` (signed out, or an older `StewardSync.lua`) falls back to the guild rank check it already had.
+`StewardSync.lua` carries a `me` table for every signed-in user whose install has the Steward addon, officer or not: `{ id, role, features }`, `role` omitted when null, matching `SyncMe` in `Steward.Core`. An officer's write is the same full payload described above, with `me` added; a non-officer gets a payload holding only `me` and the `directory` dataset below, no roster, members or discord, since they pull none of those. The file is rewritten whenever the signed-in user, their role or their feature set changes, and it is rewritten with `me` dropped on every sign-out, officer or not: a non-officer's write is the same roster-less payload with `me: null`, and an officer's write rewrites the last full payload the app cached from its own roster pull with only `Me` cleared, so the roster, members, discord and catalogue data survives sign-out instead of being wiped by a roster-less rewrite. This is a display gate only: the file is locally editable, so `Steward.IsOfficer()` uses `me.role` to hide officer-only windows and columns for a raider rather than to enforce anything; steward-server and the game's own permissions are the real enforcement, and a client with no `me` (signed out, or an older `StewardSync.lua`) falls back to the guild rank check it already had.
 
 ## The composed `directory` dataset
 
 Three per-flag member routes give what a single `directory` endpoint once did, each 403 to a guild member lacking that guild's flag: `GET /api/guild/{guild_id}/roster` (`roster`) gives `{people: [{id, name, main_guid}], characters: [{guid, name, level, class_id, linked_user_id}]}`; `GET /api/guild/{guild_id}/professions` (`professions`) gives `{professions: [{guid, name, class_id, skills: [{name, rank, max_rank, secondary}], recipes: {<profession>: [{recipe_id, name, difficulty, header, item_id, tools, reagents: [{item_id, name, count}]}]}}], catalogue: {<profession>: [recipe]}}`; `GET /api/guild/{guild_id}/recipes/catalogue` (`sync` or `professions`) gives `{catalogue: {<profession>: [recipe]}}` alone. Each is built by its own whitelisting serialiser rather than trimmed from an admin payload, and carries no roster notes, tags, ratings, sign-ups, history or batch ids.
 
-The app reads the SELECTED guild's own features (never the user's overall list, see Auth in `character-sync.md`) to decide which routes apply, and composes what came back into `StewardSync.lua`'s `["directory"]`: `people`/`characters` as a pair when the roster route was pulled, `professions` when the professions route was pulled, each Lua key camelCase to match the rest of the file (`mainGuid`, `classId`, `linkedUserId`, `maxRank`, `recipeId`, `itemId`, and a catalogue recipe's `order`, `grey`, `orangeTo`, `yellowFrom`, `yellowTo` and `greenFrom`, described under Recipe catalogue in `character-sync.md`), and each section left out entirely when its route was not called for that guild, rather than written as an empty table. A non-officer's `["catalogue"]` dataset comes from the professions response when pulled, else the standalone catalogue route; an officer keeps their catalogue from the officer-only admin route as before. The app fetches on startup, on Refresh, right after a character push actually reaches gigagrug, and on the background pass at most every 15 minutes wall-clock, the same fallback interval as the roster pull; a 403 or 404 on any of the three is handled quietly, the same treatment as the events stream, with no error bar.
+The app reads the SELECTED guild's own features (never the user's overall list, see Auth in `character-sync.md`) to decide which routes apply, and composes what came back into `StewardSync.lua`'s `["directory"]`: `people`/`characters` as a pair when the roster route was pulled, `professions` when the professions route was pulled, each Lua key camelCase to match the rest of the file (`mainGuid`, `classId`, `linkedUserId`, `maxRank`, `recipeId`, `itemId`, and a catalogue recipe's `order`, `grey`, `orangeTo`, `yellowFrom`, `yellowTo` and `greenFrom`, described under Recipe catalogue in `character-sync.md`), and each section left out entirely when its route was not called for that guild, rather than written as an empty table. A non-officer's `["catalogue"]` dataset comes from the professions response when pulled, else the standalone catalogue route; an officer keeps their catalogue from the officer-only admin route as before. The app fetches on startup, on Refresh, right after a character push actually reaches steward-server, and on the background pass at most every 15 minutes wall-clock, the same fallback interval as the roster pull; a 403 or 404 on any of the three is handled quietly, the same treatment as the events stream, with no error bar.
 
-gigagrug pins a character link (guid to Discord user id) so an officer can re-map, unlink or reset it; every link-reading response reflects the pin, `characters[].linked_user_id` on this roster route included. `StewardSync.lua` carries that pin as a top-level `["links"] = { [guid] = discordUserId, ... }`, a sibling of `me`, `directory` and `catalogue` rather than nested under `directory`, since `hoobio/Steward` reads `payload.links` directly. One entry per character with a non-null `linked_user_id`, an unlinked guid absent, written whenever the roster route was pulled (the same roster pull that fills `directory`'s `people`/`characters`) and left out when it was not. `roster` is a default officer feature, so this route, and `links` with it, runs for an officer the same as for a raider holding `roster`, not only for a non-officer. `hoobio/Steward` reads `["links"]` in preference to note matching, so a pin now settles a link the addon trusts without depending on the guild note convention described under Identity and linking.
+steward-server pins a character link (guid to Discord user id) so an officer can re-map, unlink or reset it; every link-reading response reflects the pin, `characters[].linked_user_id` on this roster route included. `StewardSync.lua` carries that pin as a top-level `["links"] = { [guid] = discordUserId, ... }`, a sibling of `me`, `directory` and `catalogue` rather than nested under `directory`, since `hoobio/Steward` reads `payload.links` directly. One entry per character with a non-null `linked_user_id`, an unlinked guid absent, written whenever the roster route was pulled (the same roster pull that fills `directory`'s `people`/`characters`) and left out when it was not. `roster` is a default officer feature, so this route, and `links` with it, runs for an officer the same as for a raider holding `roster`, not only for a non-officer. `hoobio/Steward` reads `["links"]` in preference to note matching, so a pin now settles a link the addon trusts without depending on the guild note convention described under Identity and linking.
 
-## gigagrug endpoints in use
+## steward-server endpoints in use
 
-No gigagrug change was needed for the first sprint; `/api/me` and the `/api/guild/{guild_id}/...` namespace came later, for the professions-only sync and the directory above. All three sit behind `auth_middleware`, the desktop client's own session cookie.
+No server change was needed for the first sprint; `/api/me` and the `/api/guild/{guild_id}/...` namespace came later, for the professions-only sync and the directory above. All three sit behind `SessionAuthentication` (`src/Steward.Data/AdminAccess.cs`), the desktop client's own session cookie.
 
 | Endpoint | Gives |
 | --- | --- |
 | `GET /api/me` | `{user: {id, name, username, avatar_url, role, features}, guilds: [...]}`. `role` is `global`, `admin`, `raider` or null; `raider` means a seatless caller holding at least one member-view flag (`sync`, `roster`, `professions`, `signups`) in at least one guild. Each guild entry carries its own `features`, that guild's resolved flags, since an officer of one guild is a plain member of another. The guild list supplies the `guild_id` the other calls need. |
 
-**`guilds` does not mean "the user's guilds".** For a `global` role it is every guild the bot is in, in Discord's own `client.guilds` order; only for an `admin` is it filtered to their seats (`routes.py:84-91`); a seatless `raider` gets only the guilds where they are a live Discord member holding a member-view flag. Taking the first entry therefore picks an arbitrary server for exactly the people most likely to be running this, and the failure is quiet: `/members` answers with that server's real Discord members while `/roster` answers empty, so the sync looks like it worked. The guild is a persisted user setting (`guild_id` in `state.json`, chosen from a picker in the Sync page header showing each guild's Discord name and icon), never an index into that list. `name` and `icon_url` are null whenever the Discord client is not ready (`routes.py:92-95`), so the picker falls back to the raw id and no icon rather than rendering a blank row.
+**`guilds` does not mean "the user's guilds".** For a `global` role it is every guild the bot is in, in Discord's own `client.guilds` order; only for an `admin` is it filtered to their seats (`CallerAccess.Scope` in `src/Steward.Data/CallerAccess.cs`); a seatless `raider` gets only the guilds where they are a live Discord member holding a member-view flag. Taking the first entry therefore picks an arbitrary server for exactly the people most likely to be running this, and the failure is quiet: `/members` answers with that server's real Discord members while `/roster` answers empty, so the sync looks like it worked. The guild is a persisted user setting (`guild_id` in `state.json`, chosen from a picker in the Sync page header showing each guild's Discord name and icon), never an index into that list. `name` and `icon_url` are null whenever the Discord client is not ready, so the picker falls back to the raw id and no icon rather than rendering a blank row.
 | `GET /api/admin/{guild_id}/roster` | `{members: [...], origins, specs, statuses, flags, roles, palette}`. A member carries `user_id`, `display_name`, `name`, `discord_tag`, `status`, `origin`, `flags`, `rating`, `notes` and derived primary and secondary builds. Officer-only. |
 | `GET /api/admin/{guild_id}/members` | The full live non-bot Discord member list, `{id, name, nick, avatar_url}`. This is what `ginv` matches against, so a person who has never signed up is still invitable by Discord name. Officer-only. |
 | `GET /api/admin/{guild_id}/events` | A `text/event-stream` of change notices, added after the first sprint. `event: ready` on connect, a `: ping` comment every 25 seconds, and `event: roster-changed`, `members-changed` or `characters-changed` with `data: {"guild":"<id>"}`. Events carry no data; the app re-pulls through the two endpoints above. Same `gg_session` auth: 401 is a lost session, 403 no access to that guild. Officer-only. |
 | `GET /api/guild/{guild_id}/roster` (`roster`), `/professions` (`professions`), `/recipes/catalogue` (`sync` or `professions`) | The per-flag member routes composed into the `directory` dataset above. |
 
-The event stream is held open by the desktop app while the user holds `steward`, the same gate as the roster pull. Each event queues a roster pull, debounced 2 seconds. A dropped connection reconnects after 5 seconds, doubling to 5 minutes and reset by the next `ready`, and 60 seconds with no line, pings included, counts as dropped. A 404 is a gigagrug without the route: the app stops trying for that run and relies on its timer. The timer pull runs every minute while the stream is down and every 15 minutes while it is connected. The push direction is event-driven too: a write to `Steward.lua` under `WTF\Account` triggers the character push, debounced 1.5 seconds.
+The event stream is held open by the desktop app while the user holds `steward`, the same gate as the roster pull. Each event queues a roster pull, debounced 2 seconds. A dropped connection reconnects after 5 seconds, doubling to 5 minutes and reset by the next `ready`, and 60 seconds with no line, pings included, counts as dropped. A 404 is a server without the route: the app stops trying for that run and relies on its timer. The timer pull runs every minute while the stream is down and every 15 minutes while it is connected. The push direction is event-driven too: a write to `Steward.lua` under `WTF\Account` triggers the character push, debounced 1.5 seconds.
 
 The origin is `https://api.hoobi.io/guild` (`Gigagrug:BaseUrl`). Never `guild.hoobi.io`: the Static Web App's navigation fallback answers every `/api/*` path with `index.html` and a 200, so a client pointed there parses HTML as JSON instead of seeing a 401.
 
@@ -164,13 +164,13 @@ The general rule from HoobiScripts' `AGENTS.md` holds: a familiar bare global is
 | --- | --- | --- |
 | `hoobio/Steward` | push to `develop` only | the `develop` channel is gone; a push to `develop` alone publishes nothing. No pre-release, no release. |
 | `hoobio/steward-companion` | push to `main` only | no release cut: leave the release-please PR unmerged. |
-| `hoobio/gigagrug` | push direct to `main` if a change is needed | assume none is needed |
+| `steward-server` | push to `main` | the `steward-server` pipeline builds and deploys on a push |
 
 The companion repo uses no feature branches, no worktrees and no pull requests for its own work. The addon repo works day to day on `develop`, fast-forwards `main` for a pre-release and merges the release-please PR for a release; neither happens this sprint.
 
 ## Out of scope
 
 - Pushing loot and attendance. No loot or attendance route exists in `GigagrugGuildSyncApi`.
-- A characters table in gigagrug.
+- A characters table in steward-server.
 - Addon-to-addon messages of any kind.
 - Writing to the addon's own saved variables from the desktop app, in any circumstance.

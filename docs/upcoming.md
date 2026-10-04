@@ -8,4 +8,4 @@ A Report bug action that copies a prefilled report (app version, build, selected
 - `https://discord.com/users/<id>` is the fallback when the desktop client is not installed; it opens the same profile in the browser.
 - Discord has no URL parameter that prefills a message, so the clipboard carries the text.
 - A DM link (`discord://-/channels/@me/<channelId>`) needs the DM channel id between two specific people and only opens for them, so it cannot be baked into the app. Whether a user id in that slot opens a DM is untested.
-- Alternative: a gigagrug route (`POST /api/bug-report`) that has the bot DM the owner with the report and log attached, using the session the app already holds, so the user pastes nothing.
+- Alternative: a steward-server route (`POST /api/bug-report`) that has the bot DM the owner with the report and log attached, using the session the app already holds, so the user pastes nothing.

@@ -4,7 +4,7 @@ The WinUI 3 design for a third page: moving roster, loot history and attendance 
 
 Rendered mockups of every state: https://claude.ai/artifact/1Vyp5Qcg9KzbbtweuNNYRf
 
-Built: the SavedVariables reader, the generated sync-file writer, the freshness judgement in `SavedVariablesFreshness`, the `NavigationView` shell and the page itself, against gigagrug's roster, professions and character-sync routes (`character-sync.md` and `roster-sync.md` are the source of truth for them). Not built: loot and attendance sync, which have no rows and no endpoints. The endpoint table and the fake API below are the original plan and no longer describe the code.
+Built: the SavedVariables reader, the generated sync-file writer, the freshness judgement in `SavedVariablesFreshness`, the `NavigationView` shell and the page itself, against steward-server's roster, professions and character-sync routes (`character-sync.md` and `roster-sync.md` are the source of truth for them). Not built: loot and attendance sync, which have no rows and no endpoints. The endpoint table and the fake API below are the original plan and no longer describe the code.
 
 Foundations, palette, type and surfaces are unchanged from [home-and-settings.md](home-and-settings.md).
 
