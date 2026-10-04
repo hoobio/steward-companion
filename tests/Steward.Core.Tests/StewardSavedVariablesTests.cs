@@ -656,6 +656,29 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal("Classic Beta PvP 2", snapshot.GuildRanks!.RealmName);
     }
 
+    [Fact]
+    public void Read_ForwardsTheObservationAndGuildRanksFp_Untouched()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["characters"] = {
+                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["fp"] = "10f9ae4a" },
+            },
+            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["ranks"] = { [1] = "Guild Master" }, ["fp"] = "5330ac56" },
+            }
+            """));
+
+        var character = Assert.Single(snapshot.Characters);
+        var entry = JsonSerializer.SerializeToElement(
+            CharacterSyncMapping.ToEntry(character, snapshot.Professions), CompanionJsonContext.Default.CharacterSyncEntry);
+        var ranks = JsonSerializer.SerializeToElement(CharacterSyncMapping.ToSync(snapshot.GuildRanks!), CompanionJsonContext.Default.GuildRanksSync);
+
+        Assert.Equal("10f9ae4a", entry.GetProperty("fp").GetString());
+        Assert.Equal("5330ac56", ranks.GetProperty("fp").GetString());
+        Assert.NotEqual(snapshot.CharactersFingerprint, CharacterSyncMapping.Fingerprint([character with { Fp = "deadbeef" }], snapshot.Professions, snapshot.Catalogue, snapshot.GuildRanks));
+        Assert.NotEqual(snapshot.CharactersFingerprint, CharacterSyncMapping.Fingerprint(snapshot.Characters, snapshot.Professions, snapshot.Catalogue, snapshot.GuildRanks! with { Fp = "deadbeef" }));
+    }
+
     [Theory]
     [InlineData("[\"gender\"] = 2,", 2)]
     [InlineData("[\"gender\"] = 3,", 3)]

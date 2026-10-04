@@ -116,7 +116,29 @@ The addon writes `StewardDB.professions[guid]` for the logged-in character, in t
 
 `fp` is a keyed fingerprint the addon computes over a fixed canonical form of a character's professions (the id arrays, not the old per-recipe objects) and sends alongside them; `StewardSavedVariables` parses it into `CharacterProfessions.Fp` and the app forwards it untouched, included in the push-gate fingerprint so a changed `fp` triggers a push like any other professions field. steward-server recomputes it on receipt and rejects that record's professions on a mismatched value, queueing an integrity DM to every global admin (at most hourly per pusher and guild). A missing value is stored as unsigned and only logged while `Sync__RequireProfessionsFingerprint` is false (the default); with it true a missing value is rejected and alerted like a mismatch. It is a deterrent against a hand-edited push, not security: the key and the exact algorithm are defined in the Steward addon and in steward-server, not here, and a key shipped in addon Lua can be read by anyone who looks.
 
-Every field a push carries is signed by the addon and verified by steward-server, timestamps included: the roster fields (level, rank, class, race), `guildRanks`, `observedAt` and `scannedAt`, alongside professions, gear and the catalogue. A field added to the sync payload in future ships with its fingerprint in the same change, across the addon, the app and steward-server. Today `observedAt`, `scannedAt`, the roster fields and `guildRanks` are not yet signed; that gap is outstanding work, not an exception.
+Every field a push carries is signed by the addon and verified by steward-server, timestamps included: the roster fields, `guildRanks`, `observedAt` and `scannedAt`, alongside professions, gear and the catalogue. A field added to the sync payload in future ships with its fingerprint in the same change, across the addon, the app and steward-server.
+
+Each fingerprint is the keyed FNV-1a 32-bit above (same key, 8 lowercase hex) over UTF-8 lines each ending in `\n`, built from the raw pushed values with an absent or null value as the empty string. The addon writes each as `fp` beside its data, the app parses it and forwards it untouched under the same key, and it is part of the push-gate fingerprint, so a restamped `observedAt` or `scannedAt` changes the gate through the `fp` even though the gate leaves the timestamps themselves out.
+
+| Data | Version | Canonical lines |
+|---|---|---|
+| `characters[guid].fp` (`fp` on the pushed character) | `o1` | `o1`, the guid, then `<name>\|<realm>\|<realmName>\|<guild>\|<level>\|<classId>\|<raceId>\|<gender>\|<rankIndex>\|<lastOnline>\|<linkedUserId>\|<linkKnown>\|<observedAt>`, `linkKnown` as `1` or `0`; `level`, `classId`, `raceId` and `rankIndex` sign as `0` when absent, since the app sends them as `0` |
+| `guildRanks.fp` | `r1` | `r1`, `<realm>\|<realmName>\|<guild>\|<observedAt>`, then `<index>\|<rank name>` per rank by index ascending |
+| professions `fp` | `v2` | `v1`'s lines with `v2` as the header and `t\|<observedAt>` after the guid |
+| gear `fp` | `g2` | `g1`'s lines (Gear below) with `g2` as the header and `t\|<observedAt>\|<level>` after the guid |
+| catalogue `fp` | `c3` | `c2`'s lines (Raider self-push below) with `c3` as the header and `t\|<scannedAt>` after the profession |
+
+steward-server verifies each when present. A mismatched `o1` rejects that character with the reason `observation integrity check failed` (on the officer and professions-only paths alike); a mismatched `r1` drops `guildRanks` from the push; `v2`, `g2` and `c3` mismatches are handled as their earlier versions are. Every mismatch is alerted through the same throttled integrity DM. `v1`, `g1`, `c2` and `c1` are still accepted from an older addon, and a missing `o1` or `r1` is accepted unsigned, until a follow-up requires them. The officer catalogue path still ignores `fp`.
+
+Test vectors, pinned in steward-server's `SyncFingerprintTests` and the addon's `/sw selftest`:
+
+- `o1`: guid `Player-5826-0A1B2C3D`, `Hoobi Furry`, realm `ClassicBetaPvP2`, no `realmName`, guild `Steward`, level 60, class 1, race 2, gender 3, rank 1, lastOnline `1790890000`, linkedUserId `123456789012345678`, linkKnown true, observedAt `1790900000`: `10f9ae4a`.
+- `r1`: realm and realmName `Nightslayer`, guild `Steward`, observedAt `1790900000`, ranks `Guild Master`, `Officer`, `Member`: `5330ac56`.
+- `v2`: guid `Player-4619-0104D32F`, observedAt `1790900000`, Alchemy 285/300 primary, Cooking 150/225 secondary, Alchemy recipes `11460, 11461`: `c61f04fc`.
+- `g2`: the Gear vector below with observedAt `1790900000` and level 60: `94ee68d9`, or `bf25eb6a` with a null bank.
+- `c3`: the `c2` Blacksmithing vector with scannedAt `1790900000`: `65e2f091`.
+
+The catalogue recipes' `header`, `tools` and reagent `name` are not yet signed by any version; that gap is outstanding work, not an exception.
 
 ## Other members' professions
 
@@ -168,8 +190,8 @@ entry: {link, itemID, quality, enchantID?, suffixID?, count?, equipLoc?, ilvl?}
 
 - `link` is the bare `item:...` string (the part inside `|H...|h`), never the coloured hyperlink. One entry per container slot; a stack carries `count`. Absent optional fields are omitted, not zero.
 - `equipped` holds every equipped item at any quality. `bags` and `bank` are empty below `MAX_LEVEL` (60) and hold only entries with `quality >= 3` and an `equipLoc`. `bank` is null until the bank has been opened once with Steward running, and then keeps its last scan.
-- `observedAt`, `level` and `schema` are not signed. A gear change is a changed push fingerprint (the record with `observedAt` left out), so it triggers a push on the full path and on the professions-only path.
-- `fp` is the keyed FNV-1a 32-bit over the professions `FINGERPRINT_KEY` followed by the `g1` canonical text, as 8 lowercase hex characters. The canonical text is UTF-8 with `\n` after every line, over the raw pushed values: `g1`, the character guid, one `e|<slot>|<entry line>` per equipped slot by slot number ascending, one `b|<entry line>` per bags entry sorted by entry line in code-point order, then `k|-` when `bank` is null, else `k|<bank observedAt>` followed by one `k|<entry line>` per bank entry sorted by entry line. `<entry line>` is `<link>|<quality>|<count>|<equipLoc>|<ilvl>` with an empty string for an absent field.
+- `g2` (Integrity above) signs `observedAt` and `level` too; `schema` is not signed. A gear change is a changed push fingerprint, so it triggers a push on the full path and on the professions-only path.
+- The original `g1` `fp`, still accepted, is the keyed FNV-1a 32-bit over the professions `FINGERPRINT_KEY` followed by the `g1` canonical text, as 8 lowercase hex characters. The canonical text is UTF-8 with `\n` after every line, over the raw pushed values: `g1`, the character guid, one `e|<slot>|<entry line>` per equipped slot by slot number ascending, one `b|<entry line>` per bags entry sorted by entry line in code-point order, then `k|-` when `bank` is null, else `k|<bank observedAt>` followed by one `k|<entry line>` per bank entry sorted by entry line. `<entry line>` is `<link>|<quality>|<count>|<equipLoc>|<ilvl>` with an empty string for an absent field.
 - Test vector (guid `Player-5826-0A1B2C3D`), canonical text:
 
 ```

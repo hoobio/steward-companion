@@ -127,7 +127,8 @@ public sealed record GuildRanks(
     string Guild,
     DateTimeOffset? ObservedAt,
     IReadOnlyDictionary<int, string> Ranks,
-    string? RealmName = null);
+    string? RealmName = null,
+    string? Fp = null);
 
 public sealed record CharacterObservation(
     string CharacterGuid,
@@ -143,7 +144,8 @@ public sealed record CharacterObservation(
     bool LinkKnown,
     DateTimeOffset? ObservedAt,
     string? RealmName = null,
-    int? Gender = null);
+    int? Gender = null,
+    string? Fp = null);
 
 public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("guid")] string CharacterGuid,
@@ -161,7 +163,8 @@ public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("professions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CharacterProfessions? Professions = null,
     [property: JsonPropertyName("realmName"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RealmName = null,
     [property: JsonPropertyName("gender"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Gender = null,
-    [property: JsonPropertyName("gear"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CharacterGear? Gear = null);
+    [property: JsonPropertyName("gear"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CharacterGear? Gear = null,
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null);
 
 public static class ProfessionsSchema
 {
@@ -226,7 +229,8 @@ public sealed record GuildRanksSync(
     [property: JsonPropertyName("guild")] string Guild,
     [property: JsonPropertyName("observedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ObservedAt,
     [property: JsonPropertyName("ranks")] IReadOnlyDictionary<string, string> Ranks,
-    [property: JsonPropertyName("realmName"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RealmName = null);
+    [property: JsonPropertyName("realmName"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RealmName = null,
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null);
 
 public sealed record ProfessionCatalogue(
     [property: JsonPropertyName("scannedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ScannedAt,
@@ -481,14 +485,16 @@ public static class CharacterSyncMapping
         professions.GetValueOrDefault(observation.CharacterGuid),
         observation.RealmName,
         observation.Gender,
-        gear?.GetValueOrDefault(observation.CharacterGuid));
+        gear?.GetValueOrDefault(observation.CharacterGuid),
+        observation.Fp);
 
     public static GuildRanksSync ToSync(GuildRanks ranks) => new(
         ranks.Realm,
         ranks.Guild,
         ranks.ObservedAt?.ToUnixTimeSeconds(),
         ranks.Ranks.ToDictionary(entry => entry.Key.ToString(CultureInfo.InvariantCulture), entry => entry.Value, StringComparer.Ordinal),
-        ranks.RealmName);
+        ranks.RealmName,
+        ranks.Fp);
 
     public static IReadOnlyList<CharacterObservation> FilterToProfessionsOnly(SavedVariablesSnapshot snapshot) =>
         [.. snapshot.Characters.Where(c => snapshot.Professions.ContainsKey(c.CharacterGuid))];
@@ -520,7 +526,7 @@ public static class CharacterSyncMapping
         myUserId is not null
         && string.Equals(EffectiveLinkedUserId(observation, rosterCharacters), myUserId, StringComparison.Ordinal);
 
-    // observedAt and scannedAt are restamped on every roster rebuild, so they are left out or every /reload would push unchanged data.
+    // observedAt and scannedAt are left out, but each signed fp covers them, so a restamp alone still changes this fingerprint.
     public static string Fingerprint(
         IReadOnlyList<CharacterObservation> characters,
         IReadOnlyDictionary<string, CharacterProfessions> professions,
