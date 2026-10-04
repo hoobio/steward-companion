@@ -56,15 +56,27 @@ public static partial class StewardGuidesAddon
         end
 
         local function AlreadyLoaded(rxp, keys)
-            if not keys or #keys == 0 then
+            if not keys then
                 return false
             end
-            for _, key in ipairs(keys) do
-                if not IsLoaded(rxp, key) then
-                    return false
+            local cached = {}
+            for _, entry in pairs(rxp.db.profile.guides or {}) do
+                if type(entry) == "table" and entry.key then
+                    cached[entry.key] = entry
                 end
             end
-            return true
+            local applicable = 0
+            for _, key in ipairs(keys) do
+                local entry = cached[key]
+                -- RXPGuides never loads a cached guide whose << line excludes this character (GuideLoader.lua:780), so a both-factions string re-imported every login
+                if not (entry and entry.enabledFor and rxp.applies and not rxp.applies(entry.enabledFor)) then
+                    if not IsLoaded(rxp, key) then
+                        return false
+                    end
+                    applicable = applicable + 1
+                end
+            end
+            return applicable > 0
         end
 
         local function CachedGuides(rxp)
