@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.20.2](https://github.com/hoobio/steward-companion/compare/v0.20.1...v0.20.2) (2026-10-04)
+
+
+### Bug Fixes
+
+* 🐛 bracket the StewardGuides chat prefix like the other Hoobi addons ([7ac4854](https://github.com/hoobio/steward-companion/commit/7ac48543ce542b1021a4a5e27f9439f9800ec7ef))
+* 🐛 keep the sign-in screen hidden while a saved session is restored at launch ([a4e3634](https://github.com/hoobio/steward-companion/commit/a4e3634c26914a8d580134180ad3b6f009f374e8))
+* 🐛 stop re-importing a both-factions guide string at every login ([3ba103d](https://github.com/hoobio/steward-companion/commit/3ba103d62801df6ecbe831fe346e059526890ee7))
+* 🐛 write only Guides.lua into the published StewardGuides addon, gate its install on RestedXP sign-in ([4904808](https://github.com/hoobio/steward-companion/commit/4904808bfdf666c5eca289376c93f1139d0422f7))
+
 ## [0.20.1](https://github.com/hoobio/steward-companion/compare/v0.20.0...v0.20.1) (2026-10-04)
 
 
