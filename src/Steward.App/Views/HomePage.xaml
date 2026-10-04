@@ -87,6 +87,14 @@
                     </Grid>
                 </Border>
 
+                <ProgressBar
+                    Grid.ColumnSpan="7"
+                    Margin="0,0,0,-6"
+                    VerticalAlignment="Bottom"
+                    Maximum="1"
+                    Value="{x:Bind UpdateProgress, Mode=OneWay}"
+                    Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
+
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                     <Grid HorizontalAlignment="Left" ColumnSpacing="4">
                         <Grid.ColumnDefinitions>
@@ -124,17 +132,6 @@
                         FontSize="11"
                         TextTrimming="CharacterEllipsis"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                    <ProgressBar
-                        Height="3"
-                        Maximum="1"
-                        Margin="0,2,0,0"
-                        Value="{x:Bind UpdateProgress, Mode=OneWay}"
-                        Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="{x:Bind UpdatingLine, Mode=OneWay}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
                     <TextBlock
                         Text="/reload in-game to update"
                         TextWrapping="Wrap"

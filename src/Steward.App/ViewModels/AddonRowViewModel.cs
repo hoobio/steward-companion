@@ -48,7 +48,6 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(IsPendingUpdate),
         nameof(ActionLabel),
         nameof(ActionStyle),
-        nameof(UpdatingLine),
         nameof(InstalledRunText),
         nameof(NotInstalledRunText),
         nameof(VersionPairTip),
@@ -357,10 +356,6 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         State == AddonRowState.Missing ? "DefaultButtonStyle" : "AccentButtonStyle"];
 
     public string ProgressText => UpdateProgress.ToString("P0", CultureInfo.CurrentCulture);
-
-    public string UpdatingLine => !IsBusy && _children.FirstOrDefault(child => child.IsBusy) is { } child
-        ? $"Installing {child.DisplayName} {child._status?.Release?.Version}, verifying download"
-        : $"Installing {_status?.Release?.Version}, verifying download";
 
     private DateTimeOffset? ReleasedAt => _status?.Release?.Released is { } released && released != default ? released : null;
 
