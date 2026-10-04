@@ -414,7 +414,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public Visibility CheckForUpdatesVisibility => When(App.IsGitHubRelease);
 #pragma warning restore CA1822
 
-    public string AboutActionLabel => IsAppUpdateInProgress ? "Installing…" : IsCheckingAppUpdate ? "Checking" : AppUpdate is null ? "Check for a new version" : "Install update";
+    public string AboutActionLabel => IsAppUpdateInProgress ? "Installing…" : IsCheckingAppUpdate ? "Checking" : AppUpdate is null ? "Check for updates" : "Install update";
 
     private IReadOnlyList<string> VisibleChannels => IsGlobalAdmin ? AddonChannelStatus.Ordered : ["release", "pre-release"];
 

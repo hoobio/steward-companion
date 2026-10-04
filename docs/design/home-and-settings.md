@@ -173,7 +173,7 @@ Removing an install is new. It drops the install from the list and its records f
 
 **About**
 
-- Steward, with the version and "installed to `%LocalAppData%\Steward`", and a `Check for a new version` button pointing at GitHub releases.
+- Steward, with the version and "installed to `%LocalAppData%\Steward`", and a `Check for updates` button pointing at GitHub releases.
 - App data, showing `%LocalAppData%\Steward\state.json` in mono, with `Open folder`.
 - Source and issues, opening `github.com/hoobio/steward-companion`.
 
