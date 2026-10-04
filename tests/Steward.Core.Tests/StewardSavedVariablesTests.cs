@@ -913,4 +913,31 @@ public sealed class StewardSavedVariablesTests : IDisposable
 
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758200000), Assert.Single(snapshot.Characters).ObservedAt);
     }
+
+    [Fact]
+    public void Read_MatchesAGuildAcrossRealmSpellingsByTheRealmIdInTheGuid()
+    {
+        var stale = """
+            StewardDB = {
+            ["characters"] = {
+            ["Player-4613-0000000A"] = { ["name"] = "Mate", ["realm"] = "Classic Beta PvP", ["guild"] = "Stormrage", ["observedAt"] = 1758000000 },
+            ["Player-4613-0000000B"] = { ["name"] = "Mine", ["realm"] = "Classic Beta PvP", ["guild"] = "Stormrage", ["observedAt"] = 1758000000 },
+            },
+            ["professions"] = { ["Player-4613-0000000B"] = { ["observedAt"] = 1758000000, ["schema"] = 2, ["skills"] = { { ["name"] = "Cooking" }, } }, },
+            ["guildRanks"] = { ["realm"] = "Classic Beta PvP", ["guild"] = "Stormrage", ["observedAt"] = 1758000000, ["ranks"] = { [1] = "GM" } },
+            }
+            """;
+        var current = """
+            StewardDB = {
+            ["characters"] = {
+            ["Player-4613-0000000C"] = { ["name"] = "Other", ["realm"] = "ClassicBetaPvP2", ["guild"] = "Stormrage", ["observedAt"] = 1758200000 },
+            },
+            ["guildRanks"] = { ["realm"] = "ClassicBetaPvP2", ["guild"] = "Stormrage", ["observedAt"] = 1758200000, ["ranks"] = { [1] = "GM" } },
+            }
+            """;
+
+        var snapshot = ReadFiles(("a#10.lua", stale), ("a#1.lua", current));
+
+        Assert.Equal(["Player-4613-0000000B", "Player-4613-0000000C"], snapshot.Characters.Select(c => c.CharacterGuid).Order());
+    }
 }

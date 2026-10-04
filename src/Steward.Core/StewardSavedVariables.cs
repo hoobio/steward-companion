@@ -147,21 +147,38 @@ public static class StewardSavedVariables
         return own is not null && all.Max(other => ScanTime(character, other)) - own > StaleGuildScan;
     }
 
-    private static DateTimeOffset? ScanTime(CharacterObservation guildMember, FileScan scan)
+    private static DateTimeOffset? ScanTime(CharacterObservation member, FileScan scan)
     {
-        var ranks = scan.Ranks is { } r && SameGuild(guildMember.Realm, guildMember.RealmName, guildMember.Guild, r.Realm, r.RealmName, r.Guild)
-            ? r.ObservedAt
-            : null;
-        var members = scan.Characters
-            .Where(c => SameGuild(guildMember.Realm, guildMember.RealmName, guildMember.Guild, c.Realm, c.RealmName, c.Guild))
-            .Max(c => c.ObservedAt);
+        var ranks = scan.Ranks is { } r && SameGuildName(member.Guild, r.Guild) && RanksRealmMatches(member, r, scan) ? r.ObservedAt : null;
+        var members = scan.Characters.Where(c => SameGuild(member, c)).Max(c => c.ObservedAt);
         return ranks ?? members;
     }
 
-    private static bool SameGuild(string realmA, string? realmNameA, string guildA, string realmB, string? realmNameB, string guildB) =>
-        string.Equals(guildA.Trim(), guildB.Trim(), StringComparison.OrdinalIgnoreCase)
-        && (string.Equals(realmA, realmB, StringComparison.OrdinalIgnoreCase)
-            || (realmNameA is not null && string.Equals(realmNameA, realmNameB, StringComparison.OrdinalIgnoreCase)));
+    private static bool RanksRealmMatches(CharacterObservation member, GuildRanks ranks, FileScan scan)
+    {
+        var ids = scan.Characters.Where(c => SameGuildName(c.Guild, ranks.Guild)).Select(c => RealmId(c.CharacterGuid)).OfType<string>().ToList();
+        return RealmId(member.CharacterGuid) is { } id && ids.Count > 0
+            ? ids.Contains(id)
+            : SameRealmText(member.Realm, member.RealmName, ranks.Realm, ranks.RealmName);
+    }
+
+    private static bool SameGuild(CharacterObservation a, CharacterObservation b) =>
+        SameGuildName(a.Guild, b.Guild)
+        && (RealmId(a.CharacterGuid) is { } idA && RealmId(b.CharacterGuid) is { } idB
+            ? idA == idB
+            : SameRealmText(a.Realm, a.RealmName, b.Realm, b.RealmName));
+
+    private static bool SameGuildName(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private static bool SameRealmText(string realmA, string? realmNameA, string realmB, string? realmNameB) =>
+        string.Equals(realmA, realmB, StringComparison.OrdinalIgnoreCase)
+        || (realmNameA is not null && string.Equals(realmNameA, realmNameB, StringComparison.OrdinalIgnoreCase));
+
+    private static string? RealmId(string guid)
+    {
+        var parts = guid.Split('-');
+        return parts.Length >= 3 && parts[0] == "Player" && parts[1].Length > 0 && parts[1].All(char.IsAsciiDigit) ? parts[1] : null;
+    }
 
     private static Dictionary<string, T> DedupeByKey<T>(List<(string Id, DateTimeOffset Rank, T Item)> records) =>
         records.GroupBy(r => r.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.MaxBy(r => r.Rank).Item, StringComparer.Ordinal);
