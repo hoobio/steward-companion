@@ -864,4 +864,53 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal(2, snapshot.Loot.Count);
         Assert.Equal(2, snapshot.Roster.Count);
     }
+
+    private static string GuildFile(string guild, string guid, long observedAt, bool withProfessions = false) => $$"""
+        StewardDB = {
+        ["characters"] = {
+        ["{{guid}}"] = { ["name"] = "N{{guid}}", ["realm"] = "ClassicBetaPvP2", ["guild"] = "{{guild}}", ["observedAt"] = {{observedAt}} },
+        },
+        {{(withProfessions ? $"[\"professions\"] = {{ [\"{guid}\"] = {{ [\"observedAt\"] = {observedAt}, [\"schema\"] = 2, [\"skills\"] = {{ {{ [\"name\"] = \"Cooking\" }}, }} }}, }}," : "")}}
+        }
+        """;
+
+    [Fact]
+    public void Read_DropsRosterOfAGuildFromAFileScannedMoreThanADayEarlier()
+    {
+        var snapshot = ReadFiles(
+            ("a.lua", GuildFile("Stormrage", "Player-1-A", 1758000000)),
+            ("b.lua", GuildFile("Stormrage", "Player-1-B", 1758200000)));
+
+        Assert.Equal(["Player-1-B"], snapshot.Characters.Select(c => c.CharacterGuid));
+    }
+
+    [Fact]
+    public void Read_KeepsAnOwnCharacterWithProfessionsFromTheOlderFile()
+    {
+        var snapshot = ReadFiles(
+            ("a.lua", GuildFile("Stormrage", "Player-1-A", 1758000000, withProfessions: true)),
+            ("b.lua", GuildFile("Stormrage", "Player-1-B", 1758200000)));
+
+        Assert.Equal(["Player-1-A", "Player-1-B"], snapshot.Characters.Select(c => c.CharacterGuid).Order());
+    }
+
+    [Fact]
+    public void Read_KeepsAGuildOnlyTheOlderFileHasSeen()
+    {
+        var snapshot = ReadFiles(
+            ("a.lua", GuildFile("Old Guild", "Player-1-A", 1758000000)),
+            ("b.lua", GuildFile("Stormrage", "Player-1-B", 1758200000)));
+
+        Assert.Equal(["Player-1-A", "Player-1-B"], snapshot.Characters.Select(c => c.CharacterGuid).Order());
+    }
+
+    [Fact]
+    public void Read_ResolvesADuplicateGuidToTheNewestObservedAt()
+    {
+        var snapshot = ReadFiles(
+            ("a.lua", GuildFile("Stormrage", "Player-1-A", 1758200000)),
+            ("b.lua", GuildFile("Stormrage", "Player-1-A", 1758100000)));
+
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758200000), Assert.Single(snapshot.Characters).ObservedAt);
+    }
 }

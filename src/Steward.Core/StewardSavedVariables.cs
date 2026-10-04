@@ -57,6 +57,7 @@ public static class StewardSavedVariables
         var professions = new List<(string Id, DateTimeOffset Rank, CharacterProfessions Item)>();
         var catalogue = new List<(string Id, DateTimeOffset Rank, ProfessionCatalogue Item)>();
         var gear = new List<(string Id, DateTimeOffset Rank, CharacterGear Item)>();
+        var scans = new List<FileScan>();
         GuildRanks? guildRanks = null;
         var hasAccount = false;
         var skipped = 0;
@@ -80,15 +81,20 @@ public static class StewardSavedVariables
             if (account is not null)
             {
                 roster.AddRange(MapAll(account.GetTable("roster"), MapRoster, ref skipped));
-                characters.AddRange(MapCharacters(account.GetTable("characters"), ref skipped)
-                    .Select(c => (c.CharacterGuid, c.ObservedAt ?? DateTimeOffset.MinValue, c)));
-                professions.AddRange(MapProfessionsByGuid(account.GetTable("professions"), ref skipped, ref outdatedProfessions)
+                var fileCharacters = MapCharacters(account.GetTable("characters"), ref skipped);
+                var fileProfessions = MapProfessionsByGuid(account.GetTable("professions"), ref skipped, ref outdatedProfessions);
+                var fileGear = MapGearByGuid(account.GetTable("gear"), ref skipped);
+                professions.AddRange(fileProfessions
                     .Select(p => (p.Guid, ToTimestamp(p.Professions.ObservedAt) ?? DateTimeOffset.MinValue, p.Professions)));
-                gear.AddRange(MapGearByGuid(account.GetTable("gear"), ref skipped)
+                gear.AddRange(fileGear
                     .Select(g => (g.Guid, ToTimestamp(g.Gear.ObservedAt) ?? DateTimeOffset.MinValue, g.Gear)));
+                scans.Add(new FileScan(
+                    fileCharacters,
+                    [.. fileProfessions.Select(p => p.Guid), .. fileGear.Select(g => g.Guid)],
+                    MapGuildRanks(account.GetTable("guildRanks"), ref skipped)));
                 catalogue.AddRange(MapCatalogueByProfession(account.GetTable("catalogue"), ref skipped)
                     .Select(c => (c.Profession, ToTimestamp(c.Catalogue.ScannedAt) ?? DateTimeOffset.MinValue, c.Catalogue)));
-                if (MapGuildRanks(account.GetTable("guildRanks"), ref skipped) is { } ranks
+                if (scans[^1].Ranks is { } ranks
                     && (guildRanks is null || ranks.ObservedAt is null || guildRanks.ObservedAt is null || ranks.ObservedAt > guildRanks.ObservedAt))
                 {
                     guildRanks = ranks;
@@ -99,6 +105,13 @@ public static class StewardSavedVariables
 
             loot.AddRange(MapAll(root.GetTable("loot"), MapLoot, ref skipped).Select(r => (r.Id, rank, r)));
             attendance.AddRange(MapAll(root.GetTable("attendance"), MapAttendance, ref skipped).Select(r => (r.Id, rank, r)));
+        }
+
+        foreach (var scan in scans)
+        {
+            characters.AddRange(scan.Characters
+                .Where(c => scan.OwnGuids.Contains(c.CharacterGuid) || !IsStaleRoster(c, scan, scans))
+                .Select(c => (c.CharacterGuid, c.ObservedAt ?? DateTimeOffset.MinValue, c)));
         }
 
         var dedupedCharacters = Dedupe(characters);
@@ -123,6 +136,32 @@ public static class StewardSavedVariables
             Gear = dedupedGear,
         };
     }
+
+    private static readonly TimeSpan StaleGuildScan = TimeSpan.FromHours(24);
+
+    private sealed record FileScan(IReadOnlyList<CharacterObservation> Characters, HashSet<string> OwnGuids, GuildRanks? Ranks);
+
+    private static bool IsStaleRoster(CharacterObservation character, FileScan scan, List<FileScan> all)
+    {
+        var own = character.Guild.Length == 0 ? null : ScanTime(character, scan);
+        return own is not null && all.Max(other => ScanTime(character, other)) - own > StaleGuildScan;
+    }
+
+    private static DateTimeOffset? ScanTime(CharacterObservation guildMember, FileScan scan)
+    {
+        var ranks = scan.Ranks is { } r && SameGuild(guildMember.Realm, guildMember.RealmName, guildMember.Guild, r.Realm, r.RealmName, r.Guild)
+            ? r.ObservedAt
+            : null;
+        var members = scan.Characters
+            .Where(c => SameGuild(guildMember.Realm, guildMember.RealmName, guildMember.Guild, c.Realm, c.RealmName, c.Guild))
+            .Max(c => c.ObservedAt);
+        return ranks ?? members;
+    }
+
+    private static bool SameGuild(string realmA, string? realmNameA, string guildA, string realmB, string? realmNameB, string guildB) =>
+        string.Equals(guildA.Trim(), guildB.Trim(), StringComparison.OrdinalIgnoreCase)
+        && (string.Equals(realmA, realmB, StringComparison.OrdinalIgnoreCase)
+            || (realmNameA is not null && string.Equals(realmNameA, realmNameB, StringComparison.OrdinalIgnoreCase)));
 
     private static Dictionary<string, T> DedupeByKey<T>(List<(string Id, DateTimeOffset Rank, T Item)> records) =>
         records.GroupBy(r => r.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.MaxBy(r => r.Rank).Item, StringComparer.Ordinal);
