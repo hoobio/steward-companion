@@ -1,5 +1,6 @@
 using Steward.App.Services;
 using Steward.App.ViewModels;
+using Steward.Core;
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -12,11 +13,11 @@ namespace Steward.App.Views;
 
 public sealed partial class HomePage : Page
 {
-    private static readonly (string Id, int Index, double MinWidth, double MinTableWidth)[] TableColumns =
+    private static readonly (string Id, int Index, double MinWidth)[] TableColumns =
     [
-        ("version", 2, 64, 0),
-        ("channel", 3, 64, 760),
-        ("source", 4, 56, 840),
+        ("version", 2, 64),
+        ("channel", 3, 64),
+        ("source", 4, 56),
     ];
 
     private static readonly string[] ShrinkOrder = ["source", "channel", "version"];
@@ -35,6 +36,7 @@ public sealed partial class HomePage : Page
     private readonly TextBlock _versionMeasure = new() { TextWrapping = TextWrapping.NoWrap };
     private readonly Dictionary<Grid, double> _versionNeeds = [];
     private double _nameNeed;
+    private double _versionCellNeed;
     private double _channelNeed;
     private double _sourceNeed;
     private double _statusWidth;
@@ -83,18 +85,21 @@ public sealed partial class HomePage : Page
     private void RefreshNeeds()
     {
         _needsQueued = false;
-        double name = 0, channel = 0, source = 0, status = 0;
+        double version = 0, channel = 0, source = 0, status = 0;
+        var names = new List<double>();
         foreach (var row in _tableRows.Append(TableHeader))
         {
-            name = Math.Max(name, MeasureColumnContent(row, NameIndex));
+            names.Add(MeasureColumnContent(row, NameIndex));
+            version = Math.Max(version, MeasureColumnContent(row, VersionIndex));
             channel = Math.Max(channel, MeasureColumnContent(row, ChannelIndex));
             source = Math.Max(source, MeasureColumnContent(row, SourceIndex));
             status = Math.Max(status, MeasureColumnContent(row, StatusIndex));
         }
 
-        if (name != _nameNeed || channel != _channelNeed || source != _sourceNeed || status != _statusWidth)
+        var name = ColumnFit.TypicalMax(names);
+        if (name != _nameNeed || version != _versionCellNeed || channel != _channelNeed || source != _sourceNeed || status != _statusWidth)
         {
-            (_nameNeed, _channelNeed, _sourceNeed, _statusWidth) = (name, channel, source, status);
+            (_nameNeed, _versionCellNeed, _channelNeed, _sourceNeed, _statusWidth) = (name, version, channel, source, status);
             ApplyColumnsToAll();
         }
     }
@@ -111,13 +116,17 @@ public sealed partial class HomePage : Page
 
     private void ApplyColumns(Grid row)
     {
-        var tableWidth = TableBody.ActualWidth;
-        var shown = TableColumns.Where(column => tableWidth >= column.MinTableWidth).ToList();
-        var space = tableWidth - row.Padding.Left - row.Padding.Right - row.ColumnSpacing * (row.ColumnDefinitions.Count - 1)
+        var space = TableBody.ActualWidth - row.Padding.Left - row.Padding.Right - row.ColumnSpacing * (row.ColumnDefinitions.Count - 1)
             - row.ColumnDefinitions[0].Width.Value - row.ColumnDefinitions[OverflowIndex].Width.Value;
-        var applied = shown.ToDictionary(column => column.Id, column => Math.Max(DefaultWidth(column.Id), column.MinWidth));
-        var needVersion = applied["version"] = Math.Max(applied["version"], VersionFloor);
         var needName = Math.Max(_nameNeed, NameMinWidth);
+        var shown = TableColumns.ToList();
+        while (shown.Count > 1 && needName + _statusWidth + shown.Sum(column => Math.Max(DefaultWidth(column.Id), column.MinWidth)) > space)
+        {
+            shown.RemoveAt(shown.Count - 1);
+        }
+
+        var applied = shown.ToDictionary(column => column.Id, column => Math.Max(DefaultWidth(column.Id), column.MinWidth));
+        var needVersion = applied["version"];
         var pool = space - _statusWidth - applied.Where(pair => pair.Key != "version").Sum(pair => pair.Value);
         double name;
         if (needName + needVersion <= pool)
@@ -145,7 +154,7 @@ public sealed partial class HomePage : Page
         row.ColumnDefinitions[NameIndex].MinWidth = NameMinWidth;
         row.ColumnDefinitions[NameIndex].Width = new GridLength(name);
         row.ColumnDefinitions[StatusIndex].Width = new GridLength(_statusWidth);
-        foreach (var (id, index, _, _) in TableColumns)
+        foreach (var (id, index, _) in TableColumns)
         {
             row.ColumnDefinitions[index].Width = new GridLength(applied.GetValueOrDefault(id));
         }
@@ -160,7 +169,7 @@ public sealed partial class HomePage : Page
 
     private double DefaultWidth(string id) => id switch
     {
-        "version" => VersionFloor,
+        "version" => Math.Max(VersionFloor, _versionCellNeed),
         "channel" => _channelNeed,
         _ => _sourceNeed,
     };

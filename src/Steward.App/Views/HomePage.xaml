@@ -291,13 +291,15 @@
                     Grid.Column="3"
                     Height="24"
                     MinHeight="0"
-                    Margin="-8,0,0,0"
                     Padding="8,0,6,0"
                     VerticalAlignment="Center"
                     Background="{ThemeResource ChipBrush}"
                     Command="{x:Bind ChangeChannelCommand}"
                     AutomationProperties.Name="Release channel"
                     Visibility="{x:Bind ChannelChipVisibility, Mode=OneWay}">
+                    <Button.RenderTransform>
+                        <TranslateTransform X="-8" />
+                    </Button.RenderTransform>
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <TextBlock Text="{x:Bind Channel, Mode=OneWay}" FontSize="12" />
                         <FontIcon Glyph="&#xE70D;" FontSize="9" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
