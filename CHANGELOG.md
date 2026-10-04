@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.19.1](https://github.com/hoobio/steward-companion/compare/v0.19.0...v0.19.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* 🐛 keep automatic relaunches (Store update restart, Start with Windows) from taking focus ([5057d81](https://github.com/hoobio/steward-companion/commit/5057d81aa31d846d60e027029ddb57755baf8696))
+* 🐛 load the tray icon before adding it so it shows on Windows 10 ([28644ba](https://github.com/hoobio/steward-companion/commit/28644baae2e93496845d710b51d72b1c66fb590d))
+* 🐛 regenerate Steward Guides when any TOC line besides its version changes ([5315a74](https://github.com/hoobio/steward-companion/commit/5315a74166e98dc1f41f5cb849dd2b748e0b5eff))
+* 🐛 share the leftover Addons table width between Name and Version by content need ([e2a6c93](https://github.com/hoobio/steward-companion/commit/e2a6c93e4a194a9cc55e4a80db8c9d5a5bc4195b))
+* 🐛 show addon update progress as a bar along the row's bottom edge instead of growing the row ([d2183a1](https://github.com/hoobio/steward-companion/commit/d2183a1ac49419d486a93136df6065985b4bcf7b))
+* 🐛 show BugSack and BugGrabber from CurseForge and hide Local rows while CurseForge is off ([17412d1](https://github.com/hoobio/steward-companion/commit/17412d108392cf2b70d0ab8d35ad47375e25f5fa))
+* 🐛 size Addons table columns from their content and drop column resizing ([649bff2](https://github.com/hoobio/steward-companion/commit/649bff2c1398b79631a17d8592839c60d53a936b))
+* 🐛 skip RestedXP guide imports RXPGuides already has loaded and nest Steward Guides under RXPGuides ([792a6df](https://github.com/hoobio/steward-companion/commit/792a6df078ce24d0e0807f6289f0e3958aba4d07))
+
 ## [0.19.0](https://github.com/hoobio/steward-companion/compare/v0.18.5...v0.19.0) (2026-10-02)
 
 
