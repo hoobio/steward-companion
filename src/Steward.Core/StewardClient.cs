@@ -509,7 +509,7 @@ public sealed class StewardClient
         content.Headers.ContentEncoding.Add("gzip");
 
         using var response = await _httpClient
-            .PostAsync($"{_baseUrl}/api/guild/{guildId}/characters/sync", content, cancellationToken)
+            .PostAsync($"{_baseUrl}/api/sync/{guildId}/characters", content, cancellationToken)
             .ConfigureAwait(false);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -532,7 +532,7 @@ public sealed class StewardClient
             }
 
             throw new HttpRequestException(
-                $"POST /api/guild/{guildId}/characters/sync returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
+                $"POST /api/sync/{guildId}/characters returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
         }
 
         var result = await response.Content
@@ -540,6 +540,6 @@ public sealed class StewardClient
             .ConfigureAwait(false);
 
         return result ?? throw new HttpRequestException(
-            $"POST /api/guild/{guildId}/characters/sync returned an empty body");
+            $"POST /api/sync/{guildId}/characters returned an empty body");
     }
 }
