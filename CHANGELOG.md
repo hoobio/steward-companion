@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.20.1](https://github.com/hoobio/steward-companion/compare/v0.20.0...v0.20.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* 🐛 drop guild roster observations from account files scanned over a day before the newest ([c5d1b56](https://github.com/hoobio/steward-companion/commit/c5d1b567038477ebfa7752599a38e30a556632dc))
+* 🐛 forward each recipe list's and the bank's own signature so carried-over data is accepted ([5f24784](https://github.com/hoobio/steward-companion/commit/5f24784e3761cc70661107e06766745d5239354d))
+* 🐛 forward the addon version on every synced entry outside the push gate ([96931fc](https://github.com/hoobio/steward-companion/commit/96931fcce7147b55f9bd9d67b9058452f7fb03bb))
+* 🐛 identify a guild by the realm id in its guids when dropping stale account roster ([6e1f55d](https://github.com/hoobio/steward-companion/commit/6e1f55d5ad8543931adcac52c6ebe4453c19df3c))
+
 ## [0.20.0](https://github.com/hoobio/steward-companion/compare/v0.19.0...v0.20.0) (2026-10-04)
 
 
