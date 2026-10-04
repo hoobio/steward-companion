@@ -284,6 +284,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool IsSignedIn { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GateVisibility))]
+    public partial bool IsSessionChecked { get; set; }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(GateHeading), nameof(CancelSignInVisibility))]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
     public partial bool IsSigningIn { get; set; }
@@ -468,7 +472,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool StatusMessageIsOpen => !string.IsNullOrEmpty(StatusMessage);
 
-    public Visibility GateVisibility => When(!IsSignedIn);
+    public Visibility GateVisibility => When(IsSessionChecked && !IsSignedIn);
 
     public Visibility ShellChromeVisibility => When(IsSignedIn);
 
@@ -668,6 +672,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task InitializeAsync()
     {
+        IsSignedIn = _sessionService.TryRestoreSession();
+        IsSessionChecked = true;
+
         if (App.IsPackaged)
         {
             await SetStartupTaskAsync(enable: App.IsGitHubRelease ? null : false).ConfigureAwait(true);
@@ -676,7 +683,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _lastBannersSync = DateTimeOffset.Now;
         await SyncBannersAsync().ConfigureAwait(true);
 
-        IsSignedIn = _sessionService.TryRestoreSession();
         if (!IsSignedIn)
         {
             SetAddonCatalogue(null);
