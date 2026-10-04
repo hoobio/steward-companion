@@ -508,7 +508,7 @@ public sealed class StewardClient
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         content.Headers.ContentEncoding.Add("gzip");
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/api/guild/{guildId}/characters/sync") { Content = content };
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/api/sync/{guildId}/characters") { Content = content };
         // Steward API replays a repeated batchId instead of applying it twice.
         request.Options.Set(TransientHttp.Idempotent, true);
         using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -533,7 +533,7 @@ public sealed class StewardClient
             }
 
             throw new HttpRequestException(
-                $"POST /api/guild/{guildId}/characters/sync returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
+                $"POST /api/sync/{guildId}/characters returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
         }
 
         var result = await response.Content
@@ -541,6 +541,6 @@ public sealed class StewardClient
             .ConfigureAwait(false);
 
         return result ?? throw new HttpRequestException(
-            $"POST /api/guild/{guildId}/characters/sync returned an empty body");
+            $"POST /api/sync/{guildId}/characters returned an empty body");
     }
 }

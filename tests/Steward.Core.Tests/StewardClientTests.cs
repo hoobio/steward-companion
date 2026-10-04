@@ -219,7 +219,7 @@ public sealed class StewardClientTests
 
         await client.PostCharacterSyncAsync("1", request, TestContext.Current.CancellationToken);
 
-        Assert.Equal("https://api.example.com/guild/api/guild/1/characters/sync", handler.RequestUrl);
+        Assert.Equal("https://api.example.com/guild/api/sync/1/characters", handler.RequestUrl);
     }
 
     [Fact]

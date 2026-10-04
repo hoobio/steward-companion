@@ -74,7 +74,7 @@ An incoming record is stored only when its content differs from the current obse
 | POST | `sync/batches/{id}/void`, `sync/batches/{id}/unvoid` | rollback and redo of one push |
 | POST | `roster` | manual raider add `{user_id}`; officer seat only, no flag; 404 unless a live Discord member |
 
-All paths sit under `/api/admin/{guild_id}/`.
+All paths sit under `/api/admin/{guild_id}/`, except the push and the batch routes, which steward-sync serves under `/api/sync/{guild_id}/` as `characters` (push), `batches`, `batches/{id}`, `batches/{id}/void` and `batches/{id}/unvoid`; their old `/api/admin` and `/api/guild` paths stay as temporary aliases for older builds.
 
 Validation per record: guid `^Player-\d+-[0-9A-F]{8}$`; name trimmed, 1-32 characters, no control characters; level 1-80; class_id 1-13; realm and guild non-empty, at most 64 characters; observed_at within now minus 30 days and now plus 10 minutes; linked_user_id null or a snowflake. At most 1000 records per batch, otherwise 400.
 
