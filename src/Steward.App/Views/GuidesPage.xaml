@@ -10,7 +10,7 @@
         <DataTemplate x:Key="GuideRowTemplate" x:DataType="vm:GuideRowViewModel">
             <Grid
                 Background="{x:Bind RowBackground, Mode=OneWay}"
-                BorderThickness="{x:Bind HairlineThickness}"
+                BorderThickness="0,1,0,0"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
                 Padding="16,12"
                 ColumnSpacing="14"
@@ -174,16 +174,40 @@
                     FontSize="11"
                     FontWeight="SemiBold"
                     CharacterSpacing="70"
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    Visibility="{x:Bind ViewModel.SelectedGuide.RowsVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
 
                 <Border CornerRadius="8" Background="{ThemeResource LayerFillColorDefaultBrush}">
                     <StackPanel>
+                        <Grid Padding="16,12" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox MinWidth="0" Padding="0" VerticalAlignment="Center" IsChecked="True" IsEnabled="False" AutomationProperties.Name="Base guides" />
+                            <Border
+                                Grid.Column="1"
+                                Width="36"
+                                Height="36"
+                                VerticalAlignment="Center"
+                                CornerRadius="6"
+                                Background="{ThemeResource ChipBrush}">
+                                <Image Source="{x:Bind ViewModel.SelectedGuide.AddonIcon, Mode=OneWay, FallbackValue={x:Null}}" Stretch="UniformToFill" />
+                            </Border>
+                            <StackPanel Grid.Column="2" Spacing="1" VerticalAlignment="Center">
+                                <TextBlock Text="Base guides" FontSize="13.5" TextWrapping="NoWrap" TextLineBounds="TrimToCapHeight" />
+                                <TextBlock
+                                    Text="{x:Bind ViewModel.SelectedGuide.BaseGuidesText, Mode=OneWay, FallbackValue=''}"
+                                    FontSize="12"
+                                    TextLineBounds="TrimToBaseline"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Grid>
                         <ItemsControl
                             ItemsSource="{x:Bind ViewModel.SelectedGuide.Rows, Mode=OneWay, FallbackValue={x:Null}}"
                             ItemTemplate="{StaticResource GuideRowTemplate}"
                             IsEnabled="{x:Bind ViewModel.SelectedGuide.IsSessionActive, Mode=OneWay, FallbackValue=False}" />
-                        <Border Padding="16,14" Visibility="{x:Bind ViewModel.SelectedGuide.NoGuidesVisibility, Mode=OneWay, FallbackValue=Collapsed}">
+                        <Border Padding="16,14" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource RowHairlineBrush}" Visibility="{x:Bind ViewModel.SelectedGuide.NoGuidesVisibility, Mode=OneWay, FallbackValue=Collapsed}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock
                                     Text="No guides on this account"

@@ -46,13 +46,12 @@ public sealed partial class GuideRowViewModel : ObservableObject
     private readonly RestedXpInstallViewModel _card;
     private readonly DateTimeOffset? _updatedAt;
 
-    public GuideRowViewModel(RestedXpInstallViewModel card, string productName, Uri? imageUri, DateTimeOffset? updatedAt, bool isFirst, bool isAllowed)
+    public GuideRowViewModel(RestedXpInstallViewModel card, string productName, Uri? imageUri, DateTimeOffset? updatedAt, bool isAllowed)
     {
         _card = card;
         _updatedAt = updatedAt;
         ProductName = productName;
         Image = imageUri is null ? null : ManifestIcon.For($"restedxp-{productName}", imageUri);
-        IsFirst = isFirst;
         IsAllowed = isAllowed;
     }
 
@@ -62,11 +61,7 @@ public sealed partial class GuideRowViewModel : ObservableObject
 
     public double ImageOpacity => IsAllowed ? 1 : 0.4;
 
-    public bool IsFirst { get; }
-
     public bool IsAllowed { get; }
-
-    public Thickness HairlineThickness => IsFirst ? default : new Thickness(0, 1, 0, 0);
 
     public string? RowTooltip => IsAllowed ? null : $"{ProductName} is for another client. This install is {_card.DisplayName}.";
 
@@ -201,9 +196,18 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
     public partial string? AddonVersion { get; set; }
 
     [ObservableProperty]
-    public partial bool IsSessionActive { get; set; } = true;
+    public partial ImageSource? AddonIcon { get; set; }
 
-    public Visibility RowsVisibility => When(Rows.Count > 0);
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BaseGuidesText))]
+    public partial DateTimeOffset? AddonReleasedAt { get; set; }
+
+    public string BaseGuidesText => AddonReleasedAt is { } at
+        ? $"Ships with addon, updated {RelativeTime.Describe(at, DateTimeOffset.Now)}"
+        : "Ships with addon";
+
+    [ObservableProperty]
+    public partial bool IsSessionActive { get; set; } = true;
 
     public Visibility NoGuidesVisibility => When(Rows.Count == 0);
 
@@ -222,6 +226,7 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(WrittenText));
         OnPropertyChanged(nameof(WrittenAt));
+        OnPropertyChanged(nameof(BaseGuidesText));
     }
 
     public void SetProducts(
@@ -245,14 +250,13 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
                 ? DateTimeOffset.FromUnixTimeMilliseconds(timestamp)
                 : (DateTimeOffset?)null;
             var allowed = isAllowed(product);
-            Rows.Add(new GuideRowViewModel(this, product, images.GetValueOrDefault(product), updatedAt, Rows.Count == 0, allowed)
+            Rows.Add(new GuideRowViewModel(this, product, images.GetValueOrDefault(product), updatedAt, allowed)
             {
                 IsSelected = allowed && selected.Contains(product, StringComparer.Ordinal),
             });
         }
 
         _isLoading = false;
-        OnPropertyChanged(nameof(RowsVisibility));
         OnPropertyChanged(nameof(NoGuidesVisibility));
     }
 
@@ -398,8 +402,10 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
 
             card.DisplayName = install.Label;
             card.IsSessionActive = IsSignedIn;
-            card.AddonVersion = install.AddonRows
-                .FirstOrDefault(row => string.Equals(row.AddonId, AddonId, StringComparison.OrdinalIgnoreCase))?.InstalledVersion;
+            var addon = install.AddonRows.FirstOrDefault(row => string.Equals(row.AddonId, AddonId, StringComparison.OrdinalIgnoreCase));
+            card.AddonVersion = addon?.InstalledVersion;
+            card.AddonIcon = addon?.Icon;
+            card.AddonReleasedAt = addon?.ReleasedAt;
         }
 
         SyncWatchers();

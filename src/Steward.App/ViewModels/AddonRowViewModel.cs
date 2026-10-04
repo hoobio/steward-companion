@@ -363,7 +363,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public string ProgressText => UpdateProgress.ToString("P0", CultureInfo.CurrentCulture);
 
-    private DateTimeOffset? ReleasedAt => _status?.Release?.Released is { } released && released != default ? released : null;
+    public DateTimeOffset? ReleasedAt => _status?.Release?.Released is { } released && released != default ? released : null;
 
     public string ReleasedText => ReleasedAt is { } released
         ? $"Released {RelativeTime.Describe(released, DateTimeOffset.Now)}"
