@@ -65,10 +65,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan EventStreamMaxBackoff = TimeSpan.FromMinutes(5);
 
     private const string StartupTaskId = "StewardStartup";
-    private const string ApiUnavailableMessage = "Steward APIs are temporarily unavailable.";
-
-    private static string Describe(Exception ex) =>
-        ex is HttpRequestException { StatusCode: >= HttpStatusCode.InternalServerError } ? ApiUnavailableMessage : ex.Message;
 
     private static readonly string[] SummaryNames =
     [
@@ -536,7 +532,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string? AccountAutomationName => LiveUpdatesTooltip is { } tooltip ? $"{UserName}, {tooltip}" : UserName;
 
-    public Visibility StatusActionVisibility => When(Failure is GateFailure.Unreachable or GateFailure.ClientOutdated);
+    public Visibility StatusActionVisibility => When(HasApiRetry || Failure is GateFailure.Unreachable or GateFailure.ClientOutdated);
 
     public string StatusActionLabel => Failure == GateFailure.ClientOutdated ? "Update Steward" : "Retry";
 
@@ -824,7 +820,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            StatusMessage = Describe(ex);
+            ReportFailure(ex, "startup", async () =>
+            {
+                await RefreshAsync().ConfigureAwait(true);
+                StartRecheckTimer();
+                return true;
+            });
         }
         finally
         {
@@ -1372,7 +1373,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private Task StatusActionAsync() =>
-        Failure == GateFailure.ClientOutdated ? HandleStoreUpdateBannerActionAsync() : RefreshAsync();
+        Failure == GateFailure.ClientOutdated ? HandleStoreUpdateBannerActionAsync()
+        : HasApiRetry ? RetryApiAsync()
+        : RefreshAsync();
 
     public void ReportClientOutdated(string message) => RunOnUi(() => EnterClientOutdated(message));
 
@@ -1474,15 +1477,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             try
             {
-                var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken)
-                    .ConfigureAwait(true);
-                _releases[addon.Id] = releases;
-                _status[addon.Id] = AddonChannelStatus.Resolve(AddonGroups.StoredChannel(state.Channels, addon), releases, addon.Channels, addon.DefaultPreference);
+                await ProbeAddonAsync(addon, state, cancellationToken).ConfigureAwait(true);
             }
             catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
             {
                 _logger.Warn(ex, $"Addon manifest check failed for {addon.Id}");
-                StatusMessage = Describe(ex);
+                ReportFailure(ex, $"manifest:{addon.Id}", () => RetryProbeAddonAsync(addon.Id));
                 succeeded = false;
             }
         }
@@ -1497,11 +1497,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (succeeded)
         {
-            if (Failure == GateFailure.None && StatusMessage == ApiUnavailableMessage)
-            {
-                StatusMessage = null;
-            }
-
             _lastPass = DateTimeOffset.Now;
             UpdateLastCheckedText();
         }
@@ -1516,7 +1511,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
         {
             _logger.Warn(ex, "Auto-apply failed");
-            StatusMessage = Describe(ex);
+            ReportFailure(ex, "auto-apply", async () =>
+            {
+                await AutoApplyAsync().ConfigureAwait(true);
+                return true;
+            });
         }
 
         if (pullGuildRoster)
@@ -1525,6 +1524,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
+    }
+
+    private async Task ProbeAddonAsync(ManagedAddon addon, AppState state, CancellationToken cancellationToken)
+    {
+        var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken)
+            .ConfigureAwait(true);
+        _releases[addon.Id] = releases;
+        _status[addon.Id] = AddonChannelStatus.Resolve(AddonGroups.StoredChannel(state.Channels, addon), releases, addon.Channels, addon.DefaultPreference);
+        ResolveApiRetry($"manifest:{addon.Id}");
+    }
+
+    private async Task<bool> RetryProbeAddonAsync(string addonId)
+    {
+        if (VisibleAddons().FirstOrDefault(addon => addon.Id == addonId) is { } addon)
+        {
+            await ProbeAddonAsync(addon, _stateStore.Load(), CancellationToken.None).ConfigureAwait(true);
+            ApplyStatus(background: true);
+            RecomputeSummary();
+        }
+
+        return true;
     }
 
     private void SetGuilds(IReadOnlyList<AdminGuild> guilds, AdminGuild? current)
@@ -2873,8 +2893,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ = AutoApplyAsync();
     }
 
-    private async Task RunBackgroundPassAsync()
+    private async Task<bool> RunBackgroundPassAsync()
     {
+        if (_isChecking)
+        {
+            return false;
+        }
+
         _isChecking = true;
         try
         {
@@ -2919,10 +2944,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 await CheckGuidesAsync().ConfigureAwait(true);
             }
+
+            ResolveApiRetry("background-pass");
+            return true;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            StatusMessage = Describe(ex);
+            ReportFailure(ex, "background-pass", RunBackgroundPassAsync);
+            return false;
         }
         finally
         {
@@ -3019,6 +3048,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 Failure = GateFailure.None;
             }
 
+            ResolveApiRetry("me");
+
             // Client-side gate only: gigagrug does not restrict who can fetch the unstable manifest.
             IsGlobalAdmin = GigagrugClient.IsGlobalAdmin(me);
 
@@ -3060,7 +3091,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (Failure != GateFailure.ClientOutdated)
             {
                 Failure = GateFailure.Unreachable;
-                StatusMessage = Describe(ex);
+                ReportFailure(ex, "me", async () => await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true) == AuthCheckResult.Authorized);
             }
 
             PropagateAuthorized();
@@ -3087,6 +3118,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AvatarUri = null;
         _guildId = null;
         SetGuilds([], null);
+        _apiRetries.Clear();
+        FinishApiRetries();
         StatusMessage = null;
         IsSignedIn = false;
         Failure = failure;
