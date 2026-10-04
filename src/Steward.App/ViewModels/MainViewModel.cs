@@ -65,6 +65,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan EventStreamMaxBackoff = TimeSpan.FromMinutes(5);
 
     private const string StartupTaskId = "StewardStartup";
+    private const string ApiUnavailableMessage = "Steward APIs are temporarily unavailable.";
+
+    private static string Describe(Exception ex) =>
+        ex is HttpRequestException { StatusCode: >= HttpStatusCode.InternalServerError } ? ApiUnavailableMessage : ex.Message;
 
     private static readonly string[] SummaryNames =
     [
@@ -820,7 +824,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            StatusMessage = ex.Message;
+            StatusMessage = Describe(ex);
         }
         finally
         {
@@ -1478,7 +1482,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
             {
                 _logger.Warn(ex, $"Addon manifest check failed for {addon.Id}");
-                StatusMessage = ex.Message;
+                StatusMessage = Describe(ex);
                 succeeded = false;
             }
         }
@@ -1493,6 +1497,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (succeeded)
         {
+            if (Failure == GateFailure.None && StatusMessage == ApiUnavailableMessage)
+            {
+                StatusMessage = null;
+            }
+
             _lastPass = DateTimeOffset.Now;
             UpdateLastCheckedText();
         }
@@ -1507,7 +1516,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
         {
             _logger.Warn(ex, "Auto-apply failed");
-            StatusMessage = ex.Message;
+            StatusMessage = Describe(ex);
         }
 
         if (pullGuildRoster)
@@ -2913,7 +2922,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            StatusMessage = ex.Message;
+            StatusMessage = Describe(ex);
         }
         finally
         {
@@ -3051,7 +3060,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (Failure != GateFailure.ClientOutdated)
             {
                 Failure = GateFailure.Unreachable;
-                StatusMessage = ex.Message;
+                StatusMessage = Describe(ex);
             }
 
             PropagateAuthorized();
