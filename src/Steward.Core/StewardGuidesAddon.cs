@@ -32,7 +32,7 @@ public static partial class StewardGuidesAddon
         local Import
 
         local function Say(text)
-            print("|cff409fffSteward|r " .. text)
+            print("|cff409fff[Steward]|r " .. text)
         end
 
         local function Hash(text)
