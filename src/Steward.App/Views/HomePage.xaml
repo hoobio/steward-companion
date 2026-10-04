@@ -103,6 +103,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock
                             Text="{x:Bind DisplayName}"
+                            views:MatchHighlight.Match="{x:Bind NameMatch, Mode=OneWay}"
                             FontSize="13.5"
                             TextWrapping="NoWrap"
                             TextTrimming="CharacterEllipsis"
@@ -468,6 +469,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock
                             Text="{x:Bind DisplayName}"
+                            views:MatchHighlight.Match="{x:Bind NameMatch, Mode=OneWay}"
                             FontSize="13.5"
                             TextWrapping="NoWrap"
                             TextTrimming="CharacterEllipsis"

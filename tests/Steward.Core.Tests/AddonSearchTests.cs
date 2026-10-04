@@ -18,6 +18,19 @@ public sealed class AddonSearchTests
     [InlineData("RestedXP Guides", "xyz")]
     public void Matches_InsideAWord_IsFalse(string name, string query) => Assert.False(AddonSearch.Matches(name, query));
 
+    [Fact]
+    public void Find_PrefersAWordStartOverAnEarlierMidWordHit() =>
+        Assert.Equal(new SearchMatch(12, 3), AddonSearch.Find("RareScanner Results", "res"));
+
+    [Fact]
+    public void Find_NoWordStart_ReturnsTheFirstSubstringHit() =>
+        Assert.Equal(new SearchMatch(5, 2), AddonSearch.Find("BugSack", "ck"));
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("xyz")]
+    public void Find_NoMatch_ReturnsNull(string query) => Assert.Null(AddonSearch.Find("BugSack", query));
+
     private static readonly string[] Names = ["RestedXP Guides", "RareScanner", "BugSack", "BugGrabber"];
 
     [Fact]

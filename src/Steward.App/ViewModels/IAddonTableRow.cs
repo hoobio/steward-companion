@@ -1,3 +1,5 @@
+using Steward.Core;
+
 namespace Steward.App.ViewModels;
 
 public interface IAddonTableRow
@@ -17,4 +19,6 @@ public interface IAddonTableRow
     DateTimeOffset? LastUpdated { get; }
 
     bool IsCompact { get; set; }
+
+    SearchMatch? NameMatch { get; set; }
 }

@@ -61,6 +61,9 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     public bool IsCompact { get; set; }
 
+    [ObservableProperty]
+    public partial SearchMatch? NameMatch { get; set; }
+
     public int StatusRank => (int)(IsHidden ? AddonRowStatus.Hidden : AddonRowStatus.Local);
 
     public Visibility StatusDashVisibility => When(!IsHidden && !CanAdopt);

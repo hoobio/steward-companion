@@ -476,6 +476,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public partial bool IsCompact { get; set; }
 
     [ObservableProperty]
+    public partial SearchMatch? NameMatch { get; set; }
+
+    [ObservableProperty]
     public partial bool IsVersionStacked { get; set; }
 
     private string? TipChannelLine => IsCompact && IsStacked && Channel is not null

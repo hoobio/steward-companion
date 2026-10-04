@@ -1,7 +1,28 @@
 namespace Steward.Core;
 
+public readonly record struct SearchMatch(int Start, int Length);
+
 public static class AddonSearch
 {
+    public static SearchMatch? Find(string name, string query)
+    {
+        if (query.Length == 0)
+        {
+            return null;
+        }
+
+        var first = name.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+        for (var index = first; index >= 0; index = name.IndexOf(query, index + 1, StringComparison.OrdinalIgnoreCase))
+        {
+            if (IsWordStart(name, index))
+            {
+                return new SearchMatch(index, query.Length);
+            }
+        }
+
+        return first >= 0 ? new SearchMatch(first, query.Length) : null;
+    }
+
     public static IEnumerable<T> Filter<T>(IEnumerable<T> rows, Func<T, string> name, string query)
     {
         var all = rows.ToList();

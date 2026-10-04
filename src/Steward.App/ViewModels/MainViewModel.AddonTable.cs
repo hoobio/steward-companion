@@ -237,6 +237,11 @@ public sealed partial class MainViewModel
         };
 
         var wanted = rows.ToList();
+        foreach (var row in wanted)
+        {
+            row.NameMatch = AddonSearch.Find(row.DisplayName, query);
+        }
+
         foreach (var gone in TableRows.Except(wanted).ToList())
         {
             TableRows.Remove(gone);
