@@ -10,9 +10,9 @@ Foundations, palette, type and surfaces are unchanged from [home-and-settings.md
 
 ## API origin
 
-`https://api.hoobi.io/guild` (`Gigagrug:BaseUrl`), the same origin and the same `gg_session` credential as `/api/admin/me`. Not `guild.hoobi.io`: that is the Static Web App hosting the SPA, and its navigation fallback answers every `/api/*` path with `index.html` and a 200, so a client pointed there parses HTML as JSON instead of seeing a 401.
+`https://api.hoobi.io/guild` (`Gigagrug:BaseUrl`), the same origin and the same `gg_session` credential as `/api/me`. Not `guild.hoobi.io`: that is the Static Web App hosting the SPA, and its navigation fallback answers every `/api/*` path with `index.html` and a 200, so a client pointed there parses HTML as JSON instead of seeing a 401.
 
-A 401 on any sync call means the session is gone, and it is handled exactly as `/api/admin/me` handles it: clear the persisted token and drop to signed out.
+A 401 on any sync call means the session is gone, and it is handled exactly as `/api/me` handles it: clear the persisted token and drop to signed out.
 
 ## Endpoint contract
 

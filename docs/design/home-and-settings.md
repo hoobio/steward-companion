@@ -140,9 +140,9 @@ The page header stays visible above it.
 
 ### Not authorised
 
-Access is gated on `/api/admin/me`'s `user.features` array (`guides`, `steward`, `sync`, `roster`, `professions`, `signups`, `addons`; `AGENTS.md` Auth is the source of truth), not on officer role: a guild member can hold any subset by Discord role or user id, and an officer gets the officer defaults.
+Access is gated on `/api/me`'s `user.features` array (`guides`, `steward`, `sync`, `roster`, `professions`, `signups`, `addons`; `AGENTS.md` Auth is the source of truth), not on officer role: a guild member can hold any subset by Discord role or user id, and an officer gets the officer defaults.
 
-A user with no feature at all never gets past the gate. `/api/admin/me` comes back with an empty (or, on an older server with no `features` field, non-officer) feature set, the stored session is cleared and the window stays on the gate, with a critical `InfoBar` above the sign-in button: "This Discord user has no Steward access. Reach out to an Officer or to Hoobi." No link, no instruction. The same check runs on the background pass, so a user who loses every feature mid-session returns to the gate.
+A user with no feature at all never gets past the gate. `/api/me` comes back with an empty (or, on an older server with no `features` field, non-officer) feature set, the stored session is cleared and the window stays on the gate, with a critical `InfoBar` above the sign-in button: "This Discord user has no Steward access. Reach out to an Officer or to Hoobi." No link, no instruction. The same check runs on the background pass, so a user who loses every feature mid-session returns to the gate.
 
 ### Admin, updates available
 
@@ -152,7 +152,7 @@ The Addons page itself, the summary banner and per-install expanders, and per-ro
 
 Anchored to the account chip, acrylic by default. Avatar at 34px, display name at 14/600, `@handle` in mono beneath, and the role as an accent-tinted badge. Below a hairline, the Guild row (the selected guild, opening a submenu of guilds to the right when there is more than one; see `AGENTS.md` under Auth). The submenu behaves like a `MenuFlyoutSubItem` (`FlyoutOpener.AttachSubmenu`): pointer hover opens it without taking focus after the system menu show delay (`HKCU\Control Panel\Desktop\MenuShowDelay`, 400ms by default, the value WinUI's own cascading menus read), and hovering another row of the account menu closes it after the same delay; moving from the Guild row into the submenu keeps it open. Click, Enter, Space and Right arrow open it at once with focus inside; Left arrow or Esc closes it and returns focus to the Guild row, then below another hairline two items: Open guild panel, and Sign out in critical.
 
-Role comes from the last `/api/admin/me` response, which the 15-minute timer already refreshes.
+Role comes from the last `/api/me` response, which the background pass already refreshes.
 
 ## Settings page
 
