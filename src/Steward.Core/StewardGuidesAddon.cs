@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -11,6 +10,7 @@ public enum StewardGuidesWriteOutcome
     Written,
     Skipped,
     ChangedOnDisk,
+    NotInstalled,
 }
 
 public readonly record struct StewardGuidesWriteResult(StewardGuidesWriteOutcome Outcome, long Generation);
@@ -18,247 +18,10 @@ public readonly record struct StewardGuidesWriteResult(StewardGuidesWriteOutcome
 public static partial class StewardGuidesAddon
 {
     public const string FolderName = "StewardGuides";
+    public const string AddonId = "steward-guides";
 
     private const string Terminator = "]==]";
-    private const string TitleLine = "## Title: Steward Guides";
-    private const string AuthorLine = "## Author: Hoobi";
-
-    private const string Bootstrap = """
-
-        local frame = CreateFrame("Frame")
-        local index = 0
-        local playerTag
-        local importedAny = false
-        local Import
-
-        local function Say(text)
-            print("|cff409fff[Steward]|r " .. text)
-        end
-
-        local function Hash(text)
-            return text:match("^%d+|([^:]+):")
-        end
-
-        local function KeysId(hash)
-            return hash .. "|" .. (UnitFactionGroup("player") or "Neutral")
-        end
-
-        local function IsLoaded(rxp, key)
-            if rxp.guideCache and rxp.guideCache[key] then
-                return true
-            end
-            for _, guide in pairs(rxp.guides or {}) do
-                if type(guide) == "table" and guide.key == key then
-                    return true
-                end
-            end
-            return false
-        end
-
-        local function AlreadyLoaded(rxp, keys)
-            if not keys then
-                return false
-            end
-            local cached = {}
-            for _, entry in pairs(rxp.db.profile.guides or {}) do
-                if type(entry) == "table" and entry.key then
-                    cached[entry.key] = entry
-                end
-            end
-            local applicable = 0
-            for _, key in ipairs(keys) do
-                local entry = cached[key]
-                -- RXPGuides never loads a cached guide whose << line excludes this character (GuideLoader.lua:780), so a both-factions string re-imported every login
-                if not (entry and entry.enabledFor and rxp.applies and not rxp.applies(entry.enabledFor)) then
-                    if not IsLoaded(rxp, key) then
-                        return false
-                    end
-                    applicable = applicable + 1
-                end
-            end
-            return applicable > 0
-        end
-
-        local function CachedGuides(rxp)
-            local entries = {}
-            for profileKey, entry in pairs(rxp.db.profile.guides or {}) do
-                entries[profileKey] = entry
-            end
-            return entries
-        end
-
-        local function Guard(rxp)
-            local inventory = rxp.inventoryManager
-            if not inventory then
-                return
-            end
-            -- ponytail: RXPGuides v4.11.x reads settings.profile from its bag hook even when its own initialisation never ran; answer "off" until the profile exists
-            for _, name in ipairs({ "IsRightClickEnabled", "IsBagAutomationEnabled", "IsMerchantAutomationEnabled", "IsJunkIconEnabled", "GetModKey" }) do
-                local original = inventory[name]
-                if type(original) == "function" then
-                    inventory[name] = function(...)
-                        if not (rxp.settings and rxp.settings.profile) then
-                            return false
-                        end
-                        return original(...)
-                    end
-                end
-            end
-        end
-
-        do
-            local rxp = LibStub("AceAddon-3.0"):GetAddon("RXPGuides", true)
-            if rxp then
-                Guard(rxp)
-            end
-        end
-
-        local function Reject(guide, hash, message)
-            Say(guide.name .. ": " .. message)
-            if hash then
-                StewardGuidesDB.status[hash] = message
-            end
-        end
-
-        local function ImportNext(rxp)
-            index = index + 1
-            local guide = guides[index]
-            if not guide then
-                if importedAny then
-                    Say("all guide strings handed to RXPGuides")
-                end
-                return
-            end
-            local hash = Hash(guide.text)
-            if guide.tag and guide.tag:lower() ~= playerTag:lower() then
-                Reject(guide, hash, "bought on " .. guide.tag .. ", you are " .. playerTag .. "; not imported")
-                ImportNext(rxp)
-                return
-            end
-            -- ponytail: skip only when RXPGuides itself has every guide this string produced last time; our own mark alone left the game with no guides on 20 Sep 2026
-            if hash and AlreadyLoaded(rxp, StewardGuidesDB.keys[KeysId(hash)]) then
-                StewardGuidesDB.imported[hash] = true
-                StewardGuidesDB.status[hash] = nil
-                ImportNext(rxp)
-                return
-            end
-            importedAny = true
-            Import(rxp, guide, hash, false)
-        end
-
-        function Import(rxp, guide, hash, retried)
-            if rxp.guideImporter.gui then
-                rxp.guideImporter.gui.importStatusHistory = {}
-            end
-            local before = CachedGuides(rxp)
-            local ok, err = rxp.guideImporter:ImportString(guide.text)
-            Say(guide.name .. ": " .. (ok and "importing" or ("rejected: " .. tostring(err))))
-            local function WaitForIdle()
-                if rxp.guideImporter.importCoroutine ~= nil or (rxp.guideImporter.importBufferSize or 0) ~= 0 then
-                    C_Timer.After(1, WaitForIdle)
-                    return
-                end
-                local history = rxp.guideImporter.gui and rxp.guideImporter.gui.importStatusHistory
-                local status = history and history[1]
-                if type(status) == "string" and status:find("Guides Loaded Successfully", 1, true) == 1 then
-                    if hash then
-                        StewardGuidesDB.imported[hash] = true
-                        StewardGuidesDB.status[hash] = nil
-                        local keys = {}
-                        for profileKey, entry in pairs(CachedGuides(rxp)) do
-                            if before[profileKey] ~= entry and type(entry) == "table" and entry.key then
-                                tinsert(keys, entry.key)
-                            end
-                        end
-                        StewardGuidesDB.keys[KeysId(hash)] = keys
-                    end
-                elseif type(status) == "string" then
-                    if not retried and status:find("restart your game client", 1, true) then
-                        C_Timer.After(10, function() Import(rxp, guide, hash, true) end)
-                        return
-                    end
-                    Reject(guide, hash, status)
-                end
-                ImportNext(rxp)
-            end
-            C_Timer.After(1, WaitForIdle)
-        end
-
-        local function Start(rxp, attempts)
-            local _, tag = BNGetInfo()
-            playerTag = tag
-            if tag then
-                ImportNext(rxp)
-            elseif attempts < 6 then
-                C_Timer.After(5, function() Start(rxp, attempts + 1) end)
-            else
-                local message = "Battle.net is not connected, so no guides were imported. Open your friends list to check, make sure the Battle.net desktop app is up to date and connected, then /reload."
-                Say(message)
-                for _, guide in ipairs(guides) do
-                    local hash = Hash(guide.text)
-                    if hash then
-                        StewardGuidesDB.status[hash] = message
-                    end
-                end
-            end
-        end
-
-        local function Begin(rxp, attempts)
-            if rxp.guideImporter and rxp.guideImporter.ImportString and rxp.settings and rxp.settings.profile then
-                Start(rxp, 0)
-            elseif attempts < 6 then
-                C_Timer.After(5, function() Begin(rxp, attempts + 1) end)
-            else
-                Say("RXPGuides is not initialised; guides skipped")
-            end
-        end
-
-        frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-        frame:SetScript("OnEvent", function(self)
-            self:UnregisterAllEvents()
-            StewardGuidesDB = StewardGuidesDB or { imported = {}, status = {} }
-            StewardGuidesDB.imported = StewardGuidesDB.imported or {}
-            StewardGuidesDB.status = StewardGuidesDB.status or {}
-            StewardGuidesDB.keys = StewardGuidesDB.keys or {}
-            StewardGuidesDB.generation = generation
-            C_Timer.After(3, function()
-                local rxp = LibStub("AceAddon-3.0"):GetAddon("RXPGuides", true)
-                if not rxp then
-                    Say("RXPGuides importer not found; nothing imported")
-                    return
-                end
-                Begin(rxp, 0)
-            end)
-        end)
-
-        local addonName = ...
-        C_ChatInfo.RegisterAddonMessagePrefix("HoobiVersion")
-        local versionFrame = CreateFrame("Frame")
-        versionFrame:RegisterEvent("CHAT_MSG_ADDON")
-        versionFrame:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
-            if prefix ~= "HoobiVersion" or text ~= "ping" then return end
-            C_ChatInfo.SendAddonMessage("HoobiVersion", addonName .. "=" .. (C_AddOns.GetAddOnMetadata(addonName, "Version") or "?"), "WHISPER", sender)
-        end)
-
-        """;
-
-    // Bootstrap is a raw string literal, so its newlines follow the source checkout's line endings; normalise so every build hashes and renders the same bytes.
-    private static readonly string NormalizedBootstrap = Bootstrap.ReplaceLineEndings("\n");
-    private static readonly string BootstrapHash = Sha256Hex(NormalizedBootstrap);
-
-    public static string Toc(string interfaceNumbers) => string.Join('\n',
-        $"## Interface: {interfaceNumbers}",
-        TitleLine,
-        "## Group: RXPGuides",
-        "## Notes: Purchased RestedXP guides, kept current by the Steward desktop app, with no settings of its own.",
-        AuthorLine,
-        @"## IconTexture: Interface\AddOns\StewardGuides\Icon",
-        "## Dependencies: RXPGuides",
-        "## SavedVariables: StewardGuidesDB",
-        $"## Version: {Version()}",
-        string.Empty,
-        "Guides.lua",
-        string.Empty);
+    private const string TitleLine = "## Title: Steward: Guides";
 
     public static string? Hash(string guide)
     {
@@ -271,7 +34,7 @@ public static partial class StewardGuidesAddon
     {
         ArgumentNullException.ThrowIfNull(guides);
 
-        var body = new StringBuilder("local guides = {\n");
+        var after = new StringBuilder("local guides = {\n");
         foreach (var (name, text, tag, updatedAt) in guides)
         {
             if (text.Contains(Terminator, StringComparison.Ordinal))
@@ -279,33 +42,24 @@ public static partial class StewardGuidesAddon
                 throw new InvalidOperationException($"{name} contains the long-bracket terminator {Terminator}");
             }
 
-            body.Append("    { name = \"").Append(Quote(name)).Append("\", text = [==[").Append(text.Trim()).Append("]==]");
+            after.Append("    { name = \"").Append(Quote(name)).Append("\", text = [==[").Append(text.Trim()).Append("]==]");
             if (tag is not null)
             {
-                body.Append(", tag = \"").Append(Quote(tag)).Append('"');
+                after.Append(", tag = \"").Append(Quote(tag)).Append('"');
             }
 
-            body.Append(", updatedAt = ").Append(updatedAt.ToString(CultureInfo.InvariantCulture)).Append(" },\n");
+            after.Append(", updatedAt = ").Append(updatedAt.ToString(CultureInfo.InvariantCulture)).Append(" },\n");
         }
 
-        body.Append("}\n");
-
-        var after = new StringBuilder("local bootstrap = \"")
-            .Append(BootstrapHash)
-            .Append("\"\n")
-            .Append(body)
-            .Append(NormalizedBootstrap)
-            .ToString();
-
-        var fingerprint = Sha256Hex(after);
+        after.Append("}\nlocal _, ns = ...\nns.generation = generation\nns.guides = guides\n");
+        var afterText = after.ToString();
 
         return new StringBuilder("local generation = ")
             .Append(generation.ToString(CultureInfo.InvariantCulture))
-            .Append('\n')
-            .Append("local fingerprint = \"")
-            .Append(fingerprint)
+            .Append("\nlocal fingerprint = \"")
+            .Append(Sha256Hex(afterText))
             .Append("\"\n")
-            .Append(after)
+            .Append(afterText)
             .ToString()
             .ReplaceLineEndings("\n");
     }
@@ -314,9 +68,6 @@ public static partial class StewardGuidesAddon
         string addOnsPath, IReadOnlyList<(string Name, string Text, string? Tag, long UpdatedAt)> guides, long generation, bool force = false)
     {
         var lua = Render(guides, generation);
-        var rxpTocPath = Path.Combine(addOnsPath, "RXPGuides", "RXPGuides.toc");
-        var toc = Toc(TocFile.ReadDirective(rxpTocPath, "Interface")
-            ?? throw new InvalidOperationException($"{rxpTocPath} has no ## Interface line; RXPGuides must be installed first"));
 
         var folder = Path.GetFullPath(Path.Combine(addOnsPath, FolderName));
         if (folder.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
@@ -325,43 +76,33 @@ public static partial class StewardGuidesAddon
             throw new InvalidOperationException($"refusing to write a path containing a WTF segment: {folder}");
         }
 
-        if (!force && Inspect(folder, toc, guides) is { } existing)
+        var tocPath = Path.Combine(folder, $"{FolderName}.toc");
+        if (!File.Exists(tocPath) || !File.ReadAllLines(tocPath).Contains(TitleLine, StringComparer.Ordinal))
+        {
+            return new StewardGuidesWriteResult(StewardGuidesWriteOutcome.NotInstalled, generation);
+        }
+
+        var guidesPath = Path.Combine(folder, "Guides.lua");
+        if (!force && Inspect(guidesPath, guides) is { } existing)
         {
             return existing;
         }
 
-        if (Directory.Exists(folder))
-        {
-            var tocPath = Path.Combine(folder, $"{FolderName}.toc");
-            if (!File.Exists(tocPath) || !IsOurs(File.ReadAllLines(tocPath)))
-            {
-                throw new InvalidOperationException($"{folder} was not written by Steward; refusing to replace it");
-            }
-
-            Directory.Delete(folder, recursive: true);
-        }
-
-        Directory.CreateDirectory(folder);
-        WriteFile(Path.Combine(folder, $"{FolderName}.toc"), Encoding.UTF8.GetBytes(toc));
-        WriteFile(Path.Combine(folder, "Icon.tga"), Icon());
-        WriteFile(Path.Combine(folder, "Guides.lua"), Encoding.UTF8.GetBytes(lua));
+        var tempPath = guidesPath + ".tmp";
+        File.WriteAllBytes(tempPath, Encoding.UTF8.GetBytes(lua));
+        File.Move(tempPath, guidesPath, overwrite: true);
         return new StewardGuidesWriteResult(StewardGuidesWriteOutcome.Written, generation);
     }
 
     private static StewardGuidesWriteResult? Inspect(
-        string folder, string toc, IReadOnlyList<(string Name, string Text, string? Tag, long UpdatedAt)> guides)
+        string guidesPath, IReadOnlyList<(string Name, string Text, string? Tag, long UpdatedAt)> guides)
     {
-        var guidesPath = Path.Combine(folder, "Guides.lua");
-        var tocPath = Path.Combine(folder, $"{FolderName}.toc");
-        var iconPath = Path.Combine(folder, "Icon.tga");
-        if (!File.Exists(guidesPath) || !File.Exists(tocPath) || !File.Exists(iconPath)
-            || !File.ReadAllBytes(iconPath).AsSpan().SequenceEqual(Icon()))
+        if (!File.Exists(guidesPath))
         {
             return null;
         }
 
-        var existingLua = File.ReadAllText(guidesPath);
-        var header = HeaderLine().Match(existingLua);
+        var header = HeaderLine().Match(File.ReadAllText(guidesPath));
         if (!header.Success)
         {
             return null;
@@ -374,18 +115,7 @@ public static partial class StewardGuidesAddon
             return new StewardGuidesWriteResult(StewardGuidesWriteOutcome.ChangedOnDisk, generation);
         }
 
-        if (!string.Equals(header.Groups["bootstrap"].Value, BootstrapHash, StringComparison.OrdinalIgnoreCase)
-            || !EntriesMatch(after, guides))
-        {
-            return null;
-        }
-
-        if (!string.Equals(WithoutVersion(File.ReadAllText(tocPath)), WithoutVersion(toc), StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        return new StewardGuidesWriteResult(StewardGuidesWriteOutcome.Skipped, generation);
+        return EntriesMatch(after, guides) ? new StewardGuidesWriteResult(StewardGuidesWriteOutcome.Skipped, generation) : null;
     }
 
     private static bool EntriesMatch(
@@ -398,13 +128,10 @@ public static partial class StewardGuidesAddon
         return onDisk.SetEquals(wanted);
     }
 
-    private static string WithoutVersion(string toc) => string.Join('\n', toc.ReplaceLineEndings("\n").Split('\n')
-        .Where(line => !line.StartsWith("## Version:", StringComparison.Ordinal)));
-
     private static string Sha256Hex(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
     [GeneratedRegex(
-        """^local generation = (?<generation>\d+)\nlocal fingerprint = "(?<fingerprint>[0-9a-f]{64})"\n(?<after>local bootstrap = "(?<bootstrap>[0-9a-f]{64})"\n.*)""",
+        """^local generation = (?<generation>\d+)\nlocal fingerprint = "(?<fingerprint>[0-9a-f]{64})"\n(?<after>local guides = \{\n.*)""",
         RegexOptions.Singleline)]
     private static partial Regex HeaderLine();
 
@@ -416,29 +143,6 @@ public static partial class StewardGuidesAddon
     private static string Quote(string value) =>
         value.Replace(@"\", @"\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
 
-    private static bool IsOurs(string[] tocLines) =>
-        tocLines.Contains(TitleLine, StringComparer.Ordinal) && tocLines.Contains(AuthorLine, StringComparer.Ordinal);
-
-    private static void WriteFile(string target, byte[] content)
-    {
-        var tempPath = target + ".tmp";
-        File.WriteAllBytes(tempPath, content);
-        File.Move(tempPath, target, overwrite: true);
-    }
-
-    private static byte[] Icon()
-    {
-        using var stream = typeof(StewardGuidesAddon).Assembly.GetManifestResourceStream("Steward.Core.Assets.Icon.tga")
-            ?? throw new InvalidOperationException("Steward.Core.Assets.Icon.tga is missing from the assembly");
-        using var buffer = new MemoryStream();
-        stream.CopyTo(buffer);
-        return buffer.ToArray();
-    }
-
     [GeneratedRegex(@"^\s*\d+\|([^:]+):")]
     private static partial Regex GuideHeader();
-
-    private static string Version() =>
-        typeof(StewardGuidesAddon).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            .Split('+')[0] ?? "0.0.0";
 }

@@ -655,6 +655,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             row.NeedsRestedXpSignIn = !RestedXp.IsSignedIn;
             row.HasGuidesFeature = HasGuidesFeature;
         }
+
+        foreach (var install in Installs)
+        {
+            var allowed = RestedXp.IsSignedIn && HasRestedXp(install);
+            foreach (var row in install.AddonRows.Where(row => string.Equals(row.AddonId, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase)))
+            {
+                row.IsInstallGated = !allowed;
+            }
+        }
     }
 
     private async Task CheckGuidesAsync()
@@ -2848,7 +2857,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ConfirmUninstallAsync,
             install => _ = ConfirmRemoveInstallAsync(install.FlavourPath),
             OnClientExited,
-            wowInstall => AfterStewardInstalled?.Invoke(wowInstall) ?? Task.CompletedTask,
+            (addonId, wowInstall) => string.Equals(addonId, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase)
+                ? RestedXp.RewriteAfterInstallAsync(wowInstall)
+                : AfterStewardInstalled?.Invoke(wowInstall) ?? Task.CompletedTask,
             _logger)
         {
             IsAddedByUser = isAddedByUser,
@@ -2870,6 +2881,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             install.SyncHidden(hidden);
         }
 
+        SyncRestedXpRows();
         RecomputeSummary();
     }
 

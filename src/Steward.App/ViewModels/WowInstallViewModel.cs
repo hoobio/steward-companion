@@ -43,7 +43,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Func<bool> _isCurseForgeEnabled;
     private readonly Action<string> _changeChannelRequested;
     private readonly Func<string, string, string, Task<bool>> _confirmUninstall;
-    private readonly Func<WowInstall, Task> _afterStewardInstalled;
+    private readonly Func<string, WowInstall, Task> _afterStewardInstalled;
     private readonly ILogger _logger;
 
     private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
@@ -70,7 +70,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         Func<string, string, string, Task<bool>> confirmUninstall,
         Action<WowInstallViewModel> remove,
         Action<WowInstallViewModel> clientExited,
-        Func<WowInstall, Task> afterStewardInstalled,
+        Func<string, WowInstall, Task> afterStewardInstalled,
         ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(install);

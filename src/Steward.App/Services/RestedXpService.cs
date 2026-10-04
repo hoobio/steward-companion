@@ -19,6 +19,7 @@ public enum GuideSyncOutcome
     Rejected,
     Unfinished,
     ChangedOnDisk,
+    NotInstalled,
 }
 
 public sealed record GuideSyncResult(GuideSyncOutcome Outcome, DateTimeOffset UpdatedAt, string? Error = null);
@@ -311,9 +312,20 @@ public sealed class RestedXpService : IDisposable
             {
                 StewardGuidesWriteOutcome.Written => "written",
                 StewardGuidesWriteOutcome.ChangedOnDisk => "changed on disk",
+                StewardGuidesWriteOutcome.NotInstalled => "not installed",
                 _ => "skipped, unchanged",
             };
             _logger.Info($"StewardGuides {descriptor} for {install.FlavourPath}, {strings.Count} product(s)");
+            if (writeResult.Outcome is StewardGuidesWriteOutcome.NotInstalled)
+            {
+                foreach (var (productName, _, _, _) in strings)
+                {
+                    results[productName] = new GuideSyncResult(
+                        GuideSyncOutcome.NotInstalled, DateTimeOffset.FromUnixTimeMilliseconds(serverTimestamps[productName]));
+                }
+
+                return results;
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {

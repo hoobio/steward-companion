@@ -650,6 +650,15 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         await SyncAsync(card).ConfigureAwait(true);
     }
 
+    public async Task RewriteAfterInstallAsync(WowInstall install)
+    {
+        var card = Guides.FirstOrDefault(card => string.Equals(card.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase));
+        if (card is not null && IsSignedIn && card.SelectedProducts.Count > 0)
+        {
+            await SyncAsync(card).ConfigureAwait(true);
+        }
+    }
+
     [RelayCommand]
     private async Task WriteAgainAsync()
     {
@@ -733,6 +742,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         { Outcome: GuideSyncOutcome.Unfinished } => GuideRowState.Unfinished,
         { Outcome: GuideSyncOutcome.ChangedOnDisk } => GuideRowState.ChangedOnDisk,
         { Error: not null } => GuideRowState.Failed,
+        { Outcome: GuideSyncOutcome.NotInstalled } => GuideRowState.None,
         { Outcome: GuideSyncOutcome.UpToDate } => GuideRowState.InGame,
         { Outcome: GuideSyncOutcome.Written } => GuideRowState.Written,
         { Outcome: GuideSyncOutcome.NeedsNewerAddon } => GuideRowState.NeedsNewerAddon,

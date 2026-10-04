@@ -113,6 +113,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(Channel),
         nameof(HasFailed),
         nameof(UpdateProgress),
+        nameof(IsInstallGated),
     ];
 
     private IReadOnlyList<AddonRowViewModel> _children = [];
@@ -125,7 +126,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     private readonly Action<string> _changeChannelRequested;
     private readonly Func<string, string, Task<bool>> _confirmUninstall;
     private readonly Func<string, string?> _outOfDateTip;
-    private readonly Func<WowInstall, Task> _afterStewardInstalled;
+    private readonly Func<string, WowInstall, Task> _afterStewardInstalled;
     private readonly Action? _unmanage;
     private readonly ILogger _logger;
 
@@ -143,7 +144,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         Action<string> changeChannelRequested,
         Func<string, string, Task<bool>> confirmUninstall,
         Func<string, string?> outOfDateTip,
-        Func<WowInstall, Task> afterStewardInstalled,
+        Func<string, WowInstall, Task> afterStewardInstalled,
         Action? unmanage,
         ILogger logger)
     {
@@ -199,6 +200,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public string? FolderTip => _children.Count == 0 ? null : $"Includes {string.Join(", ", _children.Select(child => $"{child.DisplayName} ({child.FolderName})"))}";
 
     public bool IsFolded { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsInstallGated { get; set; }
 
     public void SetChildren(IReadOnlyList<AddonRowViewModel> children)
     {
@@ -321,7 +325,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         HasOwnUpdate, IsInstalled, RolledUpChildren.Select(child => (child.IsInstalled, child.HasOwnUpdate)));
 
     private IEnumerable<AddonRowViewModel> RolledUpChildren =>
-        _children.Where(child => AddonGroups.IsRolledUp(child.IsDistributable, child.IsHidden, child.IsIgnored));
+        _children.Where(child => !child.IsInstallGated && AddonGroups.IsRolledUp(child.IsDistributable, child.IsHidden, child.IsIgnored));
 
     private bool HasOwnUpdate =>
         _status?.Release is { } release && Channel is not null && TocFile.HasUpdate(release.Version, InstalledVersion);
@@ -715,9 +719,10 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             ReloadPendingSince = DateTimeOffset.Now;
             NeedsReload = IsClientRunning;
 
-            if (string.Equals(AddonId, StewardSavedVariables.AddonName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(AddonId, StewardSavedVariables.AddonName, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(AddonId, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase))
             {
-                await _afterStewardInstalled(_install).ConfigureAwait(true);
+                await _afterStewardInstalled(AddonId, _install).ConfigureAwait(true);
             }
         }
         catch (Exception ex)
