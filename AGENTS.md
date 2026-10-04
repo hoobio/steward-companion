@@ -122,6 +122,8 @@ A push to `main` runs release-please and lint and tests only. A Store pre-releas
 
 ## Build and test gotchas
 
+Tests are fast by rule. The Core suite (about 800 tests) runs in about 2 seconds, and a new test keeps it there: no `Thread.Sleep`/`Task.Delay` waits, no real network, no real WoW or `%LocalAppData%` paths (temp directories only), and no per-test setup heavier than building the object under test. A test that needs time passing uses an injected clock or timestamp, not a wait. While iterating, run the affected test class (`--filter-class` or `--filter`); the whole suite runs once before pushing. steward-server's integration tests follow the same rule, set out in its AGENTS.md.
+
 `Steward.slnx` defines no `Release|x64` solution configuration, so a solution-level `dotnet build` must not pass `-p:Platform=x64`; the CI workflow builds the solution without it and passes `-p:Platform=x64` only on the project-level `dotnet publish` of `Steward.App.csproj`.
 
 `global.json` pins the SDK to `10.0.203` with `rollForward: disable`, because `DOTNET_SDK_VERSION` in the workflow only says what `setup-dotnet` installs and the runner image ships newer SDKs that `dotnet` would otherwise pick; it also sets `test.runner` to `Microsoft.Testing.Platform`. The publish step retries up to three times, since NuGet restore on the runner can fail with a bare MSB4181 "RestoreTask returned false but did not log an error" and no cause (NuGet/Home#13460), as it did twice on 20 Sep 2026. On .NET SDK 10.0.203, `dotnet test <directory>` fails under that runner; the working form is `dotnet test --project <csproj>`, which is what the CI workflow uses.
