@@ -112,7 +112,7 @@ A packaged full-trust app's writes under `%LocalAppData%` are virtualised only f
 
 ## Git workflow
 
-Commits go straight to `main` in the one working tree at `D:\steward-companion` and are pushed there; this repo uses no feature branches, no worktrees and no pull requests for its own work, and a subagent edits `main` in place. Conventional-commit subjects feed release-please, which opens the release PR itself.
+Commits go straight to `main` in the one working tree at `D:\steward-companion` and are pushed there; this repo uses no feature branches, no worktrees and no pull requests for its own work, and a subagent edits `main` in place. Conventional-commit subjects feed release-please, which opens the release PR itself. A session or subagent that does create a branch or worktree must delete it, locally and on origin, once its work is on `main` or abandoned and before it finishes; a branch or worktree found with no live owner is merged to `main` or deleted rather than left behind.
 
 A push to `main` runs release-please and lint and tests only. A Store pre-release flight build for testers is a manual run of the `Build & Release` workflow (`gh workflow run build.yaml --ref main`), since each flight submission deletes the one still in certification and restarts certification from zero, which takes hours; a release-please release run builds and submits on its own. A change is built, tested and, where it is visible, UI-verified locally before it is pushed.
 
@@ -279,7 +279,7 @@ Read `D:\Steward\AGENTS.md` and `D:\HoobiScripts\AGENTS.md` for the addon-side c
 - `hoobio/gigagrug` (private, local clone `D:\gigagrug`): the Discord bot. It serves nothing this app uses; steward-server calls its internal control API for the bot controls only.
 - `steward-server` (ADO Hoobi/Hoobi, local clone `D:\steward-server`): the .NET 10 services behind `api.hoobi.io/guild`, owning every route this app calls: auth, `/api/me`, the admin and guild routes, sync, banners, and (in `steward-integrations`) the CurseForge proxy and the RestedXP GitHub mirror. New server-side work for this app goes to steward-server. Read `D:\steward-server\AGENTS.md` before changing anything that crosses into it.
 
-Both addon repos work on a `develop` branch (the local clones sit on it), fast-forward `main` for a pre-release and merge the release-please PR for a release; their version history was reset to 0.0.0 on 2026-09-20, so neither has a `release` build until a `feat` lands on `main` and its release PR is merged.
+Both addon repos commit and push straight to `main`, where every push publishes a pre-release, and merge the release-please PR for a release; their version history was reset to 0.0.0 on 2026-09-20, so neither has a `release` build until a `feat` lands on `main` and its release PR is merged.
 - `RestedXP/RXPGuides` (public GitHub): the levelling guide addon, managed through steward-server's mirror of its GitHub releases as described under Managed addons. Their paid guide API is documented in `docs/design/restedxp-guides.md`, and the page that drives it in `docs/design/guides-page.md`.
 - `hoobio/addons` (private, local clone `D:\addons`): builds the channel manifests and zips this app reads, and publishes them to the Static Web App. It also mirrors this repo's own releases as `/steward-companion/latest-{channel}.json`, which is where the self-update check looks.
 
