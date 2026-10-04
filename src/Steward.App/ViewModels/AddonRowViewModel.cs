@@ -300,7 +300,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Action? RestedXpSignInRequested { get; set; }
 
-    public Visibility RestedXpSignInVisibility => When(NeedsRestedXpSignIn && IsInstalled && !IsHidden && HasGuidesFeature);
+    public Visibility RestedXpSignInVisibility => When(
+        NeedsRestedXpSignIn && IsInstalled && !IsHidden && HasGuidesFeature
+        && ActionVisibility == Visibility.Collapsed && State != AddonRowState.Failed);
 
     public bool IsClientRunning { get; set; }
 
