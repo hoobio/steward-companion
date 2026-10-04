@@ -731,17 +731,29 @@
                     </Grid>
                 </Border>
 
-                <InfoBar
-                    Severity="Error"
-                    IsClosable="False"
+                <Border
                     CornerRadius="8"
-                    IsOpen="{x:Bind ViewModel.StatusMessageIsOpen, Mode=OneWay}"
-                    Visibility="{x:Bind ViewModel.StatusMessageIsOpen, Mode=OneWay}"
-                    Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}">
-                    <InfoBar.ActionButton>
-                        <Button Content="{x:Bind ViewModel.StatusActionLabel, Mode=OneWay}" Command="{x:Bind ViewModel.StatusActionCommand}" Visibility="{x:Bind ViewModel.StatusActionVisibility, Mode=OneWay}" />
-                    </InfoBar.ActionButton>
-                </InfoBar>
+                    Padding="12,8"
+                    Background="{ThemeResource CriticalTintBrush}"
+                    Visibility="{x:Bind ViewModel.StatusMessageIsOpen, Mode=OneWay}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon VerticalAlignment="Center" Glyph="&#xE783;" FontSize="16" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                        <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" />
+                        <Button
+                            Grid.Column="2"
+                            Height="28"
+                            Padding="10,0"
+                            VerticalAlignment="Center"
+                            Content="{x:Bind ViewModel.StatusActionLabel, Mode=OneWay}"
+                            Command="{x:Bind ViewModel.StatusActionCommand}"
+                            Visibility="{x:Bind ViewModel.StatusActionVisibility, Mode=OneWay}" />
+                    </Grid>
+                </Border>
 
                 <Grid ColumnSpacing="10">
                     <Grid.ColumnDefinitions>
