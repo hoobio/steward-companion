@@ -51,6 +51,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(InstalledRunText),
         nameof(NotInstalledRunText),
         nameof(VersionPairTip),
+        nameof(VersionButtonTip),
         nameof(InstalledVersionShort),
         nameof(AvailableVersionShort),
         nameof(ReleasedText),
@@ -253,7 +254,10 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public string? AvailableVersionShort => ShortVersion(AvailableVersion);
 
-    private static string? ShortVersion(string? version) => version?.Replace("-pre-release.", "-", StringComparison.Ordinal);
+    private string? ShortVersion(string? version) => VersionLabel.For(version, FolderName);
+
+    public string VersionButtonTip => string.Join("\n", new[] { InstalledVersion, AvailableVersion }
+        .Where(version => version is not null && version != ShortVersion(version)).Distinct().Append("Changelog"));
 
     [ObservableProperty]
     public partial string? Channel { get; set; }
@@ -463,7 +467,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public bool HasChangelog =>
         Changelog.Count > 0 && (VersionPairVisibility == Visibility.Visible || CurrentVersionVisibility == Visibility.Visible);
 
-    public string ChangelogTitle => $"{DisplayName} {AvailableVersion}";
+    public string ChangelogTitle => $"{DisplayName} {AvailableVersionShort}";
 
     [ObservableProperty]
     public partial DateTimeOffset? LastUpdated { get; private set; }

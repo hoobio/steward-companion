@@ -185,7 +185,7 @@
                             Padding="4,2"
                             IsEnabled="{x:Bind HasChangelog, Mode=OneWay}"
                             AutomationProperties.Name="Changelog"
-                            ToolTipService.ToolTip="Changelog"
+                            ToolTipService.ToolTip="{x:Bind VersionButtonTip, Mode=OneWay}"
                             Tag="{x:Bind}"
                             Click="OnChangelogClick">
                             <Button.Resources>
