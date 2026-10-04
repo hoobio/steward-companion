@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.20.0](https://github.com/hoobio/steward-companion/compare/v0.19.0...v0.20.0) (2026-10-04)
+
+
+### Features
+
+* ✨ push characters to steward-sync's canonical /api/sync/{guild}/characters route ([ab92cc8](https://github.com/hoobio/steward-companion/commit/ab92cc8ca2798035766a8829d4f705de1dc58711))
+
+
+### Bug Fixes
+
+* 🐛 drop the addon name and .zip from version labels, keeping the original in the tooltip ([25cb367](https://github.com/hoobio/steward-companion/commit/25cb367d9a30b489bef322c0b24ea9cd421e860b))
+* 🐛 fall back to substring matching in the addon filter when no name matches at a word start ([dd57238](https://github.com/hoobio/steward-companion/commit/dd57238e98add42a5a05a28b5a84c2685d24ed91))
+* 🐛 fetch CurseForge updates no more than a minute old on Refresh, keeping the longer cache for background checks ([794cbaa](https://github.com/hoobio/steward-companion/commit/794cbaa8cf26a258e929040da675746b2e87048d))
+* 🐛 fit addon table columns to their content, ignoring outlier names, and collapse Channel and Source only when they do not fit ([5e085ac](https://github.com/hoobio/steward-companion/commit/5e085ac938ef7d12cc551847e6089c3b5c37c45f))
+* 🐛 forward the signed character and guild rank fingerprints on every sync push ([2ea6ab6](https://github.com/hoobio/steward-companion/commit/2ea6ab66d7c1d50739a29534ef01f7ed50b2f0e6))
+* 🐛 highlight the part of an addon name that matches the filter ([3ca47cd](https://github.com/hoobio/steward-companion/commit/3ca47cd84552cf6c2742fb96a0be6fffe80ac465))
+* 🐛 keep automatic relaunches (Store update restart, Start with Windows) from taking focus ([5057d81](https://github.com/hoobio/steward-companion/commit/5057d81aa31d846d60e027029ddb57755baf8696))
+* 🐛 leave signed fingerprints out of the push gate so a /reload with no data change pushes nothing ([861f18a](https://github.com/hoobio/steward-companion/commit/861f18ae71823fe3335e99756817a934c77c113d))
+* 🐛 load the tray icon before adding it so it shows on Windows 10 ([28644ba](https://github.com/hoobio/steward-companion/commit/28644baae2e93496845d710b51d72b1c66fb590d))
+* 🐛 match the addon filter at word starts so "res" no longer finds RareScanner ([a32b6ab](https://github.com/hoobio/steward-companion/commit/a32b6ab467887b0f2fa7e795e2866aba387281e7))
+* 🐛 put the Addons error bar's action button on the right ([d0524a3](https://github.com/hoobio/steward-companion/commit/d0524a3f462c53e005bb9cbee0c4570bcf38bb35))
+* 🐛 read Included with the addon on the Base guides row ([74186a3](https://github.com/hoobio/steward-companion/commit/74186a3fd1a29889f3ff2a23c718d5552b73e028))
+* 🐛 regenerate Steward Guides when any TOC line besides its version changes ([5315a74](https://github.com/hoobio/steward-companion/commit/5315a74166e98dc1f41f5cb849dd2b748e0b5eff))
+* 🐛 retry an operation that failed with a 5xx with backoff, clear the error once it succeeds and offer Retry on the bar ([5059a65](https://github.com/hoobio/steward-companion/commit/5059a65294dcda5c29aaa848d524aaa629dc0300))
+* 🐛 retry refused connections and timeouts behind the unavailable bar on the shared backoff ([d93dd7e](https://github.com/hoobio/steward-companion/commit/d93dd7e78eb8c9c159d72f647e06338b3d190b59))
+* 🐛 retry transient failures with capped backoff, clear their banners on recovery and drop gigagrug from the app ([a3eb9f1](https://github.com/hoobio/steward-companion/commit/a3eb9f1803f69c5df92f164398f250819fb80049))
+* 🐛 share the leftover Addons table width between Name and Version by content need ([e2a6c93](https://github.com/hoobio/steward-companion/commit/e2a6c93e4a194a9cc55e4a80db8c9d5a5bc4195b))
+* 🐛 show "Steward APIs are temporarily unavailable" for a 5xx and clear it once the next check succeeds ([5cdc11b](https://github.com/hoobio/steward-companion/commit/5cdc11bb9db4260b50a6efaacffa10574174189e))
+* 🐛 show addon update progress as a bar along the row's bottom edge instead of growing the row ([d2183a1](https://github.com/hoobio/steward-companion/commit/d2183a1ac49419d486a93136df6065985b4bcf7b))
+* 🐛 show BugSack and BugGrabber from CurseForge and hide Local rows while CurseForge is off ([17412d1](https://github.com/hoobio/steward-companion/commit/17412d108392cf2b70d0ab8d35ad47375e25f5fa))
+* 🐛 show the guides that ship with RXPGuides as an always-on Base guides row on the Guides page ([924a057](https://github.com/hoobio/steward-companion/commit/924a057e007d422e74cbcf5444805ce3f8ae115f))
+* 🐛 show Update instead of Sign in to RestedXP when the RestedXP row has an update ([55beb02](https://github.com/hoobio/steward-companion/commit/55beb02ded7b824e99ce0f425a5140828bfe64b8))
+* 🐛 size Addons table columns from their content and drop column resizing ([649bff2](https://github.com/hoobio/steward-companion/commit/649bff2c1398b79631a17d8592839c60d53a936b))
+* 🐛 skip RestedXP guide imports RXPGuides already has loaded and nest Steward Guides under RXPGuides ([792a6df](https://github.com/hoobio/steward-companion/commit/792a6df078ce24d0e0807f6289f0e3958aba4d07))
+
 ## [0.19.0](https://github.com/hoobio/steward-companion/compare/v0.18.5...v0.19.0) (2026-10-02)
 
 
