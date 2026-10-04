@@ -216,15 +216,13 @@ public sealed class CharacterGearTests
     }
 
     [Fact]
-    public void Fingerprint_ChangesWhenGearChanges_AndIgnoresObservedAt()
+    public void Fingerprint_ChangesWhenGearChanges_AndIgnoresObservedAtAndFp()
     {
         var professions = new Dictionary<string, CharacterProfessions>();
         var baseline = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear()));
-        var restamped = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear() with { ObservedAt = 1790999999 }));
-        var changed = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear() with { Fp = "cd7ea981" }));
+        var restamped = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear() with { ObservedAt = 1790999999, Fp = "cd7ea981" }));
 
         Assert.Equal(baseline, restamped);
-        Assert.NotEqual(baseline, changed);
         Assert.NotEqual(baseline, CharacterSyncMapping.Fingerprint([Hoobi], professions));
     }
 
@@ -236,7 +234,7 @@ public sealed class CharacterGearTests
         var last = new Dictionary<string, CharacterPushRecord> { ["key"] = new(pushed, DateTimeOffset.UnixEpoch, 1) };
 
         var unchanged = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear()));
-        var changed = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear() with { Fp = "cd7ea981" }));
+        var changed = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear() with { Bags = [] }));
 
         Assert.False(CharacterPushGate.ShouldPush(unchanged, last, "key"));
         Assert.True(CharacterPushGate.ShouldPush(changed, last, "key"));
@@ -262,7 +260,7 @@ public sealed class CharacterGearTests
 
         Assert.False(ProfessionsPushSelection.Select([Hoobi, Grug], professions, catalogue, last, null, null, false, gear).HasWork);
 
-        var changed = new Dictionary<string, CharacterGear> { [Guid] = SampleGear() with { Fp = "cd7ea981" } };
+        var changed = new Dictionary<string, CharacterGear> { [Guid] = SampleGear() with { Bags = [] } };
         var plan = ProfessionsPushSelection.Select([Hoobi, Grug], professions, catalogue, last, null, null, false, changed);
 
         Assert.Equal(Guid, Assert.Single(plan.Characters).CharacterGuid);

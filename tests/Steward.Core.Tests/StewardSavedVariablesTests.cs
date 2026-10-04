@@ -675,8 +675,8 @@ public sealed class StewardSavedVariablesTests : IDisposable
 
         Assert.Equal("10f9ae4a", entry.GetProperty("fp").GetString());
         Assert.Equal("5330ac56", ranks.GetProperty("fp").GetString());
-        Assert.NotEqual(snapshot.CharactersFingerprint, CharacterSyncMapping.Fingerprint([character with { Fp = "deadbeef" }], snapshot.Professions, snapshot.Catalogue, snapshot.GuildRanks));
-        Assert.NotEqual(snapshot.CharactersFingerprint, CharacterSyncMapping.Fingerprint(snapshot.Characters, snapshot.Professions, snapshot.Catalogue, snapshot.GuildRanks! with { Fp = "deadbeef" }));
+        Assert.Equal(snapshot.CharactersFingerprint, CharacterSyncMapping.Fingerprint([character with { Fp = "deadbeef" }], snapshot.Professions, snapshot.Catalogue, snapshot.GuildRanks));
+        Assert.Equal(snapshot.CharactersFingerprint, CharacterSyncMapping.Fingerprint(snapshot.Characters, snapshot.Professions, snapshot.Catalogue, snapshot.GuildRanks! with { Fp = "deadbeef" }));
     }
 
     [Theory]

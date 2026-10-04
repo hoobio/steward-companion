@@ -526,7 +526,7 @@ public static class CharacterSyncMapping
         myUserId is not null
         && string.Equals(EffectiveLinkedUserId(observation, rosterCharacters), myUserId, StringComparison.Ordinal);
 
-    // observedAt and scannedAt are left out, but each signed fp covers them, so a restamp alone still changes this fingerprint.
+    // observedAt, scannedAt and every fp are left out: each fp signs its timestamp, so keeping them would push on every restamp.
     public static string Fingerprint(
         IReadOnlyList<CharacterObservation> characters,
         IReadOnlyDictionary<string, CharacterProfessions> professions,
@@ -540,9 +540,9 @@ public static class CharacterSyncMapping
             string.Empty,
             string.Empty,
             [.. characters.OrderBy(c => c.CharacterGuid, StringComparer.Ordinal)
-                .Select(c => ToEntry(c with { ObservedAt = null }, canonicalProfessions, canonicalGear))],
-            catalogue is null or { Count: 0 } ? null : Sorted(catalogue, entry => entry with { ScannedAt = null }),
-            guildRanks is null ? null : ToSync(guildRanks) with { ObservedAt = null });
+                .Select(c => ToEntry(c with { ObservedAt = null, Fp = null }, canonicalProfessions, canonicalGear))],
+            catalogue is null or { Count: 0 } ? null : Sorted(catalogue, entry => entry with { ScannedAt = null, Fp = null }),
+            guildRanks is null ? null : ToSync(guildRanks) with { ObservedAt = null, Fp = null });
         return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonical, CompanionJsonContext.Default.CharacterSyncRequest)));
     }
 
@@ -563,10 +563,11 @@ public static class CharacterSyncMapping
     private static CharacterProfessions Canonical(CharacterProfessions professions) => professions with
     {
         ObservedAt = null,
+        Fp = null,
         Recipes = professions.Recipes is null ? null : Sorted(professions.Recipes, ids => ids),
     };
 
-    private static CharacterGear Canonical(CharacterGear gear) => gear with { ObservedAt = null };
+    private static CharacterGear Canonical(CharacterGear gear) => gear with { ObservedAt = null, Fp = null };
 
     private static SortedDictionary<string, T> Sorted<T>(IReadOnlyDictionary<string, T> source, Func<T, T> canonicalise) =>
         new(source.ToDictionary(entry => entry.Key, entry => canonicalise(entry.Value), StringComparer.Ordinal), StringComparer.Ordinal);

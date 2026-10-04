@@ -91,17 +91,17 @@ public sealed class CharacterProfessionsTests
     }
 
     [Fact]
-    public void Fingerprint_ChangesWhenFpChanges()
+    public void Fingerprint_IgnoresFp()
     {
         var observation = new CharacterObservation(
             "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
 
         var withOneFp = CharacterSyncMapping.Fingerprint(
-            [observation], new Dictionary<string, CharacterProfessions> { ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null, "a1b2c3d4") });
+            [observation with { Fp = "11111111" }], new Dictionary<string, CharacterProfessions> { ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null, "a1b2c3d4") });
         var withAnotherFp = CharacterSyncMapping.Fingerprint(
-            [observation], new Dictionary<string, CharacterProfessions> { ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null, "deadbeef") });
+            [observation with { Fp = "22222222" }], new Dictionary<string, CharacterProfessions> { ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null, "deadbeef") });
 
-        Assert.NotEqual(withOneFp, withAnotherFp);
+        Assert.Equal(withOneFp, withAnotherFp);
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public sealed class CharacterProfessionsTests
     }
 
     [Fact]
-    public void Fingerprint_ChangesWhenCatalogueFpChanges()
+    public void Fingerprint_IgnoresCatalogueFp()
     {
         var observation = new CharacterObservation(
             "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
@@ -147,7 +147,7 @@ public sealed class CharacterProfessionsTests
         var withAnotherFp = CharacterSyncMapping.Fingerprint(
             [observation], professions, new Dictionary<string, ProfessionCatalogue> { ["Alchemy"] = new ProfessionCatalogue(null, null, "deadbeef") });
 
-        Assert.NotEqual(withOneFp, withAnotherFp);
+        Assert.Equal(withOneFp, withAnotherFp);
     }
 
     [Fact]
