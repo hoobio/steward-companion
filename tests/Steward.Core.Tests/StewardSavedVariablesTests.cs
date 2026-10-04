@@ -679,6 +679,52 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal(snapshot.CharactersFingerprint, CharacterSyncMapping.Fingerprint(snapshot.Characters, snapshot.Professions, snapshot.Catalogue, snapshot.GuildRanks! with { Fp = "deadbeef" }));
     }
 
+    [Fact]
+    public void Read_ForwardsAddonVersion_OutsideThePushGate()
+    {
+        const string guid = "Player-4395-0A1B2C3D";
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["addonVersion"] = "0.9.0",
+            ["characters"] = {
+                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["addonVersion"] = "0.9.0" },
+            },
+            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["ranks"] = { [1] = "Guild Master" }, ["addonVersion"] = "0.9.1" },
+            ["professions"] = {
+                ["Player-4395-0A1B2C3D"] = { ["schema"] = 2, ["observedAt"] = 1758260000, ["addonVersion"] = "0.9.2" },
+            },
+            ["gear"] = {
+                ["Player-4395-0A1B2C3D"] = { ["schema"] = 1, ["observedAt"] = 1758260000, ["level"] = 60, ["equipped"] = {}, ["bags"] = {}, ["addonVersion"] = "0.9.3" },
+            },
+            ["catalogue"] = {
+                ["Alchemy"] = { ["scannedAt"] = 1758260000, ["list"] = {}, ["addonVersion"] = "0.9.4" },
+            },
+            }
+            """));
+
+        var character = Assert.Single(snapshot.Characters);
+        var entry = JsonSerializer.SerializeToElement(
+            CharacterSyncMapping.ToEntry(character, snapshot.Professions, snapshot.Gear), CompanionJsonContext.Default.CharacterSyncEntry);
+        var ranks = JsonSerializer.SerializeToElement(CharacterSyncMapping.ToSync(snapshot.GuildRanks!), CompanionJsonContext.Default.GuildRanksSync);
+        var catalogue = JsonSerializer.SerializeToElement(snapshot.Catalogue["Alchemy"], CompanionJsonContext.Default.ProfessionCatalogue);
+
+        Assert.Equal("0.9.0", entry.GetProperty("addonVersion").GetString());
+        Assert.Equal("0.9.1", ranks.GetProperty("addonVersion").GetString());
+        Assert.Equal("0.9.2", entry.GetProperty("professions").GetProperty("addonVersion").GetString());
+        Assert.Equal("0.9.3", entry.GetProperty("gear").GetProperty("addonVersion").GetString());
+        Assert.Equal("0.9.4", catalogue.GetProperty("addonVersion").GetString());
+        Assert.Equal(
+            CharacterSyncMapping.Fingerprint(snapshot.Characters, snapshot.Professions, snapshot.Catalogue, snapshot.GuildRanks, snapshot.Gear),
+            CharacterSyncMapping.Fingerprint(
+                [character with { AddonVersion = "1.0.0" }],
+                new Dictionary<string, CharacterProfessions> { [guid] = snapshot.Professions[guid] with { AddonVersion = "1.0.0" } },
+                new Dictionary<string, ProfessionCatalogue> { ["Alchemy"] = snapshot.Catalogue["Alchemy"] with { AddonVersion = "1.0.0" } },
+                snapshot.GuildRanks! with { AddonVersion = "1.0.0" },
+                new Dictionary<string, CharacterGear> { [guid] = snapshot.Gear[guid] with { AddonVersion = "1.0.0" } }));
+        Assert.False(JsonSerializer.SerializeToElement(
+            CharacterSyncMapping.ToEntry(character with { AddonVersion = null }, snapshot.Professions), CompanionJsonContext.Default.CharacterSyncEntry).TryGetProperty("addonVersion", out _));
+    }
+
     [Theory]
     [InlineData("[\"gender\"] = 2,", 2)]
     [InlineData("[\"gender\"] = 3,", 3)]

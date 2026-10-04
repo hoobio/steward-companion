@@ -128,7 +128,8 @@ public sealed record GuildRanks(
     DateTimeOffset? ObservedAt,
     IReadOnlyDictionary<int, string> Ranks,
     string? RealmName = null,
-    string? Fp = null);
+    string? Fp = null,
+    string? AddonVersion = null);
 
 public sealed record CharacterObservation(
     string CharacterGuid,
@@ -145,7 +146,8 @@ public sealed record CharacterObservation(
     DateTimeOffset? ObservedAt,
     string? RealmName = null,
     int? Gender = null,
-    string? Fp = null);
+    string? Fp = null,
+    string? AddonVersion = null);
 
 public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("guid")] string CharacterGuid,
@@ -164,7 +166,8 @@ public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("realmName"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RealmName = null,
     [property: JsonPropertyName("gender"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Gender = null,
     [property: JsonPropertyName("gear"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CharacterGear? Gear = null,
-    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null);
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null,
+    [property: JsonPropertyName("addonVersion"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AddonVersion = null);
 
 public static class ProfessionsSchema
 {
@@ -183,7 +186,8 @@ public sealed record CharacterGear(
     [property: JsonPropertyName("equipped")] IReadOnlyDictionary<string, GearEntry> Equipped,
     [property: JsonPropertyName("bags")] IReadOnlyList<GearEntry> Bags,
     [property: JsonPropertyName("bank")] GearBank? Bank,
-    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp);
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp,
+    [property: JsonPropertyName("addonVersion"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AddonVersion = null);
 
 public sealed record GearBank(
     [property: JsonPropertyName("observedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ObservedAt,
@@ -204,7 +208,8 @@ public sealed record CharacterProfessions(
     [property: JsonPropertyName("skills"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ProfessionSkill>? Skills,
     [property: JsonPropertyName("recipes"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, IReadOnlyList<int>>? Recipes,
     [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null,
-    [property: JsonPropertyName("schema")] int Schema = ProfessionsSchema.Current);
+    [property: JsonPropertyName("schema")] int Schema = ProfessionsSchema.Current,
+    [property: JsonPropertyName("addonVersion"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AddonVersion = null);
 
 public sealed record ProfessionSkill(
     [property: JsonPropertyName("name")] string Name,
@@ -230,12 +235,14 @@ public sealed record GuildRanksSync(
     [property: JsonPropertyName("observedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ObservedAt,
     [property: JsonPropertyName("ranks")] IReadOnlyDictionary<string, string> Ranks,
     [property: JsonPropertyName("realmName"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RealmName = null,
-    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null);
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null,
+    [property: JsonPropertyName("addonVersion"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AddonVersion = null);
 
 public sealed record ProfessionCatalogue(
     [property: JsonPropertyName("scannedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ScannedAt,
     [property: JsonPropertyName("list"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<CatalogueRecipe>? List,
-    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null);
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null,
+    [property: JsonPropertyName("addonVersion"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AddonVersion = null);
 
 public sealed record CatalogueRecipe(
     [property: JsonPropertyName("name")] string Name,
@@ -486,7 +493,8 @@ public static class CharacterSyncMapping
         observation.RealmName,
         observation.Gender,
         gear?.GetValueOrDefault(observation.CharacterGuid),
-        observation.Fp);
+        observation.Fp,
+        observation.AddonVersion);
 
     public static GuildRanksSync ToSync(GuildRanks ranks) => new(
         ranks.Realm,
@@ -494,7 +502,8 @@ public static class CharacterSyncMapping
         ranks.ObservedAt?.ToUnixTimeSeconds(),
         ranks.Ranks.ToDictionary(entry => entry.Key.ToString(CultureInfo.InvariantCulture), entry => entry.Value, StringComparer.Ordinal),
         ranks.RealmName,
-        ranks.Fp);
+        ranks.Fp,
+        ranks.AddonVersion);
 
     public static IReadOnlyList<CharacterObservation> FilterToProfessionsOnly(SavedVariablesSnapshot snapshot) =>
         [.. snapshot.Characters.Where(c => snapshot.Professions.ContainsKey(c.CharacterGuid))];
@@ -526,7 +535,7 @@ public static class CharacterSyncMapping
         myUserId is not null
         && string.Equals(EffectiveLinkedUserId(observation, rosterCharacters), myUserId, StringComparison.Ordinal);
 
-    // observedAt, scannedAt and every fp are left out: each fp signs its timestamp, so keeping them would push on every restamp.
+    // observedAt, scannedAt, every fp and addonVersion are left out: each fp signs its timestamp, so keeping them would push on every restamp.
     public static string Fingerprint(
         IReadOnlyList<CharacterObservation> characters,
         IReadOnlyDictionary<string, CharacterProfessions> professions,
@@ -540,9 +549,9 @@ public static class CharacterSyncMapping
             string.Empty,
             string.Empty,
             [.. characters.OrderBy(c => c.CharacterGuid, StringComparer.Ordinal)
-                .Select(c => ToEntry(c with { ObservedAt = null, Fp = null }, canonicalProfessions, canonicalGear))],
-            catalogue is null or { Count: 0 } ? null : Sorted(catalogue, entry => entry with { ScannedAt = null, Fp = null }),
-            guildRanks is null ? null : ToSync(guildRanks) with { ObservedAt = null, Fp = null });
+                .Select(c => ToEntry(c with { ObservedAt = null, Fp = null, AddonVersion = null }, canonicalProfessions, canonicalGear))],
+            catalogue is null or { Count: 0 } ? null : Sorted(catalogue, entry => entry with { ScannedAt = null, Fp = null, AddonVersion = null }),
+            guildRanks is null ? null : ToSync(guildRanks) with { ObservedAt = null, Fp = null, AddonVersion = null });
         return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonical, CompanionJsonContext.Default.CharacterSyncRequest)));
     }
 
@@ -564,10 +573,11 @@ public static class CharacterSyncMapping
     {
         ObservedAt = null,
         Fp = null,
-        Recipes = professions.Recipes is null ? null : Sorted(professions.Recipes, ids => ids),
+        AddonVersion = null,
+        Recipes =professions.Recipes is null ? null : Sorted(professions.Recipes, ids => ids),
     };
 
-    private static CharacterGear Canonical(CharacterGear gear) => gear with { ObservedAt = null, Fp = null };
+    private static CharacterGear Canonical(CharacterGear gear) => gear with { ObservedAt = null, Fp = null, AddonVersion = null };
 
     private static SortedDictionary<string, T> Sorted<T>(IReadOnlyDictionary<string, T> source, Func<T, T> canonicalise) =>
         new(source.ToDictionary(entry => entry.Key, entry => canonicalise(entry.Value), StringComparer.Ordinal), StringComparer.Ordinal);

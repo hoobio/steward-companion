@@ -320,7 +320,8 @@ public static class StewardSavedVariables
             ToTimestamp(value.GetNumber("observedAt")),
             value.GetString("realmName"),
             value.GetNumber("gender") is 2d or 3d ? ToInt(value.GetNumber("gender")) : null,
-            value.GetString("fp"));
+            value.GetString("fp"),
+            value.GetString("addonVersion"));
     }
 
     private static GuildRanks? MapGuildRanks(LuaValue? table, ref int skipped)
@@ -360,7 +361,7 @@ public static class StewardSavedVariables
             return null;
         }
 
-        return new GuildRanks(realm, guild, ToTimestamp(table.GetNumber("observedAt")), ranks, table.GetString("realmName"), table.GetString("fp"));
+        return new GuildRanks(realm, guild, ToTimestamp(table.GetNumber("observedAt")), ranks, table.GetString("realmName"), table.GetString("fp"), table.GetString("addonVersion"));
     }
 
     private static List<(string Guid, CharacterProfessions Professions)> MapProfessionsByGuid(
@@ -410,7 +411,8 @@ public static class StewardSavedVariables
             ToNullableLong(value.GetNumber("observedAt")),
             MapProfessionSkills(value.GetTable("skills"), ref skipped),
             recipes,
-            value.GetString("fp"));
+            value.GetString("fp"),
+            AddonVersion: value.GetString("addonVersion"));
     }
 
     private static List<(string Guid, CharacterGear Gear)> MapGearByGuid(LuaValue? table, ref int skipped)
@@ -461,7 +463,8 @@ public static class StewardSavedVariables
                 equipped,
                 bags,
                 bank,
-                value.GetString("fp"));
+                value.GetString("fp"),
+                value.GetString("addonVersion"));
     }
 
     private static SortedDictionary<string, GearEntry>? MapEquippedGear(LuaValue? table)
@@ -667,7 +670,8 @@ public static class StewardSavedVariables
     private static ProfessionCatalogue MapCatalogue(LuaValue value, ref int skipped) => new(
         ToNullableLong(value.GetNumber("scannedAt")),
         MapCatalogueRecipeList(value.GetTable("list"), ref skipped),
-        value.GetString("fp"));
+        value.GetString("fp"),
+        value.GetString("addonVersion"));
 
     private static List<CatalogueRecipe>? MapCatalogueRecipeList(LuaValue? table, ref int skipped)
     {
