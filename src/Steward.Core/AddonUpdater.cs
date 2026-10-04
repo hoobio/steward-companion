@@ -35,23 +35,26 @@ public sealed class AddonUpdater
         _logger = logger ?? NullLogger<AddonUpdater>.Instance;
     }
 
-    public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken)
+    public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken, bool noCache = false)
     {
         ArgumentNullException.ThrowIfNull(addon);
         var client = addon.Source == CurseForgeAddons.Source ? _sessionClient ?? _httpClient : _httpClient;
-        return await FetchManifestAsync(client, ManifestUri(addon, channel), cancellationToken).ConfigureAwait(false);
+        return await FetchManifestAsync(client, ManifestUri(addon, channel), cancellationToken, noCache).ConfigureAwait(false);
     }
 
     public Task<byte[]> GetIconAsync(Uri iconUri, CancellationToken cancellationToken) =>
         _httpClient.GetByteArrayAsync(iconUri, cancellationToken);
 
-    public static async Task<AddonRelease?> FetchManifestAsync(HttpClient httpClient, Uri manifestUri, CancellationToken cancellationToken)
+    public static async Task<AddonRelease?> FetchManifestAsync(HttpClient httpClient, Uri manifestUri, CancellationToken cancellationToken, bool noCache = false)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, manifestUri);
-        // The Static Web App route for this manifest has unconfirmed cache headers.
-        request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
+        if (noCache)
+        {
+            // steward-server serves a CurseForge manifest up to 15 minutes old, or 1 minute old on no-cache.
+            request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
+        }
 
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -68,9 +71,9 @@ public sealed class AddonUpdater
     }
 
     public async Task<IReadOnlyDictionary<string, AddonRelease?>> ProbeChannelsAsync(
-        ManagedAddon addon, IReadOnlyList<string> channels, CancellationToken cancellationToken)
+        ManagedAddon addon, IReadOnlyList<string> channels, CancellationToken cancellationToken, bool noCache = false)
     {
-        var releases = await Task.WhenAll(channels.Select(channel => ProbeChannelAsync(addon, channel, cancellationToken)))
+        var releases = await Task.WhenAll(channels.Select(channel => ProbeChannelAsync(addon, channel, noCache, cancellationToken)))
             .ConfigureAwait(false);
 
         var result = new Dictionary<string, AddonRelease?>(channels.Count);
@@ -82,11 +85,11 @@ public sealed class AddonUpdater
         return result;
     }
 
-    private async Task<AddonRelease?> ProbeChannelAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken)
+    private async Task<AddonRelease?> ProbeChannelAsync(ManagedAddon addon, string channel, bool noCache, CancellationToken cancellationToken)
     {
         try
         {
-            return await GetLatestAsync(addon, channel, cancellationToken).ConfigureAwait(false);
+            return await GetLatestAsync(addon, channel, cancellationToken, noCache).ConfigureAwait(false);
         }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {

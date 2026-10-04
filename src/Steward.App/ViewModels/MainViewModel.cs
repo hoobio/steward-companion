@@ -944,7 +944,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 _ = install.RescanLocalAsync();
             }
 
-            await CheckAsync(background: false, CancellationToken.None).ConfigureAwait(true);
+            await CheckAsync(background: false, CancellationToken.None, noCache: true).ConfigureAwait(true);
             EnsureInGameIcons();
             await PushCharacterSyncAsync().ConfigureAwait(true);
             _lastDirectorySync = DateTimeOffset.Now;
@@ -1465,7 +1465,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task CheckAsync(bool background, CancellationToken cancellationToken, bool pullGuildRoster = true)
+    private async Task CheckAsync(bool background, CancellationToken cancellationToken, bool pullGuildRoster = true, bool noCache = false)
     {
         var succeeded = true;
         var state = _stateStore.Load();
@@ -1473,7 +1473,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             try
             {
-                await ProbeAddonAsync(addon, state, cancellationToken).ConfigureAwait(true);
+                await ProbeAddonAsync(addon, state, cancellationToken, noCache).ConfigureAwait(true);
             }
             catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
             {
@@ -1484,7 +1484,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         _lastCheckFailed = !succeeded;
-        if (!await CheckProviderAddonsAsync(background).ConfigureAwait(true))
+        if (!await CheckProviderAddonsAsync(background, noCache).ConfigureAwait(true))
         {
             return;
         }
@@ -1522,9 +1522,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
     }
 
-    private async Task ProbeAddonAsync(ManagedAddon addon, AppState state, CancellationToken cancellationToken)
+    private async Task ProbeAddonAsync(ManagedAddon addon, AppState state, CancellationToken cancellationToken, bool noCache = false)
     {
-        var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken)
+        var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, cancellationToken, noCache)
             .ConfigureAwait(true);
         _releases[addon.Id] = releases;
         _status[addon.Id] = AddonChannelStatus.Resolve(AddonGroups.StoredChannel(state.Channels, addon), releases, addon.Channels, addon.DefaultPreference);

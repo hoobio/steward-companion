@@ -90,6 +90,18 @@ public sealed class AddonManifestTests
     }
 
     [Fact]
+    public async Task GetLatestAsync_SendsNoCacheOnlyWhenAsked()
+    {
+        var (updater, handler) = UpdaterFor(HttpStatusCode.OK, "null");
+
+        await updater.GetLatestAsync(Addon, "release", CancellationToken.None);
+        Assert.Null(handler.LastRequest?.Headers.CacheControl);
+
+        await updater.GetLatestAsync(Addon, "release", CancellationToken.None, noCache: true);
+        Assert.True(handler.LastRequest?.Headers.CacheControl?.NoCache);
+    }
+
+    [Fact]
     public async Task GetLatestAsync_NonSuccessStatus_Throws()
     {
         var (updater, _) = UpdaterFor(HttpStatusCode.NotFound, "not found");

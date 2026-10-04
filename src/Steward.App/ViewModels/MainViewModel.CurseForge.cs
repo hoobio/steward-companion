@@ -274,14 +274,14 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task<bool> ProbeProviderAddonsAsync(IReadOnlyList<ManagedAddon> addons)
+    private async Task<bool> ProbeProviderAddonsAsync(IReadOnlyList<ManagedAddon> addons, bool noCache = false)
     {
         try
         {
             var state = _stateStore.Load();
             foreach (var addon in addons)
             {
-                var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, CancellationToken.None).ConfigureAwait(true);
+                var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, CancellationToken.None, noCache).ConfigureAwait(true);
                 _releases[addon.Id] = releases;
                 _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases, addon.Channels, addon.DefaultPreference);
             }
@@ -566,7 +566,7 @@ public sealed partial class MainViewModel
         ];
     }
 
-    private Task<bool> CheckProviderAddonsAsync(bool background)
+    private Task<bool> CheckProviderAddonsAsync(bool background, bool noCache)
     {
         var due = !background || IsDue(_lastCurseForgeCheck, CurseForgeCheckInterval);
         var addons = AllProviderAddons().Where(addon => due || !_releases.ContainsKey(addon.Id)).ToList();
@@ -575,6 +575,6 @@ public sealed partial class MainViewModel
             _lastCurseForgeCheck = DateTimeOffset.Now;
         }
 
-        return ProbeProviderAddonsAsync(addons);
+        return ProbeProviderAddonsAsync(addons, noCache);
     }
 }
