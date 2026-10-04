@@ -219,7 +219,7 @@ public sealed partial class MainViewModel
         var query = FilterText.Trim();
         if (query.Length > 0)
         {
-            rows = rows.Where(row => row.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase));
+            rows = rows.Where(row => AddonSearch.Matches(row.DisplayName, query));
         }
 
         var byName = StringComparer.OrdinalIgnoreCase;
