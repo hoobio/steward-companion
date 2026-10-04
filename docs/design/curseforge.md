@@ -61,7 +61,7 @@ File fields that matter:
 
 ## steward-server service
 
-The CurseForge routes in `D:\steward-server` (`src/Steward.Integrations/CurseForge*.cs`), beside the GitHub mirror, reading `CURSEFORGE_API_KEY`. Nothing is persisted to disk; API responses are cached in memory (15 minutes, 24 hours for immutable file lookups) so every client's version checks share one upstream call, a departure from 3.1(e) decided on 29 Sep 2026 to cut load on CurseForge. Every route requires a signed-in `gg_session` like `/api/me`, so the key's quota is only spent for Steward users, and steward-server rate-limits per user.
+The CurseForge routes in `D:\steward-server` (`src/Steward.Integrations/CurseForge*.cs`), beside the GitHub mirror, reading `CURSEFORGE_API_KEY`. Nothing is persisted to disk; API responses are cached in memory (15 minutes, 24 hours for immutable file lookups) so every client's version checks share one upstream call (a manifest request from the app's manual Refresh carries `Cache-Control: no-cache` and is refetched when the cached copy is a minute old or more), a departure from 3.1(e) decided on 29 Sep 2026 to cut load on CurseForge. Every route requires a signed-in `gg_session` like `/api/me`, so the key's quota is only spent for Steward users, and steward-server rate-limits per user.
 
 | Route | Does |
 | --- | --- |
