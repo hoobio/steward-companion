@@ -2,6 +2,13 @@ namespace Steward.Core;
 
 public static class AddonSearch
 {
+    public static IEnumerable<T> Filter<T>(IEnumerable<T> rows, Func<T, string> name, string query)
+    {
+        var all = rows.ToList();
+        var atWordStart = all.Where(row => Matches(name(row), query)).ToList();
+        return atWordStart.Count > 0 ? atWordStart : all.Where(row => name(row).Contains(query, StringComparison.OrdinalIgnoreCase));
+    }
+
     public static bool Matches(string name, string query)
     {
         for (var index = name.IndexOf(query, StringComparison.OrdinalIgnoreCase); index >= 0;
