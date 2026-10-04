@@ -203,8 +203,8 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
     public partial DateTimeOffset? AddonReleasedAt { get; set; }
 
     public string BaseGuidesText => AddonReleasedAt is { } at
-        ? $"Ships with addon, updated {RelativeTime.Describe(at, DateTimeOffset.Now)}"
-        : "Ships with addon";
+        ? $"Included with the addon, updated {RelativeTime.Describe(at, DateTimeOffset.Now)}"
+        : "Included with the addon";
 
     [ObservableProperty]
     public partial bool IsSessionActive { get; set; } = true;
