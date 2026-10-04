@@ -86,14 +86,14 @@ The SPA roster build line shows `<name> (<level>)` of the person's current chara
 
 The logged-in character's own professions and known recipes, readable only from that character's client, so a push covers the characters of the account that pushes.
 
-The addon writes `StewardDB.professions[guid]` for the logged-in character, in the account file beside `characters`. Schema 2 (the only version this app or steward-server accepts): known recipes are bare recipe id arrays, and there is no per-recipe object or `difficulty` field anywhere in this dataset.
+The addon writes `StewardDB.professions[guid]` for the logged-in character, in the account file beside `characters`. Schema 3 (the only version this app or steward-server accepts): known recipes are bare recipe id arrays, each signed on its own in `recipeScans`, and there is no per-recipe object or `difficulty` field anywhere in this dataset.
 
 ```lua
 ["professions"] = {
   ["Player-4395-0A1B2C3D"] = {
     ["observedAt"] = 1758260000,
-    ["fp"] = "a1b2c3d4e5f6...",
-    ["schema"] = 2,
+    ["fp"] = "a1b2c3d4",
+    ["schema"] = 3,
     ["skills"] = {
       { ["name"] = "Alchemy", ["rank"] = 285, ["maxRank"] = 300, ["secondary"] = false },
       { ["name"] = "Cooking", ["rank"] = 150, ["maxRank"] = 225, ["secondary"] = true },
@@ -101,16 +101,21 @@ The addon writes `StewardDB.professions[guid]` for the logged-in character, in t
     ["recipes"] = {
       ["Alchemy"] = { 11460, 11461 },
     },
+    ["recipeScans"] = {
+      ["Alchemy"] = { ["scannedAt"] = 1758250000, ["fp"] = "672cacde" },
+    },
   },
 }
 ```
 
+- `observedAt` and `fp` (`v3`) are stamped only when `skills` is read; `recipeScans[profession]` (`scannedAt`, `fp` `p1`) only when that profession's recipe list is captured (a window capture or the `IsPlayerSpell` sweep, logged-in character only). A list not recaptured since is carried over with its own `scannedAt` and `fp`.
+
 - The Forever client has no Classic tradeskill globals (`GetTradeSkillInfo` and the rest are absent from `D:\wow-ui-source` at `bd2470a`); professions run on the retail-style `C_TradeSkillUI`, whose recipe data arrives from the server only when a profession's window opens (`TRADE_SKILL_SHOW`, `TRADE_SKILL_LIST_UPDATE`). A recipe list is therefore captured the first time each profession's window opens and refreshed on every later opening; an addon cannot open the window itself outside a hardware event: `C_TradeSkillUI.OpenTradeSkill(185)` opens Cooking from `/run`, but the same call from a `C_Timer.After` callback raises `ADDON_ACTION_BLOCKED` (`ForceTaint_Strong`), verified in game on 26 Sep 2026, so it works only from a click or key handler.
 - `skills` is read without a window, on login and whenever skill ranks change, from whatever the client's API offers for the character's professions and secondary skills; `secondary` marks a secondary skill.
 - `recipes[profession]` is replaced whole on each capture: a Lua array of learned recipe ids (spell ids), ascending and unique. A profession never opened has no entry. Recipe names, headers, tools and reagents live only in the catalogue (`catalogue`/`StewardDB.catalogue`, unchanged); a reader wanting them resolves the id against it.
-- `schema` is a required integer, currently always `2`; it exists so a client change to this shape is detected rather than read lossily. The app rejects (does not map or push) a professions entry whose `schema` is not `2`, or whose `recipes[profession]` values are not arrays of positive integers (including the pre-schema `{ scannedAt, list = { {recipeId, ...} } }` shape); the Sync page shows "Update the Steward addon" for the affected install instead of sending stale or malformed data. steward-server rejects a pushed professions entry whose `schema` is not `2` with a 4xx telling the officer to update both the addon and the app, surfaced verbatim on the push row.
-- The app sends a character's `professions` object (same shape, camelCase) on that character's record in the sync batch, `fp` and `schema` included.
-- steward-server stores it as `professions_json` on the observation, validated for shape and bounds (rank at most maxRank, maxRank at most 375, at most 1000 recipes per profession, `schema` exactly `2`). The current professions are the latest non-voided observation carrying `professions_json`, independent of the latest roster observation, as links are.
+- `schema` is a required integer, currently always `3`; it exists so a client change to this shape is detected rather than read lossily. The addon converts an older entry to schema 3 at login without signing it, so it stays unsigned until that character is observed again. The app rejects (does not map or push) a professions entry whose `schema` is not `3`, or whose `recipes[profession]` values are not arrays of positive integers (including the pre-schema `{ scannedAt, list = { {recipeId, ...} } }` shape); the Sync page shows "Update the Steward addon" for the affected install instead of sending stale or malformed data. steward-server rejects a pushed professions entry whose `schema` is not `3` with a 4xx telling the officer to update both the addon and the app, surfaced verbatim on the push row.
+- The app sends a character's `professions` object (same shape, camelCase) on that character's record in the sync batch, `fp`, `recipeScans` and `schema` included.
+- steward-server stores it as `professions_json` on the observation, validated for shape and bounds (rank at most maxRank, maxRank at most 375, at most 1000 recipes per profession, `schema` exactly `3`), without `recipeScans` and without any recipe list whose own `p1` failed. The current professions are the latest non-voided observation carrying `professions_json`, independent of the latest roster observation, as links are.
 
 ## Integrity
 
@@ -118,19 +123,23 @@ The addon writes `StewardDB.professions[guid]` for the logged-in character, in t
 
 Every field a push carries is signed by the addon and verified by steward-server, timestamps included: the roster fields, `guildRanks`, `observedAt` and `scannedAt`, alongside professions, gear and the catalogue. A field added to the sync payload in future ships with its fingerprint in the same change, across the addon, the app and steward-server.
 
+A fingerprint is computed only at the moment of observation, over only what that observation read from the game, and stored data is never re-signed. The addon never calls a fingerprint function on data read back from `StewardDB`; a migration or merge drops or carries a fingerprint and never recomputes one; data carried over from an earlier observation (a recipe list not recaptured this session, a bank scanned on an earlier visit) keeps the `fp` and timestamp it was signed with at its own capture; and a new synced field is signed at its capture point. This is why a recipe list and the bank each carry their own `fp`: an `fp` covering both fresh and carried-over data would sign whatever had been edited into the carried-over part. `v2` and `g2` broke this rule (a schema migration re-signed every alt's professions, a skills update re-signed stored recipe lists, and a gear capture re-signed the stored bank) and are no longer accepted.
+
 Each fingerprint is the keyed FNV-1a 32-bit above (same key, 8 lowercase hex) over UTF-8 lines each ending in `\n`, built from the raw pushed values with an absent or null value as the empty string. The addon writes each as `fp` beside its data, the app parses it and forwards it untouched under the same key, and it is left out of the push-gate fingerprint along with the timestamps it signs, so a restamped `observedAt` or `scannedAt` with no data change pushes nothing.
 
 | Data | Version | Canonical lines |
 |---|---|---|
 | `characters[guid].fp` (`fp` on the pushed character) | `o1` | `o1`, the guid, then `<name>\|<realm>\|<realmName>\|<guild>\|<level>\|<classId>\|<raceId>\|<gender>\|<rankIndex>\|<lastOnline>\|<linkedUserId>\|<linkKnown>\|<observedAt>`, `linkKnown` as `1` or `0`; `level`, `classId`, `raceId` and `rankIndex` sign as `0` when absent, since the app sends them as `0` |
 | `guildRanks.fp` | `r1` | `r1`, `<realm>\|<realmName>\|<guild>\|<observedAt>`, then `<index>\|<rank name>` per rank by index ascending |
-| professions `fp` | `v2` | `v1`'s lines with `v2` as the header and `t\|<observedAt>` after the guid |
-| gear `fp` | `g2` | `g1`'s lines (Gear below) with `g2` as the header and `t\|<observedAt>\|<level>` after the guid |
+| professions `fp` | `v3` | `v3`, the guid, `t\|<observedAt>`, then `s\|<name>\|<rank>\|<maxRank>\|<secondary 1 or 0>` per skill sorted by name (byte order); no recipes |
+| `recipeScans[profession].fp` | `p1` | `p1`, the guid, `t\|<scannedAt>`, `r\|<profession>\|<recipe ids ascending, comma-joined>` |
+| gear `fp` | `g3` | `g3`, the guid, `t\|<observedAt>\|<level>`, then `g1`'s `e\|` and `b\|` lines (Gear below); no bank |
+| `bank.fp` | `k1` | `k1`, the guid, `t\|<bank observedAt>`, then `g1`'s `k\|<entry line>` lines |
 | catalogue `fp` | `c3` | `c2`'s lines (Raider self-push below) with `c3` as the header and `t\|<scannedAt>` after the profession |
 
-steward-server requires each of these versions, since 4 Oct 2026; `v1`, `g1`, `c2` and `c1` are no longer accepted, and a missing or older-version `fp` is handled as a mismatch. A mismatched `o1` rejects that character with the reason `observation integrity check failed` (on the officer and professions-only paths alike); `r1` drops `guildRanks` from the push; `v2` rejects a professions-only record (`professions integrity check failed`) and drops the professions from an officer's record; `g2` drops the gear; `c3` drops that catalogue profession, on the officer path as on the seatless one. A mismatch is alerted through the throttled integrity DM, naming the entry's `addonVersion` when it carries one.
+steward-server requires each of these versions, since 4 Oct 2026 (`v3`, `p1`, `g3` and `k1` from the same day, alongside professions schema 3 and gear schema 2); `v1`, `v2`, `g1`, `g2`, `c2` and `c1` are no longer accepted. An `fp` that matches an earlier version of its format (`v1` or `v2` for `v3`, `g1` or `g2` for `g3`, `c1` or `c2` for `c3`) is reported as missing, not as a mismatch; only a value matching no version is a mismatch. A mismatched `o1` rejects that character with the reason `observation integrity check failed` (on the officer and professions-only paths alike); `r1` drops `guildRanks` from the push; `v3` rejects a professions-only record (`professions integrity check failed`) and drops the professions from an officer's record; `p1` drops that one profession's recipe list (`recipes integrity check failed`) and keeps the rest of the entry; `g3` drops the gear; `k1` drops the bank (`bank integrity check failed`) and keeps the rest of the gear; `c3` drops that catalogue profession, on the officer path as on the seatless one. A mismatch is alerted through the throttled integrity DM, naming the entry's `addonVersion` when it carries one.
 
-A missing `fp` (any of the five) drops or rejects the same record the same way, but raises no DM and is logged at Information only, since an unsigned entry is never stored and so gains a forger nothing; it is what a character written by an older addon, or not re-observed since an update, carries. A missing `o1` or a missing `v2` on a professions-only record is rejected with `written by an older Steward addon; log in on this character to refresh`, or `written by an older Steward addon (<addonVersion>); log in on this character to refresh` when the entry carries one, shown verbatim on the Sync page.
+A missing `fp` (any of them, a recipe list with no `recipeScans` entry included) drops or rejects the same record or part the same way, but raises no DM and is logged at Information only, since an unsigned entry is never stored and so gains a forger nothing; it is what a character written by an older addon, or not re-observed since an update, carries. A missing `o1` or a missing `v3` on a professions-only record is rejected with `written by an older Steward addon; log in on this character to refresh`, or `written by an older Steward addon (<addonVersion>); log in on this character to refresh` when the entry carries one, shown verbatim on the Sync page.
 
 The addon writes its own TOC `## Version` as `addonVersion` on every character entry, `guildRanks`, each professions, gear and catalogue entry whenever it writes or refreshes it, and once at the top level of `StewardDB` at login. It is in no fingerprint's canonical lines. The app parses it onto `CharacterObservation`, `GuildRanks`, `CharacterProfessions`, `CharacterGear` and `ProfessionCatalogue` and forwards it untouched as `addonVersion` on each pushed object (omitted when null), left out of the push-gate fingerprint like every `fp`, so an addon update alone pushes nothing. steward-server accepts it as an optional string of at most 64 characters (anything else reads as absent), uses it only in the rejection reason and the mismatch DM, and does not store it.
 
@@ -138,8 +147,10 @@ Test vectors, pinned in steward-server's `SyncFingerprintTests` and the addon's 
 
 - `o1`: guid `Player-5826-0A1B2C3D`, `Hoobi Furry`, realm `ClassicBetaPvP2`, no `realmName`, guild `Steward`, level 60, class 1, race 2, gender 3, rank 1, lastOnline `1790890000`, linkedUserId `123456789012345678`, linkKnown true, observedAt `1790900000`: `10f9ae4a`.
 - `r1`: realm and realmName `Nightslayer`, guild `Steward`, observedAt `1790900000`, ranks `Guild Master`, `Officer`, `Member`: `5330ac56`.
-- `v2`: guid `Player-4619-0104D32F`, observedAt `1790900000`, Alchemy 285/300 primary, Cooking 150/225 secondary, Alchemy recipes `11460, 11461`: `c61f04fc`.
-- `g2`: the Gear vector below with observedAt `1790900000` and level 60: `94ee68d9`, or `bf25eb6a` with a null bank.
+- `v3`: guid `Player-4619-0104D32F`, observedAt `1790900000`, Alchemy 285/300 primary, Cooking 150/225 secondary: `d5e8cda1`.
+- `p1`: the same guid, Alchemy recipes `11460, 11461`, scannedAt `1790900000`: `672cacde`.
+- `g3`: the Gear vector below (equipped and bags) with observedAt `1790900000` and level 60: `6728e227`, whatever the bank.
+- `k1`: the Gear vector's bank (observedAt `1790900000`, the one `item:18813` entry) for the same guid: `e90613d8`.
 - `c3`: the `c2` Blacksmithing vector with scannedAt `1790900000`: `65e2f091`.
 
 The catalogue recipes' `header`, `tools` and reagent `name` are not yet signed by any version; that gap is outstanding work, not an exception.
@@ -194,25 +205,25 @@ Agreed direction on 26 Sep 2026, built: raiders push their own characters' profe
 
 ## Gear
 
-The logged-in character's equipped items, bags and bank. The addon writes `StewardDB.gear[guid]` (schema 1, the only version this app accepts; any other `schema` skips the record) in the account file beside `professions`. The app parses it and forwards the raw values untouched as `gear` on that character's record, since the server recomputes `fp` over them: nothing signed is normalised, trimmed or reordered. `gear` is omitted when the character has none, and a raider's professions-only push carries it for the same guids as `professions`.
+The logged-in character's equipped items, bags and bank. The addon writes `StewardDB.gear[guid]` (schema 2, the only version this app accepts; any other `schema` skips the record, so a schema 1 record signed with `g2` is never pushed) in the account file beside `professions`. The app parses it and forwards the raw values untouched as `gear` on that character's record, since the server recomputes `fp` over them: nothing signed is normalised, trimmed or reordered. `gear` is omitted when the character has none, and a raider's professions-only push carries it for the same guids as `professions`.
 
 ```
 gear: {
-  schema: 1,
+  schema: 2,
   observedAt: <unix s>,
   level: <character level at capture>,
   equipped: {"<slot 1..19>": entry, ...},
   bags: [entry, ...],
-  bank: {observedAt: <unix s>, items: [entry, ...]} | null,
+  bank: {observedAt: <unix s>, items: [entry, ...], fp: "<8 lowercase hex>"} | null,
   fp: "<8 lowercase hex>"
 }
 entry: {link, itemID, quality, enchantID?, suffixID?, count?, equipLoc?, ilvl?}
 ```
 
 - `link` is the bare `item:...` string (the part inside `|H...|h`), never the coloured hyperlink. One entry per container slot; a stack carries `count`. Absent optional fields are omitted, not zero.
-- `equipped` holds every equipped item at any quality. `bags` and `bank` are empty below `MAX_LEVEL` (60) and hold only entries with `quality >= 3` and an `equipLoc`. `bank` is null until the bank has been opened once with Steward running, and then keeps its last scan.
-- `g2` (Integrity above) signs `observedAt` and `level` too; `schema` is not signed. A gear change is a changed push fingerprint, so it triggers a push on the full path and on the professions-only path.
-- The original `g1` `fp`, still accepted, is the keyed FNV-1a 32-bit over the professions `FINGERPRINT_KEY` followed by the `g1` canonical text, as 8 lowercase hex characters. The canonical text is UTF-8 with `\n` after every line, over the raw pushed values: `g1`, the character guid, one `e|<slot>|<entry line>` per equipped slot by slot number ascending, one `b|<entry line>` per bags entry sorted by entry line in code-point order, then `k|-` when `bank` is null, else `k|<bank observedAt>` followed by one `k|<entry line>` per bank entry sorted by entry line. `<entry line>` is `<link>|<quality>|<count>|<equipLoc>|<ilvl>` with an empty string for an absent field.
+- `equipped` holds every equipped item at any quality. `bags` and `bank` are empty below `MAX_LEVEL` (60) and hold only entries with `quality >= 3` and an `equipLoc`. `bank` is null until the bank has been opened once with Steward running, and then keeps its last scan, carried over with the `observedAt` and `fp` (`k1`) it was signed with while the bank was open; the gear `fp` (`g3`) does not cover it.
+- `g3` (Integrity above) signs `observedAt` and `level` too, and `k1` the bank on its own; `schema` is not signed. A gear change is a changed push fingerprint, so it triggers a push on the full path and on the professions-only path; the bank's `observedAt` and `fp` are left out of the push gate like every other timestamp and `fp`.
+- The original `g1` `fp`, no longer accepted but the source of the `e|`, `b|` and `k|` lines, is the keyed FNV-1a 32-bit over the professions `FINGERPRINT_KEY` followed by the `g1` canonical text, as 8 lowercase hex characters. The canonical text is UTF-8 with `\n` after every line, over the raw pushed values: `g1`, the character guid, one `e|<slot>|<entry line>` per equipped slot by slot number ascending, one `b|<entry line>` per bags entry sorted by entry line in code-point order, then `k|-` when `bank` is null, else `k|<bank observedAt>` followed by one `k|<entry line>` per bank entry sorted by entry line. `<entry line>` is `<link>|<quality>|<count>|<equipLoc>|<ilvl>` with an empty string for an absent field.
 - Test vector (guid `Player-5826-0A1B2C3D`), canonical text:
 
 ```

@@ -171,12 +171,12 @@ public sealed record CharacterSyncEntry(
 
 public static class ProfessionsSchema
 {
-    public const int Current = 2;
+    public const int Current = 3;
 }
 
 public static class GearSchema
 {
-    public const int Current = 1;
+    public const int Current = 2;
 }
 
 public sealed record CharacterGear(
@@ -191,7 +191,8 @@ public sealed record CharacterGear(
 
 public sealed record GearBank(
     [property: JsonPropertyName("observedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ObservedAt,
-    [property: JsonPropertyName("items")] IReadOnlyList<GearEntry> Items);
+    [property: JsonPropertyName("items")] IReadOnlyList<GearEntry> Items,
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null);
 
 public sealed record GearEntry(
     [property: JsonPropertyName("link")] string Link,
@@ -209,7 +210,12 @@ public sealed record CharacterProfessions(
     [property: JsonPropertyName("recipes"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, IReadOnlyList<int>>? Recipes,
     [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null,
     [property: JsonPropertyName("schema")] int Schema = ProfessionsSchema.Current,
-    [property: JsonPropertyName("addonVersion"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AddonVersion = null);
+    [property: JsonPropertyName("addonVersion"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AddonVersion = null,
+    [property: JsonPropertyName("recipeScans"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, RecipeScan>? RecipeScans = null);
+
+public sealed record RecipeScan(
+    [property: JsonPropertyName("scannedAt"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ScannedAt,
+    [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp);
 
 public sealed record ProfessionSkill(
     [property: JsonPropertyName("name")] string Name,
@@ -574,10 +580,17 @@ public static class CharacterSyncMapping
         ObservedAt = null,
         Fp = null,
         AddonVersion = null,
+        RecipeScans = null,
         Recipes =professions.Recipes is null ? null : Sorted(professions.Recipes, ids => ids),
     };
 
-    private static CharacterGear Canonical(CharacterGear gear) => gear with { ObservedAt = null, Fp = null, AddonVersion = null };
+    private static CharacterGear Canonical(CharacterGear gear) => gear with
+    {
+        ObservedAt = null,
+        Fp = null,
+        AddonVersion = null,
+        Bank = gear.Bank is null ? null : gear.Bank with { ObservedAt = null, Fp = null },
+    };
 
     private static SortedDictionary<string, T> Sorted<T>(IReadOnlyDictionary<string, T> source, Func<T, T> canonicalise) =>
         new(source.ToDictionary(entry => entry.Key, entry => canonicalise(entry.Value), StringComparer.Ordinal), StringComparer.Ordinal);

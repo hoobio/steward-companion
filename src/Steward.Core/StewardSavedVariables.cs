@@ -412,7 +412,27 @@ public static class StewardSavedVariables
             MapProfessionSkills(value.GetTable("skills"), ref skipped),
             recipes,
             value.GetString("fp"),
-            AddonVersion: value.GetString("addonVersion"));
+            AddonVersion: value.GetString("addonVersion"),
+            RecipeScans: MapRecipeScans(value.GetTable("recipeScans")));
+    }
+
+    private static SortedDictionary<string, RecipeScan>? MapRecipeScans(LuaValue? table)
+    {
+        if (table is null)
+        {
+            return null;
+        }
+
+        var mapped = new SortedDictionary<string, RecipeScan>(StringComparer.Ordinal);
+        foreach (var entry in table.Table)
+        {
+            if (entry.Key is { Kind: LuaKind.Text } key && entry.Value.Kind is LuaKind.Table)
+            {
+                mapped[key.Text!] = new RecipeScan(ToNullableLong(entry.Value.GetNumber("scannedAt")), entry.Value.GetString("fp"));
+            }
+        }
+
+        return mapped;
     }
 
     private static List<(string Guid, CharacterGear Gear)> MapGearByGuid(LuaValue? table, ref int skipped)
@@ -451,7 +471,7 @@ public static class StewardSavedVariables
                 return null;
             }
 
-            bank = new GearBank(ToNullableLong(bankTable.GetNumber("observedAt")), items);
+            bank = new GearBank(ToNullableLong(bankTable.GetNumber("observedAt")), items, bankTable.GetString("fp"));
         }
 
         return equipped is null || bags is null

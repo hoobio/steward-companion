@@ -34,7 +34,7 @@ public sealed class CharacterProfessionsTests
         Assert.Equal("Player-4395-0A1B2C3D", root.GetProperty("guid").GetString());
         var professionsElement = root.GetProperty("professions");
         Assert.Equal(1758260000, professionsElement.GetProperty("observedAt").GetInt64());
-        Assert.Equal(2, professionsElement.GetProperty("schema").GetInt32());
+        Assert.Equal(3, professionsElement.GetProperty("schema").GetInt32());
 
         var skill = Assert.Single(professionsElement.GetProperty("skills").EnumerateArray());
         Assert.Equal("Alchemy", skill.GetProperty("name").GetString());

@@ -153,7 +153,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["schema"] = 2, ["skills"] = { { ["name"] = "Cooking" }, } },
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["schema"] = 3, ["skills"] = { { ["name"] = "Cooking" }, } },
             },
             }
             """));
@@ -264,8 +264,9 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["professions"] = {
             ["Player-4395-0A1B2C3D"] = {
                 ["observedAt"] = {{observedAt}},
-                ["schema"] = 2,
+                ["schema"] = 3,
                 ["recipes"] = { ["Alchemy"] = { {{recipeId}} } },
+                ["recipeScans"] = { ["Alchemy"] = { ["scannedAt"] = {{observedAt}}, ["fp"] = "{{observedAt}}" } },
             },
             },
             ["catalogue"] = {
@@ -353,13 +354,16 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["Player-4395-0A1B2C3D"] = {
                 ["observedAt"] = 1758260000,
                 ["fp"] = "a1b2c3d4",
-                ["schema"] = 2,
+                ["schema"] = 3,
                 ["skills"] = {
                 { ["name"] = "Alchemy", ["rank"] = 285, ["maxRank"] = 300, ["secondary"] = false },
                 { ["name"] = "Cooking", ["rank"] = 150, ["maxRank"] = 225, ["secondary"] = true },
                 },
                 ["recipes"] = {
                 ["Alchemy"] = { 11460, 11461 },
+                },
+                ["recipeScans"] = {
+                ["Alchemy"] = { ["scannedAt"] = 1758250000, ["fp"] = "672cacde" },
                 },
             },
             },
@@ -370,7 +374,12 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var professions = snapshot.Professions["Player-4395-0A1B2C3D"];
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000), DateTimeOffset.FromUnixTimeSeconds(professions.ObservedAt!.Value));
         Assert.Equal("a1b2c3d4", professions.Fp);
-        Assert.Equal(2, professions.Schema);
+        Assert.Equal(3, professions.Schema);
+        Assert.Equal(new RecipeScan(1758250000, "672cacde"), professions.RecipeScans!["Alchemy"]);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(professions, CompanionJsonContext.Default.CharacterProfessions));
+        var scan = json.RootElement.GetProperty("recipeScans").GetProperty("Alchemy");
+        Assert.Equal(1758250000, scan.GetProperty("scannedAt").GetInt64());
+        Assert.Equal("672cacde", scan.GetProperty("fp").GetString());
 
         var alchemy = professions.Skills!.Single(s => s.Name == "Alchemy");
         Assert.Equal(285, alchemy.Rank);
@@ -405,7 +414,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["professions"] = {
             ["Player-4395-0A1B2C3D"] = {
                 ["observedAt"] = 1758260000,
-                ["schema"] = 2,
+                ["schema"] = 3,
                 ["recipes"] = { ["Alchemy"] = { ["scannedAt"] = 1758260000, ["list"] = { { ["recipeId"] = 11460, ["name"] = "Potion" } } } },
             },
             },
@@ -423,7 +432,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = { ["schema"] = 2, ["recipes"] = { ["Alchemy"] = { 11460, 0 } } },
+            ["Player-4395-0A1B2C3D"] = { ["schema"] = 3, ["recipes"] = { ["Alchemy"] = { 11460, 0 } } },
             },
             }
             """));
@@ -438,7 +447,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = { ["schema"] = 2 },
+            ["Player-4395-0A1B2C3D"] = { ["schema"] = 3 },
             },
             }
             """));
@@ -459,7 +468,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["professions"] = {
             { ["observedAt"] = 1758260000 }, -- [1] no guid key
             ["Player-4395-0A1B2C3D"] = {
-                ["schema"] = 2,
+                ["schema"] = 3,
                 ["skills"] = {
                 { ["rank"] = 285 }, -- missing name
                 },
@@ -481,14 +490,14 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var older = """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758200000, ["schema"] = 2, ["skills"] = { { ["name"] = "Cooking", ["rank"] = 1 } } },
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758200000, ["schema"] = 3, ["skills"] = { { ["name"] = "Cooking", ["rank"] = 1 } } },
             },
             }
             """;
         var newer = """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["schema"] = 2, ["skills"] = { { ["name"] = "Alchemy", ["rank"] = 285 } } },
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000, ["schema"] = 3, ["skills"] = { { ["name"] = "Alchemy", ["rank"] = 285 } } },
             },
             }
             """;
@@ -691,10 +700,10 @@ public sealed class StewardSavedVariablesTests : IDisposable
             },
             ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["ranks"] = { [1] = "Guild Master" }, ["addonVersion"] = "0.9.1" },
             ["professions"] = {
-                ["Player-4395-0A1B2C3D"] = { ["schema"] = 2, ["observedAt"] = 1758260000, ["addonVersion"] = "0.9.2" },
+                ["Player-4395-0A1B2C3D"] = { ["schema"] = 3, ["observedAt"] = 1758260000, ["addonVersion"] = "0.9.2" },
             },
             ["gear"] = {
-                ["Player-4395-0A1B2C3D"] = { ["schema"] = 1, ["observedAt"] = 1758260000, ["level"] = 60, ["equipped"] = {}, ["bags"] = {}, ["addonVersion"] = "0.9.3" },
+                ["Player-4395-0A1B2C3D"] = { ["schema"] = 2, ["observedAt"] = 1758260000, ["level"] = 60, ["equipped"] = {}, ["bags"] = {}, ["addonVersion"] = "0.9.3" },
             },
             ["catalogue"] = {
                 ["Alchemy"] = { ["scannedAt"] = 1758260000, ["list"] = {}, ["addonVersion"] = "0.9.4" },
@@ -878,7 +887,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["professions"] = {
-            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000000, ["schema"] = 2, ["skills"] = { { ["name"] = "Alchemy", ["rank"] = 1 } } },
+            ["Player-4395-0A1B2C3D"] = { ["observedAt"] = 1758260000000, ["schema"] = 3, ["skills"] = { { ["name"] = "Alchemy", ["rank"] = 1 } } },
             },
             ["catalogue"] = {
             ["Alchemy"] = { ["scannedAt"] = -99999999999999, ["list"] = { { ["name"] = "Minor Healing Potion" } } },
@@ -916,7 +925,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         ["characters"] = {
         ["{{guid}}"] = { ["name"] = "N{{guid}}", ["realm"] = "ClassicBetaPvP2", ["guild"] = "{{guild}}", ["observedAt"] = {{observedAt}} },
         },
-        {{(withProfessions ? $"[\"professions\"] = {{ [\"{guid}\"] = {{ [\"observedAt\"] = {observedAt}, [\"schema\"] = 2, [\"skills\"] = {{ {{ [\"name\"] = \"Cooking\" }}, }} }}, }}," : "")}}
+        {{(withProfessions ? $"[\"professions\"] = {{ [\"{guid}\"] = {{ [\"observedAt\"] = {observedAt}, [\"schema\"] = 3, [\"skills\"] = {{ {{ [\"name\"] = \"Cooking\" }}, }} }}, }}," : "")}}
         }
         """;
 
@@ -969,7 +978,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
             ["Player-4613-0000000A"] = { ["name"] = "Mate", ["realm"] = "Classic Beta PvP", ["guild"] = "Stormrage", ["observedAt"] = 1758000000 },
             ["Player-4613-0000000B"] = { ["name"] = "Mine", ["realm"] = "Classic Beta PvP", ["guild"] = "Stormrage", ["observedAt"] = 1758000000 },
             },
-            ["professions"] = { ["Player-4613-0000000B"] = { ["observedAt"] = 1758000000, ["schema"] = 2, ["skills"] = { { ["name"] = "Cooking" }, } }, },
+            ["professions"] = { ["Player-4613-0000000B"] = { ["observedAt"] = 1758000000, ["schema"] = 3, ["skills"] = { { ["name"] = "Cooking" }, } }, },
             ["guildRanks"] = { ["realm"] = "Classic Beta PvP", ["guild"] = "Stormrage", ["observedAt"] = 1758000000, ["ranks"] = { [1] = "GM" } },
             }
             """;

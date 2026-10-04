@@ -42,6 +42,7 @@ public sealed class CharacterGearTests
             ["items"] = {
                 { ["link"] = "item:18813:0:0:0:0:0:0:0:60:0:0:0:0", ["itemID"] = 18813, ["quality"] = 4, ["equipLoc"] = "INVTYPE_FINGER", ["ilvl"] = 71 }, -- [1]
             },
+            ["fp"] = "e90613d8",
         },
         """;
 
@@ -61,9 +62,9 @@ public sealed class CharacterGearTests
     private static Dictionary<string, CharacterGear> GearFor(CharacterGear gear) => new() { [Guid] = gear };
 
     [Fact]
-    public void Read_MapsSchema1Gear()
+    public void Read_MapsSchema2Gear()
     {
-        var snapshot = ReadAccount(GearLua(1, BankLua));
+        var snapshot = ReadAccount(GearLua(2, BankLua));
 
         var gear = snapshot.Gear[Guid];
         Assert.Equal(0, snapshot.Skipped);
@@ -75,6 +76,7 @@ public sealed class CharacterGearTests
         Assert.Null(gear.Equipped["16"].EnchantId);
         Assert.Equal(new GearEntry("item:10247:0:0:0:0:0:1050:0:60:0:0:0:0", 10247, 3, null, 1050, 1, "INVTYPE_HEAD", 57), Assert.Single(gear.Bags));
         Assert.Equal(1790900000, gear.Bank!.ObservedAt);
+        Assert.Equal("e90613d8", gear.Bank.Fp);
         Assert.Equal(18813, Assert.Single(gear.Bank.Items).ItemId);
     }
 
@@ -116,7 +118,7 @@ public sealed class CharacterGearTests
             },
             },
             ["level"] = 15,
-            ["schema"] = 1,
+            ["schema"] = 2,
             },
             },
             }
@@ -133,7 +135,7 @@ public sealed class CharacterGearTests
     [Fact]
     public void Read_LeavesBankNull_WhenAbsent()
     {
-        var snapshot = ReadAccount(GearLua(1));
+        var snapshot = ReadAccount(GearLua(2));
 
         Assert.Null(snapshot.Gear[Guid].Bank);
     }
@@ -141,7 +143,7 @@ public sealed class CharacterGearTests
     [Fact]
     public void Read_RejectsAnotherSchema()
     {
-        var snapshot = ReadAccount(GearLua(2, BankLua));
+        var snapshot = ReadAccount(GearLua(1, BankLua));
 
         Assert.Empty(snapshot.Gear);
         Assert.Equal(1, snapshot.Skipped);
@@ -150,7 +152,7 @@ public sealed class CharacterGearTests
     [Fact]
     public void Read_RejectsGear_WhenAnEntryLacksALink()
     {
-        var snapshot = ReadAccount(GearLua(1).Replace("[\"link\"] = \"item:19019:1900:0:0:0:0:0:0:60:0:0:0:0\", ", string.Empty, StringComparison.Ordinal));
+        var snapshot = ReadAccount(GearLua(2).Replace("[\"link\"] = \"item:19019:1900:0:0:0:0:0:0:60:0:0:0:0\", ", string.Empty, StringComparison.Ordinal));
 
         Assert.Empty(snapshot.Gear);
         Assert.Equal(1, snapshot.Skipped);
@@ -174,7 +176,7 @@ public sealed class CharacterGearTests
         using var doc = JsonDocument.Parse(JsonSerializer.Serialize(entry, CompanionJsonContext.Default.CharacterSyncEntry));
         var gear = doc.RootElement.GetProperty("gear");
 
-        Assert.Equal(1, gear.GetProperty("schema").GetInt32());
+        Assert.Equal(2, gear.GetProperty("schema").GetInt32());
         Assert.Equal(1790900000, gear.GetProperty("observedAt").GetInt64());
         Assert.Equal(60, gear.GetProperty("level").GetInt32());
         Assert.Equal("8bb1ce6a", gear.GetProperty("fp").GetString());
@@ -205,13 +207,14 @@ public sealed class CharacterGearTests
     [Fact]
     public void CharacterSyncEntry_SerialisesTheBank_WhenPresent()
     {
-        var bank = new GearBank(1790900000, [new GearEntry("item:18813:0:0:0:0:0:0:0:60:0:0:0:0", 18813, 4, EquipLoc: "INVTYPE_FINGER", Ilvl: 71)]);
+        var bank = new GearBank(1790900000, [new GearEntry("item:18813:0:0:0:0:0:0:0:60:0:0:0:0", 18813, 4, EquipLoc: "INVTYPE_FINGER", Ilvl: 71)], "e90613d8");
         var entry = CharacterSyncMapping.ToEntry(Hoobi, new Dictionary<string, CharacterProfessions>(), GearFor(SampleGear(bank)));
 
         using var doc = JsonDocument.Parse(JsonSerializer.Serialize(entry, CompanionJsonContext.Default.CharacterSyncEntry));
         var serialisedBank = doc.RootElement.GetProperty("gear").GetProperty("bank");
 
         Assert.Equal(1790900000, serialisedBank.GetProperty("observedAt").GetInt64());
+        Assert.Equal("e90613d8", serialisedBank.GetProperty("fp").GetString());
         Assert.Equal(18813, Assert.Single(serialisedBank.GetProperty("items").EnumerateArray()).GetProperty("itemID").GetInt32());
     }
 
@@ -221,8 +224,13 @@ public sealed class CharacterGearTests
         var professions = new Dictionary<string, CharacterProfessions>();
         var baseline = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear()));
         var restamped = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear() with { ObservedAt = 1790999999, Fp = "cd7ea981" }));
+        var items = new List<GearEntry> { new("item:18813:0:0:0:0:0:0:0:60:0:0:0:0", 18813, 4) };
+        var banked = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear(new GearBank(1790900000, items, "e90613d8"))));
+        var bankRestamped = CharacterSyncMapping.Fingerprint([Hoobi], professions, gear: GearFor(SampleGear(new GearBank(1790999999, items, "00000000"))));
 
         Assert.Equal(baseline, restamped);
+        Assert.Equal(banked, bankRestamped);
+        Assert.NotEqual(baseline, banked);
         Assert.NotEqual(baseline, CharacterSyncMapping.Fingerprint([Hoobi], professions));
     }
 
