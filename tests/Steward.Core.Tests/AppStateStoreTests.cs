@@ -547,4 +547,70 @@ public sealed class AppStateStoreTests : IDisposable
         Assert.Empty(state.Installs);
         Assert.Empty(state.AddedInstalls);
     }
+
+    [Fact]
+    public void Load_UnchangedFiles_ServesTheCachedState()
+    {
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{},"guild_id":"aaa"}""");
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+        Assert.Equal("aaa", store.Load().GuildId);
+        var written = File.GetLastWriteTimeUtc(StatePath);
+
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{},"guild_id":"bbb"}""");
+        File.SetLastWriteTimeUtc(StatePath, written);
+
+        Assert.Equal("aaa", store.Load().GuildId);
+    }
+
+    [Fact]
+    public void Load_AfterSave_ReturnsTheSavedState()
+    {
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+        Assert.Null(store.Load().GuildId);
+
+        store.Save(store.Load() with { GuildId = "123" });
+
+        Assert.Equal("123", store.Load().GuildId);
+    }
+
+    [Theory]
+    [InlineData("state.json")]
+    [InlineData("character_sync.json")]
+    [InlineData("provider_addons.json")]
+    public void Load_AfterAnotherProcessRewritesAFile_RereadsIt(string fileName)
+    {
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+        store.Save(new AppState([], []));
+        var before = store.Load();
+
+        File.WriteAllText(Path.Combine(_root, fileName), fileName switch
+        {
+            "state.json" => """{"channels":{},"installs":{},"guild_id":"other"}""",
+            "character_sync.json" => """{"character_sync":{"g|C:\\wow":{"fingerprint":"fp","pushed_at":"2026-01-01T00:00:00+00:00","accepted":1}},"character_sync_batches":{}}""",
+            _ => """{"provider_addons":{"C:\\wow":[]}}""",
+        });
+
+        var after = store.Load();
+        Assert.Null(before.GuildId);
+        Assert.Empty(before.CharacterSync);
+        Assert.Empty(before.ProviderAddons);
+        Assert.True(after.GuildId == "other" || after.CharacterSync.Count == 1 || after.ProviderAddons.Count == 1);
+    }
+
+    [Fact]
+    public void Load_ReturnsAnIndependentCopy_SoUnsavedMutationsDoNotLeak()
+    {
+        var store = new AppStateStore(["hoobiscripts"], StatePath);
+        store.Save(new AppState([], [], null, [@"C:\wow"], true, ["restedxp"]));
+
+        var first = store.Load();
+        first.HiddenAddons.Add("steward");
+        first.AddedInstalls.Clear();
+        first.Installs["k"] = new InstalledAddonRecord("1", "release", null);
+
+        var second = store.Load();
+        Assert.Equal(["restedxp"], second.HiddenAddons);
+        Assert.Equal([@"C:\wow"], second.AddedInstalls);
+        Assert.Empty(second.Installs);
+    }
 }

@@ -31,7 +31,32 @@ public sealed class AppStateStore
 
     private string ProviderAddonsPath => Path.Combine(Path.GetDirectoryName(_path)!, "provider_addons.json");
 
-    public AppState Load() => Normalise(WithProviderAddons(WithCharacterSync(LoadState())));
+    private readonly Lock _cacheLock = new();
+    private AppState? _cached;
+    private (FileStamp State, FileStamp CharacterSync, FileStamp ProviderAddons) _cachedStamp;
+
+    private readonly record struct FileStamp(DateTime LastWriteUtc, long Length);
+
+    public AppState Load()
+    {
+        lock (_cacheLock)
+        {
+            var stamp = (Stamp(_path), Stamp(CharacterSyncPath), Stamp(ProviderAddonsPath));
+            if (_cached is null || stamp != _cachedStamp)
+            {
+                _cached = Normalise(WithProviderAddons(WithCharacterSync(LoadState())));
+                _cachedStamp = stamp;
+            }
+
+            return Normalise(_cached);
+        }
+    }
+
+    private static FileStamp Stamp(string path)
+    {
+        var file = new FileInfo(path);
+        return file.Exists ? new FileStamp(file.LastWriteTimeUtc, file.Length) : default;
+    }
 
     private AppState LoadState()
     {
@@ -147,8 +172,8 @@ public sealed class AppStateStore
     {
         Channels = new Dictionary<string, string>(state.Channels ?? [], StringComparer.OrdinalIgnoreCase),
         Installs = new Dictionary<string, InstalledAddonRecord>(state.Installs ?? [], StringComparer.OrdinalIgnoreCase),
-        AddedInstalls = state.AddedInstalls ?? [],
-        HiddenAddons = state.HiddenAddons ?? [],
+        AddedInstalls = [.. state.AddedInstalls ?? []],
+        HiddenAddons = [.. state.HiddenAddons ?? []],
         RestedXpGuides = new Dictionary<string, RestedXpGuideRecord>(state.RestedXpGuides ?? [], StringComparer.OrdinalIgnoreCase),
         RestedXpGuideChoices = MergeGuideChoices(state),
         RestedXpGuidesGeneration = new Dictionary<string, long>(state.RestedXpGuidesGeneration ?? [], StringComparer.OrdinalIgnoreCase),
@@ -160,8 +185,8 @@ public sealed class AppStateStore
             .Where(entry => entry.Label is not null)
             .ToDictionary(entry => entry.Key, entry => entry.Label!, StringComparer.OrdinalIgnoreCase),
         InstallProducts = new Dictionary<string, string>(state.InstallProducts ?? [], StringComparer.OrdinalIgnoreCase),
-        IgnoredAddons = state.IgnoredAddons ?? [],
-        KeptLocalAddons = state.KeptLocalAddons ?? [],
+        IgnoredAddons = [.. state.IgnoredAddons ?? []],
+        KeptLocalAddons = [.. state.KeptLocalAddons ?? []],
         LegacyRestedXpGuideChoice = null,
         DismissedBanners = new Dictionary<string, int>(state.DismissedBanners ?? [], StringComparer.Ordinal),
         ProviderAddons = (state.ProviderAddons ?? []).ToDictionary(
@@ -170,6 +195,7 @@ public sealed class AppStateStore
                 record, folder => Directory.Exists(Path.Combine(entry.Key, "Interface", "AddOns", folder)))).ToList(),
             StringComparer.OrdinalIgnoreCase),
         MissingSince = new Dictionary<string, DateTimeOffset>(state.MissingSince ?? [], StringComparer.OrdinalIgnoreCase),
+        AddonCatalogue = state.AddonCatalogue is null ? null : [.. state.AddonCatalogue],
     };
 
     public static bool IsExcludedFromUpdates(AppState state, string flavourPath, string addonId) =>
@@ -178,7 +204,8 @@ public sealed class AppStateStore
 
     private static Dictionary<string, List<string>> MergeGuideChoices(AppState state)
     {
-        var choices = new Dictionary<string, List<string>>(state.RestedXpGuideChoices ?? [], StringComparer.OrdinalIgnoreCase);
+        var choices = (state.RestedXpGuideChoices ?? []).ToDictionary(
+            entry => entry.Key, entry => entry.Value?.ToList()!, StringComparer.OrdinalIgnoreCase);
         foreach (var entry in state.LegacyRestedXpGuideChoice ?? [])
         {
             choices.TryAdd(entry.Key, [entry.Value]);
@@ -229,6 +256,11 @@ public sealed class AppStateStore
     public void Save(AppState state)
     {
         ArgumentNullException.ThrowIfNull(state);
+        lock (_cacheLock)
+        {
+            _cached = null;
+        }
+
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         // Kept out of state.json: an older build sharing that file rewrites it without the keys it does not know.
         WriteAtomically(CharacterSyncPath, JsonSerializer.Serialize(
