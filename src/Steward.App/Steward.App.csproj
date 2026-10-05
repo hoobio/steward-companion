@@ -71,6 +71,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- gen0 budget is otherwise sized from the L3 cache size -->
+    <RuntimeHostConfigurationOption Include="System.GC.Gen0MaxBudget" Value="8388608" />
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Steward.Core\Steward.Core.csproj" />
   </ItemGroup>
 
