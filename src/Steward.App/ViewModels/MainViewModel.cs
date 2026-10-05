@@ -353,10 +353,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     };
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StoreListingVisibility), nameof(StoreSwitchVisibility))]
-    public partial bool? IsStoreAppInstalled { get; set; }
-
-    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RoleLabel))]
     public partial string? Role { get; set; }
 
@@ -372,7 +368,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial Uri? AvatarUri { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AppUpdateVisibility), nameof(AppUpdateChangelogUri), nameof(AboutDescription), nameof(AboutActionLabel))]
+    [NotifyPropertyChangedFor(nameof(AppUpdateVisibility), nameof(AppUpdateTitle), nameof(AppUpdateChangelogUri), nameof(AboutDescription), nameof(AboutActionLabel))]
     [NotifyCanExecuteChangedFor(nameof(InstallAppUpdateCommand))]
     public partial AddonRelease? AppUpdate { get; set; }
 
@@ -397,18 +393,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Visibility AppUpdateProgressVisibility => When(IsAppUpdateInProgress);
 
-#pragma warning disable CA1822 // x:Bind resolves these through a ViewModel instance
-    public string AppUpdateTitle => "A Steward update is available in the Microsoft Store";
-#pragma warning restore CA1822
+    public string AppUpdateTitle => App.IsPackaged
+        ? "A Steward update is available in the Microsoft Store"
+        : $"Steward {AppUpdate?.Version.TrimStart('v', 'V')} is available";
 
     public string AppUpdateActionLabel => IsAppUpdateInProgress ? "Installing…" : "Install update";
 
     public Uri? AppUpdateChangelogUri => AppUpdate is null ? null
-        : new Uri("https://github.com/hoobio/steward-companion/releases/latest");
-
-    public Visibility StoreListingVisibility => When(IsStoreAppInstalled == false);
-
-    public Visibility StoreSwitchVisibility => When(IsStoreAppInstalled == true);
+        : new Uri(App.IsPackaged
+            ? "https://github.com/hoobio/steward-companion/releases/latest"
+            : $"https://github.com/hoobio/steward-companion/releases/tag/{Uri.EscapeDataString(AppUpdate.Version)}");
 
 #pragma warning disable CA1822 // x:Bind resolves these through a ViewModel instance
     public Visibility CheckForUpdatesVisibility => When(App.IsGitHubRelease);
@@ -599,7 +593,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ when IsAppUpdateInProgress => AppUpdateProgress.Text,
         "debug" => "Debug build, not updated automatically",
         "dev" => "Development build, rebuilt on every push",
-        "msi" => "Updates come from the Microsoft Store version",
         _ when AppUpdate is not null => "An update is available",
         _ when IsCheckingAppUpdate => "Checking for updates",
         _ when LastAppUpdateCheck is { } check && check.Version == DisplayedVersion =>
@@ -798,8 +791,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsBusy = true;
         try
         {
-            UpdateStoreAppInstalledState();
-
             if (await RecheckAuthorizationAsync(cancellationToken).ConfigureAwait(true)
                 is AuthCheckResult.SessionExpired or AuthCheckResult.NotAuthorized)
             {
@@ -943,7 +934,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsBusy = true;
         try
         {
-            UpdateStoreAppInstalledState();
             _lastBannersSync = DateTimeOffset.Now;
             await SyncBannersAsync().ConfigureAwait(true);
 
@@ -981,9 +971,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await ForceStoreScanAsync(scanAllApps).ConfigureAwait(true);
         }
 
-        AppUpdate = App.IsPackaged && App.IsGitHubRelease
-            ? await CheckStoreUpdateAsync().ConfigureAwait(true)
-            : null;
+        AppUpdate = !App.IsGitHubRelease ? null
+            : App.IsPackaged ? await CheckStoreUpdateAsync().ConfigureAwait(true)
+            : await CheckMsiUpdateAsync().ConfigureAwait(true);
     }
 
     private async Task ForceStoreScanAsync(bool scanAllApps = false)
@@ -1051,11 +1041,59 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             : $"Store copy of Steward is {package.Id.Version.Major}.{package.Id.Version.Minor}.{package.Id.Version.Build}.{package.Id.Version.Revision} ({when} the scan)");
     }
 
-    private void UpdateStoreAppInstalledState()
+    private async Task<AddonRelease?> CheckMsiUpdateAsync()
     {
-        if (!App.IsPackaged && App.IsGitHubRelease)
+        _lastStoreCheck = DateTimeOffset.Now;
+        try
         {
-            IsStoreAppInstalled = new PackageManager().FindPackagesForUser(string.Empty, App.PackageFamilyName).Any();
+            var release = await _appUpdater.CheckMsiAsync(InstalledVersion, CancellationToken.None).ConfigureAwait(true);
+            _logger.Info(release is null ? "MSI update check: up to date" : $"MSI update check: {release.Version} available");
+            LastAppUpdateCheck = new AppUpdateCheck(DisplayedVersion, release is not null, DateTimeOffset.Now);
+            _stateStore.Save(_stateStore.Load() with { AppUpdateCheck = LastAppUpdateCheck });
+            return release;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            _logger.Warn(ex, "MSI update check failed");
+            if (IsCheckingAppUpdate)
+            {
+                StatusMessage = $"Could not check for a Steward update: {ex.Message}";
+            }
+
+            return AppUpdate;
+        }
+    }
+
+    private async Task InstallMsiUpdateAsync(AddonRelease release)
+    {
+        if (IsAnyRowBusy)
+        {
+            StatusMessage = "Steward can update once the addon updates in progress finish.";
+            return;
+        }
+
+        _logger.Info($"MSI update: downloading {release.Version}");
+        var total = (ulong)Math.Max(release.Size, 0);
+        SetStoreProgress(StoreUpdateProgress.From(AppUpdatePhase.Downloading, 0, 0, total));
+        try
+        {
+            var progress = new Progress<double>(fraction =>
+            {
+                if (IsAppUpdateInProgress)
+                {
+                    ReportStoreProgress(StoreUpdateProgress.From(AppUpdatePhase.Downloading, fraction * StoreUpdateProgress.DownloadShare, (ulong)(fraction * total), total));
+                }
+            });
+            var msiPath = await _appUpdater.DownloadMsiAsync(release, progress, CancellationToken.None).ConfigureAwait(true);
+            FinishStoreProgress("downloading the MSI", completed: true);
+            AppUpdater.InstallMsiAfterExit(msiPath, Path.Combine(DataFolder, "update.log"));
+            QuitRequested?.Invoke();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException or TaskCanceledException or Win32Exception)
+        {
+            _logger.Warn(ex, "MSI update install failed");
+            FinishStoreProgress("with an error", completed: false);
+            StatusMessage = $"Could not install the Steward update: {ex.Message}";
         }
     }
 
@@ -1251,12 +1289,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void OpenStoreListing() => OpenUri(_appUpdater.StoreListingUri);
-
-    [RelayCommand]
     private async Task CheckForUpdatesAsync()
     {
-        if (App.IsPackaged && App.IsGitHubRelease)
+        if (App.IsGitHubRelease)
         {
             await CheckOrInstallAppUpdateAsync().ConfigureAwait(true);
             return;
@@ -1272,20 +1307,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private static void OpenUri(Uri uri) =>
         Process.Start(new ProcessStartInfo(uri.OriginalString) { UseShellExecute = true })?.Dispose();
-
-    [RelayCommand]
-    private void SwitchToStore()
-    {
-        try
-        {
-            AppUpdater.SwitchToStoreAfterExit(App.MsiUpgradeCode, Path.Combine(DataFolder, "update.log"), $"{App.PackageFamilyName}!App");
-            QuitRequested?.Invoke();
-        }
-        catch (Win32Exception ex)
-        {
-            StatusMessage = $"Could not switch to the Microsoft Store version: {ex.Message}";
-        }
-    }
 
     private async Task SetStartupTaskAsync(bool? enable)
     {
@@ -1326,7 +1347,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanCheckOrInstallAppUpdate))]
     private async Task CheckOrInstallAppUpdateAsync()
     {
-        if (App.IsPackaged && App.IsGitHubRelease)
+        if (App.IsGitHubRelease)
         {
             if (AppUpdate is not null)
             {
@@ -1345,7 +1366,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task HandleStoreUpdateBannerActionAsync()
     {
-        if (App.IsPackaged && App.IsGitHubRelease)
+        if (App.IsGitHubRelease)
         {
             await CheckOrInstallAppUpdateAsync().ConfigureAwait(true);
             return;
@@ -1425,6 +1446,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (AppUpdate is null || (IsAppUpdateInProgress && _storeInstall is not { IsCompleted: false }))
         {
+            return;
+        }
+
+        if (!App.IsPackaged)
+        {
+            await InstallMsiUpdateAsync(AppUpdate).ConfigureAwait(true);
             return;
         }
 
@@ -2942,9 +2969,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isChecking = true;
         try
         {
-            UpdateStoreAppInstalledState();
-
-            var result = Failure == GateFailure.ClientOutdated && DateTimeOffset.Now - _clientOutdatedAt < GuildSyncFallbackInterval
+            var result =Failure == GateFailure.ClientOutdated && DateTimeOffset.Now - _clientOutdatedAt < GuildSyncFallbackInterval
                 ? AuthCheckResult.ClientOutdated
                 : _isAccessEventStreamLive && IsAuthorized && IsApiReachable && !IsDue(_lastAuthCheck, GuildSyncFallbackInterval)
                     ? AuthCheckResult.Authorized
@@ -2968,7 +2993,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     _lastBannersSync = DateTimeOffset.Now;
                     await SyncBannersAsync().ConfigureAwait(true);
                 }
-                if (!App.IsPackaged || IsDue(_lastStoreCheck, StoreCheckInterval))
+                if (IsDue(_lastStoreCheck, StoreCheckInterval))
                 {
                     await CheckAppUpdateAsync().ConfigureAwait(true);
                 }

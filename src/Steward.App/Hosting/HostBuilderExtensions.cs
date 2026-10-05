@@ -103,7 +103,10 @@ internal static class HostBuilderExtensions
             sp.GetRequiredService<ILogger<AddonUpdater>>(),
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Steward"),
             sp.GetRequiredService<StewardClient>().ReportCurseForgeDownloadFailureAsync));
-        builder.Services.AddSingleton(sp => new AppUpdater(storeProductId));
+        builder.Services.AddSingleton(sp => new AppUpdater(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"),
+            new Uri($"{baseUrl.TrimEnd('/')}/api/addons/steward-companion/latest-release.json"),
+            storeProductId));
 
         builder.Services.AddSingleton(sp => new RestedXpClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Addon"),

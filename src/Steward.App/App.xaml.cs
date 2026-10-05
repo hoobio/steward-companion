@@ -34,8 +34,6 @@ public partial class App : Application
 
     public const string PackageFamilyName = "Hoobi.Steward_thayxpy3eqg0g";
 
-    public const string MsiUpgradeCode = "{CCD0BF88-7A8E-4F74-9DB7-9B9272B3D503}";
-
     private const int AppModelErrorNoPackage = 15700;
 
     public static readonly bool IsPackaged = ResolveIsPackaged();
