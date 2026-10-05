@@ -70,6 +70,44 @@ function Wait-StoreSubmissionClear {
     }
 }
 
+function Test-StoreSubmissionHasPackage {
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Output,
+        [Parameter(Mandatory)][string]$PackageName
+    )
+
+    return $Output -match ('"FileName":\s*"' + [regex]::Escape($PackageName) + '"')
+}
+
+function Get-StorePendingSubmission {
+    param(
+        [Parameter(Mandatory)][string]$ProductId,
+        [Parameter(Mandatory)][string]$PackagePath,
+        [string]$FlightId,
+        [int]$Attempts = 10,
+        [int]$PollSeconds = 30
+    )
+
+    $getArgs = if ($FlightId) { @('flights', 'submission', 'get', $ProductId, $FlightId) } else { @('submission', 'get', $ProductId) }
+    $packageName = Split-Path $PackagePath -Leaf
+
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        $out = & msstore @getArgs | Out-String
+        if ($LASTEXITCODE -ne 0) { throw "msstore $($getArgs -join ' ') failed ($LASTEXITCODE)" }
+        # Seen 4 Oct 2026 (0.20.2): right after publish --noCommit, get answered with the last published submission, and patching that shipped the previous package.
+        if (Test-StoreSubmissionHasPackage -Output $out -PackageName $packageName) {
+            $s = $out.IndexOf('{'); $e = $out.LastIndexOf('}')
+            if ($s -lt 0 -or $e -le $s) { throw 'Could not parse submission JSON from msstore output' }
+            return $out.Substring($s, $e - $s + 1) | ConvertFrom-Json
+        }
+        Write-Host "Pending submission does not list $packageName yet; waiting $PollSeconds seconds (attempt $attempt of $Attempts)."
+        Start-Sleep -Seconds $PollSeconds
+    }
+
+    Write-Host "::error::No pending submission lists $packageName after $Attempts attempts; not committing."
+    exit 1
+}
+
 if ($MyInvocation.InvocationName -ne '.') {
     if (Test-StoreSubmissionBusy -StatusOutput 'Submission Status = Certification') { throw 'self-check failed: Certification should be deletable' }
     if (Test-StoreSubmissionBusy -StatusOutput 'Submission Status = PendingCommit') { throw 'self-check failed: PendingCommit should be deletable' }
@@ -83,6 +121,11 @@ if ($MyInvocation.InvocationName -ne '.') {
     if (Get-StoreApiOnlySubmissionId -Output 'Existing submission deleted!') { throw 'self-check failed: normal delete output should not match' }
     if (Get-StoreApiOnlySubmissionId -Output '') { throw 'self-check failed: an empty delete output (nothing pending) should not match' }
     if (Test-StoreSubmissionBusy -StatusOutput '') { throw 'self-check failed: an empty status output should not be busy' }
+
+    $published = "Could not find a Pending Submission, but found the Last Published Submission.`n      `"FileName`": `"Steward-0.20.378.0-x64.msixupload`","
+    if (Test-StoreSubmissionHasPackage -Output $published -PackageName 'Steward-0.20.387.0-x64.msixupload') { throw 'self-check failed: the published submission should not list the new package' }
+    $pending = "      `"FileName`": `"Steward-0.20.378.0-x64.msixupload`",`n      `"FileName`": `"Steward-0.20.387.0-x64.msixupload`","
+    if (-not (Test-StoreSubmissionHasPackage -Output $pending -PackageName 'Steward-0.20.387.0-x64.msixupload')) { throw 'self-check failed: the pending submission should list the new package' }
 
     Write-Host 'Wait-StoreSubmissionClear self-check passed.'
 }

@@ -424,11 +424,7 @@ jobs:
           if ($env:SINCE_VERSION) { $whatsNewParams.SinceVersion = $env:SINCE_VERSION }
           $whatsNew = Get-StoreWhatsNew @whatsNewParams
 
-          $out = msstore submission get $env:PRODUCT_ID | Out-String
-          if ($LASTEXITCODE -ne 0) { throw "submission get failed ($LASTEXITCODE)" }
-          $s = $out.IndexOf('{'); $e = $out.LastIndexOf('}')
-          if ($s -lt 0 -or $e -le $s) { throw 'Could not parse submission JSON from msstore output' }
-          $sub = $out.Substring($s, $e - $s + 1) | ConvertFrom-Json
+          $sub = Get-StorePendingSubmission -ProductId $env:PRODUCT_ID -PackagePath $package
 
           foreach ($listing in $sub.Listings.PSObject.Properties) {
             $listing.Value.BaseListing | Add-Member -NotePropertyName ReleaseNotes -NotePropertyValue $whatsNew -Force
@@ -519,11 +515,7 @@ jobs:
             Start-Sleep -Seconds 60
           } while ($true)
 
-          $out = msstore flights submission get $env:PRODUCT_ID $env:FLIGHT_ID | Out-String
-          if ($LASTEXITCODE -ne 0) { throw "flights submission get failed ($LASTEXITCODE)" }
-          $s = $out.IndexOf('{'); $e = $out.LastIndexOf('}')
-          if ($s -lt 0 -or $e -le $s) { throw 'Could not parse flight submission JSON from msstore output' }
-          $sub = $out.Substring($s, $e - $s + 1) | ConvertFrom-Json
+          $sub = Get-StorePendingSubmission -ProductId $env:PRODUCT_ID -PackagePath $package -FlightId $env:FLIGHT_ID
           $delivery = $sub.PackageDeliveryOptions ?? [pscustomobject]@{}
           $delivery | Add-Member IsMandatoryUpdate $true -Force
           $delivery | Add-Member MandatoryUpdateEffectiveDate ([DateTime]::UtcNow.ToString('o')) -Force
