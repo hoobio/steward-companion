@@ -22,6 +22,27 @@ public sealed partial class HomePage : Page
 
     private static readonly string[] ShrinkOrder = ["source", "channel", "version"];
 
+    private static readonly HashSet<string> WidthNeutralProperties =
+    [
+        nameof(AddonRowViewModel.UpdateProgress),
+        nameof(AddonRowViewModel.ProgressText),
+        nameof(AddonRowViewModel.VersionCellTip),
+        nameof(AddonRowViewModel.HasVersionCellTip),
+        nameof(AddonRowViewModel.VersionTip),
+        nameof(AddonRowViewModel.FolderTip),
+        nameof(AddonRowViewModel.ReleasedTip),
+        nameof(AddonRowViewModel.VersionButtonTip),
+        nameof(AddonRowViewModel.VersionPairTip),
+        nameof(AddonRowViewModel.SingleChannelTip),
+        nameof(AddonRowViewModel.ChangelogTitle),
+        nameof(AddonRowViewModel.Changelog),
+        nameof(AddonRowViewModel.OutOfDateTip),
+        nameof(AddonRowViewModel.LastUpdated),
+        nameof(AddonRowViewModel.StatusRank),
+        nameof(AddonRowViewModel.CanAutoApply),
+        nameof(AddonRowViewModel.IsPendingUpdate),
+    ];
+
     private const int NameIndex = 1;
     private const double NameMinWidth = 80;
     private const int ChannelIndex = 3;
@@ -104,7 +125,13 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private void OnRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => QueueNeeds();
+    private void OnRowPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is null || !WidthNeutralProperties.Contains(e.PropertyName))
+        {
+            QueueNeeds();
+        }
+    }
 
     private void ApplyColumnsToAll()
     {

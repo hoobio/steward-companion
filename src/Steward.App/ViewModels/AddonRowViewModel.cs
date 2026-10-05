@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.Json;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -114,6 +115,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(HasFailed),
         nameof(UpdateProgress),
         nameof(IsInstallGated),
+        nameof(IsHidden),
+        nameof(IsIgnored),
+        nameof(IsDistributable),
     ];
 
     private IReadOnlyList<AddonRowViewModel> _children = [];
@@ -131,6 +135,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     private readonly ILogger _logger;
 
     private AddonChannelStatus? _status;
+    private InstalledAddonRecord? _record;
+    private IReadOnlyList<ChangelogBlock> _changelog = [];
     private int _lastUpdatedGeneration;
 
     public ImageSource Icon { get; }
@@ -463,7 +469,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility IgnoredUpdateVisibility => When(Status == AddonRowStatus.Ignored && IsIgnoredUpdate);
 
-    public IReadOnlyList<ChangelogBlock> Changelog =>
+    public IReadOnlyList<ChangelogBlock> Changelog => _changelog;
+
+    private IReadOnlyList<ChangelogBlock> CombineChangelog() =>
         Changelogs.Combine(
             (_status?.Release, HasOwnUpdate),
             [.. _children.Select(child => (child.DisplayName, child._status?.Release, child.HasOwnUpdate && RolledUpChildren.Contains(child)))]);
@@ -544,7 +552,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     private string Key => AppStateStore.Key(_install.FlavourPath, _addon.Id);
 
-    private InstalledAddonRecord? Record => _stateStore.Load().Installs.GetValueOrDefault(Key);
+    private InstalledAddonRecord? Record => _record;
 
     private string AddonFolderPath => Path.Combine(_install.AddOnsPath, _addon.FolderName);
 
@@ -556,8 +564,16 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public void RefreshInstalledVersion()
     {
         var record = _stateStore.Load().Installs.GetValueOrDefault(Key);
-        InstalledVersion = record?.Version ?? TocFile.ReadVersion(TocPath)
+        var recordChanged = !Equals(record, _record);
+        _record = record;
+        var installedVersion = record?.Version ?? TocFile.ReadVersion(TocPath)
             ?? (Source == CurseForgeAddons.Source && Directory.Exists(AddonFolderPath) ? "unknown" : null);
+        if (recordChanged && string.Equals(installedVersion, InstalledVersion, StringComparison.Ordinal))
+        {
+            NotifyDerived();
+        }
+
+        InstalledVersion = installedVersion;
         _ = RefreshLastUpdatedAsync(record);
     }
 
@@ -583,6 +599,14 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     {
         ArgumentNullException.ThrowIfNull(status);
 
+        if (SameStatus(_status, status))
+        {
+            _status = status;
+            OnPropertyChanged(nameof(ReleasedText));
+            OnPropertyChanged(nameof(VersionCellTip));
+            return;
+        }
+
         var previousAvailable = AvailableVersion;
         _status = status;
         Channel = status.Channel;
@@ -595,6 +619,18 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         StatusMessage = status.Channel is null ? null : status.Notice;
         NotifyDerived();
     }
+
+    private static bool SameStatus(AddonChannelStatus? previous, AddonChannelStatus next) =>
+        previous is not null
+        && string.Equals(previous.Channel, next.Channel, StringComparison.Ordinal)
+        && string.Equals(previous.Notice, next.Notice, StringComparison.Ordinal)
+        && previous.Releases.Count == next.Releases.Count
+        && previous.Releases.All(entry => next.Releases.TryGetValue(entry.Key, out var release) && SameRelease(entry.Value, release));
+
+    private static bool SameRelease(AddonRelease? previous, AddonRelease? next) =>
+        ReferenceEquals(previous, next)
+        || (previous is not null && next is not null
+            && JsonSerializer.Serialize(previous, CompanionJsonContext.Default.AddonRelease) == JsonSerializer.Serialize(next, CompanionJsonContext.Default.AddonRelease));
 
     partial void OnChannelChanged(string? value) => NotifyDerived();
 
@@ -624,6 +660,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     private void NotifyDerived()
     {
+        _changelog = CombineChangelog();
         foreach (var name in DerivedNames)
         {
             OnPropertyChanged(name);
