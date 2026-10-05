@@ -207,6 +207,13 @@ public sealed partial class SyncViewModel : ObservableObject
 
     private void WatchSavedVariables()
     {
+        var current = _main.Installs.Select(install => install.FlavourPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in _watchers.Keys.Where(path => !current.Contains(path)).ToList())
+        {
+            _watchers[path].Dispose();
+            _watchers.Remove(path);
+        }
+
         foreach (var install in _main.Installs.Where(install => !_watchers.ContainsKey(install.FlavourPath)))
         {
             var watcher = SavedVariablesWatcher.TryCreate(

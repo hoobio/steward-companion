@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -24,8 +25,38 @@ public static class StewardSyncFile
         "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload, withAvatar, fingerprint)) + ")" + Environment.NewLine;
 
     public static string Fingerprint(SyncPayload payload) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }) + payload.Avatar?.SourceUrl)));
+        HashUtf8(Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }), payload.Avatar?.SourceUrl);
+
+    private static string HashUtf8(params string?[] parts)
+    {
+        const int ChunkChars = 4096;
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = ArrayPool<byte>.Shared.Rent(Encoding.UTF8.GetMaxByteCount(ChunkChars));
+        try
+        {
+            foreach (var part in parts)
+            {
+                var chars = part.AsSpan();
+                while (!chars.IsEmpty)
+                {
+                    var take = Math.Min(ChunkChars, chars.Length);
+                    if (take < chars.Length && char.IsHighSurrogate(chars[take - 1]))
+                    {
+                        take--;
+                    }
+
+                    hash.AppendData(buffer, 0, Encoding.UTF8.GetBytes(chars[..take], buffer));
+                    chars = chars[take..];
+                }
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
 
     public static string? ReadFingerprint(string addOnsPath)
     {
@@ -50,7 +81,7 @@ public static class StewardSyncFile
         }
     }
 
-    public static void Write(string addOnsPath, SyncPayload payload)
+    public static void Write(string addOnsPath, SyncPayload payload, string? fingerprint = null)
     {
         ArgumentNullException.ThrowIfNull(payload);
 
@@ -64,7 +95,7 @@ public static class StewardSyncFile
             }
 
             var wroteAvatar = TryWriteAvatar(addOnsPath, payload.Avatar);
-            WriteGuarded(addOnsPath, FileName, Encoding.UTF8.GetBytes(Render(payload, wroteAvatar, Fingerprint(payload))));
+            WriteGuarded(addOnsPath, FileName, Encoding.UTF8.GetBytes(Render(payload, wroteAvatar, fingerprint ?? Fingerprint(payload))));
         }
     }
 

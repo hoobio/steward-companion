@@ -104,6 +104,16 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
+    public void Fingerprint_IsTheSha256OfTheRenderedUtf8Text()
+    {
+        var payload = SamplePayload() with { Statuses = [.. Enumerable.Range(0, 2000).Select(i => $"Raider\U0001F600é{i}")] };
+        var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
+            StewardSyncFile.Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }) + payload.Avatar?.SourceUrl)));
+
+        Assert.Equal(expected, StewardSyncFile.Fingerprint(payload));
+    }
+
+    [Fact]
     public void Fingerprint_Changes_WhenTheStatusesAreReordered()
     {
         var payload = SamplePayload() with { Statuses = ["Officer", "Raider"] };

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 
 namespace Steward.Core;
@@ -39,12 +40,28 @@ public static class StewardSavedVariables
         return files;
     }
 
+    private static readonly ConcurrentDictionary<string, (string Signature, SavedVariablesSnapshot Snapshot)> Cache =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public static SavedVariablesSnapshot? Read(string flavourPath)
     {
         var paths = FindFiles(flavourPath);
-        return paths.Count == 0
-            ? null
-            : Read(paths.Select(path => (path, (DateTimeOffset)File.GetLastWriteTimeUtc(path), File.ReadAllText(path))));
+        if (paths.Count == 0)
+        {
+            Cache.TryRemove(flavourPath, out _);
+            return null;
+        }
+
+        var files = paths.Select(path => (Path: path, Info: new FileInfo(path))).ToList();
+        var signature = string.Join('|', files.Select(file => $"{file.Path}*{file.Info.LastWriteTimeUtc.Ticks}*{file.Info.Length}"));
+        if (Cache.TryGetValue(flavourPath, out var cached) && cached.Signature == signature)
+        {
+            return cached.Snapshot;
+        }
+
+        var snapshot = Read(files.Select(file => (file.Path, (DateTimeOffset)file.Info.LastWriteTimeUtc, File.ReadAllText(file.Path))));
+        Cache[flavourPath] = (signature, snapshot);
+        return snapshot;
     }
 
     internal static SavedVariablesSnapshot Read(IEnumerable<(string Path, DateTimeOffset LastWriteTime, string Text)> files)

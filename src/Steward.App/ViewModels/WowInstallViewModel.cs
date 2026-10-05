@@ -230,9 +230,9 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         }
     }
 
-    public void RefreshClientRunning()
+    public void RefreshClientRunning(IReadOnlyList<(string FileName, WowClientProcess Process)>? clients = null)
     {
-        var client = WowClient.Find(Install);
+        var client = WowClient.Find(Install, clients ?? WowClient.Snapshot());
         if (client?.ProcessId != Client?.ProcessId)
         {
             StopWatching();

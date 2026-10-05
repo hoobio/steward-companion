@@ -2609,9 +2609,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void RefreshClients()
     {
+        var clients = WowClient.Snapshot();
         foreach (var install in Installs)
         {
-            install.RefreshClientRunning();
+            install.RefreshClientRunning(clients);
         }
 
         RestedXp.SetInstalls(PresentInstalls);

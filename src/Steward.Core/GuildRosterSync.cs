@@ -31,7 +31,7 @@ public static class GuildRosterSync
 
         try
         {
-            StewardSyncFile.Write(install.AddOnsPath, payload);
+            StewardSyncFile.Write(install.AddOnsPath, payload, fingerprint);
         }
         catch (InvalidOperationException ex)
         {

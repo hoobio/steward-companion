@@ -920,6 +920,41 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal(2, snapshot.Roster.Count);
     }
 
+    [Fact]
+    public void Read_FromDisk_ReturnsTheCachedSnapshot_WhenNoFileChanged()
+    {
+        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), AccountFile);
+
+        Assert.Same(StewardSavedVariables.Read(_root), StewardSavedVariables.Read(_root));
+    }
+
+    [Fact]
+    public void Read_FromDisk_Reparses_WhenAFileIsWritten()
+    {
+        var path = WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), AccountFile);
+        var first = StewardSavedVariables.Read(_root);
+
+        File.WriteAllText(path, CharacterFile);
+        File.SetLastWriteTimeUtc(path, File.GetLastWriteTimeUtc(path).AddMinutes(1));
+        var second = StewardSavedVariables.Read(_root);
+
+        Assert.NotSame(first, second);
+        Assert.Empty(second!.Roster);
+    }
+
+    [Fact]
+    public void Read_FromDisk_Reparses_WhenAnAccountFileIsAdded()
+    {
+        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), AccountFile);
+        var first = StewardSavedVariables.Read(_root);
+
+        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#2"), AccountFile);
+        var second = StewardSavedVariables.Read(_root);
+
+        Assert.Single(first!.Files);
+        Assert.Equal(2, second!.Files.Count);
+    }
+
     private static string GuildFile(string guild, string guid, long observedAt, bool withProfessions = false) => $$"""
         StewardDB = {
         ["characters"] = {

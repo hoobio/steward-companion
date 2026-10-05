@@ -7,10 +7,19 @@ public static class WowClient
 {
     public static bool IsRunning(WowInstall install) => Find(install) is not null;
 
-    public static WowClientProcess? Find(WowInstall install)
+    public static WowClientProcess? Find(WowInstall install) => Find(install, Snapshot());
+
+    public static WowClientProcess? Find(WowInstall install, IReadOnlyList<(string FileName, WowClientProcess Process)> snapshot)
     {
         ArgumentNullException.ThrowIfNull(install);
+        ArgumentNullException.ThrowIfNull(snapshot);
 
+        return snapshot.FirstOrDefault(entry => IsUnder(entry.FileName, install.FlavourPath)).Process;
+    }
+
+    public static IReadOnlyList<(string FileName, WowClientProcess Process)> Snapshot()
+    {
+        var clients = new List<(string, WowClientProcess)>();
         foreach (var process in Process.GetProcesses())
         {
             using (process)
@@ -23,9 +32,9 @@ public static class WowClient
 
                 try
                 {
-                    if (process.MainModule?.FileName is { } fileName && IsUnder(fileName, install.FlavourPath))
+                    if (process.MainModule?.FileName is { } fileName)
                     {
-                        return new WowClientProcess(process.Id, process.StartTime);
+                        clients.Add((fileName, new WowClientProcess(process.Id, process.StartTime)));
                     }
                 }
                 catch (Win32Exception)
@@ -40,7 +49,7 @@ public static class WowClient
             }
         }
 
-        return null;
+        return clients;
     }
 
     public static async Task WaitForExitAsync(int processId, CancellationToken cancellationToken)
