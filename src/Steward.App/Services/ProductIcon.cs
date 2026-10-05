@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
@@ -5,6 +7,8 @@ namespace Steward.App.Services;
 
 public static class ProductIcon
 {
+    private static readonly ConcurrentDictionary<string, BitmapImage> Cache = new();
+
     public static ImageSource? For(string? productCode)
     {
         if (productCode is null)
@@ -18,6 +22,6 @@ public static class ProductIcon
             return null;
         }
 
-        return new BitmapImage(new Uri(App.IsPackaged ? $"ms-appx:///Assets/Products/{productCode}.png" : path));
+        return Cache.GetOrAdd(productCode, _ => new BitmapImage(new Uri(App.IsPackaged ? $"ms-appx:///Assets/Products/{productCode}.png" : path)) { DecodePixelWidth = 64 });
     }
 }

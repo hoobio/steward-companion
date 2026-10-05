@@ -12,6 +12,8 @@ public static class ManifestIcon
 {
     private static readonly HttpClient HttpClient = new();
     private static readonly ConcurrentDictionary<string, Task> Refreshes = new(StringComparer.OrdinalIgnoreCase);
+    private const int DisplayPixels = 64;
+    private static readonly ConcurrentDictionary<(string Path, DateTime Stamp), BitmapImage> Decoded = new();
     private static readonly string CacheFolder = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward", "icons");
 
@@ -32,13 +34,20 @@ public static class ManifestIcon
 
         try
         {
-            var bitmap = new BitmapImage();
-            bitmap.SetSource(new MemoryStream(File.ReadAllBytes(path)).AsRandomAccessStream());
+            var key = (path, File.GetLastWriteTimeUtc(path));
+            if (!Decoded.TryGetValue(key, out var bitmap))
+            {
+                bitmap = new BitmapImage { DecodePixelWidth = DisplayPixels };
+                using var stream = new MemoryStream(File.ReadAllBytes(path));
+                bitmap.SetSource(stream.AsRandomAccessStream());
+                Decoded[key] = bitmap;
+            }
+
             return bitmap;
         }
         catch (IOException)
         {
-            return new BitmapImage(source);
+            return new BitmapImage(source) { DecodePixelWidth = DisplayPixels };
         }
     }
 

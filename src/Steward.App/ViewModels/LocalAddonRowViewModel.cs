@@ -95,7 +95,7 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     private async Task LoadIconAsync() =>
         Icon = Uri.TryCreate(Match?.IconUrl, UriKind.Absolute, out var icon)
-            ? new BitmapImage(icon)
+            ? new BitmapImage(icon) { DecodePixelWidth = 64 }
             : await LocalAddonIcon.LoadAsync(_install.AddOnsPath, _addon.FolderName, _logger).ConfigureAwait(true);
 
     public string DisplayName => Match?.Name ?? _addon.Name;

@@ -19,7 +19,7 @@ public sealed partial class GuildOptionViewModel : ObservableObject
         MemberCount = guild.MemberCount;
         Role = role;
         Initial = Label[..1].ToUpperInvariant();
-        Icon = Uri.TryCreate(guild.IconUrl, UriKind.Absolute, out var icon) ? new BitmapImage(icon) : null;
+        Icon = Uri.TryCreate(guild.IconUrl, UriKind.Absolute, out var icon) ? new BitmapImage(icon) { DecodePixelWidth = 64 } : null;
     }
 
     public string Id { get; }
