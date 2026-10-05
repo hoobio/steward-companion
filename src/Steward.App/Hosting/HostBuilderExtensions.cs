@@ -65,9 +65,11 @@ internal static class HostBuilderExtensions
         builder.Services.AddHttpClient("Steward")
             // Steward API's _same_site check accepts Sec-Fetch-Site: none, a value browsers never let a page set.
             .ConfigureHttpClient(c => c.DefaultRequestHeaders.Add("Sec-Fetch-Site", "none"))
+            .SetHandlerLifetime(Timeout.InfiniteTimeSpan)
             .ConfigurePrimaryHttpMessageHandler(sp => new SocketsHttpHandler
             {
                 CookieContainer = sp.GetRequiredService<CookieContainer>(),
+                PooledConnectionLifetime = TimeSpan.FromMinutes(15),
             })
             .AddHttpMessageHandler(sp => new ClientOutdatedHandler(message => sp.GetRequiredService<MainViewModel>().ReportClientOutdated(message)));
         var downloadUserAgent = builder.Configuration["Downloads:UserAgent"];
@@ -79,7 +81,8 @@ internal static class HostBuilderExtensions
                     c.DefaultRequestHeaders.UserAgent.ParseAdd(downloadUserAgent);
                 }
             })
-            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false });
+            .SetHandlerLifetime(Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false, PooledConnectionLifetime = TimeSpan.FromMinutes(15) });
 
         builder.Services.AddSingleton<IReadOnlyList<ManagedAddon>>(addons);
         builder.Services.AddSingleton<IReadOnlyDictionary<string, string>>(

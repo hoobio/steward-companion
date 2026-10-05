@@ -16,6 +16,8 @@ public sealed class InstanceCoordination : IDisposable
     private readonly EventWaitHandle _running;
     private readonly EventWaitHandle _show;
     private readonly EventWaitHandle _quit;
+    private RegisteredWaitHandle? _showWait;
+    private RegisteredWaitHandle? _quitWait;
 
     private InstanceCoordination(Mutex mutex, EventWaitHandle running, EventWaitHandle show, EventWaitHandle quit, string? closedTrainDisplayName)
     {
@@ -104,8 +106,10 @@ public sealed class InstanceCoordination : IDisposable
     public void ListenForSignals(MainWindow window)
     {
         var dispatcher = window.DispatcherQueue;
-        _ = Task.Run(() => WaitLoop(_show, () => dispatcher.TryEnqueue(window.ShowFromTray)));
-        _ = Task.Run(() => WaitLoop(_quit, () => dispatcher.TryEnqueue(() => _ = window.QuitFromAnotherBuildAsync())));
+        _showWait = ThreadPool.RegisterWaitForSingleObject(
+            _show, (_, _) => dispatcher.TryEnqueue(window.ShowFromTray), null, Timeout.Infinite, executeOnlyOnce: false);
+        _quitWait = ThreadPool.RegisterWaitForSingleObject(
+            _quit, (_, _) => dispatcher.TryEnqueue(() => _ = window.QuitFromAnotherBuildAsync()), null, Timeout.Infinite, executeOnlyOnce: false);
         _ = Task.Run(() => ListenForLinksAsync(link => dispatcher.TryEnqueue(() => _ = window.ViewModel.ReceiveCurseForgeLinkAsync(link))));
     }
 
@@ -146,15 +150,6 @@ public sealed class InstanceCoordination : IDisposable
         }
     }
 
-    private static void WaitLoop(EventWaitHandle handle, Action onSignal)
-    {
-        while (true)
-        {
-            handle.WaitOne();
-            onSignal();
-        }
-    }
-
     private static void LogTimeout(string ownTrain, string? otherTrain) =>
         Log(ownTrain, null, $"Gave up waiting 15s for the {otherTrain ?? "other"} build to quit; exiting without starting");
 
@@ -174,6 +169,8 @@ public sealed class InstanceCoordination : IDisposable
 
     public void Dispose()
     {
+        _showWait?.Unregister(null);
+        _quitWait?.Unregister(null);
         _mutex.ReleaseMutex();
         _mutex.Dispose();
         _running.Dispose();
