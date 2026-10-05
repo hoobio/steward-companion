@@ -156,7 +156,8 @@ public partial class App : Application
         {
             _window.ShowFromTray();
         }
-        _ = _window.ViewModel.InitializeCommand.ExecuteAsync(null);
+        _ = _window.ViewModel.InitializeCommand.ExecuteAsync(null)
+            .ContinueWith(_ => _window.DispatcherQueue.TryEnqueue(_window.TrimIfHidden), TaskScheduler.Default);
         if (_instanceCoordination.Link is { } link)
         {
             _ = _window.ViewModel.ReceiveCurseForgeLinkAsync(link);

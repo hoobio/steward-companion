@@ -32,6 +32,7 @@ public sealed partial class MainWindow : Window
     private readonly IServiceProvider _services;
     private bool _quitting;
     private bool _confirmingClose;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _trimTimer;
     private Native.SubclassProc? _sessionEndSubclass;
     private RectInt32 _passthrough;
     private bool _passthroughStale;
@@ -520,10 +521,25 @@ public sealed partial class MainWindow : Window
     {
         AppWindow.Hide();
         EfficiencyModeUtilities.SetEfficiencyMode(true);
+        _trimTimer?.Stop();
+        _trimTimer = DispatcherQueue.CreateTimer();
+        _trimTimer.Interval = TimeSpan.FromSeconds(3);
+        _trimTimer.IsRepeating = false;
+        _trimTimer.Tick += (_, _) => TrimIfHidden();
+        _trimTimer.Start();
+    }
+
+    public void TrimIfHidden()
+    {
+        if (!AppWindow.IsVisible)
+        {
+            Native.TrimWorkingSet();
+        }
     }
 
     public void ShowFromTray()
     {
+        _trimTimer?.Stop();
         EfficiencyModeUtilities.SetEfficiencyMode(false);
         AppWindow.Show(activateWindow: true);
         if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter)
@@ -538,6 +554,7 @@ public sealed partial class MainWindow : Window
 
     public void ShowWithoutFocus()
     {
+        _trimTimer?.Stop();
         EfficiencyModeUtilities.SetEfficiencyMode(false);
         AppWindow.Show(activateWindow: false);
         // XAML renders nothing until the first Activate; on an already visible window it is only SetActiveWindow, which a background process cannot turn into foreground.
@@ -609,6 +626,14 @@ internal static class Native
 
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(nint hWnd);
+
+    [DllImport("kernel32.dll")]
+    private static extern nint GetCurrentProcess();
+
+    [DllImport("kernel32.dll")]
+    private static extern bool SetProcessWorkingSetSizeEx(nint hProcess, nint minimumWorkingSetSize, nint maximumWorkingSetSize, uint flags);
+
+    public static void TrimWorkingSet() => SetProcessWorkingSetSizeEx(GetCurrentProcess(), -1, -1, 0);
 
     public const uint WM_QUERYENDSESSION = 0x11;
     public const uint WM_ENDSESSION = 0x16;
