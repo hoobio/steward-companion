@@ -110,7 +110,7 @@ public sealed partial class MainWindow : Window
         TrayIcon.Icon = new System.Drawing.Icon(App.IconPath, Native.SmallIconSize, Native.SmallIconSize);
         // x:Bind in a Window evaluates only once its content loads, which a --tray launch never does.
         TrayIcon.LeftClickCommand = TrayIcon.DoubleClickCommand = new RelayCommand(ShowFromTray);
-        TrayIcon.ForceCreate();
+        TrayIcon.ForceCreate(enablesEfficiencyMode: false);
         AppWindow.Closing += OnWindowClosing;
         AppWindow.Changed += OnWindowChanged;
         // TextBox handles the tap itself to place the caret, which would clear a selection made on focus.
@@ -520,7 +520,8 @@ public sealed partial class MainWindow : Window
     public void HideToTray()
     {
         AppWindow.Hide();
-        EfficiencyModeUtilities.SetEfficiencyMode(true);
+        // SetEfficiencyMode also drops the process to Idle priority, where a synchronous message from another app (a game restoring the display on exit) waits on a starved UI thread.
+        EfficiencyModeUtilities.SetProcessQualityOfServiceLevel(QualityOfServiceLevel.Low);
         _trimTimer?.Stop();
         _trimTimer = DispatcherQueue.CreateTimer();
         _trimTimer.Interval = TimeSpan.FromSeconds(3);
@@ -540,7 +541,7 @@ public sealed partial class MainWindow : Window
     public void ShowFromTray()
     {
         _trimTimer?.Stop();
-        EfficiencyModeUtilities.SetEfficiencyMode(false);
+        EfficiencyModeUtilities.SetProcessQualityOfServiceLevel(QualityOfServiceLevel.Default);
         AppWindow.Show(activateWindow: true);
         if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter)
         {
@@ -555,7 +556,7 @@ public sealed partial class MainWindow : Window
     public void ShowWithoutFocus()
     {
         _trimTimer?.Stop();
-        EfficiencyModeUtilities.SetEfficiencyMode(false);
+        EfficiencyModeUtilities.SetProcessQualityOfServiceLevel(QualityOfServiceLevel.Default);
         AppWindow.Show(activateWindow: false);
         // XAML renders nothing until the first Activate; on an already visible window it is only SetActiveWindow, which a background process cannot turn into foreground.
         Activate();
