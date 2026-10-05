@@ -22,6 +22,6 @@ public static class ProductIcon
             return null;
         }
 
-        return Cache.GetOrAdd(productCode, _ => new BitmapImage(new Uri(App.IsPackaged ? $"ms-appx:///Assets/Products/{productCode}.png" : path)) { DecodePixelWidth = 64 });
+        return Cache.GetOrAdd(productCode, _ => new BitmapImage(new Uri(App.IsPackaged ? $"ms-appx:///Assets/Products/{productCode}.png" : path)) { DecodePixelType = DecodePixelType.Logical, DecodePixelWidth = 32 });
     }
 }

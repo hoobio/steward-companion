@@ -2838,7 +2838,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         StartupRegistration.Set(value);
     }
 
-    partial void OnAvatarUriChanged(Uri? value) => _avatarImage = value is null ? null : new BitmapImage(value) { DecodePixelWidth = 80 };
+    partial void OnAvatarUriChanged(Uri? value) => _avatarImage = value is null ? null : new BitmapImage(value) { DecodePixelType = DecodePixelType.Logical, DecodePixelWidth = 40 };
 
     private void OnChannelChanged(string addonId, string channel)
     {

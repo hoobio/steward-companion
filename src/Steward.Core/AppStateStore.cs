@@ -258,20 +258,25 @@ public sealed class AppStateStore
         ArgumentNullException.ThrowIfNull(state);
         lock (_cacheLock)
         {
-            _cached = null;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+                // Kept out of state.json: an older build sharing that file rewrites it without the keys it does not know.
+                WriteAtomically(CharacterSyncPath, JsonSerializer.Serialize(
+                    new CharacterSyncState(state.CharacterSync ?? [], state.CharacterSyncBatches ?? []),
+                    CompanionJsonContext.Default.CharacterSyncState));
+                WriteAtomically(ProviderAddonsPath, JsonSerializer.Serialize(
+                    new ProviderAddonsState(state.ProviderAddons ?? []),
+                    CompanionJsonContext.Default.ProviderAddonsState));
+                WriteAtomically(_path, JsonSerializer.Serialize(
+                    state with { CharacterSync = null!, CharacterSyncBatches = null!, ProviderAddons = null! },
+                    CompanionJsonContext.Default.AppState));
+            }
+            finally
+            {
+                _cached = null;
+            }
         }
-
-        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        // Kept out of state.json: an older build sharing that file rewrites it without the keys it does not know.
-        WriteAtomically(CharacterSyncPath, JsonSerializer.Serialize(
-            new CharacterSyncState(state.CharacterSync ?? [], state.CharacterSyncBatches ?? []),
-            CompanionJsonContext.Default.CharacterSyncState));
-        WriteAtomically(ProviderAddonsPath, JsonSerializer.Serialize(
-            new ProviderAddonsState(state.ProviderAddons ?? []),
-            CompanionJsonContext.Default.ProviderAddonsState));
-        WriteAtomically(_path, JsonSerializer.Serialize(
-            state with { CharacterSync = null!, CharacterSyncBatches = null!, ProviderAddons = null! },
-            CompanionJsonContext.Default.AppState));
     }
 
     private static void WriteAtomically(string path, string contents)

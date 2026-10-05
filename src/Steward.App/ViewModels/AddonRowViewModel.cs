@@ -599,14 +599,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     {
         ArgumentNullException.ThrowIfNull(status);
 
-        if (SameStatus(_status, status))
-        {
-            _status = status;
-            OnPropertyChanged(nameof(ReleasedText));
-            OnPropertyChanged(nameof(VersionCellTip));
-            return;
-        }
-
+        var unchanged = SameStatus(_status, status);
         var previousAvailable = AvailableVersion;
         _status = status;
         Channel = status.Channel;
@@ -617,6 +610,13 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         }
 
         StatusMessage = status.Channel is null ? null : status.Notice;
+        if (unchanged)
+        {
+            OnPropertyChanged(nameof(ReleasedText));
+            OnPropertyChanged(nameof(VersionCellTip));
+            return;
+        }
+
         NotifyDerived();
     }
 

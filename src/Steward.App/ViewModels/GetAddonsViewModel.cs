@@ -152,7 +152,7 @@ public sealed partial class CurseForgeResultViewModel : ObservableObject
         Result = result;
         IsInstalled = isInstalled;
         _install = install;
-        Icon = Uri.TryCreate(result.IconUrl, UriKind.Absolute, out var icon) ? new BitmapImage(icon) { DecodePixelWidth = 60 } : null;
+        Icon = Uri.TryCreate(result.IconUrl, UriKind.Absolute, out var icon) ? new BitmapImage(icon) { DecodePixelType = DecodePixelType.Logical, DecodePixelWidth = 30 } : null;
         InitialsBrush = InitialsTile.Brush(result.Name);
         WebsiteUri = Uri.TryCreate(result.WebsiteUrl, UriKind.Absolute, out var website) && website.Scheme == Uri.UriSchemeHttps ? website : null;
     }

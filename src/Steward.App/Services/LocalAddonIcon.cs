@@ -12,7 +12,7 @@ namespace Steward.App.Services;
 
 public static class LocalAddonIcon
 {
-    private const int DisplayPixels = 64;
+    private const int DisplayPixels = 75;
 
     private static readonly ConcurrentDictionary<string, (DateTime Stamp, DecodedImage? Image)> Cache = new(StringComparer.OrdinalIgnoreCase);
 
