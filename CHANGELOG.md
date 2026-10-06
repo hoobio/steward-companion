@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.20.3](https://github.com/hoobio/steward-companion/compare/v0.20.2...v0.20.3) (2026-10-06)
+
+
+### Bug Fixes
+
+* 🐛 keep normal process priority while in the tray so other apps never wait on a starved Steward ([ea2bc59](https://github.com/hoobio/steward-companion/commit/ea2bc592ecaa9cacfd00e1e79b0727a33c197a20))
+* 🐛 rename Check for a new version to Check for updates ([34202b5](https://github.com/hoobio/steward-companion/commit/34202b59c37978aa454fd5ed3cdbff74c7d42dd8))
+* 🐛 update the MSI build from GitHub releases instead of pointing at the Store ([0ae7db4](https://github.com/hoobio/steward-companion/commit/0ae7db4098ef83c84ca6900cc21478ddb9e0e091))
+
+
+### Performance Improvements
+
+* ⚡ cache app state between loads ([d0405e2](https://github.com/hoobio/steward-companion/commit/d0405e23334f5f61040cc8b1bbd30eb7558bc2d1))
+* ⚡ cap the gc gen0 budget ([3a88662](https://github.com/hoobio/steward-companion/commit/3a8866243e9800483c0d8e4cbbc560b9bd8a3998))
+* ⚡ decode addon, guild and avatar icons at display size and cache them ([64f9068](https://github.com/hoobio/steward-companion/commit/64f90681e4d09acf11d2204fa861e2ba07bf7b81))
+* ⚡ drop unused log sinks and blocked wait threads ([9f0bb47](https://github.com/hoobio/steward-companion/commit/9f0bb4726c02150d248b7b756481860bec5b911d))
+* ⚡ keep row notices after an update, close the state cache save race, decode icons at logical size ([bd3caf4](https://github.com/hoobio/steward-companion/commit/bd3caf45a71c9ed218c32b9395aa28f48109a989))
+* ⚡ parse saved variables once per change and stop re-rendering the sync file to fingerprint it ([c6c521b](https://github.com/hoobio/steward-companion/commit/c6c521bdc28b95dcaa448143954d3bdba02ac293))
+* ⚡ return the working set to windows when hidden to the tray ([a462eab](https://github.com/hoobio/steward-companion/commit/a462eab6c6eb36b9eaf18de0b9aed84c54977af1))
+* ⚡ stop re-notifying unchanged addon rows ([3946a74](https://github.com/hoobio/steward-companion/commit/3946a748b1e47207b717fdfcf45a21381b624108))
+
 ## [0.20.2](https://github.com/hoobio/steward-companion/compare/v0.20.1...v0.20.2) (2026-10-04)
 
 
