@@ -247,7 +247,7 @@ jobs:
 
   release:
     name: Publish Release
-    needs: [release-please, lint-and-test, build-msix]
+    needs: [release-please, lint-and-test, build-msix, build-msi]
     if: >-
       always()
       && needs.release-please.outputs.release_created == 'true'
@@ -271,6 +271,22 @@ jobs:
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           file-path: release/Steward-${{ needs.build-msix.outputs.version }}-x64.msix
+          github-token: ${{ github.token }}
+
+      - name: Download MSI
+        if: needs.build-msi.result == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          name: msi-x64
+          path: release
+
+      # An immutable release accepts no asset once published, so the MSI joins the draft here rather than after the publish.
+      - name: Attach MSI to the draft release
+        if: needs.build-msi.result == 'success'
+        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@v2.3.2
+        with:
+          tag: ${{ needs.release-please.outputs.tag_name }}
+          file-path: release/Steward-${{ needs.build-msi.outputs.version }}-x64.msi
           github-token: ${{ github.token }}
 
       - name: Stack release notes back to the last minor
@@ -303,35 +319,14 @@ jobs:
           tag: ${{ needs.release-please.outputs.tag_name }}
           github-token: ${{ github.token }}
 
-  attach-msi:
-    name: Attach MSI to Release
-    needs: [release-please, release, build-msi]
-    if: always() && needs.release.result == 'success' && needs.build-msi.result == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download MSI
-        uses: actions/download-artifact@v8
-        with:
-          name: msi-x64
-          path: release
-
-      - name: Attach MSI to the release
-        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@v2.3.2
-        with:
-          tag: ${{ needs.release-please.outputs.tag_name }}
-          file-path: release/Steward-${{ needs.build-msi.outputs.version }}-x64.msi
-          github-token: ${{ github.token }}
-
   store-submit:
     name: Publish to Microsoft Store
-    needs: [release-please, build-msix, release]
+    needs: [release-please, lint-and-test, build-msix]
     if: >-
       always()
       && needs.release-please.outputs.release_created == 'true'
+      && needs.lint-and-test.result == 'success'
       && needs.build-msix.result == 'success'
-      && needs.release.result == 'success'
       && vars.AZURE_CLIENT_ID != ''
     runs-on: windows-latest
     timeout-minutes: 90
