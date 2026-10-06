@@ -227,7 +227,7 @@ jobs:
           Copy-Item -Path $msix.FullName -Destination (Join-Path $env:STAGE_DIR "Steward-$env:VERSION-x64.msix")
           $zip = Join-Path $env:STAGE_DIR "Steward-$env:VERSION-x64.zip"
           Compress-Archive -Path $msix.FullName -DestinationPath $zip -Force
-          $upload = Join-Path $env:STAGE_DIR "Steward-$env:VERSION-x64.msixupload"
+          $upload = Join-Path $env:STAGE_DIR "Steward-$env:VERSION-Store-x64.msixupload"
           Move-Item -Path $zip -Destination $upload -Force
           Write-Host "Produced $upload"
 
@@ -235,7 +235,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: msixupload-x64
-          path: ${{ github.workspace }}\staging\msix-x64\Steward-${{ steps.version.outputs.version }}-x64.msixupload
+          path: ${{ github.workspace }}\staging\msix-x64\Steward-${{ steps.version.outputs.version }}-Store-x64.msixupload
           if-no-files-found: error
 
       - name: Upload msix artifact
@@ -271,6 +271,21 @@ jobs:
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           file-path: release/Steward-${{ needs.build-msix.outputs.version }}-x64.msix
+          github-token: ${{ github.token }}
+
+      - name: Download msixupload
+        if: needs.build-msix.result == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          name: msixupload-x64
+          path: release
+
+      - name: Attach msixupload to the draft release
+        if: needs.build-msix.result == 'success'
+        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@v2.3.2
+        with:
+          tag: ${{ needs.release-please.outputs.tag_name }}
+          file-path: release/Steward-${{ needs.build-msix.outputs.version }}-Store-x64.msixupload
           github-token: ${{ github.token }}
 
       - name: Download MSI
