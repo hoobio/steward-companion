@@ -1787,15 +1787,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return null;
     }
 
-    public Task<string?> RestoreRosterAfterInstallAsync(WowInstall install)
+    public async Task<string?> RestoreRosterAfterInstallAsync(WowInstall install)
     {
         if (_lastOfficerPayload is not { } payload || _lastOfficerPayloadGuild != _guildId)
         {
-            return SyncRosterAsync();
+            return await SyncRosterAsync().ConfigureAwait(true);
+        }
+
+        if (_lastDirectory is { People: { } people } directory)
+        {
+            _lastDirectory = directory with
+            {
+                Avatars = await _guildSyncApi.LoadPersonAvatarsAsync(people, [install], directory.Avatars, CancellationToken.None).ConfigureAwait(true),
+            };
         }
 
         GuildRosterSync.WriteIfChanged(install, payload with { Directory = _lastDirectory }, _stateStore, force: false, _logger);
-        return Task.FromResult<string?>(null);
+        return null;
     }
 
     private async Task SyncDirectoryAsync()
@@ -1838,7 +1846,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 catalogue = await _stewardClient.GetMemberCatalogueAsync(guildId, CancellationToken.None).ConfigureAwait(true);
             }
 
-            _lastDirectory = new SyncDirectory(people, characters, professions);
+            var avatars = people is null
+                ? null
+                : await _guildSyncApi.LoadPersonAvatarsAsync(people, [.. Installs.Select(install => install.Install)], _lastDirectory?.Avatars, CancellationToken.None).ConfigureAwait(true);
+            _lastDirectory = new SyncDirectory(people, characters, professions) { Avatars = avatars };
             _lastMemberCatalogue = catalogue;
             _logger.Info(
                 $"Directory sync for {guildId}: {people?.Count} people, {characters?.Count} characters, {professions?.Count} professions, {catalogue?.Count} catalogue recipe(s)");

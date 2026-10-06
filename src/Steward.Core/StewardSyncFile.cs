@@ -21,11 +21,16 @@ public static class StewardSyncFile
 
     private const string FingerprintKey = "[\"fingerprint\"] = \"";
 
-    public static string Render(SyncPayload payload, bool withAvatar = false, string? fingerprint = null) =>
-        "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload, withAvatar, fingerprint)) + ")" + Environment.NewLine;
+    public static string Render(SyncPayload payload, bool withAvatar = false, string? fingerprint = null, IReadOnlySet<string>? avatarIds = null) =>
+        "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload, withAvatar, fingerprint, avatarIds)) + ")" + Environment.NewLine;
 
     public static string Fingerprint(SyncPayload payload) =>
-        HashUtf8(Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }), payload.Avatar?.SourceUrl);
+        HashUtf8(Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }), payload.Avatar?.SourceUrl, PersonAvatarUrls(payload));
+
+    private static string PersonAvatarUrls(SyncPayload payload) => string.Concat(
+        (payload.Directory?.People ?? []).Where(PersonAvatars.IsEligible)
+            .OrderBy(person => person.Id, StringComparer.Ordinal)
+            .Select(person => $"{person.Id}={person.AvatarUrl}\n"));
 
     private static string HashUtf8(params string?[] parts)
     {
@@ -81,7 +86,7 @@ public static class StewardSyncFile
         }
     }
 
-    public static void Write(string addOnsPath, SyncPayload payload, string? fingerprint = null)
+    public static void Write(string addOnsPath, SyncPayload payload, string? fingerprint = null, IReadOnlyDictionary<string, string>? avatarIndex = null)
     {
         ArgumentNullException.ThrowIfNull(payload);
 
@@ -95,8 +100,52 @@ public static class StewardSyncFile
             }
 
             var wroteAvatar = TryWriteAvatar(addOnsPath, payload.Avatar);
-            WriteGuarded(addOnsPath, FileName, Encoding.UTF8.GetBytes(Render(payload, wroteAvatar, fingerprint ?? Fingerprint(payload))));
+            var avatarIds = SyncPersonAvatars(addOnsPath, payload.Directory, avatarIndex);
+            WriteGuarded(addOnsPath, FileName, Encoding.UTF8.GetBytes(Render(payload, wroteAvatar, fingerprint ?? Fingerprint(payload), avatarIds)));
         }
+    }
+
+    private static HashSet<string> SyncPersonAvatars(string addOnsPath, SyncDirectory? directory, IReadOnlyDictionary<string, string>? index)
+    {
+        var wanted = (directory?.People ?? []).Where(PersonAvatars.IsEligible).Select(person => person.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var (userId, image) in directory?.Avatars ?? new Dictionary<string, AvatarImage>())
+        {
+            if (!wanted.Contains(userId) || !PersonAvatars.NeedsWrite(addOnsPath, userId, image, index))
+            {
+                continue;
+            }
+
+            try
+            {
+                WriteGuarded(addOnsPath, PersonAvatars.FileNameFor(userId), AvatarTga.Encode(image));
+            }
+            catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+
+        var folder = PersonAvatars.FolderFor(addOnsPath);
+        if (Directory.Exists(folder))
+        {
+            foreach (var file in Directory.EnumerateFiles(folder, "*.tga"))
+            {
+                if (wanted.Contains(Path.GetFileNameWithoutExtension(file)))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                }
+            }
+        }
+
+        wanted.RemoveWhere(userId => !File.Exists(PersonAvatars.PathFor(addOnsPath, userId)));
+        return wanted;
     }
 
     private static bool TryWriteAvatar(string addOnsPath, AvatarImage? avatar)
@@ -123,7 +172,7 @@ public static class StewardSyncFile
             Path.Combine(addOnsPath, StewardSavedVariables.AddonName) + Path.DirectorySeparatorChar);
         var target = Path.GetFullPath(Path.Combine(addOnsPath, StewardSavedVariables.AddonName, fileName));
         if (!target.StartsWith(addonRoot, StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(Path.GetFileName(target), fileName, StringComparison.OrdinalIgnoreCase))
+            || !string.Equals(Path.GetFileName(target), Path.GetFileName(fileName), StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException($"refusing to write outside the Steward addon folder: {target}");
         }
@@ -134,12 +183,13 @@ public static class StewardSyncFile
             throw new InvalidOperationException($"refusing to write a path containing a WTF segment: {target}");
         }
 
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         var tempPath = target + ".tmp";
         File.WriteAllBytes(tempPath, contents);
         File.Move(tempPath, target, overwrite: true);
     }
 
-    private static LuaValue ToLua(SyncPayload payload, bool withAvatar, string? fingerprint)
+    private static LuaValue ToLua(SyncPayload payload, bool withAvatar, string? fingerprint, IReadOnlySet<string>? avatarIds)
     {
         var entries = new List<LuaEntry>
         {
@@ -183,7 +233,7 @@ public static class StewardSyncFile
 
         if (payload.Directory is { People: not null } or { Professions: not null })
         {
-            entries.Add(new(LuaValue.FromString("directory"), DirectoryToLua(payload.Directory!)));
+            entries.Add(new(LuaValue.FromString("directory"), DirectoryToLua(payload.Directory!, avatarIds)));
         }
 
         if (payload.Directory?.Characters is { } linkedCharacters)
@@ -194,12 +244,12 @@ public static class StewardSyncFile
         return LuaValue.FromTable(entries);
     }
 
-    private static LuaValue DirectoryToLua(SyncDirectory directory)
+    private static LuaValue DirectoryToLua(SyncDirectory directory, IReadOnlySet<string>? avatarIds)
     {
         var entries = new List<LuaEntry>();
         if (directory.People is { } people && directory.Characters is { } characters)
         {
-            entries.Add(new(LuaValue.FromString("people"), LuaValue.Array(people.Select(DirectoryPersonToLua))));
+            entries.Add(new(LuaValue.FromString("people"), LuaValue.Array(people.Select(person => DirectoryPersonToLua(person, avatarIds)))));
             entries.Add(new(LuaValue.FromString("characters"), LuaValue.Array(characters.Select(DirectoryCharacterToLua))));
         }
 
@@ -211,10 +261,22 @@ public static class StewardSyncFile
         return LuaValue.FromTable(entries);
     }
 
-    private static LuaValue DirectoryPersonToLua(DirectoryPerson person) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("id"), LuaValue.FromString(person.Id)),
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(person.Name)),
-        new LuaEntry(LuaValue.FromString("mainGuid"), OrNil(person.MainGuid)));
+    private static LuaValue DirectoryPersonToLua(DirectoryPerson person, IReadOnlySet<string>? avatarIds)
+    {
+        var entries = new List<LuaEntry>
+        {
+            new(LuaValue.FromString("id"), LuaValue.FromString(person.Id)),
+            new(LuaValue.FromString("name"), LuaValue.FromString(person.Name)),
+            new(LuaValue.FromString("mainGuid"), OrNil(person.MainGuid)),
+        };
+
+        if (avatarIds?.Contains(person.Id) == true)
+        {
+            entries.Add(new(LuaValue.FromString("avatar"), LuaValue.FromString(PersonAvatars.TexturePathFor(person.Id))));
+        }
+
+        return LuaValue.FromTable(entries);
+    }
 
     private static LuaValue LinksToLua(IReadOnlyList<DirectoryCharacter> characters) => LuaValue.FromTable(
         [.. characters.Where(c => c.LinkedUserId is not null)

@@ -17,12 +17,28 @@ public sealed class DiscordImage(HttpClient httpClient)
             return null;
         }
 
-        var requestUri = RequestUri(source);
+        var requestUri = PersonAvatars.RequestUri(source);
         if (_cached is { } cached && string.Equals(cached.SourceUrl, requestUri, StringComparison.Ordinal))
         {
             return cached;
         }
 
+        var image = await DownloadAsync(requestUri, cancellationToken).ConfigureAwait(false);
+        if (image is not null)
+        {
+            _cached = image;
+        }
+
+        return image;
+    }
+
+    public Task<AvatarImage?> DownloadAsync(string avatarUrl, CancellationToken cancellationToken) =>
+        Uri.TryCreate(avatarUrl, UriKind.Absolute, out var source)
+            ? FetchAsync(PersonAvatars.RequestUri(source), cancellationToken)
+            : Task.FromResult<AvatarImage?>(null);
+
+    private async Task<AvatarImage?> FetchAsync(string requestUri, CancellationToken cancellationToken)
+    {
         try
         {
             var png = await httpClient.GetByteArrayAsync(requestUri, cancellationToken).ConfigureAwait(false);
@@ -35,15 +51,11 @@ public sealed class DiscordImage(HttpClient httpClient)
                 ExifOrientationMode.IgnoreExifOrientation,
                 ColorManagementMode.DoNotColorManage);
 
-            _cached = new AvatarImage(requestUri, (int)decoder.PixelWidth, (int)decoder.PixelHeight, pixels.DetachPixelData());
-            return _cached;
+            return new AvatarImage(requestUri, (int)decoder.PixelWidth, (int)decoder.PixelHeight, pixels.DetachPixelData());
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or COMException or ArgumentException)
         {
             return null;
         }
     }
-
-    private static string RequestUri(Uri source) =>
-        new UriBuilder(source) { Path = Path.ChangeExtension(source.AbsolutePath, ".png"), Query = "size=64" }.Uri.ToString();
 }

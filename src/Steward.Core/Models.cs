@@ -306,6 +306,9 @@ public sealed record AppState(
     [JsonPropertyName("missing_since")]
     public Dictionary<string, DateTimeOffset> MissingSince { get; init; } = null!;
 
+    [JsonPropertyName("person_avatars")]
+    public Dictionary<string, Dictionary<string, string>> PersonAvatars { get; init; } = null!;
+
     [JsonPropertyName("kept_local_addons")]
     public List<string> KeptLocalAddons { get; init; } = null!;
 

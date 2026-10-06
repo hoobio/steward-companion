@@ -33,6 +33,23 @@ public sealed class StewardGuildSyncApi(StewardClient client, AppStateStore stat
         return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue, Me = syncMe };
     }
 
+    public async Task<IReadOnlyDictionary<string, AvatarImage>> LoadPersonAvatarsAsync(
+        IReadOnlyList<DirectoryPerson> people,
+        IReadOnlyCollection<WowInstall> installs,
+        IReadOnlyDictionary<string, AvatarImage>? previous,
+        CancellationToken ct)
+    {
+        try
+        {
+            return await PersonAvatars.LoadAsync(people, installs, stateStore, previous, images.DownloadAsync, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.Warn(ex, "Person avatar download failed, keeping the avatars already loaded");
+            return previous ?? new Dictionary<string, AvatarImage>();
+        }
+    }
+
     private async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> TryGetCatalogueAsync(AdminMe me, string guildId, CancellationToken ct)
     {
         if (!StewardClient.EffectiveFeatures(me).Contains(StewardClient.SyncFeature))

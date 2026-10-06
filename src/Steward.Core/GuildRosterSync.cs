@@ -21,9 +21,11 @@ public static class GuildRosterSync
 
         var fingerprint = StewardSyncFile.Fingerprint(payload);
         var state = stateStore.Load();
+        var avatarIndex = state.PersonAvatars.GetValueOrDefault(install.FlavourPath);
         if (!force
             && StewardSyncFile.ReadFingerprint(install.AddOnsPath) == fingerprint
-            && (payload.Avatar is null || File.Exists(StewardSyncFile.AvatarPathFor(install.AddOnsPath))))
+            && (payload.Avatar is null || File.Exists(StewardSyncFile.AvatarPathFor(install.AddOnsPath)))
+            && !PersonAvatars.HasPendingWrite(install.AddOnsPath, payload.Directory, avatarIndex))
         {
             logger.Info($"StewardSync.lua skipped, unchanged for {install.FlavourPath}");
             return false;
@@ -31,7 +33,7 @@ public static class GuildRosterSync
 
         try
         {
-            StewardSyncFile.Write(install.AddOnsPath, payload, fingerprint);
+            StewardSyncFile.Write(install.AddOnsPath, payload, fingerprint, avatarIndex);
         }
         catch (InvalidOperationException ex)
         {
@@ -39,6 +41,7 @@ public static class GuildRosterSync
             return false;
         }
 
+        PersonAvatars.Record(state, install, payload.Directory);
         state.GuildRosterSync[install.FlavourPath] = fingerprint;
         stateStore.Save(state);
         logger.Info($"StewardSync.lua written for {install.FlavourPath}");

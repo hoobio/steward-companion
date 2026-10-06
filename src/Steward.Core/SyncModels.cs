@@ -270,7 +270,8 @@ public sealed record RecipeCatalogueResponse(
 public sealed record DirectoryPerson(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("main_guid")] string? MainGuid);
+    [property: JsonPropertyName("main_guid")] string? MainGuid,
+    [property: JsonPropertyName("avatar_url")] string? AvatarUrl = null);
 
 public sealed record DirectoryCharacter(
     [property: JsonPropertyName("guid")] string CharacterGuid,
@@ -327,7 +328,10 @@ public sealed record MemberCatalogue(
 public sealed record SyncDirectory(
     IReadOnlyList<DirectoryPerson>? People,
     IReadOnlyList<DirectoryCharacter>? Characters,
-    IReadOnlyList<DirectoryProfessions>? Professions);
+    IReadOnlyList<DirectoryProfessions>? Professions)
+{
+    public IReadOnlyDictionary<string, AvatarImage>? Avatars { get; init; }
+}
 
 public static class MemberCatalogueMapping
 {

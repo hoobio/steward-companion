@@ -193,4 +193,108 @@ public sealed class GuildRosterSyncTests : IDisposable
         var changed = SamplePayload() with { Discord = [new DiscordMember("222", "Grug", "grugnick")] };
         Assert.True(GuildRosterSync.WriteIfChanged(install, changed, stateStore));
     }
+
+    private static string PersonUrl(string id) => $"https://cdn.discordapp.com/avatars/{id}/hash.png";
+
+    private static AvatarImage PersonImage(string id) => new(PersonUrl(id) + "?size=64", 64, 64, new byte[64 * 64 * 4]);
+
+    private static SyncPayload PeoplePayload(IEnumerable<(string Id, bool HasUrl, bool HasImage)> people) => SamplePayload() with
+    {
+        Directory = new SyncDirectory(
+            [.. people.Select(p => new DirectoryPerson(p.Id, "Name" + p.Id, null, p.HasUrl ? PersonUrl(p.Id) : null))],
+            [],
+            null)
+        {
+            Avatars = people.Where(p => p.HasImage).ToDictionary(p => p.Id, p => PersonImage(p.Id)),
+        },
+    };
+
+    private static LuaValue RenderedPeople(WowInstall install)
+    {
+        var text = File.ReadAllText(Path.Combine(install.AddOnsPath, "Steward", "StewardSync.lua"));
+        text = text.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        text = text[..text.LastIndexOf(')')];
+        return LuaSavedVariables.Parse(text)["X"].GetTable("directory")!.GetTable("people")!;
+    }
+
+    [Fact]
+    public void WriteIfChanged_SetsTheAvatarKeyOnlyForPeopleWhoseFileExists()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+
+        GuildRosterSync.WriteIfChanged(install, PeoplePayload([("111", true, true), ("222", true, false), ("333", false, false)]), stateStore);
+
+        var people = RenderedPeople(install).Items.ToDictionary(p => p.GetString("id")!);
+        Assert.Equal(@"Interface\AddOns\Steward\Avatars\111.tga", people["111"].GetString("avatar"));
+        Assert.Null(people["222"].GetString("avatar"));
+        Assert.Null(people["333"].GetString("avatar"));
+        Assert.True(File.Exists(PersonAvatars.PathFor(install.AddOnsPath, "111")));
+        Assert.False(File.Exists(PersonAvatars.PathFor(install.AddOnsPath, "222")));
+    }
+
+    [Fact]
+    public void WriteIfChanged_KeepsTheAvatarKey_WhenTheFileIsAlreadyOnDisk()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        GuildRosterSync.WriteIfChanged(install, PeoplePayload([("111", true, true)]), stateStore);
+
+        GuildRosterSync.WriteIfChanged(install, PeoplePayload([("111", true, false), ("222", true, false)]), stateStore);
+
+        var people = RenderedPeople(install).Items.ToDictionary(p => p.GetString("id")!);
+        Assert.NotNull(people["111"].GetString("avatar"));
+        Assert.Null(people["222"].GetString("avatar"));
+    }
+
+    [Fact]
+    public void WriteIfChanged_DeletesAvatarFiles_ForUsersNoLongerInTheDirectory()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        GuildRosterSync.WriteIfChanged(install, PeoplePayload([("111", true, true), ("222", true, true)]), stateStore);
+        File.WriteAllBytes(PersonAvatars.PathFor(install.AddOnsPath, "999"), [1]);
+
+        GuildRosterSync.WriteIfChanged(install, PeoplePayload([("222", true, false), ("333", false, false)]), stateStore);
+
+        Assert.False(File.Exists(PersonAvatars.PathFor(install.AddOnsPath, "111")));
+        Assert.False(File.Exists(PersonAvatars.PathFor(install.AddOnsPath, "999")));
+        Assert.True(File.Exists(PersonAvatars.PathFor(install.AddOnsPath, "222")));
+    }
+
+    [Fact]
+    public void WriteIfChanged_DeletesTheAvatarFile_WhenThePersonLosesTheirAvatarUrl()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        GuildRosterSync.WriteIfChanged(install, PeoplePayload([("111", true, true)]), stateStore);
+
+        GuildRosterSync.WriteIfChanged(install, PeoplePayload([("111", false, false)]), stateStore);
+
+        Assert.False(File.Exists(PersonAvatars.PathFor(install.AddOnsPath, "111")));
+        Assert.Null(Assert.Single(RenderedPeople(install).Items).GetString("avatar"));
+    }
+
+    [Fact]
+    public async Task LoadAsync_SkipsTheDownload_WhenTheUrlIsUnchangedAndTheFileExists()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        var payload = PeoplePayload([("111", true, true)]);
+        GuildRosterSync.WriteIfChanged(install, payload, stateStore);
+        var downloads = 0;
+        Task<AvatarImage?> Download(string url, CancellationToken token)
+        {
+            downloads++;
+            return Task.FromResult<AvatarImage?>(PersonImage("111"));
+        }
+
+        await PersonAvatars.LoadAsync(payload.Directory!.People!, [install], stateStore, null, Download, CancellationToken.None);
+        Assert.Equal(0, downloads);
+
+        File.Delete(PersonAvatars.PathFor(install.AddOnsPath, "111"));
+        var images = await PersonAvatars.LoadAsync(payload.Directory.People!, [install], stateStore, null, Download, CancellationToken.None);
+        Assert.Equal(1, downloads);
+        Assert.Contains("111", images.Keys);
+    }
 }
