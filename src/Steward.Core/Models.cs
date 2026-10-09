@@ -21,6 +21,30 @@ public sealed record ManagedAddon(string Id, string FolderName, string? Manifest
 
     public string? Parent { get; init; }
 
+    public IReadOnlyList<AddonRequirement>? Requires { get; init; }
+
+    public string? ManifestAuth { get; init; }
+
+    public bool? ZipRelative { get; init; }
+
+    public bool? UpdatesWhileUnreachable { get; init; }
+
+    public string? SourceLabel { get; init; }
+
+    public bool? CurseForge { get; init; }
+
+    public bool ManifestNeedsSession => ManifestAuth is { } auth
+        ? string.Equals(auth, "session", StringComparison.OrdinalIgnoreCase)
+        : Source is CurseForgeAddons.Source or AddonCatalogue.ProtectedSource;
+
+    public bool ZipResolvesAgainstManifest => ZipRelative ?? Source != AddonCatalogue.ProtectedSource;
+
+    public bool MayUpdateWhileUnreachable => UpdatesWhileUnreachable ?? Source == AddonCatalogue.StewardSource;
+
+    public string DisplaySource => SourceLabel ?? (Source == AddonCatalogue.ProtectedSource ? AddonCatalogue.StewardSource : Source);
+
+    public bool IsCurseForge => CurseForge ?? Source == CurseForgeAddons.Source;
+
     public Uri IconUri => IconUrl is not null
         ? new Uri(IconUrl)
         : new(new Uri(ManifestBaseUrl ?? throw new InvalidOperationException($"{Id} has no ManifestBaseUrl")), "icon.png");
@@ -35,10 +59,27 @@ public sealed record CatalogueAddon(
     [property: JsonPropertyName("auto_install")] bool? AutoInstall = null,
     [property: JsonPropertyName("features")] IReadOnlyList<string>? Features = null,
     [property: JsonPropertyName("parent")] string? Parent = null,
-    [property: JsonPropertyName("icon_url")] string? IconUrl = null)
+    [property: JsonPropertyName("icon_url")] string? IconUrl = null,
+    [property: JsonPropertyName("requires"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<AddonRequirement>? Requires = null,
+    [property: JsonPropertyName("manifest_auth"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ManifestAuth = null,
+    [property: JsonPropertyName("zip_auth"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ZipAuth = null,
+    [property: JsonPropertyName("zip_relative"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? ZipRelative = null,
+    [property: JsonPropertyName("updates_while_unreachable"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? UpdatesWhileUnreachable = null,
+    [property: JsonPropertyName("source_label"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SourceLabel = null,
+    [property: JsonPropertyName("curseforge"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? CurseForge = null)
 {
     public ManagedAddon ToManagedAddon() =>
-        new(Id, FolderName, ManifestBaseUrl, AutoInstall ?? false, Name, Features, Source ?? AddonCatalogue.StewardSource) { Parent = Parent, IconUrl = IconUrl };
+        new(Id, FolderName, ManifestBaseUrl, AutoInstall ?? false, Name, Features, Source ?? AddonCatalogue.StewardSource)
+        {
+            Parent = Parent,
+            IconUrl = IconUrl,
+            Requires = Requires,
+            ManifestAuth = ManifestAuth,
+            ZipRelative = ZipRelative,
+            UpdatesWhileUnreachable = UpdatesWhileUnreachable,
+            SourceLabel = SourceLabel,
+            CurseForge = CurseForge,
+        };
 }
 
 public sealed record ProviderAddonRecord(
@@ -127,7 +168,8 @@ public sealed record AddonRelease(
     [property: JsonPropertyName("folders")] IReadOnlyList<string>? Folders = null,
     [property: JsonPropertyName("website")] string? Website = null,
     [property: JsonPropertyName("distributable")] bool Distributable = true,
-    [property: JsonPropertyName("changelog")] IReadOnlyList<ChangelogBlock>? Changelog = null);
+    [property: JsonPropertyName("changelog")] IReadOnlyList<ChangelogBlock>? Changelog = null,
+    [property: JsonPropertyName("requires")] IReadOnlyList<AddonRequirement>? Requires = null);
 
 public sealed record ChangelogBlock(
     [property: JsonPropertyName("kind")] string Kind,

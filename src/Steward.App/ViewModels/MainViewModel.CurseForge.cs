@@ -369,7 +369,8 @@ public sealed partial class MainViewModel
 
     private async Task HandleCurseForgeLinkAsync(CurseForgeLink link)
     {
-        if (await _stewardClient.GetCurseForgeFileAsync(link.ModId, link.FileId, CancellationToken.None).ConfigureAwait(true) is not { } file)
+        var selectedVersionType = SelectedInstall is { } selected ? CurseForgeVersionType(selected.Install) : null;
+        if (await _stewardClient.GetCurseForgeFileAsync(link.ModId, link.FileId, CancellationToken.None, selectedVersionType).ConfigureAwait(true) is not { } file)
         {
             StatusMessage = "That CurseForge file was not found.";
             return;
@@ -457,7 +458,7 @@ public sealed partial class MainViewModel
 
         var chosen = choices[index].FileId == link.FileId
             ? file
-            : await _stewardClient.GetCurseForgeFileAsync(file.ModId, choices[index].FileId, CancellationToken.None).ConfigureAwait(true);
+            : await _stewardClient.GetCurseForgeFileAsync(file.ModId, choices[index].FileId, CancellationToken.None, versionType).ConfigureAwait(true);
         if (chosen is null)
         {
             StatusMessage = "That CurseForge file was not found.";
@@ -559,7 +560,7 @@ public sealed partial class MainViewModel
         var installs = _stateStore.Load().Installs;
         return
         [
-            .. _addons.Concat(_addonCatalogue ?? []).Where(addon => CurseForgeEnabled || addon.Source != CurseForgeAddons.Source).Select(addon => addon.FolderName),
+            .. _addons.Concat(_addonCatalogue ?? []).Where(addon => CurseForgeEnabled || !addon.IsCurseForge).Select(addon => addon.FolderName),
             StewardGuidesAddon.FolderName,
             .. ProviderRecords(install.FlavourPath).Where(record => CurseForgeEnabled && record.Id != id).SelectMany(record =>
                 CurseForgeAddons.Folders(record).Concat(installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, record.Id))?.Folders ?? [])),

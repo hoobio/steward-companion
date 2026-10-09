@@ -92,6 +92,76 @@ public sealed class AddonCatalogueTests : IDisposable
         Assert.True(AddonCatalogue.Same([ActionBars], store.Load().AddonCatalogue));
     }
 
+    private static ManagedAddon Parse(string json) =>
+        System.Text.Json.JsonSerializer.Deserialize(json, CompanionJsonContext.Default.IReadOnlyListCatalogueAddon)![0].ToManagedAddon();
+
+    [Fact]
+    public void DeclarativeFields_ParseAndWinOverTheSourceString()
+    {
+        var addon = Parse("""
+            [{"id":"x","folder_name":"X","manifest_base_url":"https://example.test/x/","source":"Steward",
+              "manifest_auth":"session","zip_auth":"none","zip_relative":false,"auto_install":true,
+              "updates_while_unreachable":false,"source_label":"Somewhere","curseforge":true}]
+            """);
+
+        Assert.True(addon.ManifestNeedsSession);
+        Assert.False(addon.ZipResolvesAgainstManifest);
+        Assert.True(addon.AutoInstall);
+        Assert.False(addon.MayUpdateWhileUnreachable);
+        Assert.Equal("Somewhere", addon.DisplaySource);
+        Assert.True(addon.IsCurseForge);
+    }
+
+    [Theory]
+    [InlineData("Steward", false, true, true, "Steward", false)]
+    [InlineData("CurseForge", true, true, false, "CurseForge", true)]
+    [InlineData("Protected", true, false, false, "Steward", false)]
+    [InlineData("GitHub", false, true, false, "GitHub", false)]
+    public void WithoutTheFields_TheSourceStringDecides(
+        string source, bool session, bool zipRelative, bool unreachable, string label, bool curseForge)
+    {
+        var addon = Parse($$"""[{"id":"x","folder_name":"X","manifest_base_url":"https://example.test/x/","source":"{{source}}"}]""");
+
+        Assert.Equal(session, addon.ManifestNeedsSession);
+        Assert.Equal(zipRelative, addon.ZipResolvesAgainstManifest);
+        Assert.Equal(unreachable, addon.MayUpdateWhileUnreachable);
+        Assert.Equal(label, addon.DisplaySource);
+        Assert.Equal(curseForge, addon.IsCurseForge);
+    }
+
+    [Fact]
+    public void WithoutAnySource_ActsAsSteward()
+    {
+        var addon = Parse("""[{"id":"x","folder_name":"X","manifest_base_url":"https://example.test/x/"}]""");
+
+        Assert.False(addon.ManifestNeedsSession);
+        Assert.True(addon.ZipResolvesAgainstManifest);
+        Assert.True(addon.MayUpdateWhileUnreachable);
+        Assert.Equal("Steward", addon.DisplaySource);
+    }
+
+    [Fact]
+    public void UpdatesWhileUnreachable_FollowsTheField()
+    {
+        IReadOnlyList<ManagedAddon> server =
+        [
+            (ActionBars with { UpdatesWhileUnreachable = false }).ToManagedAddon(),
+            new CatalogueAddon("bugsack", "BugSack", "https://example.test/bugsack/", Source: "CurseForge", UpdatesWhileUnreachable: true).ToManagedAddon(),
+        ];
+
+        Assert.False(AddonCatalogue.UpdatesWhileUnreachable(server, "hoobiscripts-actionbars"));
+        Assert.True(AddonCatalogue.UpdatesWhileUnreachable(server, "bugsack"));
+    }
+
+    [Fact]
+    public void DeclarativeFields_AbsentAreNotWrittenToState()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize([ActionBars], CompanionJsonContext.Default.IReadOnlyListCatalogueAddon);
+
+        Assert.DoesNotContain("manifest_auth", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("source_label", json, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AddonCatalogue_AbsentFromStateJson_LoadsAsUnknown()
     {

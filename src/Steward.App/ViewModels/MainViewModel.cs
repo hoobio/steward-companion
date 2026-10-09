@@ -439,7 +439,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsProfessionsOnlySync => HasSyncFeature && !HasStewardFeature;
 
     private IReadOnlyList<ManagedAddon> VisibleAddons() =>
-        [.. AddonCatalogue.Visible(_addonCatalogue, _addons, _features).Where(addon => IsCurseForgeEnabled || addon.Source != CurseForgeAddons.Source)];
+        [.. AddonCatalogue.Visible(_addonCatalogue, _addons, _features).Where(addon => IsCurseForgeEnabled || !addon.IsCurseForge)];
 
     private bool IsAdminFor(string addonId) =>
         Failure != GateFailure.ClientOutdated
@@ -2899,6 +2899,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             (addonId, wowInstall) => string.Equals(addonId, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase)
                 ? RestedXp.RewriteAfterInstallAsync(wowInstall)
                 : AfterStewardInstalled?.Invoke(wowInstall) ?? Task.CompletedTask,
+            InstallRequirementsAsync,
             _logger)
         {
             IsAddedByUser = isAddedByUser,

@@ -38,7 +38,7 @@ public sealed class AddonUpdater
     public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken, bool noCache = false)
     {
         ArgumentNullException.ThrowIfNull(addon);
-        var client = addon.Source == CurseForgeAddons.Source ? _sessionClient ?? _httpClient : _httpClient;
+        var client = addon.ManifestNeedsSession ? _sessionClient ?? _httpClient : _httpClient;
         return await FetchManifestAsync(client, ManifestUri(addon, channel), cancellationToken, noCache).ConfigureAwait(false);
     }
 
@@ -123,9 +123,7 @@ public sealed class AddonUpdater
                 }
 
                 folders = InstallFolders(addon, release);
-                var zipUri = addon.ManifestBaseUrl is null
-                    ? new Uri(release.Zip)
-                    : new Uri(ManifestUri(addon, channel), release.Zip);
+                var zipUri = ZipUri(addon, channel, release.Zip);
                 try
                 {
                     await DownloadAsync(_httpClient, zipUri, tempZipPath, release.Size, progress, cancellationToken).ConfigureAwait(false);
@@ -146,7 +144,7 @@ public sealed class AddonUpdater
                     throw;
                 }
 
-                if (addon.Source == CurseForgeAddons.Source)
+                if (addon.IsCurseForge)
                 {
                     // CurseForge's module list can omit a folder its own zip ships (EllesmereUIForeverEssentials, 29 Sep 2026).
                     folders = [.. folders.Union(ZipFolders(tempZipPath, addon.Id), StringComparer.OrdinalIgnoreCase)];
@@ -181,7 +179,7 @@ public sealed class AddonUpdater
     {
         var parts = addon.Id.Split('-');
         if (_reportDownloadFailure is null
-            || addon.Source != CurseForgeAddons.Source
+            || !addon.IsCurseForge
             || parts is not ["curseforge", var mod, _]
             || !int.TryParse(mod, out var modId)
             || !_reportedFailures.TryAdd($"{addon.Id}|{release.Version}", 0))
@@ -205,6 +203,11 @@ public sealed class AddonUpdater
 
     private static Uri ManifestUri(ManagedAddon addon, string channel) =>
         new(new Uri(addon.ManifestBaseUrl ?? throw new InvalidOperationException($"{addon.Id} has no ManifestBaseUrl")), $"latest-{channel}.json");
+
+    internal static Uri ZipUri(ManagedAddon addon, string channel, string zip) =>
+        Uri.TryCreate(zip, UriKind.Absolute, out var absolute) ? absolute
+        : addon.ZipResolvesAgainstManifest && addon.ManifestBaseUrl is not null ? new Uri(ManifestUri(addon, channel), zip)
+        : throw new InvalidOperationException($"{addon.Id} manifest zip '{zip}' is not an absolute URL");
 
     internal static async Task DownloadAsync(
         HttpClient httpClient,

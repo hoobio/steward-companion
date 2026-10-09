@@ -99,6 +99,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(OutOfDateVisibility),
         nameof(CanAutoApply),
         nameof(HideLabel),
+        nameof(HideVisibility),
         nameof(HiddenPillVisibility),
         nameof(RestedXpSignInVisibility),
         nameof(FolderLine),
@@ -132,6 +133,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     private readonly Func<string, string?> _outOfDateTip;
     private readonly Func<string, WowInstall, Task> _afterStewardInstalled;
     private readonly Action? _unmanage;
+    private readonly Func<ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> _installRequirements;
     private readonly ILogger _logger;
 
     private AddonChannelStatus? _status;
@@ -152,10 +154,12 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         Func<string, string?> outOfDateTip,
         Func<string, WowInstall, Task> afterStewardInstalled,
         Action? unmanage,
+        Func<ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> installRequirements,
         ILogger logger)
     {
         _logger = logger;
         _unmanage = unmanage;
+        _installRequirements = installRequirements;
         _install = install;
         _addon = addon;
         _updater = updater;
@@ -252,7 +256,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public bool IsDistributable => _status?.Release?.Distributable ?? true;
 
-    public string Source => _addon.Source;
+    public string Source => _addon.DisplaySource;
 
     public string InstalledRunText => InstalledVersionShort ?? "";
 
@@ -525,11 +529,18 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public Visibility UninstallErrorVisibility => When(UninstallError is not null && State != AddonRowState.Failed);
 
-    public Visibility UninstallVisibility => When(IsInstalled && !IsGroupBusy && !_addon.AutoInstall);
+    public Visibility UninstallVisibility => When(IsInstalled && !IsGroupBusy && CanIgnoreOrHide);
 
-    private bool CanIgnoreOrHide => !_addon.AutoInstall;
+    public IReadOnlyList<AddonRequirement> Requirements => AddonRequirements.Of(_addon, _status?.Release);
 
-    public Visibility IgnoreVisibility => When(CanIgnoreOrHide && (IsIgnored || (IsInstalled && HasRelease)));
+    [ObservableProperty]
+    public partial string? RequiredBy { get; set; }
+
+    partial void OnRequiredByChanged(string? value) => NotifyDerived();
+
+    private bool CanIgnoreOrHide => !_addon.AutoInstall && RequiredBy is null;
+
+    public Visibility IgnoreVisibility => When((CanIgnoreOrHide || IsIgnored) && (IsIgnored || (IsInstalled && HasRelease)));
 
     public string IgnoreLabel => IsIgnored ? "Resume updates" : "Ignore updates";
 
@@ -567,7 +578,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         var recordChanged = !Equals(record, _record);
         _record = record;
         var installedVersion = record?.Version ?? TocFile.ReadVersion(TocPath)
-            ?? (Source == CurseForgeAddons.Source && Directory.Exists(AddonFolderPath) ? "unknown" : null);
+            ?? (_addon.IsCurseForge && Directory.Exists(AddonFolderPath) ? "unknown" : null);
         if (recordChanged && string.Equals(installedVersion, InstalledVersion, StringComparison.Ordinal))
         {
             NotifyDerived();
@@ -744,6 +755,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             }
 
             var progress = new Progress<double>(value => UpdateProgress = value);
+            await _installRequirements(_addon, channel, release, text => StatusMessage = text, progress).ConfigureAwait(true);
+            StatusMessage = null;
+            UpdateProgress = 0;
             var folders = await _updater.InstallAsync(_addon, channel, release, _install.AddOnsPath, progress, CancellationToken.None)
                 .ConfigureAwait(true);
 

@@ -541,4 +541,55 @@ public sealed class AddonUpdaterTests : IDisposable
 
         Assert.Equal(HttpStatusCode.Forbidden, ex.StatusCode);
     }
+
+    private static readonly ManagedAddon ProtectedScripts = new(
+        "hoobiscripts", "HoobiScripts", "https://api.hoobi.io/guild/api/addons/protected/hoobiscripts/", Source: AddonCatalogue.ProtectedSource);
+
+    [Theory]
+    [InlineData("Protected", null, true)]
+    [InlineData("CurseForge", null, true)]
+    [InlineData("Steward", null, false)]
+    [InlineData("Steward", "session", true)]
+    [InlineData("Protected", "none", false)]
+    public async Task GetLatestAsync_UsesTheSessionClientOnlyWhenTheManifestNeedsIt(string source, string? manifestAuth, bool session)
+    {
+        var addon = Questie with { Source = source, ManifestAuth = manifestAuth };
+        var updater = new AddonUpdater(
+            new HttpClient(new StatusHandler(HttpStatusCode.NotFound)), sessionClient: new HttpClient(new StatusHandler(HttpStatusCode.Unauthorized)));
+
+        Func<Task> fetch = () => updater.GetLatestAsync(addon, "release", TestContext.Current.CancellationToken);
+
+        if (session)
+        {
+            await Assert.ThrowsAsync<SessionExpiredException>(fetch);
+        }
+        else
+        {
+            await Assert.ThrowsAsync<HttpRequestException>(fetch);
+        }
+    }
+
+    [Fact]
+    public void ZipUri_RelativeZipOnTheStaticSite_ResolvesAgainstTheManifest()
+    {
+        Assert.Equal(
+            "https://addon.hoobi.io/questie/questie-1.0.zip",
+            AddonUpdater.ZipUri(Questie with { ManifestBaseUrl = "https://addon.hoobi.io/questie/" }, "release", "questie-1.0.zip").AbsoluteUri);
+    }
+
+    [Fact]
+    public void ZipUri_AbsoluteZip_IsUsedAsGivenWhateverZipRelativeSays()
+    {
+        const string signed = "https://api.hoobi.io/guild/api/addons/protected/hoobiscripts/hoobiscripts-1.0.zip?t=1.2.abc";
+
+        Assert.Equal(signed, AddonUpdater.ZipUri(ProtectedScripts, "release", signed).AbsoluteUri);
+        Assert.Equal(signed, AddonUpdater.ZipUri(Questie with { ZipRelative = true }, "release", signed).AbsoluteUri);
+    }
+
+    [Fact]
+    public void ZipUri_RelativeZipWhenNotZipRelative_Throws()
+    {
+        Assert.Throws<InvalidOperationException>(() => AddonUpdater.ZipUri(ProtectedScripts, "release", "hoobiscripts-1.0.zip"));
+        Assert.Throws<InvalidOperationException>(() => AddonUpdater.ZipUri(Questie with { ZipRelative = false }, "release", "questie-1.0.zip"));
+    }
 }
