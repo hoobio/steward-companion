@@ -44,6 +44,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Action<string> _changeChannelRequested;
     private readonly Func<string, string, string, Task<bool>> _confirmUninstall;
     private readonly Func<string, WowInstall, Task> _afterStewardInstalled;
+    private readonly Func<WowInstallViewModel, ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> _installRequirements;
     private readonly ILogger _logger;
 
     private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
@@ -71,6 +72,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         Action<WowInstallViewModel> remove,
         Action<WowInstallViewModel> clientExited,
         Func<string, WowInstall, Task> afterStewardInstalled,
+        Func<WowInstallViewModel, ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> installRequirements,
         ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(install);
@@ -93,6 +95,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         _changeChannelRequested = changeChannelRequested;
         _confirmUninstall = confirmUninstall;
         _afterStewardInstalled = afterStewardInstalled;
+        _installRequirements = installRequirements;
 
         _logger = logger;
 
@@ -228,6 +231,19 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             if (background && row.IsBusy) { continue; }
             if (status.TryGetValue(row.AddonId, out var addonStatus)) { row.Apply(addonStatus); }
         }
+
+        RefreshRequired();
+    }
+
+    private void RefreshRequired()
+    {
+        foreach (var row in AddonRows)
+        {
+            row.RequiredBy = AddonRows
+                .FirstOrDefault(other => other != row && other.IsInstalled && other.Requirements.Any(requirement => AddonRequirements.Matches(row.AddonId, requirement.Id)
+                    || string.Equals(requirement.FolderName, row.FolderName, StringComparison.OrdinalIgnoreCase)))
+                ?.DisplayName;
+        }
     }
 
     public void RefreshClientRunning(IReadOnlyList<(string FileName, WowClientProcess Process)>? clients = null)
@@ -316,6 +332,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             row.SetChildren([.. AddonRows.Where(child => foldedInto.TryGetValue(child.AddonId, out var parent) && string.Equals(parent, row.AddonId, StringComparison.OrdinalIgnoreCase))]);
         }
 
+        RefreshRequired();
         RaiseRowsChanged();
     }
 
@@ -530,6 +547,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             OutOfDateTipForToc,
             _afterStewardInstalled,
             CurseForgeAddons.IsRecorded(addon) ? () => _unmanageProviderAddon(this, addon.Id) : null,
+            (dependant, channel, release, status, progress) => _installRequirements(this, dependant, channel, release, status, progress),
             _logger);
     }
 
@@ -581,6 +599,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
         if (e.PropertyName == nameof(AddonRowViewModel.InstalledVersion))
         {
+            RefreshRequired();
             // A scan while another row is still extracting would identify its half-written folders.
             if (IsAnyRowBusy)
             {

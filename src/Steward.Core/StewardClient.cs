@@ -413,9 +413,9 @@ public sealed class StewardClient
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<CurseForgeModFile?> GetCurseForgeFileAsync(int modId, long fileId, CancellationToken cancellationToken)
+    public async Task<CurseForgeModFile?> GetCurseForgeFileAsync(int modId, long fileId, CancellationToken cancellationToken, int? versionType = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/api/addons/curseforge/{modId}/files/{fileId}");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/api/addons/curseforge/{modId}/files/{fileId}{(versionType is { } type ? $"?versionType={type}" : "")}");
         try
         {
             return await SendCurseForgeAsync(request, CompanionJsonContext.Default.CurseForgeModFile, cancellationToken).ConfigureAwait(false);

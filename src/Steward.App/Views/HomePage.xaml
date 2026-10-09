@@ -29,7 +29,7 @@
                         </MenuFlyout.SystemBackdrop>
                         <MenuFlyoutItem Text="{x:Bind IgnoreLabel, Mode=OneWay}" Command="{x:Bind ToggleIgnoredCommand}" Visibility="{x:Bind IgnoreVisibility, Mode=OneWay}" />
                         <MenuFlyoutItem Text="Change channel" Command="{x:Bind ChangeChannelCommand}" Visibility="{x:Bind ChannelChipVisibility, Mode=OneWay}" />
-                        <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" Visibility="{x:Bind HideVisibility}" />
+                        <MenuFlyoutItem Text="{x:Bind HideLabel, Mode=OneWay}" Command="{x:Bind ToggleHiddenCommand}" Visibility="{x:Bind HideVisibility, Mode=OneWay}" />
                         <MenuFlyoutItem Text="Open folder" Command="{x:Bind OpenFolderCommand}" Visibility="{x:Bind InstalledActionsVisibility, Mode=OneWay}" />
                         <MenuFlyoutItem Text="Reinstall" Command="{x:Bind ReinstallCommand}" Visibility="{x:Bind ReleaseActionsVisibility, Mode=OneWay}" />
                         <MenuFlyoutItem
