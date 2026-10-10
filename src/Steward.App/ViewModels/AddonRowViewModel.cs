@@ -214,7 +214,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             .Where(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase))
             .Order(StringComparer.OrdinalIgnoreCase)
             .Select(folder => new FolderEntry(_install.AddOnsPath, folder, TocFile.InterfaceNumber(_install.ClientVersion))),
-        .. _children.Select(child => new FolderEntry(_install.AddOnsPath, child.FolderName, TocFile.InterfaceNumber(_install.ClientVersion), child.ChangelogTitle, Changelogs.For(child._status?.Release))),
+        .. _children.Select(child => new FolderEntry(_install.AddOnsPath, child.FolderName, TocFile.InterfaceNumber(_install.ClientVersion), child.ChangelogTitle, Changelogs.For(child._status?.Release), child._addon.Notice, child.Channel)),
     ];
 
     public string ExtraFoldersText => FolderEntry.Summary(ExtraFolders.Count);

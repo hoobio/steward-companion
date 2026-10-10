@@ -28,30 +28,61 @@ public sealed partial class AddonFoldersDialog : ContentDialog
         Rows.Children.Add(slot);
         var addon = await Task.Run(() => LocalAddons.Read(folder.AddOnsPath, folder.Folder, folder.ClientInterface)).ConfigureAwait(true);
         slot.Content = addon is null
-            ? Row(new FontIcon { Glyph = "", FontSize = 15, Foreground = Brush("TextFillColorSecondaryBrush") }, null, folder.Folder, null)
-            : WithChangelog(Row(await Tile(folder, addon.Name, logger).ConfigureAwait(true), addon.Name, folder.Folder, addon.Version), addon, folder);
+            ? Row(new FontIcon { Glyph = "", FontSize = 15, Foreground = Brush("TextFillColorSecondaryBrush") }, null, folder, null)
+            : Row(await Tile(folder, addon.Name, logger).ConfigureAwait(true), addon.Name, folder, addon);
     }
 
     public FolderEntry? ChangelogRequest { get; private set; }
 
     public void ClearChangelogRequest() => ChangelogRequest = null;
 
-    private Grid WithChangelog(Grid row, LocalAddon addon, FolderEntry folder)
+    private FrameworkElement VersionCell(FolderEntry folder, LocalAddon addon)
     {
+        var shortVersion = VersionLabel.For(addon.Version, folder.Folder);
+        var text = new TextBlock
+        {
+            Text = shortVersion,
+            FontFamily = new FontFamily("Cascadia Mono"),
+            FontSize = 11.5,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = Brush("TextFillColorSecondaryBrush"),
+        };
+        var full = addon.Version is not null && addon.Version != shortVersion ? addon.Version : null;
         if (folder.Changelog is not { Count: > 0 })
         {
-            return row;
+            if (full is not null)
+            {
+                ToolTipService.SetToolTip(text, full);
+            }
+
+            return text;
         }
+
+        var content = new Grid { ColumnSpacing = 4 };
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        content.Children.Add(text);
+        var icon = new FontIcon
+        {
+            Width = 12,
+            Glyph = "",
+            FontSize = 12,
+            Margin = new Thickness(0, 1, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = Brush("TextFillColorSecondaryBrush"),
+        };
+        Grid.SetColumn(icon, 1);
+        content.Children.Add(icon);
 
         var button = new Button
         {
-            Width = 22,
-            Height = 22,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
             MinHeight = 0,
-            Padding = new Thickness(0),
-            Margin = new Thickness(6, 0, 0, 0),
-            VerticalAlignment = VerticalAlignment.Center,
-            Content = new FontIcon { Glyph = "", FontSize = 12, Foreground = Brush("TextFillColorSecondaryBrush") },
+            Margin = new Thickness(-4, 0, 0, 0),
+            Padding = new Thickness(4, 2, 4, 2),
+            Content = content,
             Resources =
             {
                 ["ButtonBackground"] = Brush("SubtleFillColorTransparentBrush"),
@@ -59,18 +90,14 @@ public sealed partial class AddonFoldersDialog : ContentDialog
                 ["ButtonBackgroundPressed"] = Brush("SubtleFillColorTertiaryBrush"),
             },
         };
-        ToolTipService.SetToolTip(button, $"Changelog for {addon.Name}");
+        ToolTipService.SetToolTip(button, string.Join("\n", new[] { full, "Changelog" }.OfType<string>()));
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"Changelog for {addon.Name}");
         button.Click += (_, _) =>
         {
             ChangelogRequest = folder;
             Hide();
         };
-
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(button, 3);
-        row.Children.Add(button);
-        return row;
+        return button;
     }
 
     private static async Task<UIElement> Tile(FolderEntry folder, string name, ILogger logger)
@@ -93,12 +120,13 @@ public sealed partial class AddonFoldersDialog : ContentDialog
         return tile;
     }
 
-    private static Grid Row(UIElement icon, string? name, string folder, string? version)
+    private Grid Row(UIElement icon, string? name, FolderEntry folder, LocalAddon? addon)
     {
         var row = new Grid { ColumnSpacing = 12 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(96) });
 
         row.Children.Add(new Border
         {
@@ -113,12 +141,25 @@ public sealed partial class AddonFoldersDialog : ContentDialog
         var lines = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         if (name is not null)
         {
-            lines.Children.Add(new TextBlock { Text = name, FontSize = 13.5, TextTrimming = TextTrimming.CharacterEllipsis });
+            var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            title.Children.Add(new TextBlock
+            {
+                Text = name,
+                FontSize = 13.5,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            if (!string.IsNullOrEmpty(folder.Notice?.Text))
+            {
+                title.Children.Add(NoticeButton(folder));
+            }
+
+            lines.Children.Add(title);
         }
 
         lines.Children.Add(new TextBlock
         {
-            Text = folder,
+            Text = folder.Folder,
             FontFamily = new FontFamily("Cascadia Mono"),
             FontSize = name is null ? 12 : 11,
             IsTextSelectionEnabled = true,
@@ -127,21 +168,50 @@ public sealed partial class AddonFoldersDialog : ContentDialog
         Grid.SetColumn(lines, 1);
         row.Children.Add(lines);
 
-        if (version is not null)
+        if (addon is not null)
         {
-            var text = new TextBlock
+            var version = VersionCell(folder, addon);
+            version.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(version, 2);
+            row.Children.Add(version);
+        }
+
+        if (folder.Channel is not null)
+        {
+            var channel = new TextBlock
             {
-                Text = version,
-                FontFamily = new FontFamily("Cascadia Mono"),
-                FontSize = 11.5,
+                Text = folder.Channel,
+                FontSize = 12,
+                TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
                 Foreground = Brush("TextFillColorSecondaryBrush"),
             };
-            Grid.SetColumn(text, 2);
-            row.Children.Add(text);
+            Grid.SetColumn(channel, 3);
+            row.Children.Add(channel);
         }
 
         return row;
+    }
+
+    private static Button NoticeButton(FolderEntry folder)
+    {
+        var button = new Button
+        {
+            Width = 22,
+            Height = 22,
+            MinHeight = 0,
+            Padding = new Thickness(0),
+            Content = new FontIcon { Glyph = folder.NoticeGlyph, FontSize = 13, Foreground = Brush("TextFillColorSecondaryBrush") },
+            Resources =
+            {
+                ["ButtonBackground"] = Brush("SubtleFillColorTransparentBrush"),
+                ["ButtonBackgroundPointerOver"] = Brush("SubtleFillColorSecondaryBrush"),
+                ["ButtonBackgroundPressed"] = Brush("SubtleFillColorTertiaryBrush"),
+            },
+        };
+        ToolTipService.SetToolTip(button, folder.Notice!.Text);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, folder.Notice.Text);
+        return button;
     }
 
     private static Brush Brush(string key) => (Brush)Application.Current.Resources[key];
