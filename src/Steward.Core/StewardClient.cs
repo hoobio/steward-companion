@@ -548,7 +548,7 @@ public sealed class StewardClient
     }
 
     public async Task<JourneyUploadResponse> PutJourneyAsync(
-        string account, string realm, string character, byte[] file, JourneySummary summary, long mtime, CancellationToken cancellationToken)
+        string account, string realm, string character, byte[] file, JourneySummary summary, JourneyQuality quality, long mtime, CancellationToken cancellationToken)
     {
         using var compressed = new MemoryStream();
         await using (var gzip = new GZipStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
@@ -565,6 +565,7 @@ public sealed class StewardClient
         request.Content.Headers.ContentEncoding.Add("gzip");
         request.Headers.Add("X-Journey-Rows", summary.Rows.ToString(CultureInfo.InvariantCulture));
         request.Headers.Add("X-Journey-Mtime", mtime.ToString(CultureInfo.InvariantCulture));
+        request.Headers.Add("X-Journey-Quality", quality.Header);
         if (summary.First is { } first)
         {
             request.Headers.Add("X-Journey-First", first.ToString(CultureInfo.InvariantCulture));

@@ -121,6 +121,46 @@ public sealed class JourneyTests : IDisposable
         Assert.Equal(new JourneySummary(0, null, null, null), JourneyFile.Summarise(Encoding.Latin1.GetBytes("StewardJourneyDB = nil\r\n")));
     }
 
+    private static byte[] QualityFixture()
+    {
+        var packed = LuaEscape(Gzip("""[{"ev":"pos","t":100,"sub":"C","x":0.1,"y":0.2},{"ev":"pos","t":200,"sub":"A"},{"ev":"login","t":250,"addon":"0.0.1"}]"""));
+        const string route =
+            "\t\t{ [\"ev\"] = \"login\", [\"t\"] = 1000, [\"sub\"] = \"A\", [\"x\"] = 0.5, [\"y\"] = 0.5, [\"addon\"] = \"0.1.0-pre-release.ab12;x\" },\r\n"
+            + "\t\t{ [\"ev\"] = \"pos\", [\"t\"] = 1100, [\"sub\"] = \"B\", [\"x\"] = 0.5, [\"y\"] = 0.5 },\r\n"
+            + "\t\t{ [\"ev\"] = \"pos\", [\"t\"] = 2000, [\"sub\"] = \"A\", [\"x\"] = 0.5 },\r\n"
+            + "\t\t{ [\"ev\"] = \"pos\", [\"t\"] = 2100, [\"sub\"] = \"\" },\r\n";
+        var text =
+            "StewardJourneyDB = {\r\n\t[\"route\"] = {\r\n" + route + "\t},\r\n"
+            + "\t[\"packed\"] = {\r\n\t\t{ [\"to\"] = 250, [\"lvl\"] = 1, [\"rows\"] = 3, [\"from\"] = 100, [\"data\"] = \"" + packed + "\" },\r\n\t},\r\n}\r\n";
+        return Encoding.Latin1.GetBytes(text);
+    }
+
+    [Fact]
+    public void Quality_CountsSubzonesActiveTimePositionsAndTheNewestLoginsAddon()
+    {
+        var quality = JourneyFile.Quality(QualityFixture());
+
+        Assert.Equal(new JourneyQuality(3, 350, 3, "0.1.0-pre-release.ab12;x"), quality);
+        Assert.Equal("subzones=3;active=350;positions=3;addon=0.1.0-pre-release.ab12x", quality.Header);
+    }
+
+    [Fact]
+    public void Quality_NoTable_IsEmpty()
+    {
+        Assert.Equal("subzones=0;active=0;positions=0;addon=", JourneyFile.Quality(Encoding.Latin1.GetBytes("StewardJourneyDB = nil\r\n")).Header);
+    }
+
+    [Fact]
+    public async Task Upload_SendsTheQualityHeader()
+    {
+        WriteFile(QualityFixture());
+        var (uploader, handler, _) = UploaderFor(HttpStatusCode.OK);
+
+        await uploader.UploadAsync([_root], CancellationToken.None);
+
+        Assert.Equal("subzones=3;active=350;positions=3;addon=0.1.0-pre-release.ab12x", Assert.Single(handler.Requests).Request.Headers.GetValues("X-Journey-Quality").Single());
+    }
+
     [Fact]
     public async Task Upload_SendsTheGzippedFileWithHeadersAndRecordsIt()
     {

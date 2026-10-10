@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
@@ -9,6 +10,16 @@ using System.Text.RegularExpressions;
 namespace Steward.Core;
 
 public sealed record JourneySummary(long Rows, long? First, long? Last, string? CharacterGuid);
+
+public sealed partial record JourneyQuality(int Subzones, long ActiveSeconds, int Positions, string Addon)
+{
+    public string Header => string.Create(
+        CultureInfo.InvariantCulture,
+        $"subzones={Subzones};active={ActiveSeconds};positions={Positions};addon={HeaderUnsafe().Replace(Addon, "")}");
+
+    [GeneratedRegex(@"[^A-Za-z0-9._+\-]")]
+    private static partial Regex HeaderUnsafe();
+}
 
 public sealed record JourneyFileRef(string Path, string Account, string Realm, string Character);
 
@@ -91,6 +102,62 @@ public static partial class JourneyFile
             ends.Count == 0 ? null : (long)ends.Max(),
             guid);
     }
+
+    public static JourneyQuality Quality(byte[] bytes)
+    {
+        var globals = LuaSavedVariables.Parse(Encoding.Latin1.GetString(bytes));
+        if (!globals.TryGetValue("StewardJourneyDB", out var db) || db.Kind != LuaKind.Table)
+        {
+            return new JourneyQuality(0, 0, 0, "");
+        }
+
+        var rows = (db.GetTable("route")?.Items ?? []).Where(row => row.Kind == LuaKind.Table).Select(row => new QualityRow(
+            row.GetNumber("t"), row.GetString("ev"), row.GetString("sub"), row.GetNumber("x") is not null && row.GetNumber("y") is not null, row.GetString("addon"))).ToList();
+        foreach (var chunk in (db.GetTable("packed")?.Items ?? []).Where(chunk => chunk.Kind == LuaKind.Table))
+        {
+            rows.AddRange(PackedRows(chunk));
+        }
+
+        var times = rows.Select(row => row.T).OfType<double>().Order().ToList();
+        var active = 0.0;
+        for (var i = 1; i < times.Count; i++)
+        {
+            var gap = times[i] - times[i - 1];
+            active += gap < 300 ? gap : 0;
+        }
+
+        var addon = rows.Where(row => row is { Ev: "login", T: not null }).MaxBy(row => row.T)?.Addon ?? "";
+        return new JourneyQuality(
+            rows.Select(row => row.Sub).Where(sub => !string.IsNullOrEmpty(sub)).Distinct().Count(),
+            (long)active,
+            rows.Count(row => row.HasPosition),
+            addon);
+    }
+
+    private static List<QualityRow> PackedRows(LuaValue chunk)
+    {
+        if (chunk.GetString("data") is not { } data)
+        {
+            return [];
+        }
+
+        try
+        {
+            using var gzip = new GZipStream(new MemoryStream(Encoding.Latin1.GetBytes(data)), CompressionMode.Decompress);
+            using var json = JsonDocument.Parse(gzip);
+            string? Text(JsonElement row, string name) => row.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+            bool Has(JsonElement row, string name) => row.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number;
+            return json.RootElement.EnumerateArray().Where(row => row.ValueKind == JsonValueKind.Object).Select(row => new QualityRow(
+                row.TryGetProperty("t", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetDouble() : null,
+                Text(row, "ev"), Text(row, "sub"), Has(row, "x") && Has(row, "y"), Text(row, "addon"))).ToList();
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or JsonException or InvalidOperationException)
+        {
+            return [];
+        }
+    }
+
+    private sealed record QualityRow(double? T, string? Ev, string? Sub, bool HasPosition, string? Addon);
 
     private static string? PackedGuid(LuaValue? chunk)
     {
@@ -228,6 +295,7 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
                 file.Character,
                 bytes,
                 summary,
+                JourneyFile.Quality(bytes),
                 new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds(),
                 cancellationToken).ConfigureAwait(false);
             Save(file.Path, _ => new JourneyUploadRecord(sha, info.Length, info.LastWriteTimeUtc, response.Result, _now()));
