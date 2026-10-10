@@ -31,9 +31,11 @@ public sealed class AppStateStore
 
     private string ProviderAddonsPath => Path.Combine(Path.GetDirectoryName(_path)!, "provider_addons.json");
 
+    private string JourneyUploadsPath => Path.Combine(Path.GetDirectoryName(_path)!, "journey_uploads.json");
+
     private readonly Lock _cacheLock = new();
     private AppState? _cached;
-    private (FileStamp State, FileStamp CharacterSync, FileStamp ProviderAddons) _cachedStamp;
+    private (FileStamp State, FileStamp CharacterSync, FileStamp ProviderAddons, FileStamp JourneyUploads) _cachedStamp;
 
     private readonly record struct FileStamp(DateTime LastWriteUtc, long Length);
 
@@ -41,10 +43,10 @@ public sealed class AppStateStore
     {
         lock (_cacheLock)
         {
-            var stamp = (Stamp(_path), Stamp(CharacterSyncPath), Stamp(ProviderAddonsPath));
+            var stamp = (Stamp(_path), Stamp(CharacterSyncPath), Stamp(ProviderAddonsPath), Stamp(JourneyUploadsPath));
             if (_cached is null || stamp != _cachedStamp)
             {
-                _cached = Normalise(WithProviderAddons(WithCharacterSync(LoadState())));
+                _cached = Normalise(WithJourneyUploads(WithProviderAddons(WithCharacterSync(LoadState()))));
                 _cachedStamp = stamp;
             }
 
@@ -107,6 +109,25 @@ public sealed class AppStateStore
         {
             return JsonSerializer.Deserialize(File.ReadAllText(ProviderAddonsPath), CompanionJsonContext.Default.ProviderAddonsState) is { } providers
                 ? state with { ProviderAddons = providers.ProviderAddons }
+                : state;
+        }
+        catch (JsonException)
+        {
+            return state;
+        }
+    }
+
+    private AppState WithJourneyUploads(AppState state)
+    {
+        if (!File.Exists(JourneyUploadsPath))
+        {
+            return state;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize(File.ReadAllText(JourneyUploadsPath), CompanionJsonContext.Default.JourneyUploadsState) is { } uploads
+                ? state with { JourneyUploads = uploads.JourneyUploads }
                 : state;
         }
         catch (JsonException)
@@ -199,6 +220,7 @@ public sealed class AppStateStore
                 record, folder => Directory.Exists(Path.Combine(entry.Key, "Interface", "AddOns", folder)))).ToList(),
             StringComparer.OrdinalIgnoreCase),
         MissingSince = new Dictionary<string, DateTimeOffset>(state.MissingSince ?? [], StringComparer.OrdinalIgnoreCase),
+        JourneyUploads = new Dictionary<string, JourneyUploadRecord>(state.JourneyUploads ?? [], StringComparer.OrdinalIgnoreCase),
         AddonCatalogue = state.AddonCatalogue is null ? null : [.. state.AddonCatalogue],
     };
 
@@ -272,8 +294,11 @@ public sealed class AppStateStore
                 WriteAtomically(ProviderAddonsPath, JsonSerializer.Serialize(
                     new ProviderAddonsState(state.ProviderAddons ?? []),
                     CompanionJsonContext.Default.ProviderAddonsState));
+                WriteAtomically(JourneyUploadsPath, JsonSerializer.Serialize(
+                    new JourneyUploadsState(state.JourneyUploads ?? []),
+                    CompanionJsonContext.Default.JourneyUploadsState));
                 WriteAtomically(_path, JsonSerializer.Serialize(
-                    state with { CharacterSync = null!, CharacterSyncBatches = null!, ProviderAddons = null! },
+                    state with { CharacterSync = null!, CharacterSyncBatches = null!, ProviderAddons = null!, JourneyUploads = null! },
                     CompanionJsonContext.Default.AppState));
             }
             finally

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
@@ -18,7 +19,10 @@ public sealed class StewardRequestException(HttpStatusCode statusCode, string? b
     public string? Body { get; } = body;
 }
 
-public sealed class StewardThrottledException() : Exception("request was rate limited (429)");
+public sealed class StewardThrottledException(TimeSpan? retryAfter = null) : Exception("request was rate limited (429)")
+{
+    public TimeSpan? RetryAfter { get; } = retryAfter;
+}
 
 public sealed class StewardClient
 {
@@ -541,5 +545,64 @@ public sealed class StewardClient
 
         return result ?? throw new HttpRequestException(
             $"POST /api/sync/{guildId}/characters returned an empty body");
+    }
+
+    public async Task<JourneyUploadResponse> PutJourneyAsync(
+        string account, string realm, string character, byte[] file, JourneySummary summary, long mtime, CancellationToken cancellationToken)
+    {
+        using var compressed = new MemoryStream();
+        await using (var gzip = new GZipStream(compressed, CompressionLevel.Optimal, leaveOpen: true))
+        {
+            await gzip.WriteAsync(file, cancellationToken).ConfigureAwait(false);
+        }
+
+        var path = $"/api/sync/journey/{Uri.EscapeDataString(account)}/{Uri.EscapeDataString(realm)}/{Uri.EscapeDataString(character)}";
+        using var request = new HttpRequestMessage(HttpMethod.Put, _baseUrl + path)
+        {
+            Content = new ByteArrayContent(compressed.ToArray()),
+        };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        request.Content.Headers.ContentEncoding.Add("gzip");
+        request.Headers.Add("X-Journey-Rows", summary.Rows.ToString(CultureInfo.InvariantCulture));
+        request.Headers.Add("X-Journey-Mtime", mtime.ToString(CultureInfo.InvariantCulture));
+        if (summary.First is { } first)
+        {
+            request.Headers.Add("X-Journey-First", first.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (summary.Last is { } last)
+        {
+            request.Headers.Add("X-Journey-Last", last.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (summary.CharacterGuid is { } guid)
+        {
+            request.Headers.Add("X-Journey-Guid", guid);
+        }
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            var retryAfter = response.Headers.RetryAfter;
+            throw new StewardThrottledException(retryAfter?.Delta ?? (retryAfter?.Date - DateTimeOffset.UtcNow));
+        }
+
+        if ((int)response.StatusCode is >= 400 and < 500 and not 408)
+        {
+            throw new StewardRequestException(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException($"PUT {path} returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
+        }
+
+        return await response.Content.ReadFromJsonAsync(CompanionJsonContext.Default.JourneyUploadResponse, cancellationToken).ConfigureAwait(false)
+            ?? throw new HttpRequestException($"PUT {path} returned an empty body");
     }
 }

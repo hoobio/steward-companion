@@ -144,6 +144,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _bannerRefreshPending;
     private bool _isPushing;
     private bool? _pendingPush;
+    private readonly JourneyUploader _journeyUploader;
+    private readonly Dictionary<string, SavedVariablesWatcher> _journeyWatchers = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isUploadingJourneys;
+    private bool _pendingJourneyUpload;
     private bool _isChecking;
     private bool _isAutoApplying;
     private Task<AuthCheckResult>? _actionAuthorization;
@@ -180,7 +184,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _addons = addons;
         _supportedProducts = supportedProducts;
         _logger = logger;
-        Installs.CollectionChanged += (_, _) => RenumberInstalls();
+        _journeyUploader = new JourneyUploader(stewardClient, stateStore);
+        Installs.CollectionChanged += (_, _) =>
+        {
+            RenumberInstalls();
+            SyncJourneyWatchers();
+        };
 
         var state = stateStore.Load();
         _addonCatalogue = state.AddonCatalogue?.Select(addon => addon.ToManagedAddon()).ToList();
@@ -415,6 +424,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool HasGuidesFeature => _features.Contains(StewardClient.GuidesFeature);
 
     public bool HasAddonsFeature => _features.Contains(StewardClient.AddonsFeature);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(JourneyStatusVisibility))]
+    public partial string? JourneyStatus { get; set; }
+
+    public Visibility JourneyStatusVisibility => When(JourneyStatus is not null);
 
     public bool IsCurseForgeEnabled => CurseForgeEnabled && HasAddonsFeature;
 
@@ -2325,6 +2340,83 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
     }
 
+    private void SyncJourneyWatchers()
+    {
+        var current = Installs.Select(install => install.FlavourPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in _journeyWatchers.Keys.Where(path => !current.Contains(path)).ToList())
+        {
+            _journeyWatchers[path].Dispose();
+            _journeyWatchers.Remove(path);
+        }
+
+        foreach (var path in current.Where(path => !_journeyWatchers.ContainsKey(path)))
+        {
+            if (SavedVariablesWatcher.TryCreate(path, JourneyFile.FileName, () => _dispatcher?.TryEnqueue(() => _ = UploadJourneysAsync())) is { } watcher)
+            {
+                _journeyWatchers[path] = watcher;
+            }
+        }
+    }
+
+    private async Task UploadJourneysAsync()
+    {
+        _pendingJourneyUpload = true;
+        if (_isUploadingJourneys)
+        {
+            return;
+        }
+
+        _isUploadingJourneys = true;
+        try
+        {
+            while (_pendingJourneyUpload && IsAuthorized && CanPushCharacters)
+            {
+                _pendingJourneyUpload = false;
+                var flavourPaths = PresentInstalls.Select(install => install.FlavourPath).ToList();
+                var result = await Task.Run(() => _journeyUploader.UploadAsync(flavourPaths, CancellationToken.None)).ConfigureAwait(true);
+                UpdateJourneyStatus();
+                if (result == JourneyPassResult.SessionExpired)
+                {
+                    _logger.Info("Journey upload: 401, session expired");
+                    SignOutTo(GateFailure.SessionExpired);
+                    return;
+                }
+            }
+        }
+        finally
+        {
+            _pendingJourneyUpload = false;
+            _isUploadingJourneys = false;
+        }
+    }
+
+    private void UpdateJourneyStatus()
+    {
+        if (!CanPushCharacters)
+        {
+            JourneyStatus = null;
+            return;
+        }
+
+        var records = _stateStore.Load().JourneyUploads.Values.ToList();
+        var failed = records.Where(record => record.Error is not null).MaxBy(record => record.ErrorAt);
+        var uploaded = records.Where(record => record.UploadedAt is not null).ToList();
+        JourneyStatus = failed is not null && (failed.ErrorAt ?? default) >= (uploaded.Max(record => record.UploadedAt) ?? default)
+            ? $"Journey: {failed.Error}"
+            : uploaded.Count == 0
+                ? null
+                : $"Journey: {uploaded.Count} character{(uploaded.Count == 1 ? "" : "s")} uploaded, last {RelativeAgo(uploaded.Max(record => record.UploadedAt)!.Value)}";
+    }
+
+    private static string RelativeAgo(DateTimeOffset at)
+    {
+        var elapsed = DateTimeOffset.Now - at;
+        return elapsed < TimeSpan.FromMinutes(1) ? "just now"
+            : elapsed < TimeSpan.FromHours(1) ? $"{(int)elapsed.TotalMinutes} min ago"
+            : elapsed < TimeSpan.FromDays(1) ? $"{(int)elapsed.TotalHours} h ago"
+            : $"{(int)elapsed.TotalDays} d ago";
+    }
+
     public bool IsCharacterPushCurrent(string guildId, string flavourPath, string? charactersFingerprint)
     {
         if (charactersFingerprint is null)
@@ -2931,6 +3023,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RestedXp.Confirm(install.FlavourPath);
         _ = NotifySavedVariablesChangedAsync();
         _ = AutoApplyAsync();
+        _ = UploadJourneysAsync();
     }
 
     private Task NotifySavedVariablesChangedAsync() => SavedVariablesChanged?.Invoke() ?? Task.CompletedTask;
@@ -2962,6 +3055,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         UpdateLastCheckedText();
         RestedXp.RefreshRelativeTimes();
+        SyncJourneyWatchers();
+        UpdateJourneyStatus();
         _ = NotifySavedVariablesChangedAsync();
         if (!_isChecking)
         {
@@ -3155,6 +3250,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(CanPushCharacters));
                 OnPropertyChanged(nameof(SyncVisibility));
                 _ = SavedVariablesWrittenAsync();
+            }
+
+            if (_journeyUploader.IsBlocked || !previousFeatures.SetEquals(_features) || previousPushTargets != CharacterPushTargetsKey())
+            {
+                _journeyUploader.Unblock();
+                _ = UploadJourneysAsync();
             }
 
             _logger.Info($"/api/me recheck: authorized, role={Role}, {_features.Count} feature(s)");

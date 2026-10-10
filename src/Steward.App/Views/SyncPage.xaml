@@ -132,6 +132,11 @@
                         TextTrimming="CharacterEllipsis"
                         Foreground="{ThemeResource SystemFillColorCautionBrush}"
                         Visibility="{x:Bind ViewModel.SubtitleRunningVisibility, Mode=OneWay}" />
+                    <TextBlock
+                        Text="{x:Bind ViewModel.Main.JourneyStatus, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Visibility="{x:Bind ViewModel.Main.JourneyStatusVisibility, Mode=OneWay}" />
                 </StackPanel>
 
                 <StackPanel

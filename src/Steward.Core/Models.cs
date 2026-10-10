@@ -353,6 +353,10 @@ public sealed record AppState(
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, List<ProviderAddonRecord>> ProviderAddons { get; init; } = null!;
 
+    [JsonPropertyName("journey_uploads")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, JourneyUploadRecord> JourneyUploads { get; init; } = null!;
+
     [JsonPropertyName("missing_since")]
     public Dictionary<string, DateTimeOffset> MissingSince { get; init; } = null!;
 
@@ -392,6 +396,8 @@ public sealed record ProviderAddonsState(
 [JsonSerializable(typeof(CharacterSyncResponse))]
 [JsonSerializable(typeof(CharacterSyncState))]
 [JsonSerializable(typeof(ProviderAddonsState))]
+[JsonSerializable(typeof(JourneyUploadsState))]
+[JsonSerializable(typeof(JourneyUploadResponse))]
 [JsonSerializable(typeof(CurseForgeDiscover))]
 [JsonSerializable(typeof(CurseForgeDownloadFailure))]
 [JsonSerializable(typeof(CurseForgeMatch[]))]
