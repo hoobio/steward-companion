@@ -2900,6 +2900,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 ? RestedXp.RewriteAfterInstallAsync(wowInstall)
                 : AfterStewardInstalled?.Invoke(wowInstall) ?? Task.CompletedTask,
             InstallRequirementsAsync,
+            () => _userId,
             _logger)
         {
             IsAddedByUser = isAddedByUser,
@@ -3114,6 +3115,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             UserHandle = me.User.Username is { Length: > 0 } u ? $"@{u}" : null;
             Role = me.User.Role;
             _userId = me.User.Id;
+            if (previousUserId != _userId)
+            {
+                foreach (var row in Installs.SelectMany(install => install.AddonRows).Where(row => !row.IsBusy))
+                {
+                    row.WriteThemeFile();
+                }
+            }
+
             AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = true;
             _ = EvaluateCurseForgeDefaultHandlerAsync();

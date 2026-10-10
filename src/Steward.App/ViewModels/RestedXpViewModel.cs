@@ -45,11 +45,13 @@ public sealed partial class GuideRowViewModel : ObservableObject
 
     private readonly RestedXpInstallViewModel _card;
     private readonly DateTimeOffset? _updatedAt;
+    private readonly Uri? _imageUri;
 
     public GuideRowViewModel(RestedXpInstallViewModel card, string productName, Uri? imageUri, DateTimeOffset? updatedAt, bool isAllowed)
     {
         _card = card;
         _updatedAt = updatedAt;
+        _imageUri = imageUri;
         ProductName = productName;
         Image = imageUri is null ? null : ManifestIcon.For($"restedxp-{productName}", imageUri);
         IsAllowed = isAllowed;
@@ -62,6 +64,9 @@ public sealed partial class GuideRowViewModel : ObservableObject
     public double ImageOpacity => IsAllowed ? 1 : 0.4;
 
     public bool IsAllowed { get; }
+
+    public bool Matches(string productName, Uri? imageUri, DateTimeOffset? updatedAt, bool isAllowed) =>
+        ProductName == productName && _imageUri == imageUri && _updatedAt == updatedAt && IsAllowed == isAllowed;
 
     public string? RowTooltip => IsAllowed ? null : $"{ProductName} is for another client. This install is {_card.DisplayName}.";
 
@@ -243,17 +248,35 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(isAllowed);
 
         _isLoading = true;
-        Rows.Clear();
-        foreach (var product in products)
+        for (var i = 0; i < products.Count; i++)
         {
+            var product = products[i];
             var updatedAt = timestamps.TryGetValue(product, out var timestamp)
                 ? DateTimeOffset.FromUnixTimeMilliseconds(timestamp)
                 : (DateTimeOffset?)null;
             var allowed = isAllowed(product);
-            Rows.Add(new GuideRowViewModel(this, product, images.GetValueOrDefault(product), updatedAt, allowed)
+            var image = images.GetValueOrDefault(product);
+            var isSelected = allowed && selected.Contains(product, StringComparer.Ordinal);
+            if (i < Rows.Count && Rows[i].Matches(product, image, updatedAt, allowed))
             {
-                IsSelected = allowed && selected.Contains(product, StringComparer.Ordinal),
-            });
+                Rows[i].IsSelected = isSelected;
+                continue;
+            }
+
+            var row = new GuideRowViewModel(this, product, image, updatedAt, allowed) { IsSelected = isSelected };
+            if (i < Rows.Count)
+            {
+                Rows[i] = row;
+            }
+            else
+            {
+                Rows.Add(row);
+            }
+        }
+
+        while (Rows.Count > products.Count)
+        {
+            Rows.RemoveAt(Rows.Count - 1);
         }
 
         _isLoading = false;
@@ -278,6 +301,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
     public const string AddonId = "restedxp";
 
     private static readonly TimeSpan PreviewDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan DownloadingDelay = TimeSpan.FromMilliseconds(300);
 
     private readonly RestedXpService _service;
     private readonly Func<bool> _hasGuidesFeature;
@@ -676,14 +700,18 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         }
 
         var rows = card.SelectedRows;
-        foreach (var row in rows)
-        {
-            row.State = GuideRowState.Downloading;
-        }
-
         try
         {
-            var results = await _service.SyncAsync(card.Install, card.SelectedProducts, CancellationToken.None, force).ConfigureAwait(true);
+            var sync = _service.SyncAsync(card.Install, card.SelectedProducts, CancellationToken.None, force);
+            if (await Task.WhenAny(sync, Task.Delay(DownloadingDelay)).ConfigureAwait(true) != sync)
+            {
+                foreach (var row in rows)
+                {
+                    row.State = GuideRowState.Downloading;
+                }
+            }
+
+            var results = await sync.ConfigureAwait(true);
             foreach (var row in rows)
             {
                 row.FailureText = null;

@@ -45,6 +45,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Func<string, string, string, Task<bool>> _confirmUninstall;
     private readonly Func<string, WowInstall, Task> _afterStewardInstalled;
     private readonly Func<WowInstallViewModel, ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> _installRequirements;
+    private readonly Func<string?> _themeId;
     private readonly ILogger _logger;
 
     private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
@@ -73,8 +74,10 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         Action<WowInstallViewModel> clientExited,
         Func<string, WowInstall, Task> afterStewardInstalled,
         Func<WowInstallViewModel, ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> installRequirements,
+        Func<string?> themeId,
         ILogger logger)
     {
+        _themeId = themeId;
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(addons);
 
@@ -548,6 +551,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             _afterStewardInstalled,
             CurseForgeAddons.IsRecorded(addon) ? () => _unmanageProviderAddon(this, addon.Id) : null,
             (dependant, channel, release, status, progress) => _installRequirements(this, dependant, channel, release, status, progress),
+            _themeId,
             _logger);
     }
 

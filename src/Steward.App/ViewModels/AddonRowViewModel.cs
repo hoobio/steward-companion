@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 
 using Steward.App.Services;
 using Steward.Core;
+using Steward.Core.Diagnostics;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
@@ -135,6 +136,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     private readonly Func<string, WowInstall, Task> _afterStewardInstalled;
     private readonly Action? _unmanage;
     private readonly Func<ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> _installRequirements;
+    private readonly Func<string?> _themeId;
     private readonly ILogger _logger;
 
     private AddonChannelStatus? _status;
@@ -156,9 +158,11 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         Func<string, WowInstall, Task> afterStewardInstalled,
         Action? unmanage,
         Func<ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> installRequirements,
+        Func<string?> themeId,
         ILogger logger)
     {
         _logger = logger;
+        _themeId = themeId;
         _unmanage = unmanage;
         _installRequirements = installRequirements;
         _install = install;
@@ -779,6 +783,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, release.Sha1, folders);
             _stateStore.Save(state);
             await InGameIcon.EnsureAsync(_updater, _install.AddOnsPath, _addon, _logger).ConfigureAwait(true);
+            WriteThemeFile();
 
             RefreshInstalledVersion();
             ReloadPendingSince = DateTimeOffset.Now;
@@ -798,6 +803,26 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    public void WriteThemeFile()
+    {
+        if (!AddonThemeFile.AppliesTo(_addon) || _themeId() is not { Length: > 0 } themeId)
+        {
+            return;
+        }
+
+        foreach (var folder in OwnFolders())
+        {
+            try
+            {
+                AddonThemeFile.Write(_install.AddOnsPath, folder, themeId);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                _logger.Warn(ex, $"Could not write the theme file for {folder}");
+            }
         }
     }
 
