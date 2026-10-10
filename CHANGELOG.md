@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.21.0](https://github.com/hoobio/steward-companion/compare/v0.20.3...v0.21.0) (2026-10-10)
+
+
+### Features
+
+* ✨ + N folders opens a dialog of the other installed folders, standalone addons with icon, version and changelog ([34b9f81](https://github.com/hoobio/steward-companion/commit/34b9f81a7b35ea8634030d5fabfd94874d1d3613))
+* ✨ catalogue rows declare their behaviour, with the Protected source for gated addons ([70820ea](https://github.com/hoobio/steward-companion/commit/70820eaacfd556b41f60beb4e1fc507830824f2d))
+* ✨ install an addon's required dependencies before it and keep them while needed ([b8a2edb](https://github.com/hoobio/steward-companion/commit/b8a2edbec7078484222ede7ba8e3091b3d434067))
+* ✨ journey uploads send X-Journey-Quality (subzones, active time, positions, addon version) ([7fb6911](https://github.com/hoobio/steward-companion/commit/7fb6911610359d1a27ef2f8f11cb1fdcda40718e))
+* ✨ protected addons get their Core/Theme.lua written after every install ([35d3772](https://github.com/hoobio/steward-companion/commit/35d377256e2359b32251479aa6cec4eb33421214))
+* ✨ protected addons show a padlock with the server's notice text ([8be5636](https://github.com/hoobio/steward-companion/commit/8be56362f62f705780a4a462cc44b6362928657f))
+* ✨ upload each character's Steward: Journey saved variables to steward-server when the file changes ([49a5532](https://github.com/hoobio/steward-companion/commit/49a55329a3629951c8b871809de7a58942eb5b6d))
+* ✨ write a Discord avatar TGA per directory person for the addon to draw ([c55c325](https://github.com/hoobio/steward-companion/commit/c55c325ad361907ebaf5097896db0ac8c78c322e))
+
+
+### Bug Fixes
+
+* 🐛 journey uploads run on the minute tick, so files written before the app started upload ([b5de41c](https://github.com/hoobio/steward-companion/commit/b5de41c84f37ba726b3e78267d66f41de34de363))
+* 🐛 release channel radio centres on the whole option, not its first line ([cd10b2c](https://github.com/hoobio/steward-companion/commit/cd10b2ce96f1018eb0bb997356af53781a626e8f))
+* 🐛 sub-addon dialog shows notice, channel and the table's version layout ([699ea39](https://github.com/hoobio/steward-companion/commit/699ea39994a7841d69e45803ebd051b47cda48aa))
+* 🐛 the API unavailable banner waits 5 seconds before it shows ([39e82fe](https://github.com/hoobio/steward-companion/commit/39e82fed217aabc8ac0f99cc2d3c00f12b9d85dd))
+* 🐛 the notice padlock sits right after the addon name ([3935d1a](https://github.com/hoobio/steward-companion/commit/3935d1a45ffcccd02c900fa2a01c92fe62c5dd1e))
+
 ## [0.20.3](https://github.com/hoobio/steward-companion/compare/v0.20.2...v0.20.3) (2026-10-06)
 
 
