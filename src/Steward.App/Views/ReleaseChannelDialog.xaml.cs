@@ -1,3 +1,5 @@
+using CommunityToolkit.WinUI;
+
 using Steward.App.ViewModels;
 
 using Microsoft.UI.Xaml;
@@ -16,7 +18,9 @@ public sealed partial class ReleaseChannelDialog : ContentDialog
         InitializeComponent();
         foreach (var option in channel.Options)
         {
-            Options.Items.Add(new RadioButton { Content = OptionContent(option), IsEnabled = option.IsEnabled, Tag = option.Channel });
+            var radio = new RadioButton { Content = OptionContent(option), IsEnabled = option.IsEnabled, Tag = option.Channel, Padding = new Thickness(8, 0, 0, 0) };
+            radio.Loaded += CentreGlyph;
+            Options.Items.Add(radio);
         }
 
         Options.SelectedIndex = channel.Options.ToList().FindIndex(option => option.IsCurrent);
@@ -44,7 +48,7 @@ public sealed partial class ReleaseChannelDialog : ContentDialog
             });
         }
 
-        var detail = new TextBlock { Text = option.Detail, FontSize = 11.5, Foreground = Brush(option.IsEnabled ? "TextFillColorSecondaryBrush" : "TextFillColorDisabledBrush") };
+        var detail = new TextBlock { Text = option.Detail, FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center, Foreground = Brush(option.IsEnabled ? "TextFillColorSecondaryBrush" : "TextFillColorDisabledBrush") };
         if (option.IsEnabled)
         {
             detail.FontFamily = new FontFamily("Cascadia Mono");
@@ -100,6 +104,15 @@ public sealed partial class ReleaseChannelDialog : ContentDialog
         ChangelogCaption.Text = $"{option.Label} {option.Release!.Version} changelog";
         ChangelogHost.Content = ChangelogView.Build(option.Changelog);
         ChangelogPanel.Visibility = Visibility.Visible;
+    }
+
+    // The RadioButton template pins the glyph grid to VerticalAlignment Top, so a two-line option has its circle beside the first line only.
+    private static void CentreGlyph(object sender, RoutedEventArgs e)
+    {
+        if (((RadioButton)sender).FindDescendant("OuterEllipse") is { } ellipse && VisualTreeHelper.GetParent(ellipse) is FrameworkElement glyph)
+        {
+            glyph.VerticalAlignment = VerticalAlignment.Center;
+        }
     }
 
     private static Brush Brush(string key) => (Brush)Application.Current.Resources[key];
