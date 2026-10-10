@@ -32,6 +32,7 @@ public sealed partial class MainWindow : Window
     private readonly IServiceProvider _services;
     private bool _quitting;
     private bool _confirmingClose;
+    private bool _hideWhenMinimized;
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _trimTimer;
     private Native.SubclassProc? _sessionEndSubclass;
     private RectInt32 _passthrough;
@@ -449,7 +450,7 @@ public sealed partial class MainWindow : Window
         args.Cancel = true;
         if (ViewModel.CloseToTray)
         {
-            HideToTray();
+            MinimizeThenHideToTray();
             return;
         }
 
@@ -497,7 +498,7 @@ public sealed partial class MainWindow : Window
                     QuitCompletely();
                     break;
                 case ContentDialogResult.Secondary:
-                    HideToTray();
+                    MinimizeThenHideToTray();
                     break;
             }
         }
@@ -510,11 +511,24 @@ public sealed partial class MainWindow : Window
     private void OnWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
     {
         if (args.DidPresenterChange
-            && ViewModel.MinimizeToTray
+            && (ViewModel.MinimizeToTray || _hideWhenMinimized)
             && sender.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized })
         {
+            _hideWhenMinimized = false;
             HideToTray();
         }
+    }
+
+    private void MinimizeThenHideToTray()
+    {
+        if (AppWindow.IsVisible && AppWindow.Presenter is OverlappedPresenter { State: not OverlappedPresenterState.Minimized } presenter)
+        {
+            _hideWhenMinimized = true;
+            presenter.Minimize();
+            return;
+        }
+
+        HideToTray();
     }
 
     public void HideToTray()
