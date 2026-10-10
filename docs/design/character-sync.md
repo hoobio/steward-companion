@@ -4,7 +4,7 @@ WoW characters observed by the Steward addon flow addon -> SavedVariables -> Ste
 
 ## Feature flag
 
-`sync` is a flag in steward-server's `DesktopAccess.Flags` and in `DesktopAccess.OfficerFeatures` (`src/Steward.Data/DesktopAccess.cs`), so every guild seat holder and global admin holds it automatically, the same as `addons` and `guides`, and the flags page shows it ticked and disabled for them. It is also grantable to anyone else through a role or user target, for a later guildie self-sync that is not built. A non-officer holding `sync` gets it in `/api/admin/me`'s `features` but an empty `guilds`, and 403 on every `/api/admin/{guild_id}/` route, since they hold no seat; an officer of one guild gets 403 on another guild's routes.
+`sync` is a flag in steward-server's `DesktopAccess.Flags` and in `DesktopAccess.OfficerFeatures` (`src/Steward.Data/DesktopAccess.cs`), so every guild seat holder and global admin holds it automatically, the same as `addons` and `guides`, and the flags page shows it ticked and disabled for them. It is also grantable to anyone else through a role or user target, for a later guildie self-sync that is not built. A non-officer holding `sync` gets it in `/api/me`'s `features` but an empty `guilds`, and 403 on every `/api/admin/{guild_id}/` route, since they hold no seat; an officer of one guild gets 403 on another guild's routes.
 
 steward-server enforces it with one helper, `GuildAccess.RequireFeature(context, "sync")` (`src/Steward.Data/GuildAccess.cs`): the existing guild-seat check (401 unauthenticated, 403 forbidden) plus 403 `{"error":"forbidden"}` when the flag is absent. Every endpoint below uses it except `POST roster`.
 
