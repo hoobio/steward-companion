@@ -121,14 +121,11 @@ public sealed class JourneyTests : IDisposable
         Assert.Equal(new JourneySummary(0, null, null, null), JourneyFile.Summarise(Encoding.Latin1.GetBytes("StewardJourneyDB = nil\r\n")));
     }
 
-    private static byte[] QualityFixture(string extraRoute = "")
+    private static byte[] QualityFixture()
     {
-        var packed = LuaEscape(Gzip("""[{"ev":"pos","t":100,"sub":"C","x":0.1,"y":0.2},{"ev":"pos","t":200,"sub":"A"},{"ev":"login","t":250,"addon":"0.0.1","class":"MAGE","lvl":7},{"ev":"xp","t":100,"src":"kill","lvl":9},{"ev":"xp","t":100,"src":"kill"},{"ev":"xp","t":100,"src":"quest"},{"ev":"death","t":100}]"""));
-        var route =
-            "\t\t{ [\"ev\"] = \"login\", [\"t\"] = 1000, [\"sub\"] = \"A\", [\"x\"] = 0.5, [\"y\"] = 0.5, [\"addon\"] = \"0.1.0-pre-release.ab12;x\", [\"class\"] = \"DRUID\", [\"lvl\"] = 12 },\r\n"
-            + "\t\t{ [\"ev\"] = \"xp\", [\"t\"] = 1100, [\"src\"] = \"kill\" },\r\n"
-            + "\t\t{ [\"ev\"] = \"xp\", [\"t\"] = 1100, [\"src\"] = \"quest\" },\r\n"
-            + extraRoute
+        var packed = LuaEscape(Gzip("""[{"ev":"pos","t":100,"sub":"C","x":0.1,"y":0.2},{"ev":"pos","t":200,"sub":"A"},{"ev":"login","t":250,"addon":"0.0.1"}]"""));
+        const string route =
+            "\t\t{ [\"ev\"] = \"login\", [\"t\"] = 1000, [\"sub\"] = \"A\", [\"x\"] = 0.5, [\"y\"] = 0.5, [\"addon\"] = \"0.1.0-pre-release.ab12;x\" },\r\n"
             + "\t\t{ [\"ev\"] = \"pos\", [\"t\"] = 1100, [\"sub\"] = \"B\", [\"x\"] = 0.5, [\"y\"] = 0.5 },\r\n"
             + "\t\t{ [\"ev\"] = \"pos\", [\"t\"] = 2000, [\"sub\"] = \"A\", [\"x\"] = 0.5 },\r\n"
             + "\t\t{ [\"ev\"] = \"pos\", [\"t\"] = 2100, [\"sub\"] = \"\" },\r\n";
@@ -143,53 +140,14 @@ public sealed class JourneyTests : IDisposable
     {
         var quality = JourneyFile.Quality(QualityFixture());
 
-        Assert.Equal(new JourneyQuality(3, 350, 3, "0.1.0-pre-release.ab12;x", 12, "DRUID", 3, 2, 1), quality);
-        Assert.Equal("subzones=3;active=350;positions=3;addon=0.1.0-pre-release.ab12x;level=12;class=DRUID;kills=3;quests=2;deaths=1", quality.Header);
-    }
-
-    [Fact]
-    public void Quality_LevelIsTheHighestLvlOnAnyRowPackedIncluded()
-    {
-        Assert.Equal(12, JourneyFile.Quality(QualityFixture()).Level);
-        Assert.Equal(15, JourneyFile.Quality(QualityFixture("\t\t{ [\"ev\"] = \"level\", [\"t\"] = 1100, [\"lvl\"] = 15 },\r\n")).Level);
-    }
-
-    [Fact]
-    public void Quality_ClassIsTheNewestLoginsClass()
-    {
-        Assert.Equal("DRUID", JourneyFile.Quality(QualityFixture()).Class);
-    }
-
-    [Fact]
-    public void Quality_KillsAreXpRowsFromKills()
-    {
-        Assert.Equal(3, JourneyFile.Quality(QualityFixture()).Kills);
-    }
-
-    [Fact]
-    public void Quality_QuestsPreferTurninsAndFallBackToQuestXp()
-    {
-        Assert.Equal(2, JourneyFile.Quality(QualityFixture()).Quests);
-        Assert.Equal(1, JourneyFile.Quality(QualityFixture("\t\t{ [\"ev\"] = \"turnin\", [\"t\"] = 1100 },\r\n")).Quests);
-    }
-
-    [Fact]
-    public void Quality_DeathsAreDeathRows()
-    {
-        Assert.Equal(1, JourneyFile.Quality(QualityFixture()).Deaths);
-        Assert.Equal(2, JourneyFile.Quality(QualityFixture("\t\t{ [\"ev\"] = \"death\", [\"t\"] = 1100 },\r\n")).Deaths);
-    }
-
-    [Fact]
-    public void Quality_UnsafeClassIsOmittedFromTheHeader()
-    {
-        Assert.DoesNotContain("class=", new JourneyQuality(0, 0, 0, "", Class: "DR UID;").Header);
+        Assert.Equal(new JourneyQuality(3, 350, 3, "0.1.0-pre-release.ab12;x"), quality);
+        Assert.Equal("subzones=3;active=350;positions=3;addon=0.1.0-pre-release.ab12x", quality.Header);
     }
 
     [Fact]
     public void Quality_NoTable_IsEmpty()
     {
-        Assert.Equal("subzones=0;active=0;positions=0;addon=;level=0;kills=0;quests=0;deaths=0", JourneyFile.Quality(Encoding.Latin1.GetBytes("StewardJourneyDB = nil\r\n")).Header);
+        Assert.Equal("subzones=0;active=0;positions=0;addon=", JourneyFile.Quality(Encoding.Latin1.GetBytes("StewardJourneyDB = nil\r\n")).Header);
     }
 
     [Fact]
@@ -200,7 +158,7 @@ public sealed class JourneyTests : IDisposable
 
         await uploader.UploadAsync([_root], CancellationToken.None);
 
-        Assert.Equal("subzones=3;active=350;positions=3;addon=0.1.0-pre-release.ab12x;level=12;class=DRUID;kills=3;quests=2;deaths=1", Assert.Single(handler.Requests).Request.Headers.GetValues("X-Journey-Quality").Single());
+        Assert.Equal("subzones=3;active=350;positions=3;addon=0.1.0-pre-release.ab12x", Assert.Single(handler.Requests).Request.Headers.GetValues("X-Journey-Quality").Single());
     }
 
     [Fact]

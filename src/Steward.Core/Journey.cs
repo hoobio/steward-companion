@@ -11,14 +11,11 @@ namespace Steward.Core;
 
 public sealed record JourneySummary(long Rows, long? First, long? Last, string? CharacterGuid);
 
-public sealed partial record JourneyQuality(
-    int Subzones, long ActiveSeconds, int Positions, string Addon, int Level = 0, string Class = "", int Kills = 0, int Quests = 0, int Deaths = 0)
+public sealed partial record JourneyQuality(int Subzones, long ActiveSeconds, int Positions, string Addon)
 {
     public string Header => string.Create(
         CultureInfo.InvariantCulture,
-        $"subzones={Subzones};active={ActiveSeconds};positions={Positions};addon={HeaderUnsafe().Replace(Addon, "")};level={Level}{ClassPart()};kills={Kills};quests={Quests};deaths={Deaths}");
-
-    private string ClassPart() => Class.Length > 0 && !HeaderUnsafe().IsMatch(Class) ? $";class={Class}" : "";
+        $"subzones={Subzones};active={ActiveSeconds};positions={Positions};addon={HeaderUnsafe().Replace(Addon, "")}");
 
     [GeneratedRegex(@"[^A-Za-z0-9._+\-]")]
     private static partial Regex HeaderUnsafe();
@@ -115,8 +112,7 @@ public static partial class JourneyFile
         }
 
         var rows = (db.GetTable("route")?.Items ?? []).Where(row => row.Kind == LuaKind.Table).Select(row => new QualityRow(
-            row.GetNumber("t"), row.GetString("ev"), row.GetString("sub"), row.GetNumber("x") is not null && row.GetNumber("y") is not null, row.GetString("addon"),
-            (int?)row.GetNumber("lvl"), row.GetString("class"), row.GetString("src"))).ToList();
+            row.GetNumber("t"), row.GetString("ev"), row.GetString("sub"), row.GetNumber("x") is not null && row.GetNumber("y") is not null, row.GetString("addon"))).ToList();
         foreach (var chunk in (db.GetTable("packed")?.Items ?? []).Where(chunk => chunk.Kind == LuaKind.Table))
         {
             rows.AddRange(PackedRows(chunk));
@@ -130,18 +126,12 @@ public static partial class JourneyFile
             active += gap < 300 ? gap : 0;
         }
 
-        var turnins = rows.Count(row => row.Ev == "turnin");
         var addon = rows.Where(row => row is { Ev: "login", T: not null }).MaxBy(row => row.T)?.Addon ?? "";
         return new JourneyQuality(
             rows.Select(row => row.Sub).Where(sub => !string.IsNullOrEmpty(sub)).Distinct().Count(),
             (long)active,
             rows.Count(row => row.HasPosition),
-            addon,
-            rows.Max(row => row.Lvl) ?? 0,
-            rows.Where(row => row is { Ev: "login", T: not null, Class.Length: > 0 }).MaxBy(row => row.T)?.Class ?? "",
-            rows.Count(row => row is { Ev: "xp", Src: "kill" }),
-            turnins > 0 ? turnins : rows.Count(row => row is { Ev: "xp", Src: "quest" }),
-            rows.Count(row => row.Ev == "death"));
+            addon);
     }
 
     private static List<QualityRow> PackedRows(LuaValue chunk)
@@ -159,9 +149,7 @@ public static partial class JourneyFile
             bool Has(JsonElement row, string name) => row.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number;
             return json.RootElement.EnumerateArray().Where(row => row.ValueKind == JsonValueKind.Object).Select(row => new QualityRow(
                 row.TryGetProperty("t", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetDouble() : null,
-                Text(row, "ev"), Text(row, "sub"), Has(row, "x") && Has(row, "y"), Text(row, "addon"),
-                row.TryGetProperty("lvl", out var lvl) && lvl.ValueKind == JsonValueKind.Number ? (int)lvl.GetDouble() : null,
-                Text(row, "class"), Text(row, "src"))).ToList();
+                Text(row, "ev"), Text(row, "sub"), Has(row, "x") && Has(row, "y"), Text(row, "addon"))).ToList();
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or JsonException or InvalidOperationException)
         {
@@ -169,7 +157,7 @@ public static partial class JourneyFile
         }
     }
 
-    private sealed record QualityRow(double? T, string? Ev, string? Sub, bool HasPosition, string? Addon, int? Lvl, string? Class, string? Src);
+    private sealed record QualityRow(double? T, string? Ev, string? Sub, bool HasPosition, string? Addon);
 
     private static string? PackedGuid(LuaValue? chunk)
     {
