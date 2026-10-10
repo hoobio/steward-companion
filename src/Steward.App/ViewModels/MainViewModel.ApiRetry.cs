@@ -11,27 +11,52 @@ public sealed partial class MainViewModel
 
     private readonly Dictionary<string, Func<Task<bool>>> _apiRetries = [];
     private DispatcherQueueTimer? _apiRetryTimer;
+    private DispatcherQueueTimer? _apiGraceTimer;
     private int _apiRetryAttempt;
     private bool _isRetryingApi;
 
     private bool HasApiRetry => _apiRetries.Count > 0;
 
-    private static string Describe(Exception ex) => TransientHttp.IsRetryable(ex) ? ApiUnavailableMessage : ex.Message;
-
     private void ReportFailure(Exception ex, string retryKey, Func<Task<bool>> retry)
     {
-        StatusMessage = Describe(ex);
         if (!TransientHttp.IsRetryable(ex))
         {
+            StatusMessage = ex.Message;
             return;
         }
 
         _apiRetries[retryKey] = retry;
+        StartApiGrace();
         NotifyStatusAction();
         if (!_isRetryingApi)
         {
             ScheduleApiRetry();
         }
+    }
+
+    private void StartApiGrace()
+    {
+        if (StatusMessage == ApiUnavailableMessage || _apiGraceTimer is { IsRunning: true })
+        {
+            return;
+        }
+
+        if (_apiGraceTimer is null)
+        {
+            _apiGraceTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+            _apiGraceTimer.IsRepeating = false;
+            _apiGraceTimer.Interval = TimeSpan.FromSeconds(5);
+            _apiGraceTimer.Tick += (_, _) =>
+            {
+                if (HasApiRetry)
+                {
+                    StatusMessage = ApiUnavailableMessage;
+                    NotifyStatusAction();
+                }
+            };
+        }
+
+        _apiGraceTimer.Start();
     }
 
     private void RetryApiNow()
@@ -112,6 +137,7 @@ public sealed partial class MainViewModel
         {
             _apiRetryAttempt = 0;
             _apiRetryTimer?.Stop();
+            _apiGraceTimer?.Stop();
             if (StatusMessage == ApiUnavailableMessage && Failure == GateFailure.None)
             {
                 StatusMessage = null;
