@@ -102,8 +102,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(HideVisibility),
         nameof(HiddenPillVisibility),
         nameof(RestedXpSignInVisibility),
-        nameof(FolderLine),
-        nameof(FolderTip),
+        nameof(ExtraFolders),
+        nameof(ExtraFoldersText),
+        nameof(ExtraFoldersVisibility),
         nameof(IsDistributable),
     ];
 
@@ -203,11 +204,18 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public string FolderName => _addon.FolderName;
 
-    public string FolderLine => (_addon.Folders ?? _status?.Release?.Folders ?? []).Union(Record?.Folders ?? [], StringComparer.OrdinalIgnoreCase).Count(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase)) + _children.Count is var others and > 0
-        ? $"{FolderName} + {others} folder{(others == 1 ? "" : "s")}"
-        : FolderName;
+    public IReadOnlyList<FolderEntry> ExtraFolders =>
+    [
+        .. (_addon.Folders ?? _status?.Release?.Folders ?? []).Union(Record?.Folders ?? [], StringComparer.OrdinalIgnoreCase)
+            .Where(folder => !string.Equals(folder, FolderName, StringComparison.OrdinalIgnoreCase))
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .Select(folder => new FolderEntry(_install.AddOnsPath, folder, TocFile.InterfaceNumber(_install.ClientVersion))),
+        .. _children.Select(child => new FolderEntry(_install.AddOnsPath, child.FolderName, TocFile.InterfaceNumber(_install.ClientVersion), child.ChangelogTitle, Changelogs.For(child._status?.Release))),
+    ];
 
-    public string? FolderTip => _children.Count == 0 ? null : $"Includes {string.Join(", ", _children.Select(child => $"{child.DisplayName} ({child.FolderName})"))}";
+    public string ExtraFoldersText => FolderEntry.Summary(ExtraFolders.Count);
+
+    public Visibility ExtraFoldersVisibility => ExtraFolders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     public bool IsFolded { get; set; }
 

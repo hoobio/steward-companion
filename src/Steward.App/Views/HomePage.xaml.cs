@@ -29,7 +29,6 @@ public sealed partial class HomePage : Page
         nameof(AddonRowViewModel.VersionCellTip),
         nameof(AddonRowViewModel.HasVersionCellTip),
         nameof(AddonRowViewModel.VersionTip),
-        nameof(AddonRowViewModel.FolderTip),
         nameof(AddonRowViewModel.ReleasedTip),
         nameof(AddonRowViewModel.VersionButtonTip),
         nameof(AddonRowViewModel.VersionPairTip),
@@ -246,6 +245,21 @@ public sealed partial class HomePage : Page
             {
                 FitVersion(row);
                 return;
+            }
+        }
+    }
+
+    private async void OnExtraFoldersClick(object sender, RoutedEventArgs e)
+    {
+        if (TaggedItem<IAddonTableRow>(sender, nameof(OnExtraFoldersClick)) is { } row)
+        {
+            var dialog = new AddonFoldersDialog(row.DisplayName, row.ExtraFolders, ViewModel.Logger);
+            await AppDialogs.ShowAsync(dialog, XamlRoot);
+            while (dialog.ChangelogRequest is { } folder)
+            {
+                dialog.ClearChangelogRequest();
+                await AppDialogs.ShowAsync(new ChangelogDialog(folder.ChangelogTitle ?? folder.Folder, folder.Changelog!), XamlRoot);
+                await AppDialogs.ShowAsync(dialog, XamlRoot);
             }
         }
     }

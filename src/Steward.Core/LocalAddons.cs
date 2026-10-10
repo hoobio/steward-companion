@@ -111,6 +111,14 @@ public static class LocalAddons
         return File.Exists(exact) ? exact : suffixed.FirstOrDefault();
     }
 
+    public static LocalAddon? Read(string addOnsPath, string folderName, int? clientInterface = null)
+    {
+        var folderPath = Path.Combine(addOnsPath, folderName);
+        return Directory.Exists(folderPath) && ReadCandidate(folderPath, folderName, clientInterface) is { } candidate
+            ? new LocalAddon(candidate.FolderName, candidate.Name, candidate.Version, candidate.Interface, [])
+            : null;
+    }
+
     public static DeclaredAddonIds? ReadDeclaredIds(string addOnsPath, string folderName, int? clientInterface = null)
     {
         var folderPath = Path.Combine(addOnsPath, folderName);

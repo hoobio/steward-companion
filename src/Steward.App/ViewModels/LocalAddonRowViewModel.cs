@@ -108,9 +108,13 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     public string Initials => InitialsTile.Text(DisplayName);
 
-    public string FolderLine => _addon.FoldedFolders.Count == 0
-        ? _addon.FolderName
-        : $"{_addon.FolderName} + {_addon.FoldedFolders.Count} folder{(_addon.FoldedFolders.Count == 1 ? "" : "s")}";
+    public string FolderName => _addon.FolderName;
+
+    public IReadOnlyList<FolderEntry> ExtraFolders => [.. _addon.FoldedFolders.Select(folder => new FolderEntry(_install.AddOnsPath, folder, TocFile.InterfaceNumber(_install.ClientVersion)))];
+
+    public string ExtraFoldersText => FolderEntry.Summary(_addon.FoldedFolders.Count);
+
+    public Visibility ExtraFoldersVisibility => When(_addon.FoldedFolders.Count > 0);
 
     public string Version => _addon.Version ?? "";
 

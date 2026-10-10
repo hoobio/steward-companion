@@ -8,6 +8,7 @@ using Steward.Core.Diagnostics;
 
 using Steward.App.Services;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
@@ -285,6 +286,8 @@ public sealed partial class MainViewModel
     }
 
     public void WarnUi(string message) => _logger.Warn(null, message);
+
+    public ILogger Logger => _logger;
 
     private void RenumberInstalls()
     {

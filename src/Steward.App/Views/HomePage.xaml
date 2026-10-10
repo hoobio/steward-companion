@@ -126,13 +126,31 @@
                             <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
                         </Button>
                     </Grid>
-                    <TextBlock
-                        Text="{x:Bind FolderLine, Mode=OneWay}"
-                        ToolTipService.ToolTip="{x:Bind FolderTip, Mode=OneWay}"
-                        FontFamily="Cascadia Mono"
-                        FontSize="11"
-                        TextTrimming="CharacterEllipsis"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    <Grid HorizontalAlignment="Left" ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Text="{x:Bind FolderName}"
+                            FontFamily="Cascadia Mono"
+                            FontSize="11"
+                            TextTrimming="CharacterEllipsis"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        <HyperlinkButton
+                            Grid.Column="1"
+                            Padding="2,0"
+                            MinHeight="0"
+                            FontFamily="Cascadia Mono"
+                            FontSize="11"
+                            VerticalAlignment="Center"
+                            Content="{x:Bind ExtraFoldersText, Mode=OneWay}"
+                            AutomationProperties.Name="Show the other installed folders"
+                            Click="OnExtraFoldersClick"
+                            Tag="{x:Bind}"
+                            Visibility="{x:Bind ExtraFoldersVisibility, Mode=OneWay}" />
+                    </Grid>
                     <TextBlock
                         Text="/reload in-game to update"
                         TextWrapping="Wrap"
@@ -494,12 +512,31 @@
                             <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
                         </Button>
                     </Grid>
-                    <TextBlock
-                        Text="{x:Bind FolderLine}"
-                        FontFamily="Cascadia Mono"
-                        FontSize="11"
-                        TextTrimming="CharacterEllipsis"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                    <Grid HorizontalAlignment="Left" ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Text="{x:Bind FolderName}"
+                            FontFamily="Cascadia Mono"
+                            FontSize="11"
+                            TextTrimming="CharacterEllipsis"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        <HyperlinkButton
+                            Grid.Column="1"
+                            Padding="2,0"
+                            MinHeight="0"
+                            FontFamily="Cascadia Mono"
+                            FontSize="11"
+                            VerticalAlignment="Center"
+                            Content="{x:Bind ExtraFoldersText}"
+                            AutomationProperties.Name="Show the other installed folders"
+                            Click="OnExtraFoldersClick"
+                            Tag="{x:Bind}"
+                            Visibility="{x:Bind ExtraFoldersVisibility}" />
+                    </Grid>
                     <TextBlock
                         Text="{x:Bind FailureMessage, Mode=OneWay}"
                         TextWrapping="Wrap"

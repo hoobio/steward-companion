@@ -21,4 +21,6 @@ public interface IAddonTableRow
     bool IsCompact { get; set; }
 
     SearchMatch? NameMatch { get; set; }
+
+    IReadOnlyList<FolderEntry> ExtraFolders { get; }
 }
