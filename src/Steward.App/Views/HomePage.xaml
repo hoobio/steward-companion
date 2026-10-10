@@ -96,7 +96,7 @@
                     Visibility="{x:Bind UpdatingVisibility, Mode=OneWay}" />
 
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                    <Grid HorizontalAlignment="Left" ColumnSpacing="4">
+                    <Grid HorizontalAlignment="Left">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -112,8 +112,9 @@
                             VerticalAlignment="Center" />
                         <Button
                             Grid.Column="1"
-                            Width="22"
+                            Width="20"
                             Height="22"
+                            MinWidth="0"
                             MinHeight="0"
                             Padding="0"
                             AutomationProperties.Name="Out of date for this client"
@@ -128,8 +129,9 @@
                         </Button>
                         <Button
                             Grid.Column="2"
-                            Width="22"
+                            Width="20"
                             Height="22"
+                            MinWidth="0"
                             MinHeight="0"
                             Padding="0"
                             AutomationProperties.Name="{x:Bind NoticeTip}"

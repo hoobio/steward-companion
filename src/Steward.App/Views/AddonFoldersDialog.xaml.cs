@@ -141,7 +141,9 @@ public sealed partial class AddonFoldersDialog : ContentDialog
         var lines = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         if (name is not null)
         {
-            var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            var title = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
+            title.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            title.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             title.Children.Add(new TextBlock
             {
                 Text = name,
@@ -151,7 +153,9 @@ public sealed partial class AddonFoldersDialog : ContentDialog
             });
             if (!string.IsNullOrEmpty(folder.Notice?.Text))
             {
-                title.Children.Add(NoticeButton(folder));
+                var notice = NoticeButton(folder);
+                Grid.SetColumn(notice, 1);
+                title.Children.Add(notice);
             }
 
             lines.Children.Add(title);
@@ -197,8 +201,9 @@ public sealed partial class AddonFoldersDialog : ContentDialog
     {
         var button = new Button
         {
-            Width = 22,
+            Width = 20,
             Height = 22,
+            MinWidth = 0,
             MinHeight = 0,
             Padding = new Thickness(0),
             Content = new FontIcon { Glyph = folder.NoticeGlyph, FontSize = 13, Foreground = Brush("TextFillColorSecondaryBrush") },
