@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.2](https://github.com/hoobio/steward-companion/compare/v0.21.1...v0.21.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* 🐛 closing to the tray plays the minimise animation instead of vanishing ([c538183](https://github.com/hoobio/steward-companion/commit/c53818303c6d563f62c78f7bfb724cf88944036d))
+* 🐛 tray hide waits for the minimise animation to finish before hiding the window ([6a4ba91](https://github.com/hoobio/steward-companion/commit/6a4ba919f70fb2676dd9cd8e81f876db3e1cc293))
+
 ## [0.21.1](https://github.com/hoobio/steward-companion/compare/v0.21.0...v0.21.1) (2026-10-10)
 
 
