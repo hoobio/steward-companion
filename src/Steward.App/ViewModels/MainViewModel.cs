@@ -2374,7 +2374,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 _pendingJourneyUpload = false;
                 var flavourPaths = PresentInstalls.Select(install => install.FlavourPath).ToList();
                 var result = await Task.Run(() => _journeyUploader.UploadAsync(flavourPaths, CancellationToken.None)).ConfigureAwait(true);
+                var before = JourneyStatus;
                 UpdateJourneyStatus();
+                if (JourneyStatus != before)
+                {
+                    _logger.Info($"Journey upload: {JourneyStatus ?? "nothing uploaded"}");
+                }
                 if (result == JourneyPassResult.SessionExpired)
                 {
                     _logger.Info("Journey upload: 401, session expired");
@@ -3057,6 +3062,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RestedXp.RefreshRelativeTimes();
         SyncJourneyWatchers();
         UpdateJourneyStatus();
+        _ = UploadJourneysAsync();
         _ = NotifySavedVariablesChangedAsync();
         if (!_isChecking)
         {
