@@ -132,11 +132,6 @@
                         TextTrimming="CharacterEllipsis"
                         Foreground="{ThemeResource SystemFillColorCautionBrush}"
                         Visibility="{x:Bind ViewModel.SubtitleRunningVisibility, Mode=OneWay}" />
-                    <TextBlock
-                        Text="{x:Bind ViewModel.Main.JourneyStatus, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Visibility="{x:Bind ViewModel.Main.JourneyStatusVisibility, Mode=OneWay}" />
                 </StackPanel>
 
                 <StackPanel
@@ -361,6 +356,63 @@
                             </Expander>
                         </Border>
                     </StackPanel>
+
+                    <Grid
+                        BorderThickness="{x:Bind ViewModel.JourneyHairline, Mode=OneWay}"
+                        BorderBrush="{ThemeResource RowHairlineBrush}"
+                        Padding="{StaticResource CardRowPadding}"
+                        MinHeight="{StaticResource CardRowMinHeight}"
+                        ColumnSpacing="12"
+                        Visibility="{x:Bind ViewModel.Main.JourneyRowVisibility, Mode=OneWay}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="30" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border
+                            Grid.Column="0"
+                            Width="30"
+                            Height="30"
+                            VerticalAlignment="Center"
+                            CornerRadius="6"
+                            Background="{ThemeResource ChipBrush}">
+                            <FontIcon
+                                Glyph="&#xE707;"
+                                FontSize="16"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </Border>
+
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="Character journeys" FontSize="13.5" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon
+                                    Glyph="&#xE73E;"
+                                    FontSize="12"
+                                    VerticalAlignment="Center"
+                                    Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                                    Visibility="{x:Bind ViewModel.Main.JourneyOkVisibility, Mode=OneWay}" />
+                                <TextBlock
+                                    Text="Uploaded after you log out"
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Visibility="{x:Bind ViewModel.Main.JourneyOkVisibility, Mode=OneWay}" />
+                            </StackPanel>
+                            <TextBlock
+                                Text="{x:Bind ViewModel.Main.JourneyError, Mode=OneWay}"
+                                TextWrapping="Wrap"
+                                FontSize="12"
+                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                Visibility="{x:Bind ViewModel.Main.JourneyErrorVisibility, Mode=OneWay}" />
+                        </StackPanel>
+
+                        <TextBlock
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Text="{x:Bind ViewModel.Main.JourneyCount, Mode=OneWay}"
+                            FontSize="12.5"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Grid>
 
                     <Grid
                         BorderThickness="{x:Bind ViewModel.GeneratedFileHairline, Mode=OneWay}"

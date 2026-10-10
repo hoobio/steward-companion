@@ -426,10 +426,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool HasAddonsFeature => _features.Contains(StewardClient.AddonsFeature);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(JourneyStatusVisibility))]
-    public partial string? JourneyStatus { get; set; }
+    [NotifyPropertyChangedFor(nameof(JourneyRowVisibility))]
+    [NotifyPropertyChangedFor(nameof(JourneyErrorVisibility))]
+    [NotifyPropertyChangedFor(nameof(JourneyOkVisibility))]
+    public partial string? JourneyError { get; set; }
 
-    public Visibility JourneyStatusVisibility => When(JourneyStatus is not null);
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(JourneyRowVisibility))]
+    [NotifyPropertyChangedFor(nameof(JourneyOkVisibility))]
+    public partial string? JourneyCount { get; set; }
+
+    public Visibility JourneyRowVisibility => When(JourneyError is not null || JourneyCount is not null);
+
+    public Visibility JourneyErrorVisibility => When(JourneyError is not null);
+
+    public Visibility JourneyOkVisibility => When(JourneyError is null && JourneyCount is not null);
 
     public bool IsCurseForgeEnabled => CurseForgeEnabled && HasAddonsFeature;
 
@@ -2374,11 +2385,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 _pendingJourneyUpload = false;
                 var flavourPaths = PresentInstalls.Select(install => install.FlavourPath).ToList();
                 var result = await Task.Run(() => _journeyUploader.UploadAsync(flavourPaths, CancellationToken.None)).ConfigureAwait(true);
-                var before = JourneyStatus;
+                var before = (JourneyError, JourneyCount);
                 UpdateJourneyStatus();
-                if (JourneyStatus != before)
+                if ((JourneyError, JourneyCount) != before)
                 {
-                    _logger.Info($"Journey upload: {JourneyStatus ?? "nothing uploaded"}");
+                    _logger.Info($"Journey upload: {JourneyError ?? JourneyCount ?? "nothing uploaded"}");
                 }
                 if (result == JourneyPassResult.SessionExpired)
                 {
@@ -2399,27 +2410,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (!CanPushCharacters)
         {
-            JourneyStatus = null;
+            JourneyError = null;
+            JourneyCount = null;
             return;
         }
 
         var records = _stateStore.Load().JourneyUploads.Values.ToList();
         var failed = records.Where(record => record.Error is not null).MaxBy(record => record.ErrorAt);
         var uploaded = records.Where(record => record.UploadedAt is not null).ToList();
-        JourneyStatus = failed is not null && (failed.ErrorAt ?? default) >= (uploaded.Max(record => record.UploadedAt) ?? default)
-            ? $"Journey: {failed.Error}"
-            : uploaded.Count == 0
-                ? null
-                : $"Journey: {uploaded.Count} character{(uploaded.Count == 1 ? "" : "s")} uploaded, last {RelativeAgo(uploaded.Max(record => record.UploadedAt)!.Value)}";
-    }
-
-    private static string RelativeAgo(DateTimeOffset at)
-    {
-        var elapsed = DateTimeOffset.Now - at;
-        return elapsed < TimeSpan.FromMinutes(1) ? "just now"
-            : elapsed < TimeSpan.FromHours(1) ? $"{(int)elapsed.TotalMinutes} min ago"
-            : elapsed < TimeSpan.FromDays(1) ? $"{(int)elapsed.TotalHours} h ago"
-            : $"{(int)elapsed.TotalDays} d ago";
+        JourneyError = failed is not null && (failed.ErrorAt ?? default) >= (uploaded.Max(record => record.UploadedAt) ?? default)
+            ? failed.Error
+            : null;
+        JourneyCount = uploaded.Count == 0
+            ? null
+            : $"{uploaded.Count} character{(uploaded.Count == 1 ? "" : "s")} uploaded, last {SyncViewModel.Relative(uploaded.Max(record => record.UploadedAt))}";
     }
 
     public bool IsCharacterPushCurrent(string guildId, string flavourPath, string? charactersFingerprint)

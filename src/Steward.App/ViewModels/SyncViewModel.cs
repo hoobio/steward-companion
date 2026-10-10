@@ -38,6 +38,7 @@ public sealed partial class SyncViewModel : ObservableObject
         nameof(GeneratedFileStatus),
         nameof(GeneratedFileErrorVisibility),
         nameof(GeneratedFileHairline),
+        nameof(JourneyHairline),
         nameof(SyncNowVisibility),
         nameof(IsProfessionsOnlySync),
     ];
@@ -74,6 +75,10 @@ public sealed partial class SyncViewModel : ObservableObject
             if (e.PropertyName == nameof(MainViewModel.CanPushCharacters))
             {
                 SyncCharacterPushRows();
+                Recompute();
+            }
+            else if (e.PropertyName == nameof(MainViewModel.JourneyRowVisibility))
+            {
                 Recompute();
             }
             else if (e.PropertyName == nameof(MainViewModel.SelectedInstall))
@@ -157,7 +162,9 @@ public sealed partial class SyncViewModel : ObservableObject
 
     public Visibility GeneratedFileErrorVisibility => When(GeneratedFileError is not null);
 
-    public Thickness GeneratedFileHairline => CardsVisibility == Visibility.Visible ? new Thickness(0, 1, 0, 0) : default;
+    public Thickness JourneyHairline => CardsVisibility == Visibility.Visible ? new Thickness(0, 1, 0, 0) : default;
+
+    public Thickness GeneratedFileHairline => CardsVisibility == Visibility.Visible || _main.JourneyRowVisibility == Visibility.Visible ? new Thickness(0, 1, 0, 0) : default;
 
     public bool UnreachableIsOpen => IsUnreachable;
 
