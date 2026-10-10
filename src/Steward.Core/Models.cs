@@ -33,6 +33,8 @@ public sealed record ManagedAddon(string Id, string FolderName, string? Manifest
 
     public bool? CurseForge { get; init; }
 
+    public AddonNotice? Notice { get; init; }
+
     public bool ManifestNeedsSession => ManifestAuth is { } auth
         ? string.Equals(auth, "session", StringComparison.OrdinalIgnoreCase)
         : Source is CurseForgeAddons.Source or AddonCatalogue.ProtectedSource;
@@ -66,7 +68,8 @@ public sealed record CatalogueAddon(
     [property: JsonPropertyName("zip_relative"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? ZipRelative = null,
     [property: JsonPropertyName("updates_while_unreachable"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? UpdatesWhileUnreachable = null,
     [property: JsonPropertyName("source_label"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SourceLabel = null,
-    [property: JsonPropertyName("curseforge"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? CurseForge = null)
+    [property: JsonPropertyName("curseforge"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? CurseForge = null,
+    [property: JsonPropertyName("notice"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] AddonNotice? Notice = null)
 {
     public ManagedAddon ToManagedAddon() =>
         new(Id, FolderName, ManifestBaseUrl, AutoInstall ?? false, Name, Features, Source ?? AddonCatalogue.StewardSource)
@@ -79,8 +82,13 @@ public sealed record CatalogueAddon(
             UpdatesWhileUnreachable = UpdatesWhileUnreachable,
             SourceLabel = SourceLabel,
             CurseForge = CurseForge,
+            Notice = Notice,
         };
 }
+
+public sealed record AddonNotice(
+    [property: JsonPropertyName("icon"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Icon = null,
+    [property: JsonPropertyName("text"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Text = null);
 
 public sealed record ProviderAddonRecord(
     [property: JsonPropertyName("id")] string Id,

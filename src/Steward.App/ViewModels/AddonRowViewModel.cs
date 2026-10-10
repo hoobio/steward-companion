@@ -266,6 +266,12 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public string Source => _addon.DisplaySource;
 
+    public string? NoticeTip => _addon.Notice?.Text;
+
+    public string NoticeGlyph => string.Equals(_addon.Notice?.Icon, "lock", StringComparison.OrdinalIgnoreCase) ? "" : "";
+
+    public Visibility RowNoticeVisibility => When(!string.IsNullOrEmpty(_addon.Notice?.Text));
+
     public string InstalledRunText => InstalledVersionShort ?? "";
 
     public string NotInstalledRunText => IsInstalled ? "" : "Not installed";

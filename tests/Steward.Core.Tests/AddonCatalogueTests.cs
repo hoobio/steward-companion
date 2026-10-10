@@ -163,6 +163,42 @@ public sealed class AddonCatalogueTests : IDisposable
     }
 
     [Fact]
+    public void Notice_ParsesOntoTheManagedAddon()
+    {
+        var addon = Parse("""
+            [{"id":"x","folder_name":"X","manifest_base_url":"https://example.test/x/",
+              "notice":{"icon":"lock","text":"Protected addon."}}]
+            """);
+
+        Assert.Equal(new AddonNotice("lock", "Protected addon."), addon.Notice);
+    }
+
+    [Fact]
+    public void Notice_AbsentOrPartial_ParsesAsNullOrOptional()
+    {
+        Assert.Null(Parse("""[{"id":"x","folder_name":"X","manifest_base_url":"https://example.test/x/"}]""").Notice);
+
+        var partial = Parse("""[{"id":"x","folder_name":"X","manifest_base_url":"https://example.test/x/","notice":{"text":"Hi"}}]""");
+        Assert.Equal(new AddonNotice(null, "Hi"), partial.Notice);
+    }
+
+    [Fact]
+    public void Notice_RoundTripsThroughStateJson_AndIsOmittedWhenNull()
+    {
+        var path = Path.Combine(_root, "state.json");
+        var store = new AppStateStore([], path);
+        store.Save(store.Load() with { AddonCatalogue = [ActionBars with { Notice = new AddonNotice("lock", "Protected addon.") }] });
+
+        Assert.Contains("\"notice\"", File.ReadAllText(path));
+        Assert.Equal(new AddonNotice("lock", "Protected addon."), store.Load().AddonCatalogue![0].Notice);
+
+        store.Save(store.Load() with { AddonCatalogue = [ActionBars] });
+
+        Assert.DoesNotContain("\"notice\"", File.ReadAllText(path));
+        Assert.Null(store.Load().AddonCatalogue![0].Notice);
+    }
+
+    [Fact]
     public void AddonCatalogue_AbsentFromStateJson_LoadsAsUnknown()
     {
         var path = Path.Combine(_root, "state.json");
