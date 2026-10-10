@@ -33,6 +33,7 @@ public sealed partial class MainWindow : Window
     private bool _quitting;
     private bool _confirmingClose;
     private bool _hideWhenMinimized;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _minimizeHideTimer;
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _trimTimer;
     private Native.SubclassProc? _sessionEndSubclass;
     private RectInt32 _passthrough;
@@ -515,8 +516,31 @@ public sealed partial class MainWindow : Window
             && sender.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized })
         {
             _hideWhenMinimized = false;
-            HideToTray();
+            HideAfterMinimizeAnimation();
         }
+    }
+
+    private void HideAfterMinimizeAnimation()
+    {
+        if (!Native.MinimizeAnimationEnabled())
+        {
+            HideToTray();
+            return;
+        }
+
+        // DWM raises no event when the minimise animation ends, and hiding earlier cancels it.
+        _minimizeHideTimer?.Stop();
+        _minimizeHideTimer = DispatcherQueue.CreateTimer();
+        _minimizeHideTimer.Interval = TimeSpan.FromMilliseconds(300);
+        _minimizeHideTimer.IsRepeating = false;
+        _minimizeHideTimer.Tick += (_, _) =>
+        {
+            if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized })
+            {
+                HideToTray();
+            }
+        };
+        _minimizeHideTimer.Start();
     }
 
     private void MinimizeThenHideToTray()
@@ -554,6 +578,7 @@ public sealed partial class MainWindow : Window
 
     public void ShowFromTray()
     {
+        _minimizeHideTimer?.Stop();
         _trimTimer?.Stop();
         EfficiencyModeUtilities.SetProcessQualityOfServiceLevel(QualityOfServiceLevel.Default);
         AppWindow.Show(activateWindow: true);
@@ -649,6 +674,22 @@ internal static class Native
     private static extern bool SetProcessWorkingSetSizeEx(nint hProcess, nint minimumWorkingSetSize, nint maximumWorkingSetSize, uint flags);
 
     public static void TrimWorkingSet() => SetProcessWorkingSetSizeEx(GetCurrentProcess(), -1, -1, 0);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct AnimationInfo
+    {
+        public uint CbSize;
+        public int MinAnimate;
+    }
+
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW")]
+    private static extern bool SystemParametersInfo(uint action, uint param, ref AnimationInfo info, uint winIni);
+
+    public static bool MinimizeAnimationEnabled()
+    {
+        var info = new AnimationInfo { CbSize = (uint)Marshal.SizeOf<AnimationInfo>() };
+        return SystemParametersInfo(0x48, info.CbSize, ref info, 0) && info.MinAnimate != 0;
+    }
 
     public const uint WM_QUERYENDSESSION = 0x11;
     public const uint WM_ENDSESSION = 0x16;
