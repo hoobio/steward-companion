@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.1](https://github.com/hoobio/steward-companion/compare/v0.21.0...v0.21.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* 🐛 journey uploads get their own row on the Sync page ([82c5aa6](https://github.com/hoobio/steward-companion/commit/82c5aa679fa48c388107ef5f5f22c4cf9627b8f3))
+* 🐛 the Character journeys row uses a WoW map icon like the other Sync rows ([f94ea68](https://github.com/hoobio/steward-companion/commit/f94ea685ee6f2bb6fbae9b4d7fc9ab0cacfcfb25))
+
 ## [0.21.0](https://github.com/hoobio/steward-companion/compare/v0.20.3...v0.21.0) (2026-10-10)
 
 
