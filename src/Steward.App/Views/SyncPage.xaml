@@ -377,10 +377,7 @@
                             VerticalAlignment="Center"
                             CornerRadius="6"
                             Background="{ThemeResource ChipBrush}">
-                            <FontIcon
-                                Glyph="&#xE707;"
-                                FontSize="16"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <Image Source="ms-appx:///Assets/Journeys.png" Stretch="UniformToFill" />
                         </Border>
 
                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
