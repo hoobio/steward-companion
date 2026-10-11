@@ -2288,11 +2288,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             while (_accessRecheckPending)
             {
                 await Task.Delay(AccessEventDebounce).ConfigureAwait(true);
-                _accessRecheckPending = false;
-                if (!_isChecking)
+                // A background pass in flight may have read /api/me before the change, or skipped it while the stream was live.
+                if (_isChecking)
                 {
-                    await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
+                    continue;
                 }
+
+                _accessRecheckPending = false;
+                await RecheckAuthorizationAsync(CancellationToken.None).ConfigureAwait(true);
             }
         }
         finally
