@@ -97,6 +97,33 @@ public sealed class AddonUpdater
         }
     }
 
+    public async Task<(IReadOnlyList<string> Folders, AddonRelease Release)> InstallRefetchingOn404Async(
+        ManagedAddon addon,
+        string channel,
+        AddonRelease release,
+        string addOnsPath,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? foreignFolders = null)
+    {
+        try
+        {
+            return (await InstallAsync(addon, channel, release, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false), release);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            // A manifest fetched before a publish can name a zip steward-server has since deleted.
+            var fresh = await GetLatestAsync(addon, channel, cancellationToken).ConfigureAwait(false);
+            if (fresh is null)
+            {
+                throw;
+            }
+
+            _logger.Info($"Zip for {addon.Id} {release.Version} returned 404; retrying with {fresh.Version}");
+            return (await InstallAsync(addon, channel, fresh, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false), fresh);
+        }
+    }
+
     public async Task<IReadOnlyList<string>> InstallAsync(
         ManagedAddon addon,
         string channel,

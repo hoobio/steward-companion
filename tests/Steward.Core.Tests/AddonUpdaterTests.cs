@@ -238,6 +238,65 @@ public sealed class AddonUpdaterTests : IDisposable
         Assert.True(File.Exists(Path.Combine(addOnsPath, "RXPGuides", "RXPGuides.toc")));
     }
 
+    private sealed class RepublishedHandler(Uri oldZip, Uri newZip, byte[] newZipBytes, string manifestJson) : HttpMessageHandler
+    {
+        public List<Uri> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request.RequestUri!);
+            return Task.FromResult(request.RequestUri switch
+            {
+                var uri when uri == newZip => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(newZipBytes) },
+                var uri when uri == oldZip => new HttpResponseMessage(HttpStatusCode.NotFound),
+                var uri when uri!.AbsolutePath.EndsWith("latest-release.json", StringComparison.Ordinal) =>
+                    new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(manifestJson) },
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound),
+            });
+        }
+    }
+
+    private async Task<(RepublishedHandler Handler, AddonUpdater Updater, ManagedAddon Addon, AddonRelease Stale, string AddOnsPath)> RepublishedSetupAsync(bool manifestHasNewBuild)
+    {
+        var zipBytes = await File.ReadAllBytesAsync(CreateZip(a => WriteEntry(a, "RXPGuides/RXPGuides.toc", "## Version: v2")), TestContext.Current.CancellationToken);
+        var sha256 = Convert.ToHexString(SHA256.HashData(zipBytes));
+        var oldZip = new Uri("https://api.example/zips/RXPGuides-v1.zip");
+        var newZip = new Uri("https://api.example/zips/RXPGuides-v2.zip");
+        var manifest = manifestHasNewBuild
+            ? $$"""{"version":"v2","zip":"{{newZip}}","sha256":"{{sha256}}","size":{{zipBytes.Length}},"released":"2026-10-12T00:00:00+00:00"}"""
+            : "null";
+        var handler = new RepublishedHandler(oldZip, newZip, zipBytes, manifest);
+        var addon = new ManagedAddon("restedxp", "RXPGuides", "https://api.example/addons/restedxp/");
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        Directory.CreateDirectory(addOnsPath);
+        return (handler, new AddonUpdater(new HttpClient(handler)), addon, new AddonRelease("v1", oldZip.ToString(), sha256, zipBytes.Length, DateTimeOffset.UtcNow), addOnsPath);
+    }
+
+    [Fact]
+    public async Task InstallRefetchingOn404Async_Zip404_RefetchesTheManifestAndInstallsTheNewBuild()
+    {
+        var (handler, updater, addon, stale, addOnsPath) = await RepublishedSetupAsync(manifestHasNewBuild: true);
+
+        var (folders, installed) = await updater.InstallRefetchingOn404Async(addon, "release", stale, addOnsPath, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal("v2", installed.Version);
+        Assert.Equal(["RXPGuides"], folders);
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "RXPGuides", "RXPGuides.toc")));
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task InstallRefetchingOn404Async_StillMissingAfterTheRefetch_FailsWithTheOriginal404()
+    {
+        var (handler, updater, addon, stale, addOnsPath) = await RepublishedSetupAsync(manifestHasNewBuild: false);
+
+        var error = await Assert.ThrowsAsync<HttpRequestException>(
+            () => updater.InstallRefetchingOn404Async(addon, "release", stale, addOnsPath, null, TestContext.Current.CancellationToken));
+
+        Assert.Equal(HttpStatusCode.NotFound, error.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
     private static readonly Uri QuestieZip = new("https://edge.forgecdn.net/files/1/2/Questie.zip");
     private static readonly ManagedAddon Questie = new("questie", "Questie", "https://steward.example/api/addons/curseforge/334372/88568/");
 
