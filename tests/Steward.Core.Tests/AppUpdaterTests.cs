@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace Steward.Core.Tests;
 
 public sealed class AppUpdaterTests
@@ -86,5 +88,146 @@ public sealed class AppUpdaterTests
         var script = AppUpdater.InstallMsiScript(@"C:\Temp\Steward-0.20.2.msi", @"C:\Logs\update.log");
 
         Assert.DoesNotContain("Steward.App.exe", script, StringComparison.Ordinal);
+    }
+
+    private const string Tag = "v9.8.7-test";
+    private const string File = "Steward-9.8.7-test-x64.msi";
+    private const string MsiUrl = $"https://github.com/hoobio/steward-companion/releases/download/{Tag}/{File}";
+    private static readonly byte[] MsiBytes = "not really an msi"u8.ToArray();
+    private static readonly string MsiSha = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(MsiBytes));
+
+    private sealed class GitHubStub(Func<Uri, (HttpStatusCode Status, byte[] Body)> route) : HttpMessageHandler
+    {
+        public List<HttpRequestMessage> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            var (status, body) = route(request.RequestUri!);
+            return Task.FromResult(new HttpResponseMessage(status) { Content = new ByteArrayContent(body) });
+        }
+    }
+
+    private static byte[] ReleaseJson(string? digest, string name = File, string url = MsiUrl) =>
+        System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            tag_name = Tag,
+            assets = new[] { new { name, browser_download_url = url, digest } },
+        }));
+
+    private static GitHubStub Stub(byte[] releaseJson, byte[]? msi = null, HttpStatusCode apiStatus = HttpStatusCode.OK) =>
+        new(uri => uri.Host == "api.github.com"
+            ? (apiStatus, releaseJson)
+            : (HttpStatusCode.OK, msi ?? MsiBytes));
+
+    private static Task<string> Download(GitHubStub stub, string version = Tag, string zip = MsiUrl, string? sha = null) =>
+        new AppUpdater(new HttpClient(stub), new Uri("https://api.example.com/guild/api/addons/steward-companion/latest-release.json"), "9ABC")
+            .DownloadMsiAsync(new AddonRelease(version, zip, sha ?? MsiSha, MsiBytes.Length, DateTimeOffset.UtcNow), null, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public async Task DownloadMsiAsync_DigestMatchingManifestAndFile_Downloads()
+    {
+        var stub = Stub(ReleaseJson($"sha256:{MsiSha}"));
+
+        var path = await Download(stub);
+        try
+        {
+            Assert.Equal(MsiBytes, await System.IO.File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            var api = stub.Requests[0];
+            Assert.Equal($"https://api.github.com/repos/hoobio/steward-companion/releases/tags/{Tag}", api.RequestUri!.AbsoluteUri);
+            Assert.Contains(api.Headers.Accept, accept => accept.MediaType == "application/vnd.github+json");
+            Assert.NotEmpty(api.Headers.UserAgent);
+        }
+        finally
+        {
+            System.IO.File.Delete(path);
+        }
+    }
+
+    [Theory]
+    [InlineData("https://evil.example/hoobio/steward-companion/releases/download/v9.8.7-test/Steward-9.8.7-test-x64.msi")]
+    [InlineData("http://github.com/hoobio/steward-companion/releases/download/v9.8.7-test/Steward-9.8.7-test-x64.msi")]
+    [InlineData("https://github.com/someone/steward-companion/releases/download/v9.8.7-test/Steward-9.8.7-test-x64.msi")]
+    [InlineData("https://github.com/hoobio/steward-companion/releases/download/v9.8.7-test/Steward-9.8.7-test-x64.exe")]
+    [InlineData("https://github.com/hoobio/steward-companion/releases/download/v9.8.7-test/Steward-9.8.7-test-x64.msi?x=1")]
+    [InlineData("https://user@github.com/hoobio/steward-companion/releases/download/v9.8.7-test/Steward-9.8.7-test-x64.msi")]
+    [InlineData("https://github.com:8443/hoobio/steward-companion/releases/download/v9.8.7-test/Steward-9.8.7-test-x64.msi")]
+    [InlineData("https://github.com.evil.example/hoobio/steward-companion/releases/download/v9.8.7-test/Steward-9.8.7-test-x64.msi")]
+    [InlineData("https://release-assets.githubusercontent.com/github-production-release-asset/1/x.msi")]
+    public async Task DownloadMsiAsync_UrlOutsideTheGitHubRelease_IsRefusedBeforeAnyRequest(string url)
+    {
+        var stub = Stub(ReleaseJson($"sha256:{MsiSha}", url: url));
+
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => Download(stub, zip: url));
+        Assert.Empty(stub.Requests);
+    }
+
+    [Fact]
+    public async Task DownloadMsiAsync_TagDifferentFromManifestVersion_IsRefused()
+    {
+        var stub = Stub(ReleaseJson($"sha256:{MsiSha}"));
+
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => Download(stub, version: "v9.9.9"));
+        Assert.Empty(stub.Requests);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("md5:abc")]
+    [InlineData("sha256:")]
+    public async Task DownloadMsiAsync_MissingOrUnusableDigest_IsRefusedWithoutDownloading(string? digest)
+    {
+        var stub = Stub(ReleaseJson(digest));
+
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => Download(stub));
+        Assert.Single(stub.Requests);
+    }
+
+    [Fact]
+    public async Task DownloadMsiAsync_AssetNotOnTheRelease_IsRefused()
+    {
+        var stub = Stub(ReleaseJson($"sha256:{MsiSha}", name: "Other.msi"));
+
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => Download(stub));
+    }
+
+    [Fact]
+    public async Task DownloadMsiAsync_DigestDifferentFromManifest_IsRefusedWithoutDownloading()
+    {
+        var stub = Stub(ReleaseJson($"sha256:{new string('0', 64)}"));
+
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => Download(stub));
+        Assert.Single(stub.Requests);
+    }
+
+    [Fact]
+    public async Task DownloadMsiAsync_DownloadedFileDifferentFromDigest_IsRefused()
+    {
+        var other = "tampered"u8.ToArray();
+        var otherSha = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(other));
+        var stub = Stub(ReleaseJson($"sha256:{otherSha}"));
+
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => Download(stub, sha: otherSha));
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    public async Task DownloadMsiAsync_GitHubApiFailure_IsRefused(HttpStatusCode status)
+    {
+        var stub = Stub(ReleaseJson($"sha256:{MsiSha}"), apiStatus: status);
+
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => Download(stub));
+        Assert.Single(stub.Requests);
+    }
+
+    [Fact]
+    public async Task DownloadMsiAsync_NonJsonApiAnswer_IsRefused()
+    {
+        var stub = Stub("<html>rate limited</html>"u8.ToArray());
+
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => Download(stub));
     }
 }

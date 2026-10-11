@@ -1117,6 +1117,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             AppUpdater.InstallMsiAfterExit(msiPath, Path.Combine(DataFolder, "update.log"));
             QuitRequested?.Invoke();
         }
+        catch (UpdateVerificationException ex)
+        {
+            _logger.Warn(ex, "MSI update refused: could not be verified");
+            FinishStoreProgress("with an error", completed: false);
+            StatusMessage = $"The Steward update could not be verified: {ex.Message}";
+        }
         catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException or TaskCanceledException or Win32Exception)
         {
             _logger.Warn(ex, "MSI update install failed");
