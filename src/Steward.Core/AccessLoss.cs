@@ -150,6 +150,31 @@ public static class AccessLoss
                 default)));
 }
 
+public sealed class SessionRevocation
+{
+    private int _signedIn;
+    private int _revoked;
+
+    public void SetSignedIn(bool signedIn)
+    {
+        Volatile.Write(ref _signedIn, signedIn ? 1 : 0);
+        Interlocked.Exchange(ref _revoked, 0);
+    }
+
+    public bool Report()
+    {
+        if (Volatile.Read(ref _signedIn) == 0)
+        {
+            return false;
+        }
+
+        Interlocked.Exchange(ref _revoked, 1);
+        return true;
+    }
+
+    public bool Take() => Interlocked.Exchange(ref _revoked, 0) == 1 && Volatile.Read(ref _signedIn) == 1;
+}
+
 public sealed class SessionRevokedHandler(Action? onRevoked = null) : DelegatingHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

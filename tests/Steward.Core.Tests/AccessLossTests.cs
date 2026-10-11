@@ -49,8 +49,47 @@ public sealed class AccessLossTests : IDisposable
         Assert.Equal("""{"error":"revoked"}""", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public void Revocation_ReportedWhileSignedIn_IsTakenOnceBySignOut()
+    {
+        var revocation = new SessionRevocation();
+        revocation.SetSignedIn(true);
+
+        Assert.True(revocation.Report());
+        Assert.True(revocation.Take());
+        Assert.False(revocation.Take());
+    }
+
+    [Fact]
+    public void Revocation_ReportedAfterSignOut_DoesNotReachALaterSignOut()
+    {
+        var revocation = new SessionRevocation();
+        revocation.SetSignedIn(true);
+        revocation.Report();
+        revocation.Take();
+        revocation.SetSignedIn(false);
+
+        Assert.False(revocation.Report());
+        revocation.SetSignedIn(true);
+        Assert.False(revocation.Take());
+    }
+
+    [Fact]
+    public void Revocation_LeftOverWhenSignedOut_IsClearedBySignIn()
+    {
+        var revocation = new SessionRevocation();
+        revocation.SetSignedIn(true);
+        revocation.Report();
+        revocation.SetSignedIn(false);
+        Assert.False(revocation.Take());
+
+        revocation.SetSignedIn(true);
+        Assert.False(revocation.Take());
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.Unauthorized, """{"error":"expired"}""")]
+    [InlineData(HttpStatusCode.Unauthorized, """{"error": "unauthenticated"}""")]
     [InlineData(HttpStatusCode.Unauthorized, "")]
     [InlineData(HttpStatusCode.Unauthorized, "<html><body>Cloudflare</body></html>")]
     [InlineData(HttpStatusCode.Unauthorized, """["revoked"]""")]

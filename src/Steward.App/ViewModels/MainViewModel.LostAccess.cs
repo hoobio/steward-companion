@@ -10,7 +10,7 @@ namespace Steward.App.ViewModels;
 public sealed partial class MainViewModel
 {
     private readonly HashSet<int> _lostAccessWaits = [];
-    private int _sessionRevoked;
+    private readonly SessionRevocation _revocation = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AccessRemovedVisibility))]
@@ -18,9 +18,15 @@ public sealed partial class MainViewModel
 
     public Visibility AccessRemovedVisibility => When(AccessRemovedNotice is not null);
 
+    partial void OnIsSignedInChanged(bool value) => _revocation.SetSignedIn(value);
+
     public void ReportSessionRevoked()
     {
-        Interlocked.Exchange(ref _sessionRevoked, 1);
+        if (!_revocation.Report())
+        {
+            return;
+        }
+
         RunOnUi(() =>
         {
             if (IsSignedIn)
@@ -32,7 +38,7 @@ public sealed partial class MainViewModel
 
     private void QueueRevokedRemovals()
     {
-        if (Interlocked.Exchange(ref _sessionRevoked, 0) == 0)
+        if (!_revocation.Take())
         {
             return;
         }
