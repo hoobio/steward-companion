@@ -399,6 +399,12 @@ public sealed partial class MainViewModel
                 await show($"{name} {version} is not built for {game}.", $"Steward cannot install CurseForge addons on {game}.", null, "Close").ConfigureAwait(true);
                 return;
             case CurseForgeLinkState.NotBuilt:
+                if (!await show($"Install {name}?", CurseForgeLinks.ConfirmBody(file, game), "Install", "Cancel").ConfigureAwait(true))
+                {
+                    _logger.Info($"CurseForge link install of {name} {version} cancelled");
+                    return;
+                }
+
                 await InstallForThisClientAsync(install, link, file, versionType.Value, game, row).ConfigureAwait(true);
                 return;
             case CurseForgeLinkState.Installed:
@@ -413,6 +419,12 @@ public sealed partial class MainViewModel
                 }
 
                 return;
+        }
+
+        if (!await show($"Install {name}?", CurseForgeLinks.ConfirmBody(file, game), "Install", "Cancel").ConfigureAwait(true))
+        {
+            _logger.Info($"CurseForge link install of {name} {version} cancelled");
+            return;
         }
 
         await InstallLinkedAsync(install, file, versionType!.Value, channel, file.File).ConfigureAwait(true);

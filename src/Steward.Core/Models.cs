@@ -153,7 +153,8 @@ public sealed record CurseForgeModFile(
     [property: JsonPropertyName("allowDistribution")] bool AllowDistribution,
     [property: JsonPropertyName("file")] AddonRelease File,
     [property: JsonPropertyName("releaseType")] int? ReleaseType,
-    [property: JsonPropertyName("gameVersionTypeIds")] IReadOnlyList<int>? GameVersionTypeIds);
+    [property: JsonPropertyName("gameVersionTypeIds")] IReadOnlyList<int>? GameVersionTypeIds,
+    [property: JsonPropertyName("author")] string? Author = null);
 
 public sealed record CurseForgeLatestFile(
     [property: JsonPropertyName("fileId")] long FileId,

@@ -34,6 +34,13 @@ public static class CurseForgeLinks
                 : null;
     }
 
+    public static string ConfirmBody(CurseForgeModFile file, string game)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        var author = file.Author is { Length: > 0 } name ? $" by {name}" : "";
+        return $"{file.Name}{author}, file {file.File.Version}, will be installed on {game}. Continue only if you started this from the CurseForge website.";
+    }
+
     public static string Channel(int? releaseType) => releaseType is 2 or 3 ? "pre-release" : "release";
 
     public static bool IsNewer(AddonRelease linked, string? installedVersion, DateTimeOffset? installedReleased, DateTimeOffset? installedAt)

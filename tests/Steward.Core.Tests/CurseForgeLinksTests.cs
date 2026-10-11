@@ -10,6 +10,20 @@ public sealed class CurseForgeLinksTests
     private static CurseForgeModFile File(IReadOnlyList<int>? versionTypes = null, bool allow = true, int? releaseType = 1) =>
         new(1, "AtlasLoot Forever", null, "https://www.curseforge.com/wow/addons/atlasloot-forever", allow, Release(distributable: allow), releaseType, versionTypes ?? [88568]);
 
+    [Fact]
+    public void ConfirmBody_NamesModAuthorFileAndGame()
+    {
+        var body = CurseForgeLinks.ConfirmBody(File() with { Author = "Atlas Team" }, "Forever Beta");
+
+        Assert.Contains("AtlasLoot Forever by Atlas Team", body, StringComparison.Ordinal);
+        Assert.Contains("file 1.2.0", body, StringComparison.Ordinal);
+        Assert.Contains("Forever Beta", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ConfirmBody_WithoutAuthor_OmitsBy() =>
+        Assert.DoesNotContain(" by ", CurseForgeLinks.ConfirmBody(File(), "Forever Beta"), StringComparison.Ordinal);
+
     [Theory]
     [InlineData("curseforge://install?addonId=3358&fileId=8996374", 3358, 8996374L)]
     [InlineData("CurseForge://INSTALL?fileId=9001874&addonId=12", 12, 9001874L)]
