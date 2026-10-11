@@ -144,6 +144,43 @@ public sealed class LoopbackCallbackTests
         await Assert.ThrowsAsync<ClientOutdatedException>(() => wait);
     }
 
+    private sealed class ExchangeStub(HttpStatusCode status, string body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") });
+    }
+
+    private static StewardClient ExchangeClient(HttpStatusCode status, string body) =>
+        new(new HttpClient(new ExchangeStub(status, body)), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
+
+    [Fact]
+    public async Task WaitForTokenAsync_NotMemberExchange_StopsAtOnceWithTheRefusal()
+    {
+        var (listener, port) = Listen();
+        using var _ = listener;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var client = ExchangeClient(HttpStatusCode.Forbidden, """{"error": "not_member"}""");
+
+        var wait = LoopbackCallback.WaitForTokenAsync(listener, "ok", (code, ct) => client.ExchangeDesktopCodeAsync(code, "verifier", ct), timeout.Token);
+        await GetAsync(port, "/?code=x", timeout.Token);
+
+        var ex = await Assert.ThrowsAsync<SignInRefusedException>(() => wait);
+        Assert.Equal("You are not a member of a Steward server", ex.Message);
+        Assert.False(timeout.IsCancellationRequested);
+    }
+
+    [Theory]
+    [InlineData("""{"error": "forbidden"}""")]
+    [InlineData("not_member")]
+    [InlineData("")]
+    public async Task ExchangeDesktopCodeAsync_OtherForbidden_IsAnHttpFailure(string body)
+    {
+        var client = ExchangeClient(HttpStatusCode.Forbidden, body);
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => client.ExchangeDesktopCodeAsync("x", "verifier", TestContext.Current.CancellationToken));
+        Assert.Equal(HttpStatusCode.Forbidden, ex.StatusCode);
+    }
+
     [Fact]
     public async Task WaitForTokenAsync_SilentConnection_DoesNotStallTheListener()
     {

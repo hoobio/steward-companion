@@ -29,26 +29,7 @@ public static class AccessLoss
         return !addon.IsCurseForge && addon.Source is AddonCatalogue.StewardSource or AddonCatalogue.ProtectedSource;
     }
 
-    public static bool IsRevoked(string? body)
-    {
-        if (string.IsNullOrWhiteSpace(body))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(body);
-            return document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty("error", out var error)
-                && error.ValueKind == JsonValueKind.String
-                && error.GetString() == "revoked";
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
+    public static bool IsRevoked(string? body) => StewardClient.HasErrorCode(body, "revoked");
 
     public static Dictionary<string, LostAccessAddon> Revoke(AppState state, IReadOnlyList<ManagedAddon>? catalogue, DateTimeOffset now)
     {

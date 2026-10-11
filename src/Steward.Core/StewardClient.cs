@@ -326,6 +326,12 @@ public sealed class StewardClient
             throw new InvalidOperationException("The sign-in code was rejected or has expired.");
         }
 
+        if (response.StatusCode == HttpStatusCode.Forbidden
+            && HasErrorCode(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false), "not_member"))
+        {
+            throw new SignInRefusedException(SignInRefusedException.NotMemberMessage);
+        }
+
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException(
@@ -338,6 +344,27 @@ public sealed class StewardClient
 
         return token?.Token
             ?? throw new HttpRequestException("POST /api/auth/desktop/exchange returned an empty body");
+    }
+
+    public static bool HasErrorCode(string? body, string code)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("error", out var error)
+                && error.ValueKind == JsonValueKind.String
+                && error.GetString() == code;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     public const string GuidesFeature = "guides";
