@@ -1,11 +1,15 @@
 using System.Diagnostics;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Steward.Core;
 
-public sealed class AppUpdater(HttpClient httpClient, Uri msiManifestUri, string storeProductId)
+public sealed partial class AppUpdater(HttpClient httpClient, Uri msiManifestUri, string storeProductId)
 {
+    [GeneratedRegex(@"^[vV]?\d+(\.\d+){2,3}(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$")]
+    private static partial Regex StrictVersion();
+
     public string StoreProductId { get; } = storeProductId;
 
     public Uri StoreListingUri { get; } = new($"ms-windows-store://pdp/?productid={storeProductId}");
@@ -40,6 +44,11 @@ public sealed class AppUpdater(HttpClient httpClient, Uri msiManifestUri, string
     public async Task<string> DownloadMsiAsync(AddonRelease release, IProgress<double>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(release);
+
+        if (!StrictVersion().IsMatch(release.Version))
+        {
+            throw new InvalidOperationException($"The Steward manifest version '{release.Version}' is not a version number; refusing to download");
+        }
 
         var msiPath = Path.Combine(Path.GetTempPath(), $"Steward-{release.Version.TrimStart('v', 'V')}.msi");
         var msiUri = release.Zip is null

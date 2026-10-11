@@ -46,6 +46,40 @@ public sealed class AppUpdaterTests
         Assert.Contains(@"Remove-Item -LiteralPath 'C:\O''Brien\Steward-0.20.2.msi'", script, StringComparison.Ordinal);
     }
 
+    private static readonly AppUpdater Updater = new(new HttpClient(), new Uri("https://addon.example/steward/latest.json"), "9ABC");
+
+    private static AddonRelease Release(string version) => new(version, null, null, 0, DateTimeOffset.UtcNow);
+
+    [Theory]
+    [InlineData("..\\..\\evil")]
+    [InlineData("1.2.3\\..\\x")]
+    [InlineData("1.2.3/x")]
+    [InlineData("1.2")]
+    [InlineData("1.2.3 ")]
+    [InlineData("1.2.3-a b")]
+    [InlineData("C:1.2.3")]
+    [InlineData("")]
+    public async Task DownloadMsiAsync_RejectsAVersionThatIsNotStrictSemver(string version)
+    {
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => Updater.DownloadMsiAsync(Release(version), null, TestContext.Current.CancellationToken));
+
+        Assert.Contains("not a version number", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("0.21.2")]
+    [InlineData("v0.21.2")]
+    [InlineData("0.21.2.0")]
+    [InlineData("0.5.0-pre-release.219da29")]
+    public async Task DownloadMsiAsync_AcceptsSemverAndFailsLaterOnTheMissingZip(string version)
+    {
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => Updater.DownloadMsiAsync(Release(version), null, TestContext.Current.CancellationToken));
+
+        Assert.Contains("has no MSI", ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void InstallMsiScript_LeavesTheRelaunchToTheMsi()
     {
