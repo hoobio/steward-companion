@@ -338,6 +338,39 @@ public sealed class AddonUpdaterTests : IDisposable
         Assert.False(File.Exists(Path.Combine(addOnsPath, "Questie", "stale.lua")));
     }
 
+    [Theory]
+    [InlineData("Questie/../WeakAuras/WeakAuras.lua")]
+    [InlineData("Questie\\..\\WeakAuras\\WeakAuras.lua")]
+    [InlineData("Questie/./Questie.lua")]
+    [InlineData("Questie//Questie.lua")]
+    [InlineData("Questie/C:/Questie.lua")]
+    [InlineData("/WeakAuras/WeakAuras.lua")]
+    public async Task InstallAsync_ZipEntryWithUnsafePath_IsRefused_AndNothingWritten(string entry)
+    {
+        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", entry);
+        WriteInstalled(addOnsPath, "Questie", "Questie.toc");
+        WriteInstalled(addOnsPath, "WeakAuras", "WeakAuras.toc");
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["Questie"]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken));
+
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "Questie", "stale.lua")));
+        Assert.False(File.Exists(Path.Combine(addOnsPath, "WeakAuras", "WeakAuras.lua")));
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "WeakAuras", "stale.lua")));
+    }
+
+    [Fact]
+    public void ExtractZip_Rejects_DotSegmentEntry()
+    {
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        Directory.CreateDirectory(addOnsPath);
+        var zipPath = CreateZip(a => WriteEntry(a, "Questie/../WeakAuras/WeakAuras.lua", "nope"));
+
+        Assert.Throws<InvalidOperationException>(() => AddonUpdater.ExtractZip(zipPath, addOnsPath));
+        Assert.False(Directory.Exists(Path.Combine(addOnsPath, "WeakAuras")));
+    }
+
     [Fact]
     public async Task InstallAsync_ZipWithRootFile_IsRefused()
     {

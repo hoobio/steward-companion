@@ -315,12 +315,26 @@ public sealed class AddonUpdater
         using var archive = ZipFile.OpenRead(zipPath);
         foreach (var entry in archive.Entries)
         {
-            var parts = entry.FullName.Split('/', '\\');
+            var parts = EntryParts(entry.FullName);
             if (parts.Length < 2 || !folders.Contains(parts[0], StringComparer.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException($"Zip entry {entry.FullName} is outside the expected folders {string.Join(", ", folders)}");
             }
         }
+    }
+
+    private static string[] EntryParts(string fullName)
+    {
+        var parts = fullName.Split('/', '\\');
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (parts[i] is "." or ".." || (parts[i].Length == 0 && i < parts.Length - 1) || parts[i].Contains(':', StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"Zip entry {fullName} has an unsafe path");
+            }
+        }
+
+        return parts;
     }
 
     public static void RemoveExistingInstall(string addOnsPath, string folderName)
@@ -362,6 +376,7 @@ public sealed class AddonUpdater
 
         for (var i = 0; i < fileEntries.Count; i++)
         {
+            EntryParts(fileEntries[i].FullName);
             var destinationPath = Path.GetFullPath(Path.Combine(destinationRoot, fileEntries[i].FullName));
             if (!destinationPath.StartsWith(destinationRoot, StringComparison.OrdinalIgnoreCase))
             {
