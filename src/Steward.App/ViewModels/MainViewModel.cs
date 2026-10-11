@@ -748,6 +748,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             EnterClientOutdated(ex.Message);
         }
+        catch (SignInRefusedException ex)
+        {
+            SignInError = ex.Message;
+            Failure = GateFailure.SignInFailed;
+        }
         catch (HttpRequestException ex)
         {
             _logger.Warn(ex, "Sign-in failed, Steward API unreachable");

@@ -142,6 +142,7 @@ public sealed class SessionService : ISessionService
         signInUrl.Report($"{_baseUrl}/api/auth/desktop?challenge={challenge}&port={port}");
 
         string token;
+        Exception? lastExchangeFailure = null;
         try
         {
             token = await LoopbackCallback.WaitForTokenAsync(
@@ -159,10 +160,21 @@ public sealed class SessionService : ISessionService
                     catch (Exception ex)
                     {
                         _logger.Warn(ex, "Sign-in code exchange failed");
+                        lastExchangeFailure = ex;
                         throw;
                     }
                 },
                 timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && lastExchangeFailure is HttpRequestException unreachable)
+        {
+            _logger.Warn(unreachable, "Sign-in timed out after a code exchange could not reach Steward API");
+            throw unreachable;
+        }
+        catch (SignInRefusedException ex)
+        {
+            _logger.Warn(null, $"Sign-in refused: {ex.Message}");
+            throw;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

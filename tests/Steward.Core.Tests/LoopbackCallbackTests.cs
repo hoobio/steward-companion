@@ -49,6 +49,116 @@ public sealed class LoopbackCallbackTests
         Assert.Equal(["fromFirstTab", "fromSecondTab"], exchanged);
     }
 
+    [Theory]
+    [InlineData("GET /?error=not_member HTTP/1.1", true, "not_member")]
+    [InlineData("GET /?state=x&error=not_member HTTP/1.1", true, "not_member")]
+    [InlineData("GET /?error=access_denied&x=1 HTTP/1.1", true, "access_denied")]
+    [InlineData("GET /?code=abc HTTP/1.1", false, "")]
+    [InlineData("GET /favicon.ico?error=not_member HTTP/1.1", false, "")]
+    [InlineData("POST /?error=not_member HTTP/1.1", false, "")]
+    [InlineData(null, false, "")]
+    public void TryReadError_MatchesOnlyGetCallbacks(string? requestLine, bool expected, string expectedError)
+    {
+        Assert.Equal(expected, LoopbackCallback.TryReadError(requestLine, out var error));
+        Assert.Equal(expectedError, error);
+    }
+
+    private static (TcpListener Listener, int Port) Listen()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        return (listener, ((IPEndPoint)listener.LocalEndpoint).Port);
+    }
+
+    [Fact]
+    public async Task WaitForTokenAsync_NotMember_StopsAtOnceWithTheRefusal()
+    {
+        var (listener, port) = Listen();
+        using var _ = listener;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var exchanged = 0;
+
+        var wait = LoopbackCallback.WaitForTokenAsync(listener, "ok", (_, _) => { exchanged++; return Task.FromResult("token"); }, timeout.Token);
+        await GetAsync(port, "/?error=not_member", timeout.Token);
+
+        var ex = await Assert.ThrowsAsync<SignInRefusedException>(() => wait);
+        Assert.Equal("You are not a member of a Steward server", ex.Message);
+        Assert.Equal(0, exchanged);
+        Assert.False(timeout.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task WaitForTokenAsync_StrayRequestsAndOtherErrors_KeepListening()
+    {
+        var (listener, port) = Listen();
+        using var _ = listener;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var wait = LoopbackCallback.WaitForTokenAsync(listener, "ok", (code, _) => Task.FromResult($"token-{code}"), timeout.Token);
+        foreach (var path in new[] { "/", "/?state=1", "/?error=access_denied", "/?code=real" })
+        {
+            await GetAsync(port, path, timeout.Token);
+        }
+
+        Assert.Equal("token-real", await wait);
+    }
+
+    [Theory]
+    [InlineData("http")]
+    [InlineData("rejected")]
+    [InlineData("json")]
+    public async Task WaitForTokenAsync_FailedExchange_KeepsListeningForTheRealCode(string failure)
+    {
+        var (listener, port) = Listen();
+        using var _ = listener;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var wait = LoopbackCallback.WaitForTokenAsync(
+            listener,
+            "ok",
+            (code, _) => code == "bad"
+                ? Task.FromException<string>(failure switch
+                {
+                    "http" => new HttpRequestException("502", null, HttpStatusCode.BadGateway),
+                    "rejected" => new InvalidOperationException("rejected"),
+                    _ => new System.Text.Json.JsonException("not json"),
+                })
+                : Task.FromResult("token"),
+            timeout.Token);
+        await GetAsync(port, "/?code=bad", timeout.Token);
+        await GetAsync(port, "/?code=good", timeout.Token);
+
+        Assert.Equal("token", await wait);
+    }
+
+    [Fact]
+    public async Task WaitForTokenAsync_ClientOutdatedExchange_EndsTheWait()
+    {
+        var (listener, port) = Listen();
+        using var _ = listener;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var wait = LoopbackCallback.WaitForTokenAsync(listener, "ok", (_, _) => Task.FromException<string>(new ClientOutdatedException("old")), timeout.Token);
+        await GetAsync(port, "/?code=x", timeout.Token);
+
+        await Assert.ThrowsAsync<ClientOutdatedException>(() => wait);
+    }
+
+    [Fact]
+    public async Task WaitForTokenAsync_SilentConnection_DoesNotStallTheListener()
+    {
+        var (listener, port) = Listen();
+        using var _ = listener;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var wait = LoopbackCallback.WaitForTokenAsync(listener, "ok", (_, _) => Task.FromResult("token"), timeout.Token, TimeSpan.FromMilliseconds(50));
+        using var silent = new TcpClient();
+        await silent.ConnectAsync(IPAddress.Loopback, port, timeout.Token);
+        await GetAsync(port, "/?code=x", timeout.Token);
+
+        Assert.Equal("token", await wait);
+    }
+
     private static async Task<string> GetAsync(int port, string path, CancellationToken cancellationToken)
     {
         using var client = new TcpClient();
