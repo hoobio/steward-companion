@@ -3240,6 +3240,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _userId = me.User.Id;
             if (previousUserId != _userId)
             {
+                _addonUpdater.ManifestCache.Clear();
                 foreach (var row in Installs.SelectMany(install => install.AddonRows).Where(row => !row.IsBusy))
                 {
                     row.WriteThemeFile();
@@ -3323,6 +3324,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var installs = Installs.Select(install => install.Install).ToList();
         var lastOfficerPayload = _lastOfficerPayload;
         _sessionService.ClearSession();
+        _addonUpdater.ManifestCache.Clear();
         SetAddonCatalogue(null);
         ResetInstalls();
         IsAuthorized = false;

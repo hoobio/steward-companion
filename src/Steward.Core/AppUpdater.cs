@@ -13,6 +13,8 @@ public sealed partial class AppUpdater(HttpClient httpClient, Uri msiManifestUri
     [GeneratedRegex(@"^[vV]?\d+(\.\d+){2,3}(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$")]
     private static partial Regex StrictVersion();
 
+    private readonly ManifestCache _manifestCache = new();
+
     public string StoreProductId { get; } = storeProductId;
 
     public Uri StoreListingUri { get; } = new($"ms-windows-store://pdp/?productid={storeProductId}");
@@ -23,7 +25,7 @@ public sealed partial class AppUpdater(HttpClient httpClient, Uri msiManifestUri
     {
         try
         {
-            var release = await AddonUpdater.FetchManifestAsync(httpClient, msiManifestUri, cancellationToken).ConfigureAwait(false);
+            var release = await AddonUpdater.FetchManifestAsync(httpClient, msiManifestUri, cancellationToken, cache: _manifestCache).ConfigureAwait(false);
             return release is not null && IsNewer(release.Version, installedVersion) ? release : null;
         }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)

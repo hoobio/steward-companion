@@ -13,6 +13,29 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Steward.Core;
 
+public sealed class ManifestCache
+{
+    private readonly ConcurrentDictionary<string, CachedManifest> _entries = new(StringComparer.Ordinal);
+
+    public sealed record CachedManifest(string ETag, AddonRelease? Release);
+
+    public CachedManifest? Get(Uri manifestUri) => _entries.GetValueOrDefault(manifestUri.AbsoluteUri);
+
+    public void Set(Uri manifestUri, string? etag, AddonRelease? release)
+    {
+        if (string.IsNullOrEmpty(etag))
+        {
+            _entries.TryRemove(manifestUri.AbsoluteUri, out _);
+        }
+        else
+        {
+            _entries[manifestUri.AbsoluteUri] = new CachedManifest(etag, release);
+        }
+    }
+
+    public void Clear() => _entries.Clear();
+}
+
 public sealed class AddonUpdater
 {
     internal static readonly Lock AddOnsWriteLock = new();
@@ -35,19 +58,23 @@ public sealed class AddonUpdater
         _logger = logger ?? NullLogger<AddonUpdater>.Instance;
     }
 
-    public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken, bool noCache = false)
+    public ManifestCache ManifestCache { get; } = new();
+
+    public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken, bool noCache = false, bool revalidate = true)
     {
         ArgumentNullException.ThrowIfNull(addon);
         var client = addon.ManifestNeedsSession ? _sessionClient ?? _httpClient : _httpClient;
-        return await FetchManifestAsync(client, ManifestUri(addon, channel), cancellationToken, noCache).ConfigureAwait(false);
+        return await FetchManifestAsync(client, ManifestUri(addon, channel), cancellationToken, noCache, revalidate ? ManifestCache : null).ConfigureAwait(false);
     }
 
     public Task<byte[]> GetIconAsync(Uri iconUri, CancellationToken cancellationToken) =>
         _httpClient.GetByteArrayAsync(iconUri, cancellationToken);
 
-    public static async Task<AddonRelease?> FetchManifestAsync(HttpClient httpClient, Uri manifestUri, CancellationToken cancellationToken, bool noCache = false)
+    public static async Task<AddonRelease?> FetchManifestAsync(
+        HttpClient httpClient, Uri manifestUri, CancellationToken cancellationToken, bool noCache = false, ManifestCache? cache = null)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
+        ArgumentNullException.ThrowIfNull(manifestUri);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, manifestUri);
         if (noCache)
@@ -56,7 +83,20 @@ public sealed class AddonUpdater
             request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
         }
 
+        var cached = cache?.Get(manifestUri);
+        if (cached is not null)
+        {
+            request.Headers.TryAddWithoutValidation("If-None-Match", cached.ETag);
+        }
+
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.NotModified)
+        {
+            return cached is not null
+                ? cached.Release
+                : await FetchManifestAsync(httpClient, manifestUri, cancellationToken, noCache).ConfigureAwait(false);
+        }
+
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             throw new SessionExpiredException();
@@ -65,9 +105,11 @@ public sealed class AddonUpdater
         response.EnsureSuccessStatusCode();
 
         // A channel with no releases publishes the literal JSON `null`, so null here means an empty channel rather than a fault.
-        return await response.Content
+        var release = await response.Content
             .ReadFromJsonAsync(CompanionJsonContext.Default.AddonRelease, cancellationToken)
             .ConfigureAwait(false);
+        cache?.Set(manifestUri, response.Headers.ETag?.ToString(), release);
+        return release;
     }
 
     public async Task<IReadOnlyDictionary<string, AddonRelease?>> ProbeChannelsAsync(
@@ -113,7 +155,7 @@ public sealed class AddonUpdater
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             // A manifest fetched before a publish can name a zip steward-server has since deleted.
-            var fresh = await GetLatestAsync(addon, channel, cancellationToken).ConfigureAwait(false);
+            var fresh = await GetLatestAsync(addon, channel, cancellationToken, revalidate: false).ConfigureAwait(false);
             if (fresh is null)
             {
                 throw;
