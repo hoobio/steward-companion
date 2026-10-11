@@ -17,6 +17,12 @@ public sealed class AddonThemeFileTests : IDisposable
     }
 
     [Fact]
+    public void Render_EscapesQuotesBackslashesAndControlCharacters() =>
+        Assert.Equal(
+            "local _, ns = ...\nns.themeId = \"a\\\"b\\\\c\\nd\\re\\000f\"\n",
+            AddonThemeFile.Render("a\"b\\c\nd\re\0f"));
+
+    [Fact]
     public void Write_ReplacesThePlaceholder_WithLfAndNoBom()
     {
         var path = Placeholder("HoobiScripts");

@@ -54,11 +54,35 @@ public sealed class StewardGuidesAddonTests : IDisposable
     public void Hash_TakesTheNumberBetweenTheBarAndTheColon(string guide, string? expected) =>
         Assert.Equal(expected, StewardGuidesAddon.Hash(guide));
 
-    [Fact]
-    public void Render_Throws_WhenAGuideHoldsTheTerminator()
+    [Theory]
+    [InlineData("83|1:pay]==]load%|40000", "[===[83|1:pay]==]load%|40000]===]")]
+    [InlineData("83|1:end]==", "[===[83|1:end]==]===]")]
+    [InlineData("83|1:both]==]x]===]y]===", "[====[83|1:both]==]x]===]y]===]====]")]
+    public void Render_PicksABracketLevelNoTextCanClose(string text, string expected)
     {
-        Assert.Throws<InvalidOperationException>(
-            () => StewardGuidesAddon.Render([("Broken", "83|1:pay]==]load%|40000", null, 1L)], 1));
+        var lua = StewardGuidesAddon.Render([("G", text, (string?)null, 1L)], 1);
+
+        Assert.Contains($"text = {expected}, updatedAt", lua, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Write_RecognisesAnUnchangedGuideWhoseBracketLevelIsRaised()
+    {
+        var addOnsPath = InstallPublished();
+        (string, string, string?, long)[] guides = [("G", "83|1:end]==", null, 1L)];
+        StewardGuidesAddon.Write(addOnsPath, guides, 5);
+
+        Assert.Equal(StewardGuidesWriteOutcome.Skipped, StewardGuidesAddon.Write(addOnsPath, guides, 6).Outcome);
+    }
+
+    [Fact]
+    public void Render_EscapesControlCharactersInNamesAndTags()
+    {
+        var lua = StewardGuidesAddon.Render([("A\nB\rC\0D\u0001", "1|2:x", "t\nag", 1L)], 1);
+
+        Assert.Contains("name = \"A\\nB\\rC\\000D\\001\", text", lua, StringComparison.Ordinal);
+        Assert.Contains("tag = \"t\\nag\"", lua, StringComparison.Ordinal);
+        Assert.DoesNotContain('\0', lua);
     }
 
     [Fact]

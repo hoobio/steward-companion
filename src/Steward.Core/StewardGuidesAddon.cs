@@ -20,7 +20,6 @@ public static partial class StewardGuidesAddon
     public const string FolderName = "StewardGuides";
     public const string AddonId = "steward-guides";
 
-    private const string Terminator = "]==]";
     private const string TitleLine = "## Title: Steward: Guides";
 
     public static string? Hash(string guide)
@@ -37,12 +36,14 @@ public static partial class StewardGuidesAddon
         var after = new StringBuilder("local guides = {\n");
         foreach (var (name, text, tag, updatedAt) in guides)
         {
-            if (text.Contains(Terminator, StringComparison.Ordinal))
+            var body = text.Trim();
+            var level = "==";
+            while (body.Contains($"]{level}]", StringComparison.Ordinal) || body.EndsWith($"]{level}", StringComparison.Ordinal))
             {
-                throw new InvalidOperationException($"{name} contains the long-bracket terminator {Terminator}");
+                level += "=";
             }
 
-            after.Append("    { name = \"").Append(Quote(name)).Append("\", text = [==[").Append(text.Trim()).Append("]==]");
+            after.Append("    { name = \"").Append(Quote(name)).Append("\", text = [").Append(level).Append('[').Append(body).Append(']').Append(level).Append(']');
             if (tag is not null)
             {
                 after.Append(", tag = \"").Append(Quote(tag)).Append('"');
@@ -136,12 +137,11 @@ public static partial class StewardGuidesAddon
     private static partial Regex HeaderLine();
 
     [GeneratedRegex(
-        """\{ name = "(?<name>(?:[^"\\]|\\.)*)", text = \[==\[.*?\]==\](?:, tag = "(?:[^"\\]|\\.)*")?, updatedAt = (?<updatedAt>\d+) \},\n""",
+        """\{ name = "(?<name>(?:[^"\\]|\\.)*)", text = \[(?<eq>=+)\[.*?\]\k<eq>\](?:, tag = "(?:[^"\\]|\\.)*")?, updatedAt = (?<updatedAt>\d+) \},\n""",
         RegexOptions.Singleline)]
     private static partial Regex GuideEntry();
 
-    private static string Quote(string value) =>
-        value.Replace(@"\", @"\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+    private static string Quote(string value) => LuaWriter.SerializeString(value)[1..^1];
 
     [GeneratedRegex(@"^\s*\d+\|([^:]+):")]
     private static partial Regex GuideHeader();

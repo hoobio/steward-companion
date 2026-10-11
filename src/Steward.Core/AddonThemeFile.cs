@@ -12,7 +12,7 @@ public static class AddonThemeFile
         || addon.Source == AddonCatalogue.ProtectedSource;
 
     public static string Render(string themeId) =>
-        $"local _, ns = ...\nns.themeId = \"{themeId.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"\n";
+        $"local _, ns = ...\nns.themeId = {LuaWriter.SerializeString(themeId)}\n";
 
     public static bool Write(string addOnsPath, string folder, string? themeId)
     {
