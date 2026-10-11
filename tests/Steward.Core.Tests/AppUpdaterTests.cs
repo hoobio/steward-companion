@@ -90,8 +90,9 @@ public sealed class AppUpdaterTests
         Assert.DoesNotContain("Steward.App.exe", script, StringComparison.Ordinal);
     }
 
-    private const string Tag = "v9.8.7-test";
-    private const string File = "Steward-9.8.7-test-x64.msi";
+    private const string Version = "0.21.2";
+    private const string Tag = "v0.21.2";
+    private const string File = "Steward-0.21.2-x64.msi";
     private const string MsiUrl = $"https://github.com/hoobio/steward-companion/releases/download/{Tag}/{File}";
     private static readonly byte[] MsiBytes = "not really an msi"u8.ToArray();
     private static readonly string MsiSha = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(MsiBytes));
@@ -120,16 +121,18 @@ public sealed class AppUpdaterTests
             ? (apiStatus, releaseJson)
             : (HttpStatusCode.OK, msi ?? MsiBytes));
 
-    private static Task<string> Download(GitHubStub stub, string version = Tag, string zip = MsiUrl, string? sha = null) =>
+    private static Task<string> Download(GitHubStub stub, string version = Version, string zip = MsiUrl, string? sha = null) =>
         new AppUpdater(new HttpClient(stub), new Uri("https://api.example.com/guild/api/addons/steward-companion/latest-release.json"), "9ABC")
             .DownloadMsiAsync(new AddonRelease(version, zip, sha ?? MsiSha, MsiBytes.Length, DateTimeOffset.UtcNow), null, TestContext.Current.CancellationToken);
 
-    [Fact]
-    public async Task DownloadMsiAsync_DigestMatchingManifestAndFile_Downloads()
+    [Theory]
+    [InlineData(Version)]
+    [InlineData(Tag)]
+    public async Task DownloadMsiAsync_DigestMatchingManifestAndFile_Downloads(string version)
     {
         var stub = Stub(ReleaseJson($"sha256:{MsiSha}"));
 
-        var path = await Download(stub);
+        var path = await Download(stub, version);
         try
         {
             Assert.Equal(MsiBytes, await System.IO.File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
@@ -167,7 +170,8 @@ public sealed class AppUpdaterTests
     {
         var stub = Stub(ReleaseJson($"sha256:{MsiSha}"));
 
-        await Assert.ThrowsAsync<UpdateVerificationException>(() => Download(stub, version: "v9.9.9"));
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => Download(
+            stub, zip: "https://github.com/hoobio/steward-companion/releases/download/v0.21.1/Steward-0.21.1-x64.msi"));
         Assert.Empty(stub.Requests);
     }
 

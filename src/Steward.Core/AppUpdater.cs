@@ -61,7 +61,7 @@ public sealed partial class AppUpdater(HttpClient httpClient, Uri msiManifestUri
             : new Uri(msiManifestUri, release.Zip);
         var (tag, file) = ReleaseAsset(msiUri)
             ?? throw new UpdateVerificationException($"{msiUri} is not an MSI on a hoobio/steward-companion GitHub release");
-        if (!string.Equals(tag, release.Version, StringComparison.Ordinal))
+        if (!string.Equals(WithoutV(tag), WithoutV(release.Version), StringComparison.Ordinal))
         {
             throw new UpdateVerificationException($"the MSI is from release {tag}, not {release.Version}");
         }
@@ -89,6 +89,9 @@ public sealed partial class AppUpdater(HttpClient httpClient, Uri msiManifestUri
 
         return msiPath;
     }
+
+    private static string WithoutV(string version) =>
+        version.StartsWith('v') || version.StartsWith('V') ? version[1..] : version;
 
     [GeneratedRegex(@"^https://github\.com/hoobio/steward-companion/releases/download/(?<tag>[0-9A-Za-z.+-]+)/(?<file>[0-9A-Za-z._+-]+\.msi)$")]
     private static partial Regex ReleaseMsiUrl();
