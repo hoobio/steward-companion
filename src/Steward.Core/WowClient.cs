@@ -12,9 +12,14 @@ public static class WowClient
     public static WowClientProcess? Find(WowInstall install, IReadOnlyList<(string FileName, WowClientProcess Process)> snapshot)
     {
         ArgumentNullException.ThrowIfNull(install);
+        return Find(install.FlavourPath, snapshot);
+    }
+
+    public static WowClientProcess? Find(string flavourPath, IReadOnlyList<(string FileName, WowClientProcess Process)> snapshot)
+    {
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        return snapshot.FirstOrDefault(entry => IsUnder(entry.FileName, install.FlavourPath)).Process;
+        return snapshot.FirstOrDefault(entry => IsUnder(entry.FileName, flavourPath)).Process;
     }
 
     public static IReadOnlyList<(string FileName, WowClientProcess Process)> Snapshot()

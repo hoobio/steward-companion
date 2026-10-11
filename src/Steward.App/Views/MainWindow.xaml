@@ -375,6 +375,14 @@
                 <InfoBar
                     IsOpen="True"
                     IsClosable="False"
+                    Severity="Informational"
+                    CornerRadius="8"
+                    HorizontalAlignment="Center"
+                    Visibility="{x:Bind ViewModel.AccessRemovedVisibility, Mode=OneWay}"
+                    Message="{x:Bind ViewModel.AccessRemovedNotice, Mode=OneWay}" />
+                <InfoBar
+                    IsOpen="True"
+                    IsClosable="False"
                     Severity="Error"
                     CornerRadius="8"
                     HorizontalAlignment="Center"

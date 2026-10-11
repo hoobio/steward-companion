@@ -71,7 +71,8 @@ internal static class HostBuilderExtensions
                 CookieContainer = sp.GetRequiredService<CookieContainer>(),
                 PooledConnectionLifetime = TimeSpan.FromMinutes(15),
             })
-            .AddHttpMessageHandler(sp => new ClientOutdatedHandler(message => sp.GetRequiredService<MainViewModel>().ReportClientOutdated(message)));
+            .AddHttpMessageHandler(sp => new ClientOutdatedHandler(message => sp.GetRequiredService<MainViewModel>().ReportClientOutdated(message)))
+            .AddHttpMessageHandler(sp => new SessionRevokedHandler(() => sp.GetRequiredService<MainViewModel>().ReportSessionRevoked()));
         var downloadUserAgent = builder.Configuration["Downloads:UserAgent"];
         builder.Services.AddHttpClient("Addon")
             .ConfigureHttpClient(c =>

@@ -702,6 +702,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         IsSignedIn = _sessionService.TryRestoreSession();
         IsSessionChecked = true;
+        RemoveLostAccessAddons();
 
         if (App.IsPackaged)
         {
@@ -731,6 +732,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             await _sessionService.SignInAsync(new Progress<string>(OpenSignInUrl), _signInCts.Token);
             IsSignedIn = true;
+            AccessRemovedNotice = null;
             await LoadAsync(CancellationToken.None);
         }
         catch (OperationCanceledException)
@@ -3202,7 +3204,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _features.Clear();
             _features.UnionWith(features);
             UpdateGuildFeatures();
+            var previousCatalogue = _addonCatalogue;
             var catalogueChanged = SetAddonCatalogue(me.Addons);
+            TrackLostAccess(previousCatalogue, me.Addons);
             if (catalogueChanged || !previousFeatures.SetEquals(_features))
             {
                 ReconcileFeatureGating();
@@ -3300,6 +3304,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void SignOutTo(GateFailure failure)
     {
+        QueueRevokedRemovals();
         var wasOfficer = HasStewardFeature;
         var installs = Installs.Select(install => install.Install).ToList();
         var lastOfficerPayload = _lastOfficerPayload;
@@ -3341,6 +3346,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         PropagateAuthorized();
         UpdateEventStream();
         UpdateAccessEventStream();
+        RemoveLostAccessAddons();
     }
 
     private void WriteMe(IEnumerable<WowInstall> installs, SyncMe? me, bool force = false)

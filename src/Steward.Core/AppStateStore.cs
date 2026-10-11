@@ -186,6 +186,9 @@ public sealed class AppStateStore
             MissingSince = (state.MissingSince ?? [])
                 .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
+            LostAccess = (state.LostAccess ?? [])
+                .Where(entry => !entry.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
             SelectedInstall = string.Equals(state.SelectedInstall, flavourPath, StringComparison.OrdinalIgnoreCase)
                 ? null
                 : state.SelectedInstall,
@@ -222,6 +225,7 @@ public sealed class AppStateStore
         MissingSince = new Dictionary<string, DateTimeOffset>(state.MissingSince ?? [], StringComparer.OrdinalIgnoreCase),
         JourneyUploads = new Dictionary<string, JourneyUploadRecord>(state.JourneyUploads ?? [], StringComparer.OrdinalIgnoreCase),
         AddonCatalogue = state.AddonCatalogue is null ? null : [.. state.AddonCatalogue],
+        LostAccess = new Dictionary<string, LostAccessAddon>(state.LostAccess ?? [], StringComparer.OrdinalIgnoreCase),
     };
 
     public static bool IsExcludedFromUpdates(AppState state, string flavourPath, string addonId) =>
