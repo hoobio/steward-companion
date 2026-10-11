@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.22.0](https://github.com/hoobio/steward-companion/compare/v0.21.2...v0.22.0) (2026-10-11)
+
+
+### Features
+
+* ✨ remove Steward addons the companion installed when access ends ([e35fcd6](https://github.com/hoobio/steward-companion/commit/e35fcd64cb9ef24b50dadec669f9abbe520c73ce))
+
+
+### Bug Fixes
+
+* 🐛 a curseforge:// link asks for confirmation before installing ([24ce8de](https://github.com/hoobio/steward-companion/commit/24ce8defbe4247d7bfcd30b9ec0c9762a50bf0be))
+* 🐛 a revoked answer after sign-out no longer removes addons on a later sign-out ([4998485](https://github.com/hoobio/steward-companion/commit/499848551829849e9513d92f0c0ad3738165ce0b))
+* 🐛 an access change during a background pass rechecks access once the pass finishes ([c9f6324](https://github.com/hoobio/steward-companion/commit/c9f63249f584f98a1c64dd41328db0b1acb6493d))
+* 🐛 CurseForge installs and updates refuse a zip folder owned by another addon ([0b959eb](https://github.com/hoobio/steward-companion/commit/0b959eb86f1649e6ad998eac208e6181e9f7eeda))
+* 🐛 fallback hoobiscripts row uses the protected route ([2553b04](https://github.com/hoobio/steward-companion/commit/2553b04e0e88d969fe2607be3db18dcf7716dd99))
+* 🐛 generated Lua escapes control characters and picks a long-bracket level the text cannot close ([5fab329](https://github.com/hoobio/steward-companion/commit/5fab329bf42778db22de17a27aa6fe6f8c98532a))
+* 🐛 journey uploads send level, class, kills, quests and deaths for the site's character list ([759d99a](https://github.com/hoobio/steward-companion/commit/759d99a74cd336d2e007e30109990077940b7a9b))
+* 🐛 refetch the manifest and retry once when an addon zip returns 404 ([ca8cf16](https://github.com/hoobio/steward-companion/commit/ca8cf169c28f6940b2492b0e009ab0ebf0a67dc4))
+* 🐛 sign-in stops at once for a user in no Steward server and survives stray callbacks ([9fca667](https://github.com/hoobio/steward-companion/commit/9fca66745b51b76f6a487f4a9e1b85971f326304))
+* 🐛 sign-in stops at once when the code exchange answers not_member ([3d0a795](https://github.com/hoobio/steward-companion/commit/3d0a795efde390f2ee9f1698354c578d9dbee575))
+* 🐛 the MSI download refuses a manifest version that is not strict semver ([f25d04d](https://github.com/hoobio/steward-companion/commit/f25d04ddbd74fdb74c9badd54fe7031d9645abaa))
+* 🐛 the MSI self-update accepts a manifest version without the tag's leading v ([3be4bf9](https://github.com/hoobio/steward-companion/commit/3be4bf99fd257a97ccafa776bb039ae5fe89e092))
+* 🐛 the MSI self-update installs only a hoobio/steward-companion release asset whose GitHub digest matches ([329c685](https://github.com/hoobio/steward-companion/commit/329c685265497cfe5ce093570acef237f67a9d98))
+* 🔒 reject zip entries with dot segments, rooted paths or drive letters ([88ab0cd](https://github.com/hoobio/steward-companion/commit/88ab0cd3b1d4440edb5a8581e0d6a62f6a3514ca))
+
+
+### Performance Improvements
+
+* ⚡ manifest fetches send If-None-Match and reuse the stored manifest on 304 ([4ca0880](https://github.com/hoobio/steward-companion/commit/4ca08806de9bb2ae226d68fdf6a84a2e6ed33698))
+
+
+### Reverts
+
+* ⏪ journey upload summary fields, steward-server computes them from the stored file ([b987143](https://github.com/hoobio/steward-companion/commit/b987143429c56abd01951ffe7e4bc9aafff0b431))
+
 ## [0.21.2](https://github.com/hoobio/steward-companion/compare/v0.21.1...v0.21.2) (2026-10-10)
 
 
