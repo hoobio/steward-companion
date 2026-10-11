@@ -110,8 +110,6 @@ public sealed partial class MainViewModel
 
     private IReadOnlyList<ManagedAddon> AllVisibleAddons() => [.. VisibleAddons(), .. AllProviderAddons()];
 
-    private IReadOnlyList<string> ExcludedFolders(WowInstallViewModel install) => ExcludedFoldersForOthers(install, "");
-
     private async Task<IReadOnlyList<ProviderAddonRecord>> IdentifyCurseForgeAsync(WowInstallViewModel install, IReadOnlyList<LocalAddon> scanned)
     {
         if (CurseForgeVersionType(install.Install) is not { } versionType || scanned.Count == 0)
@@ -560,8 +558,8 @@ public sealed partial class MainViewModel
         var installs = _stateStore.Load().Installs;
         return
         [
-            .. _addons.Concat(_addonCatalogue ?? []).Where(addon => CurseForgeEnabled || !addon.IsCurseForge).Select(addon => addon.FolderName),
-            StewardGuidesAddon.FolderName,
+            .. _addons.Concat(_addonCatalogue ?? []).Where(addon => (CurseForgeEnabled || !addon.IsCurseForge) && !string.Equals(addon.Id, id, StringComparison.OrdinalIgnoreCase)).Select(addon => addon.FolderName),
+            .. new[] { StewardGuidesAddon.FolderName }.Where(_ => !string.Equals(id, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase)),
             .. ProviderRecords(install.FlavourPath).Where(record => CurseForgeEnabled && record.Id != id).SelectMany(record =>
                 CurseForgeAddons.Folders(record).Concat(installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, record.Id))?.Folders ?? [])),
         ];

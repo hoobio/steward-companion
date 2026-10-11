@@ -103,7 +103,8 @@ public sealed class AddonUpdater
         AddonRelease release,
         string addOnsPath,
         IProgress<double>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? foreignFolders = null)
     {
         _logger.Info($"Installing {addon.Id} {channel} {release.Version} into {addOnsPath}");
         var tempZipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
@@ -148,6 +149,10 @@ public sealed class AddonUpdater
                 {
                     // CurseForge's module list can omit a folder its own zip ships (EllesmereUIForeverEssentials, 29 Sep 2026).
                     folders = [.. folders.Union(ZipFolders(tempZipPath, addon.Id), StringComparer.OrdinalIgnoreCase)];
+                    if (foreignFolders is not null && folders.FirstOrDefault(folder => foreignFolders.Contains(folder, StringComparer.OrdinalIgnoreCase)) is { } taken)
+                    {
+                        throw new InvalidOperationException($"{addon.Id} ships {taken}, which belongs to another addon; refusing to install");
+                    }
                 }
 
                 RefuseForeignFolders(tempZipPath, folders);

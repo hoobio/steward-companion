@@ -137,6 +137,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     private readonly Action? _unmanage;
     private readonly Func<ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> _installRequirements;
     private readonly Func<string?> _themeId;
+    private readonly Func<IReadOnlyList<string>> _foreignFolders;
     private readonly ILogger _logger;
 
     private AddonChannelStatus? _status;
@@ -159,10 +160,12 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         Action? unmanage,
         Func<ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> installRequirements,
         Func<string?> themeId,
+        Func<IReadOnlyList<string>> foreignFolders,
         ILogger logger)
     {
         _logger = logger;
         _themeId = themeId;
+        _foreignFolders = foreignFolders;
         _unmanage = unmanage;
         _installRequirements = installRequirements;
         _install = install;
@@ -776,7 +779,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             await _installRequirements(_addon, channel, release, text => StatusMessage = text, progress).ConfigureAwait(true);
             StatusMessage = null;
             UpdateProgress = 0;
-            var folders = await _updater.InstallAsync(_addon, channel, release, _install.AddOnsPath, progress, CancellationToken.None)
+            var folders = await _updater.InstallAsync(_addon, channel, release, _install.AddOnsPath, progress, CancellationToken.None, _foreignFolders())
                 .ConfigureAwait(true);
 
             var state = _stateStore.Load();

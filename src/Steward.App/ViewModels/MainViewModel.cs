@@ -2984,7 +2984,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             install.ProductCode is { } product && _supportedProducts.TryGetValue(product, out var productName) ? productName : null,
             _stateStore.Load().InstallLabels.GetValueOrDefault(install.FlavourPath),
             AddonsFor(install.FlavourPath),
-            ExcludedFolders,
+            ExcludedFoldersForOthers,
             IdentifyCurseForgeAsync,
             ReconcileProviderAddons,
             UnmanageProviderAddon,

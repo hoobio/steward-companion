@@ -372,6 +372,23 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
+    public async Task InstallAsync_CurseForgeZipWithForeignFolder_IsRefused_AndNothingWritten()
+    {
+        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", "HoobiScripts/HoobiScripts.toc");
+        WriteInstalled(addOnsPath, "Questie", "Questie.toc");
+        WriteInstalled(addOnsPath, "HoobiScripts", "HoobiScripts.toc");
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["Questie"]);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => updater.InstallAsync(CurseForgeQuestie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken, ["hoobiscripts"]));
+
+        Assert.Contains("HoobiScripts", ex.Message, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "Questie", "stale.lua")));
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "HoobiScripts", "stale.lua")));
+        Assert.Equal("## Version: 1", File.ReadAllText(Path.Combine(addOnsPath, "HoobiScripts", "HoobiScripts.toc")));
+    }
+
+    [Fact]
     public async Task InstallAsync_ZipWithRootFile_IsRefused()
     {
         var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", "readme.txt");

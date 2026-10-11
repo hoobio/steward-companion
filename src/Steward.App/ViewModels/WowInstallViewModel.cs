@@ -34,7 +34,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Action<WowInstallViewModel> _clientExited;
     private readonly AddonUpdater _updater;
     private readonly AppStateStore _stateStore;
-    private readonly Func<WowInstallViewModel, IReadOnlyList<string>> _excludedFolders;
+    private readonly Func<WowInstallViewModel, string, IReadOnlyList<string>> _excludedFolders;
     private readonly Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> _identifyProviderAddons;
     private readonly Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> _reconcileProviderAddons;
     private readonly Action<WowInstallViewModel, string> _unmanageProviderAddon;
@@ -59,7 +59,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         string? gameVersionName,
         string? userLabel,
         IReadOnlyList<ManagedAddon> addons,
-        Func<WowInstallViewModel, IReadOnlyList<string>> excludedFolders,
+        Func<WowInstallViewModel, string, IReadOnlyList<string>> excludedFolders,
         Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> identifyProviderAddons,
         Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> reconcileProviderAddons,
         Action<WowInstallViewModel, string> unmanageProviderAddon,
@@ -349,7 +349,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         var generation = Interlocked.Increment(ref _scanGeneration);
         try
         {
-            var excluded = _excludedFolders(this);
+            var excluded = _excludedFolders(this, "");
             var identify = _isCurseForgeEnabled();
             var scanned = HasGameVersion
                 ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, excluded, _logger, TocFile.InterfaceNumber(ClientVersion))).ConfigureAwait(false)
@@ -377,7 +377,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var scanned = LocalAddons.Scan(AddOnsPath, _excludedFolders(this), _logger, TocFile.InterfaceNumber(ClientVersion));
+        var scanned = LocalAddons.Scan(AddOnsPath, _excludedFolders(this, ""), _logger, TocFile.InterfaceNumber(ClientVersion));
         ApplyLocalScan(Interlocked.Increment(ref _scanGeneration), scanned, [.. LocalRows.Select(row => row.Match).OfType<ProviderAddonRecord>(), record]);
     }
 
@@ -552,6 +552,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             CurseForgeAddons.IsRecorded(addon) ? () => _unmanageProviderAddon(this, addon.Id) : null,
             (dependant, channel, release, status, progress) => _installRequirements(this, dependant, channel, release, status, progress),
             _themeId,
+            () => _excludedFolders(this, addon.Id),
             _logger);
     }
 
