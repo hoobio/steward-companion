@@ -97,7 +97,8 @@ public static class CurseForgeAddons
             var primary = PrimaryFolder(present);
             var name = group.Select(match => match.Name).FirstOrDefault(name => !string.IsNullOrEmpty(name)) ?? title(primary) ?? primary;
             var websiteUrl = group.Select(match => match.WebsiteUrl).FirstOrDefault(url => !string.IsNullOrEmpty(url));
-            adopted.Add(new ProviderAddonRecord(Id(group.Key, versionType), primary, name, Source, group.Key, versionType, modules, WebsiteUrl: websiteUrl));
+            var iconUrl = group.Select(match => match.IconUrl).FirstOrDefault(url => !string.IsNullOrEmpty(url));
+            adopted.Add(new ProviderAddonRecord(Id(group.Key, versionType), primary, name, Source, group.Key, versionType, modules, IconUrl: iconUrl, WebsiteUrl: websiteUrl));
         }
 
         return adopted;

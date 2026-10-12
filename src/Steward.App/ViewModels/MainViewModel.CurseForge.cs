@@ -129,14 +129,8 @@ public sealed partial class MainViewModel
                 folder => Directory.Exists(Path.Combine(install.AddOnsPath, folder)),
                 folder => titles.GetValueOrDefault(folder));
 
-            var withIcons = new List<ProviderAddonRecord>(adopted.Count);
-            foreach (var record in adopted)
-            {
-                withIcons.Add(record with { IconUrl = await _stewardClient.GetCurseForgeIconUrlAsync(record.ModId, versionType, CancellationToken.None).ConfigureAwait(false) });
-            }
-
-            _logger.Info($"CurseForge match on {install.FlavourPath}: {folders.Count} folder(s) sent, {request.Declared.Count} declared, {matches.Count} match(es), {withIcons.Count} addon(s) identified");
-            return withIcons;
+            _logger.Info($"CurseForge match on {install.FlavourPath}: {folders.Count} folder(s) sent, {request.Declared.Count} declared, {matches.Count} match(es), {adopted.Count} addon(s) identified");
+            return adopted;
         }
         catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or SessionExpiredException or TaskCanceledException or JsonException or IOException or UnauthorizedAccessException)
         {

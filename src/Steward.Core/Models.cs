@@ -143,7 +143,8 @@ public sealed record CurseForgeMatch(
     [property: JsonPropertyName("fileId")] long? FileId,
     [property: JsonPropertyName("folders")] IReadOnlyList<string>? Folders,
     [property: JsonPropertyName("name")] string? Name = null,
-    [property: JsonPropertyName("websiteUrl")] string? WebsiteUrl = null);
+    [property: JsonPropertyName("websiteUrl")] string? WebsiteUrl = null,
+    [property: JsonPropertyName("iconUrl")] string? IconUrl = null);
 
 public sealed record CurseForgeModFile(
     [property: JsonPropertyName("modId")] int ModId,
