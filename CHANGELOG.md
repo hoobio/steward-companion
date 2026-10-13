@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1](https://github.com/hoobio/steward-companion/compare/v0.22.0...v0.22.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* 🐛 CurseForge scan takes icons from the match instead of one icon request per addon, which hit the rate limit on update all ([73c0df5](https://github.com/hoobio/steward-companion/commit/73c0df55f6f31d4ab346c5d69cdafa2f13668baf))
+
 ## [0.22.0](https://github.com/hoobio/steward-companion/compare/v0.21.2...v0.22.0) (2026-10-11)
 
 
