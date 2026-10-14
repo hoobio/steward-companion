@@ -243,7 +243,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         foreach (var row in AddonRows)
         {
             row.RequiredBy = AddonRows
-                .FirstOrDefault(other => other != row && other.IsInstalled && other.Requirements.Any(requirement => AddonRequirements.Matches(row.AddonId, requirement.Id)
+                .FirstOrDefault(other => other != row && !row.HasChild(other) && other.IsInstalled && other.Requirements.Any(requirement => AddonRequirements.Matches(row.AddonId, requirement.Id)
                     || string.Equals(requirement.FolderName, row.FolderName, StringComparison.OrdinalIgnoreCase)))
                 ?.DisplayName;
         }
@@ -359,6 +359,11 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             {
                 if (generation == _scanGeneration)
                 {
+                    foreach (var row in AddonRows.Where(row => !row.IsBusy))
+                    {
+                        row.RefreshInstalledVersion();
+                    }
+
                     _reconcileProviderAddons(this, []);
                     ApplyLocalScan(generation, scanned, identified);
                 }

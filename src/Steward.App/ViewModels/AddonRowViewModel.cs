@@ -226,6 +226,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public bool IsFolded { get; set; }
 
+    public bool HasChild(AddonRowViewModel row) => _children.Contains(row);
+
     [ObservableProperty]
     public partial bool IsInstallGated { get; set; }
 
@@ -598,7 +600,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         var record = _stateStore.Load().Installs.GetValueOrDefault(Key);
         var recordChanged = !Equals(record, _record);
         _record = record;
-        var installedVersion = record?.Version ?? TocFile.ReadVersion(TocPath)
+        var installedVersion = (File.Exists(TocPath) ? record?.Version : null) ?? TocFile.ReadVersion(TocPath)
             ?? (_addon.IsCurseForge && Directory.Exists(AddonFolderPath) ? "unknown" : null);
         if (recordChanged && string.Equals(installedVersion, InstalledVersion, StringComparison.Ordinal))
         {
