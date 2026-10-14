@@ -215,6 +215,7 @@ public sealed class AppStateStore
         InstallProducts = new Dictionary<string, string>(state.InstallProducts ?? [], StringComparer.OrdinalIgnoreCase),
         IgnoredAddons = [.. state.IgnoredAddons ?? []],
         KeptLocalAddons = [.. state.KeptLocalAddons ?? []],
+        ForeverCopyDone = [.. state.ForeverCopyDone ?? []],
         LegacyRestedXpGuideChoice = null,
         DismissedBanners = new Dictionary<string, int>(state.DismissedBanners ?? [], StringComparer.Ordinal),
         ProviderAddons = (state.ProviderAddons ?? []).ToDictionary(

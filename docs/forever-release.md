@@ -22,12 +22,14 @@ Battle.net copied the beta's `WTF` into `_forever_` on install; `Interface\AddOn
 1. `appsettings.json`: `wowf` in `SupportedProducts` ("World of Warcraft: Forever"), `RestedXp:ProductPrefixes` and `CurseForge:GameVersionTypes`. BugSack and BugGrabber keep their baked-in `88568`, since both clients share it.
 2. `Assets/Products/wowf.png`, the picker icon, a copy of the beta's.
 3. `ForeverLaunch.MoveFromBeta`: from 1 Nov 2026 a selection still on the beta moves to the live install once.
+4. `ForeverCopy` and `MainViewModel.ForeverCopy.cs`: while a beta install is present, the live install is held out of `Installs` until the user copies from the beta or chooses "I'll do it myself" (`forever_copy_done`), and the Addons page header offers "Sync from beta" on the live install after that. The sync is newer-wins and never deletes: AddOns folders, addon saved variables and game settings under `WTF\Account`, with `WTF\Config.wtf` left to Battle.net.
 
 ## This repo, when the beta is retired
 
 1. Remove `wow_classic_beta` from the three `appsettings.json` maps; a beta install then drops out of discovery and the selection falls back to the live one.
 2. `GuidesPreview` and `HomePage.xaml` copy, `docs/design/home-and-settings.md` and the mockups: replace `_classic_beta_` and "Forever - Beta".
 3. Remove `ForeverLaunch` and `forever_selection_moved`.
+4. Remove the gate, the copy wizard and Sync from beta (`ForeverCopy`, `MainViewModel.ForeverCopy.cs`, the dialog in `MainWindow.xaml.cs`, the header button in `HomePage.xaml`) and `forever_copy_done`.
 
 ## Neighbouring repos
 

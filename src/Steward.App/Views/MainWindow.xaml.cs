@@ -94,6 +94,7 @@ public sealed partial class MainWindow : Window
         ViewModel.ShowConfirmDialog = ConfirmAsync;
         ViewModel.ShowLinkDialog = ShowMessageAsync;
         ViewModel.ChooseLinkFile = ChooseLinkFileAsync;
+        ViewModel.ShowForeverCopyDialog = ShowForeverCopyAsync;
         ViewModel.ChooseGuild = ChooseGuildAsync;
         ViewModel.QuitRequested = QuitCompletely;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -394,6 +395,99 @@ public sealed partial class MainWindow : Window
             DefaultButton = ContentDialogButton.Primary,
         };
         return await AppDialogs.ShowAsync(dialog, Content.XamlRoot) == ContentDialogResult.Primary && files.SelectedIndex >= 0 ? files.SelectedIndex : null;
+    }
+
+    private async Task<bool?> ShowForeverCopyAsync(bool firstRun, Steward.Core.ForeverCopyPlan plan, Func<bool, bool, bool, Task> copy)
+    {
+        static string Count(int count, string one, string many, string rest) => $"{count} {(count == 1 ? one : many)} {rest}";
+
+        static CheckBox Option(string title, params string?[] counts)
+        {
+            var detail = string.Join(", ", counts.OfType<string>());
+            var option = new CheckBox
+            {
+                IsChecked = detail.Length > 0,
+                IsEnabled = detail.Length > 0,
+                Padding = new Thickness(8, 0, 0, 0),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Content = new StackPanel
+                {
+                    Spacing = 2,
+                    Children =
+                    {
+                        new TextBlock { Text = title },
+                        new TextBlock
+                        {
+                            Text = detail.Length > 0 ? detail : "Nothing newer on the beta",
+                            FontSize = 12,
+                            TextWrapping = TextWrapping.Wrap,
+                            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                        },
+                    },
+                },
+            };
+            // The CheckBox template top-aligns its glyph in a 32px box, which leaves it high beside a two-line label.
+            option.Loaded += (_, _) =>
+            {
+                if (VisualTreeHelper.GetChildrenCount(option) > 0 && VisualTreeHelper.GetChild(option, 0) is Grid root && root.Children.OfType<Grid>().FirstOrDefault() is { } glyph)
+                {
+                    glyph.VerticalAlignment = VerticalAlignment.Center;
+                }
+            };
+            return option;
+        }
+
+        var addons = Option(
+            "Addons",
+            plan.NewFolders.Count > 0 ? Count(plan.NewFolders.Count, "addon", "addons", "to copy") : null,
+            plan.UpdatedFolders.Count > 0 ? plan.NewFolders.Count > 0 ? $"{plan.UpdatedFolders.Count} to update" : Count(plan.UpdatedFolders.Count, "addon", "addons", "to update") : null);
+        var savedVariables = Option(
+            "Addon saved variables",
+            plan.SavedVariablesFiles.Count > 0 ? Count(plan.SavedVariablesFiles.Count, "file", "files", "newer on the beta") : null);
+        var settings = Option(
+            "Game settings",
+            plan.SettingsFiles.Count > 0 ? Count(plan.SettingsFiles.Count, "file", "files", "newer on the beta") : null);
+        var progress = new ProgressBar { IsIndeterminate = true, Visibility = Visibility.Collapsed };
+        var dialog = new ContentDialog
+        {
+            Title = new TextBlock { Text = firstRun ? "Copy from the beta" : "Sync from the beta", TextWrapping = TextWrapping.Wrap },
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new TextBlock { Text = "Steward copies what is newer on the beta. Nothing on Forever is deleted.", TextWrapping = TextWrapping.Wrap },
+                    addons,
+                    savedVariables,
+                    settings,
+                    progress,
+                },
+            },
+            PrimaryButtonText = firstRun ? "Copy" : "Sync",
+            SecondaryButtonText = firstRun ? "I'll do it myself" : "",
+            CloseButtonText = firstRun ? "Not now" : "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        dialog.PrimaryButtonClick += async (_, args) =>
+        {
+            var deferral = args.GetDeferral();
+            addons.IsEnabled = savedVariables.IsEnabled = settings.IsEnabled = dialog.IsPrimaryButtonEnabled = dialog.IsSecondaryButtonEnabled = false;
+            progress.Visibility = Visibility.Visible;
+            try
+            {
+                await copy(addons.IsChecked == true, savedVariables.IsChecked == true, settings.IsChecked == true);
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        };
+        return await AppDialogs.ShowAsync(dialog, Content.XamlRoot) switch
+        {
+            ContentDialogResult.Primary => true,
+            ContentDialogResult.Secondary => false,
+            _ => null,
+        };
     }
 
     private async Task<GuildOptionViewModel?> ChooseGuildAsync(IReadOnlyList<GuildOptionViewModel> guilds, GuildOptionViewModel preselected)

@@ -66,12 +66,12 @@ public sealed partial class MainViewModel
         RecomputeSummary();
     }
 
-    private void ReplaceInstall(WowInstallViewModel install, WowInstall rebuilt)
+    private void ReplaceInstall(WowInstallViewModel install, WowInstall rebuilt, bool isAddedByUser = true)
     {
         var index = Installs.IndexOf(install);
         var wasSelected = SelectedInstall == install;
         DetachInstall(install);
-        var replacement = AddInstall(rebuilt, isAddedByUser: true);
+        var replacement = AddInstall(rebuilt, isAddedByUser);
         Installs.Move(Installs.IndexOf(replacement), Math.Clamp(index, 0, Installs.Count - 1));
         replacement.ApplyStatus(_status, background: false);
         if (wasSelected)

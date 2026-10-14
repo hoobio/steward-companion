@@ -58,6 +58,7 @@ public sealed partial class MainViewModel
         nameof(GameVersionPromptVisibility),
         nameof(UpdateAllEnabled),
         nameof(GetAddonsVisibility),
+        nameof(SyncFromBetaVisibility),
         nameof(MissingInstallVisibility),
         nameof(MissingInstallBody),
     ];
@@ -418,14 +419,19 @@ public sealed partial class MainViewModel
         ShowConfirmDialog is { } show
         && await show($"Uninstall {name}?", $"This deletes {folders} from {installLabel}'s AddOns folder.", "Uninstall").ConfigureAwait(true);
 
-    private IReadOnlyList<WowInstall> DiscoverInstalls(AppState state) =>
-    [
-        .. WowInstalls.Discover(_supportedProducts, state.InstallProducts),
-        .. state.AddedInstalls
-            .Select(path => WowInstalls.FromFlavourPath(path, _supportedProducts, state.InstallProducts)
-                ?? (_missingInstalls.Contains(path) ? WowInstalls.MissingFromPath(path, _supportedProducts, state.InstallProducts) : null))
-            .OfType<WowInstall>(),
-    ];
+    private IReadOnlyList<WowInstall> DiscoverInstalls(AppState state)
+    {
+        IReadOnlyList<WowInstall> discovered =
+        [
+            .. WowInstalls.Discover(_supportedProducts, state.InstallProducts),
+            .. state.AddedInstalls
+                .Select(path => WowInstalls.FromFlavourPath(path, _supportedProducts, state.InstallProducts)
+                    ?? (_missingInstalls.Contains(path) ? WowInstalls.MissingFromPath(path, _supportedProducts, state.InstallProducts) : null))
+                .OfType<WowInstall>(),
+        ];
+        _heldLiveInstall = discovered.FirstOrDefault(install => ForeverCopy.IsGated(install, discovered, state.ForeverCopyDone));
+        return [.. discovered.Where(install => !ForeverCopy.IsGated(install, discovered, state.ForeverCopyDone))];
+    }
 
     public string? DetectedProduct(string flavourPath) => WowInstalls.FromFlavourPath(flavourPath, _supportedProducts)?.ProductCode;
 
@@ -448,6 +454,11 @@ public sealed partial class MainViewModel
         if (install.ProductCode is not null && !_supportedProducts.ContainsKey(install.ProductCode))
         {
             return "Steward supports World of Warcraft: Forever only.";
+        }
+
+        if (ForeverCopy.IsGated(install, [.. Installs.Select(existing => existing.Install), install], _stateStore.Load().ForeverCopyDone))
+        {
+            return "Copy from the beta first, from the banner on the Addons page.";
         }
 
         return Installs.Any(existing => existing != editing && string.Equals(existing.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase))

@@ -843,6 +843,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             EnsureSelection();
             ShowMissingInstallBanners();
+            ApplyForeverGate();
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
             EnsureInGameIcons();
             await PushCharacterSyncAsync().ConfigureAwait(true);
@@ -915,17 +916,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _ = install.RescanLocalAsync();
         }
 
-        foreach (var install in WowInstalls.Discover(_supportedProducts, _stateStore.Load().InstallProducts))
+        var state = _stateStore.Load();
+        foreach (var install in DiscoverInstalls(state))
         {
             if (Installs.Any(existing => string.Equals(existing.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
 
-            AddInstall(install, isAddedByUser: false).ApplyStatus(_status, background: false);
+            AddInstall(install, state.AddedInstalls.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase)).ApplyStatus(_status, background: false);
         }
 
         EnsureSelection();
+        ApplyForeverGate();
         RecomputeSummary();
     }
 
@@ -977,6 +980,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             ApplyMissingInstalls();
+            ApplyForeverGate();
             foreach (var install in Installs)
             {
                 _ = install.RescanLocalAsync();
@@ -1966,7 +1970,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     // No server banner backs this, so it skips BannerFilter's id/revision dismissal bookkeeping and is never persisted.
-    public void ShowLocalInfoBanner(string message, string? id = null, string? actionLabel = null, Action? action = null, Action? dismissed = null, string? detail = null)
+    public void ShowLocalInfoBanner(string message, string? id = null, string? actionLabel = null, Action? action = null, Action? dismissed = null, string? detail = null, bool dismissible = true)
     {
         BannerViewModel? banner = null;
         var dismiss = new RelayCommand(() =>
@@ -1984,7 +1988,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Background = (Brush)Application.Current.Resources["InfoTintBrush"],
             IconForeground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"],
             IconGlyph = "",
-            IsDismissible = true,
+            IsDismissible = dismissible,
             Actions = action is null ? [] : [new BannerActionViewModel { Label = actionLabel!, Command = new RelayCommand(action) }],
             DismissCommand = dismiss,
         };
