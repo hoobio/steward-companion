@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.1](https://github.com/hoobio/steward-companion/compare/v0.23.0...v0.23.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* 🐛 a fresh WoW install with no Interface or WTF folder yet is discovered from its .flavor.info ([9a62db6](https://github.com/hoobio/steward-companion/commit/9a62db685eabbb5176577b322cc1879a4ae5e240))
+
 ## [0.23.0](https://github.com/hoobio/steward-companion/compare/v0.22.1...v0.23.0) (2026-10-14)
 
 
