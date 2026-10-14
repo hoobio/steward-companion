@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.23.0](https://github.com/hoobio/steward-companion/compare/v0.22.1...v0.23.0) (2026-10-14)
+
+
+### Features
+
+* ✨ copy addons and how Steward manages them from the beta to the live Forever client ([92c7103](https://github.com/hoobio/steward-companion/commit/92c710349719f4dc35e06ac6f72fbaf148588bd0))
+* ✨ point beta players without the live Forever client at Battle.net, and hold a hand-added live install for the copy wizard ([c9db8d5](https://github.com/hoobio/steward-companion/commit/c9db8d58046617d8742e3994dbd2140c5ad00f9d))
+* ✨ support the live World of Warcraft: Forever client and move the selection to it from 1 Nov ([6d0ec6a](https://github.com/hoobio/steward-companion/commit/6d0ec6aef70414d481f2e961da82871f6c664bcd))
+
+
+### Bug Fixes
+
+* 🐛 an addon whose folder is gone reads as not installed, and a group's own sub-addons no longer hide its Uninstall ([f65c1b2](https://github.com/hoobio/steward-companion/commit/f65c1b205729506a7f9268e3d19606a142f56eb6))
+* 🐛 the Forever install banner names the Stress Test and opens Battle.net from the tray, with no button when Battle.net is not found ([4681f25](https://github.com/hoobio/steward-companion/commit/4681f25c777573b01f95316abb37d2380276708c))
+
 ## [0.22.1](https://github.com/hoobio/steward-companion/compare/v0.22.0...v0.22.1) (2026-10-12)
 
 
