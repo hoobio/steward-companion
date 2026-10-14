@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.2](https://github.com/hoobio/steward-companion/compare/v0.23.1...v0.23.2) (2026-10-14)
+
+
+### Bug Fixes
+
+* 🐛 copying from the beta skips the client's backup and checksum files and names what character settings covers ([2d8ddef](https://github.com/hoobio/steward-companion/commit/2d8ddef90f2eebb702c0020bdabd4c902869b118))
+
 ## [0.23.1](https://github.com/hoobio/steward-companion/compare/v0.23.0...v0.23.1) (2026-10-14)
 
 
