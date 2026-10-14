@@ -456,11 +456,6 @@ public sealed partial class MainViewModel
             return "Steward supports World of Warcraft: Forever only.";
         }
 
-        if (ForeverCopy.IsGated(install, [.. Installs.Select(existing => existing.Install), install], _stateStore.Load().ForeverCopyDone))
-        {
-            return "Copy from the beta first, from the banner on the Addons page.";
-        }
-
         return Installs.Any(existing => existing != editing && string.Equals(existing.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase))
             ? $"{install.FlavourPath} is already in the install list."
             : null;

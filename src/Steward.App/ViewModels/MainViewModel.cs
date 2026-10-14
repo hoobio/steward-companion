@@ -902,6 +902,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _stateStore.Save(state);
         }
 
+        if (ForeverCopy.IsGated(install, [.. Installs.Select(existing => existing.Install), install], state.ForeverCopyDone))
+        {
+            _heldLiveInstall = install;
+            ApplyForeverGate();
+            return;
+        }
+
         var viewModel = AddInstall(install, isAddedByUser: true);
         viewModel.ApplyStatus(_status, background: false);
         SelectedInstall = viewModel;

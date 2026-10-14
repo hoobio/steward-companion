@@ -10,6 +10,7 @@ namespace Steward.App.ViewModels;
 public sealed partial class MainViewModel
 {
     private const string ForeverCopyBannerId = "forever-copy";
+    private const string ForeverInstallBannerId = "forever-install";
 
     private WowInstall? _heldLiveInstall;
 
@@ -52,6 +53,29 @@ public sealed partial class MainViewModel
         else if (_heldLiveInstall is null && shown)
         {
             _localBanners.RemoveAll(banner => banner.Id == ForeverCopyBannerId);
+            RefreshBanners();
+        }
+
+        var hintShown = _localBanners.Any(banner => banner.Id == ForeverInstallBannerId);
+        var hintWanted = _heldLiveInstall is null && BetaInstall is not null
+            && !Installs.Any(install => install.Install.ProductCode == ForeverLaunch.LiveProduct)
+            && !(state.DismissedBanners ?? []).ContainsKey(ForeverInstallBannerId);
+        if (hintWanted && !hintShown)
+        {
+            ShowLocalInfoBanner(
+                "Install World of Warcraft: Forever",
+                ForeverInstallBannerId,
+                "Open Battle.net",
+                () => OpenUri(new Uri("battlenet://")),
+                () => _stateStore.Save(_stateStore.Load() with
+                {
+                    DismissedBanners = new Dictionary<string, int>(_stateStore.Load().DismissedBanners ?? [], StringComparer.Ordinal) { [ForeverInstallBannerId] = 0 },
+                }),
+                "Install it from the Battle.net app. Steward then offers to copy your addons from the beta.");
+        }
+        else if (!hintWanted && hintShown)
+        {
+            _localBanners.RemoveAll(banner => banner.Id == ForeverInstallBannerId);
             RefreshBanners();
         }
 
