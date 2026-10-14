@@ -11,6 +11,7 @@ public sealed partial class MainViewModel
 {
     private const string ForeverCopyBannerId = "forever-copy";
     private const string ForeverInstallBannerId = "forever-install";
+    private static readonly bool ForeverInstallPreview = Environment.GetCommandLineArgs().Contains("--forever-install-preview", StringComparer.OrdinalIgnoreCase);
 
     private WowInstall? _heldLiveInstall;
 
@@ -24,6 +25,11 @@ public sealed partial class MainViewModel
     [RelayCommand]
     private Task SyncFromBetaAsync() =>
         SelectedInstall is { } live ? OpenForeverCopyAsync(live.Install, firstRun: false) : Task.CompletedTask;
+
+    // A battlenet:// link leaves a tray-minimised Battle.net hidden; starting the exe again restores its window (verified 14 Oct 2026).
+    private static string? BattleNetExe() =>
+        (Microsoft.Win32.Registry.ClassesRoot.OpenSubKey(@"battlenet\shell\open\command")?.GetValue(null) as string)
+            ?.Split('"', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() is { } exe && File.Exists(exe) ? exe : null;
 
     private void ApplyForeverGate()
     {
@@ -57,21 +63,22 @@ public sealed partial class MainViewModel
         }
 
         var hintShown = _localBanners.Any(banner => banner.Id == ForeverInstallBannerId);
-        var hintWanted = _heldLiveInstall is null && BetaInstall is not null
+        var hintWanted = ForeverInstallPreview || (_heldLiveInstall is null && BetaInstall is not null
             && !Installs.Any(install => install.Install.ProductCode == ForeverLaunch.LiveProduct)
-            && !(state.DismissedBanners ?? []).ContainsKey(ForeverInstallBannerId);
+            && !(state.DismissedBanners ?? []).ContainsKey(ForeverInstallBannerId));
         if (hintWanted && !hintShown)
         {
+            var battleNet = BattleNetExe();
             ShowLocalInfoBanner(
                 "Install World of Warcraft: Forever",
                 ForeverInstallBannerId,
                 "Open Battle.net",
-                () => OpenUri(new Uri("battlenet://")),
-                () => _stateStore.Save(_stateStore.Load() with
+                battleNet is null ? null : () => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(battleNet) { UseShellExecute = true }),
+                ForeverInstallPreview ? null : () => _stateStore.Save(_stateStore.Load() with
                 {
                     DismissedBanners = new Dictionary<string, int>(_stateStore.Load().DismissedBanners ?? [], StringComparer.Ordinal) { [ForeverInstallBannerId] = 0 },
                 }),
-                "Install it from the Battle.net app. Steward then offers to copy your addons from the beta.");
+                "The live client is now in the Battle.net app as \"Stress Test\". Install it to start managing your addons.");
         }
         else if (!hintWanted && hintShown)
         {
