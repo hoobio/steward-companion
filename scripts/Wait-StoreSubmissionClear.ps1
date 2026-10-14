@@ -27,7 +27,7 @@ function Wait-StoreSubmissionClear {
 
     $deadline = (Get-Date).AddMinutes($TimeoutMinutes)
     while ($true) {
-        $statusOut = & msstore @statusArgs | Out-String
+        $statusOut = & msstore @statusArgs 2>&1 | Out-String
         Write-Host $statusOut
 
         $apiOnlyId = Get-StoreApiOnlySubmissionId -Output $statusOut
@@ -46,7 +46,8 @@ function Wait-StoreSubmissionClear {
             continue
         }
 
-        $deleteOut = & msstore @deleteArgs | Out-String
+        # msstore writes its progress and errors to stderr; seen 14 Oct 2026, "cannot be deleted" was missed without this.
+        $deleteOut = & msstore @deleteArgs 2>&1 | Out-String
         Write-Host $deleteOut
         $global:LASTEXITCODE = 0
 

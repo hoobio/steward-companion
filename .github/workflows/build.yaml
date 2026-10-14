@@ -420,7 +420,7 @@ jobs:
           do {
             $attempt++
             Wait-StoreSubmissionClear -ProductId $env:PRODUCT_ID
-            $publishOut = msstore publish $package -id $env:PRODUCT_ID --noCommit | Out-String
+            $publishOut = msstore publish $package -id $env:PRODUCT_ID --noCommit 2>&1 | Out-String
             Write-Host $publishOut
             if ($LASTEXITCODE -eq 0) { break }
             if ($publishOut -notmatch 'Error while creating submission' -or $attempt -ge 3) {
@@ -515,7 +515,7 @@ jobs:
           do {
             $attempt++
             Wait-StoreSubmissionClear -ProductId $env:PRODUCT_ID -FlightId $env:FLIGHT_ID
-            $publishOut = msstore publish $package -id $env:PRODUCT_ID --flightId $env:FLIGHT_ID --noCommit | Out-String
+            $publishOut = msstore publish $package -id $env:PRODUCT_ID --flightId $env:FLIGHT_ID --noCommit 2>&1 | Out-String
             Write-Host $publishOut
             if ($LASTEXITCODE -eq 0) { break }
             if ($publishOut -notmatch 'Error while creating flight submission' -or $attempt -ge 3) {
