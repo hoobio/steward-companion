@@ -72,6 +72,8 @@ public sealed class ForeverCopyTests : IDisposable
         Write(Path.Combine(betaWtf, "Account", "1#1", "bindings-cache.wtf"), New);
         Write(Path.Combine(liveWtf, "Account", "1#1", "macros-cache.txt"), New);
         Write(Path.Combine(betaWtf, "Account", "1#1", "macros-cache.txt"), Old);
+        Write(Path.Combine(betaWtf, "Account", "1#1", "config-cache.old"), New);
+        Write(Path.Combine(betaWtf, "Account", "1#1", "Realm", "Char", "cache.md5"), New);
 
         var plan = ForeverCopy.Plan(_beta, _live, []);
 

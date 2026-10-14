@@ -29,7 +29,7 @@ public static class ForeverCopy
                 && Directory.Exists(Path.Combine(live.AddOnsPath, folder))
                 && NewerFiles(Path.Combine(beta.AddOnsPath, folder), Path.Combine(live.AddOnsPath, folder)).Any())],
             [.. accountFiles.Where(file => IsSavedVariables(file) && !file.EndsWith(".bak", StringComparison.OrdinalIgnoreCase))],
-            [.. accountFiles.Where(file => !IsSavedVariables(file))]);
+            [.. accountFiles.Where(file => !IsSavedVariables(file) && !IsClientBackup(file))]);
     }
 
     public static ForeverCopyResult Sync(WowInstall beta, WowInstall live, IEnumerable<string> managedFolders, bool addons, bool savedVariables, bool settings, Action<string, Exception> failed)
@@ -146,6 +146,12 @@ public static class ForeverCopy
 
     private static bool IsSavedVariables(string relativePath) =>
         relativePath.Split(Path.DirectorySeparatorChar).SkipLast(1).Contains("SavedVariables", StringComparer.OrdinalIgnoreCase);
+
+    // cache.md5 is the client's checksum of its server-synced settings, so a copied one only describes the beta's.
+    private static bool IsClientBackup(string relativePath) =>
+        relativePath.EndsWith(".old", StringComparison.OrdinalIgnoreCase)
+        || relativePath.EndsWith(".bak", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(Path.GetFileName(relativePath), "cache.md5", StringComparison.OrdinalIgnoreCase);
 
     private static IEnumerable<string> NewerFiles(string sourceRoot, string targetRoot) =>
         Directory.Exists(sourceRoot)

@@ -445,7 +445,7 @@ public sealed partial class MainWindow : Window
             "Addon saved variables",
             plan.SavedVariablesFiles.Count > 0 ? Count(plan.SavedVariablesFiles.Count, "file", "files", "newer on the beta") : null);
         var settings = Option(
-            "Game settings",
+            "Character settings (keybindings, macros, chat and layout)",
             plan.SettingsFiles.Count > 0 ? Count(plan.SettingsFiles.Count, "file", "files", "newer on the beta") : null);
         var progress = new ProgressBar { IsIndeterminate = true, Visibility = Visibility.Collapsed };
         var dialog = new ContentDialog
