@@ -64,7 +64,7 @@ Each WoW install + addon pair records what was actually installed (version, chan
 
 `WowInstalls` walks `.flavor.info` (product code) joined against the root `.build.info` (product to version) to find each flavour without a hardcoded product-to-folder map. The Blizzard registry key (`HKLM\...\World of Warcraft`) is not used as a discovery root by itself: on the dev machine it is hijacked by an unrelated Ascension install, so it is one candidate root among several, never the only one trusted.
 
-Discovery is filtered to `SupportedProducts` in `appsettings.json`, a product code to display name map, since the managed addons target World of Warcraft: Forever only. Today that map holds one entry, the beta's `wow_classic_beta`; the release build joins as a second entry once its product code is known, and `docs/forever-release.md` lists every value and file that day touches.
+Discovery is filtered to `SupportedProducts` in `appsettings.json`, a product code to display name map, since the managed addons target World of Warcraft: Forever only. It holds the live client `wowf` (`_forever_`, "World of Warcraft: Forever", `Wow.exe`) and the beta `wow_classic_beta` (`_classic_beta_`), both at interface 16001 and both mapped to CurseForge version type 88568; `docs/forever-release.md` lists every value and what the beta's retirement touches. From 1 Nov 2026 (`ForeverLaunch.Date`, local date) `MainViewModel.EnsureSelection` moves a selection still on a beta install to a present `wowf` install once (`ForeverLaunch.MoveFromBeta`, recorded as `forever_selection_moved` in `state.json`), so a user who picks the beta again afterwards stays on it.
 
 ## Branding
 
@@ -286,7 +286,7 @@ Checking runs at startup and on every tick of a 1-minute `DispatcherQueueTimer` 
 
 ## Related repos
 
-Read `D:\Steward\AGENTS.md` and `D:\HoobiScripts\AGENTS.md` for the addon-side context before working on anything that crosses into the game. `D:\steward-server` is the source of the guild API, the website and the sync destination. The Forever client's `WTF` folder, where every saved-variables file lands, is `C:\Program Files (x86)\World of Warcraft\_classic_beta_\WTF`; search there directly, since a recursive search from a drive root takes minutes.
+Read `D:\Steward\AGENTS.md` and `D:\HoobiScripts\AGENTS.md` for the addon-side context before working on anything that crosses into the game. `D:\steward-server` is the source of the guild API, the website and the sync destination. The Forever client's `WTF` folder, where every saved-variables file lands, is `C:\Program Files (x86)\World of Warcraft\_forever_\WTF` (the beta's is `_classic_beta_\WTF`); search there directly, since a recursive search from a drive root takes minutes.
 
 - `hoobio/HoobiScripts` (private, local clone `D:\HoobiScripts`): the quality-of-life addon. Its `AGENTS.md` carries the addon side of the integration and the release mechanics.
 - `hoobio/Steward` (private, local clone `D:\Steward`): the roster, loot and attendance addon this app exists for. It has an `Addons` entry here (`steward`, `https://addon.hoobi.io/steward/`). The contract between it and this app is `docs/design/roster-sync.md`.

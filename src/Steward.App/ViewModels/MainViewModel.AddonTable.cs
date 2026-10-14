@@ -191,14 +191,18 @@ public sealed partial class MainViewModel
 
     private void EnsureSelection()
     {
-        if (SelectedInstall is not null && Installs.Contains(SelectedInstall))
+        var state = _stateStore.Load();
+        if (SelectedInstall is null || !Installs.Contains(SelectedInstall))
         {
-            return;
+            SelectedInstall = Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, state.SelectedInstall, StringComparison.OrdinalIgnoreCase))
+                ?? Installs.FirstOrDefault();
         }
 
-        var stored = _stateStore.Load().SelectedInstall;
-        SelectedInstall = Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, stored, StringComparison.OrdinalIgnoreCase))
-            ?? Installs.FirstOrDefault();
+        if (ForeverLaunch.MoveFromBeta(Installs.Select(install => install.Install), SelectedInstall?.Install, DateOnly.FromDateTime(DateTime.Now), state.ForeverSelectionMoved) is { } live)
+        {
+            SelectedInstall = Installs.First(install => install.Install == live);
+            _stateStore.Save(_stateStore.Load() with { ForeverSelectionMoved = true });
+        }
     }
 
     private void RecomputeTable()

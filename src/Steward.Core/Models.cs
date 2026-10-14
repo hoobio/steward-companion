@@ -374,6 +374,10 @@ public sealed record AppState(
 
     [JsonPropertyName("lost_access")]
     public Dictionary<string, LostAccessAddon> LostAccess { get; init; } = null!;
+
+    [JsonPropertyName("forever_selection_moved")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool ForeverSelectionMoved { get; init; }
 }
 
 public sealed record AppUpdateCheck(
