@@ -131,7 +131,8 @@ public static class WowInstalls
             return false;
         }
 
-        return Directory.Exists(Path.Combine(flavourPath, "Interface", "AddOns"));
+        // A fresh install has no Interface or WTF folder until the client first runs (verified with _forever_, 14 Oct 2026).
+        return Directory.Exists(Path.Combine(flavourPath, "Interface", "AddOns")) || File.Exists(Path.Combine(flavourPath, ".flavor.info"));
     }
 
     private static WowInstall BuildInstall(

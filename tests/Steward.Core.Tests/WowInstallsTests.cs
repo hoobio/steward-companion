@@ -42,6 +42,18 @@ public sealed class WowInstallsTests : IDisposable
     }
 
     [Fact]
+    public void DiscoverAt_FindsAFreshInstallWithOnlyFlavorInfo()
+    {
+        var flavourPath = Path.Combine(_root, "_classic_beta_");
+        Directory.CreateDirectory(flavourPath);
+        File.WriteAllText(Path.Combine(flavourPath, ".flavor.info"), "Product Flavor!STRING:0\nwow_classic_beta\n");
+
+        var install = Assert.Single(WowInstalls.DiscoverAt(_root, SupportedProducts));
+
+        Assert.Equal(Path.Combine(flavourPath, "Interface", "AddOns"), install.AddOnsPath);
+    }
+
+    [Fact]
     public void DiscoverAt_ResolvesProductCodeAndClientVersion_WithNonDefaultColumnOrder()
     {
         CreateValidFlavourDir("_classic_beta_", "wow_classic_beta");
