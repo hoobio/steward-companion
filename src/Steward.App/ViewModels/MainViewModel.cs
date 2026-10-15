@@ -2960,7 +2960,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ = EvaluateCurseForgeDefaultHandlerAsync();
         if (value && IsCurseForgeEnabled)
         {
-            _ = ProbeAddedProviderAddonsAsync(AllProviderAddons());
+            _ = ProbeAddedProviderAddonsAsync([.. AllVisibleAddons().Where(addon => addon.IsCurseForge)]);
         }
     }
 
