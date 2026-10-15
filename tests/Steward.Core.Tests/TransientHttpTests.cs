@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 
 namespace Steward.Core.Tests;
 
@@ -43,6 +44,23 @@ public sealed class TransientHttpTests
         Assert.False(TransientHttp.IsTransient(new ClientOutdatedException("old")));
         Assert.False(TransientHttp.IsTransient(new TaskCanceledException()));
         Assert.False(TransientHttp.IsTransient(new HttpRequestException("empty body")));
+    }
+
+    [Fact]
+    public void IsTransient_SocketFailuresInsideAnIOException()
+    {
+        Assert.True(TransientHttp.IsTransient(new IOException("reset", new SocketException((int)SocketError.ConnectionReset))));
+        Assert.True(TransientHttp.IsTransient(new HttpRequestException("x", new IOException("reset"))));
+    }
+
+    [Fact]
+    public void IsRetryable_NotForFileSystemFailures()
+    {
+        Assert.False(TransientHttp.IsRetryable(new IOException("Read-only file system")));
+        Assert.False(TransientHttp.IsRetryable(new UnauthorizedAccessException("Access to the path is denied.")));
+        Assert.False(TransientHttp.IsRetryable(new DirectoryNotFoundException()));
+        Assert.False(TransientHttp.IsRetryable(new FileNotFoundException()));
+        Assert.False(TransientHttp.IsRetryable(new PathTooLongException()));
     }
 
     [Fact]

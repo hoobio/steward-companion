@@ -35,7 +35,7 @@ public static class GuildRosterSync
         {
             StewardSyncFile.Write(install.AddOnsPath, payload, fingerprint, avatarIndex);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             logger.Warn(ex, $"StewardSync.lua write failed for {install.FlavourPath}");
             return false;

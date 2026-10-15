@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 
 namespace Steward.Core;
 
@@ -23,7 +24,7 @@ public static class TransientHttp
             || http.InnerException is IOException,
         StewardRequestException request => IsTransient(request.StatusCode),
         TaskCanceledException { InnerException: TimeoutException } => true,
-        TimeoutException or IOException => true,
+        HttpIOException or IOException { InnerException: SocketException } or TimeoutException => true,
         _ => false,
     };
 

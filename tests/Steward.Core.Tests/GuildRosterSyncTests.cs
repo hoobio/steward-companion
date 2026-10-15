@@ -50,6 +50,34 @@ public sealed class GuildRosterSyncTests : IDisposable
     }
 
     [Fact]
+    public void WriteIfChanged_ReturnsFalseAndRecordsNothing_WhenTheFileCannotBeWritten()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        var target = Path.Combine(install.AddOnsPath, "Steward", "StewardSync.lua");
+        File.WriteAllText(target, "locked");
+
+        bool written;
+        using (new FileStream(target, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            written = GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore);
+        }
+
+        Assert.False(written);
+        Assert.False(stateStore.Load().GuildRosterSync.ContainsKey(install.FlavourPath));
+    }
+
+    [Fact]
+    public void WriteIfChanged_ReturnsFalse_WhenTheTargetIsADirectory()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        Directory.CreateDirectory(Path.Combine(install.AddOnsPath, "Steward", "StewardSync.lua"));
+
+        Assert.False(GuildRosterSync.WriteIfChanged(install, SamplePayload(), stateStore));
+    }
+
+    [Fact]
     public void WriteIfChanged_DoesNotRewrite_WhenTheRosterIsUnchanged()
     {
         var install = InstallAddon();
