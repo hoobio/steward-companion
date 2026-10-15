@@ -1475,6 +1475,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private void DismissStatus() => StatusMessage = null;
+
+    [RelayCommand]
     private Task StatusActionAsync() =>
         Failure == GateFailure.ClientOutdated ? HandleStoreUpdateBannerActionAsync()
         : HasApiRetry ? RetryApiAsync()

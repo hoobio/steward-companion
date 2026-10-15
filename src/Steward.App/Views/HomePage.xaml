@@ -758,6 +758,7 @@
                 </Border>
 
                 <Border
+                    Margin="0,0,0,10"
                     CornerRadius="8"
                     Padding="12,8"
                     Background="{ThemeResource CriticalTintBrush}"
@@ -766,6 +767,7 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <FontIcon VerticalAlignment="Center" Glyph="&#xE783;" FontSize="16" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
@@ -778,6 +780,16 @@
                             Content="{x:Bind ViewModel.StatusActionLabel, Mode=OneWay}"
                             Command="{x:Bind ViewModel.StatusActionCommand}"
                             Visibility="{x:Bind ViewModel.StatusActionVisibility, Mode=OneWay}" />
+                        <Button
+                            Grid.Column="3"
+                            Width="28"
+                            Height="28"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            Command="{x:Bind ViewModel.DismissStatusCommand}"
+                            AutomationProperties.Name="Dismiss">
+                            <FontIcon Glyph="&#xE8BB;" FontSize="11" />
+                        </Button>
                     </Grid>
                 </Border>
 
