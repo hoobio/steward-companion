@@ -11,6 +11,12 @@ public static class InGameIcon
 {
     public static async Task EnsureAsync(AddonUpdater updater, string addOnsPath, ManagedAddon addon, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(addon);
+        if (addon.IconNeedsSession)
+        {
+            return;
+        }
+
         try
         {
             if (await Task.Run(() => GeneratedAddonIcon.Plan(addOnsPath, addon.FolderName)).ConfigureAwait(false) is not { } plan)

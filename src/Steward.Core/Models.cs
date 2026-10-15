@@ -47,6 +47,9 @@ public sealed record ManagedAddon(string Id, string FolderName, string? Manifest
 
     public bool IsCurseForge => CurseForge ?? Source == CurseForgeAddons.Source;
 
+    // Without icon_url the icon is the manifest base's icon.png, which answers only with the manifest's session cookie.
+    public bool IconNeedsSession => IconUrl is null && ManifestNeedsSession;
+
     public Uri IconUri => IconUrl is not null
         ? new Uri(IconUrl)
         : new(new Uri(ManifestBaseUrl ?? throw new InvalidOperationException($"{Id} has no ManifestBaseUrl")), "icon.png");

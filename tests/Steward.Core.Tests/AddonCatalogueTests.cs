@@ -71,6 +71,19 @@ public sealed class AddonCatalogueTests : IDisposable
         Assert.True(CurseForgeAddons.IsRecorded(recorded));
     }
 
+    [Theory]
+    [InlineData("CurseForge", null, true)]
+    [InlineData("CurseForge", "https://media.forgecdn.net/x.png", false)]
+    [InlineData("Protected", null, true)]
+    [InlineData("Steward", null, false)]
+    [InlineData("GitHub", null, false)]
+    public void IconNeedsSession_OnlyWithoutAnIconUrlBehindASessionManifest(string source, string? iconUrl, bool needsSession)
+    {
+        var addon = new CatalogueAddon("x", "X", "https://example.test/x/", Source: source, IconUrl: iconUrl).ToManagedAddon();
+
+        Assert.Equal(needsSession, addon.IconNeedsSession);
+    }
+
     [Fact]
     public void Same_ComparesByValue()
     {
