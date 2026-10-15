@@ -789,7 +789,42 @@
                     </FlyoutBase.AttachedFlyout>
                 </Button>
             </NavigationView.PaneFooter>
-            <Frame x:Name="RootFrame" />
+            <Grid>
+                <Frame x:Name="RootFrame" />
+                <Border
+                    x:Name="ToastHost"
+                    Margin="24"
+                    Padding="16,12"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    CornerRadius="8"
+                    Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}"
+                    Opacity="0"
+                    IsHitTestVisible="False"
+                    Translation="0,16,32">
+                    <Border.Shadow>
+                        <ThemeShadow />
+                    </Border.Shadow>
+                    <Border.OpacityTransition>
+                        <ScalarTransition Duration="0:0:0.167" />
+                    </Border.OpacityTransition>
+                    <Border.TranslationTransition>
+                        <Vector3Transition Duration="0:0:0.167" />
+                    </Border.TranslationTransition>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <FontIcon
+                            Glyph="&#xE946;"
+                            FontSize="16"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock
+                            x:Name="ToastText"
+                            MaxWidth="480"
+                            VerticalAlignment="Center"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
         </NavigationView>
     </Grid>
 </Window>

@@ -275,6 +275,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string? StatusMessage { get; set; }
 
     [ObservableProperty]
+    public partial string? Toast { get; set; }
+
+    private DispatcherQueueTimer? _toastTimer;
+
+    public void ShowToast(string message)
+    {
+        Toast = message;
+        _toastTimer ??= CreateToastTimer();
+        _toastTimer.Start();
+    }
+
+    private DispatcherQueueTimer CreateToastTimer()
+    {
+        var timer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+        timer.Interval = TimeSpan.FromSeconds(6);
+        timer.IsRepeating = false;
+        timer.Tick += (_, _) => Toast = null;
+        return timer;
+    }
+
+    [ObservableProperty]
     public partial bool IsAuthorized { get; set; }
 
     [ObservableProperty]

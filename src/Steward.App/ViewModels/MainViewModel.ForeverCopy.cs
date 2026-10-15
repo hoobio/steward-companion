@@ -183,7 +183,7 @@ public sealed partial class MainViewModel
             result.SavedVariablesFiles > 0 ? $"{result.SavedVariablesFiles} saved variable {(result.SavedVariablesFiles == 1 ? "file" : "files")}" : null,
             result.SettingsFiles > 0 ? $"{result.SettingsFiles} game settings {(result.SettingsFiles == 1 ? "file" : "files")}" : null,
         }.OfType<string>().ToList();
-        ShowLocalInfoBanner(parts.Count > 0 ? $"Synced from the beta: {string.Join(", ", parts)}." : "Synced from the beta: nothing on the beta was newer.");
+        ShowToast(parts.Count > 0 ? $"Synced from the beta: {string.Join(", ", parts)}." : "Synced from the beta: nothing on the beta was newer.");
         if (result.Failures > 0)
         {
             StatusMessage = $"{result.Failures} {(result.Failures == 1 ? "file" : "files")} could not be copied from the beta. The log names each one.";

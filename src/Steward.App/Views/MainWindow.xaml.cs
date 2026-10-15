@@ -303,6 +303,12 @@ public sealed partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(MainViewModel.Toast))
+        {
+            ShowToast(ViewModel.Toast);
+            return;
+        }
+
         if (e.PropertyName is nameof(MainViewModel.SyncVisibility)
             && ViewModel.SyncVisibility == Visibility.Collapsed
             && RootFrame.Content is SyncPage)
@@ -320,6 +326,17 @@ public sealed partial class MainWindow : Window
         }
 
         Nav.SelectedItem = AddonsItem;
+    }
+
+    private void ShowToast(string? message)
+    {
+        if (message is not null)
+        {
+            ToastText.Text = message;
+        }
+
+        ToastHost.Opacity = message is null ? 0 : 1;
+        ToastHost.Translation = new System.Numerics.Vector3(0, message is null ? 16 : 0, 32);
     }
 
     public void ShowGuidesPreview(string scenario)
