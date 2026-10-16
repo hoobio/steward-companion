@@ -2,48 +2,79 @@
 
 **Steward**
 
-*Last updated: 26 September 2026*
+*Last updated: 16 October 2026*
 
-## Data Collection
+## Summary
 
-Steward does not collect, store, or transmit any personal data or telemetry. There is no analytics endpoint, crash reporter, or "phone home" of any kind.
+Steward has no telemetry, analytics, advertising or crash reporting. It sends data only to do the jobs listed below: sign-in, addon installs and updates, and guild sync. The source code is public at [github.com/hoobio/steward-companion](https://github.com/hoobio/steward-companion), and every Microsoft Store release is built from that source by a public GitHub Actions run.
 
-## How It Works
+Steward does not read browser data, saved passwords, Battle.net credentials or your documents. It reads files only in your World of Warcraft folders and its own data folder, plus the few Windows settings and shortcuts listed under "What Steward reads on your PC".
 
-Steward runs as a local desktop application that manages a set of World of Warcraft addons and syncs guild data between the game and the Steward API, the guild's own Discord bot and admin API:
+## Sign-in
 
-- It signs you in through Discord via Steward API's own desktop OAuth flow, opening your default browser.
-- It reads and writes files inside your World of Warcraft installation folders (addon files, SavedVariables) to install, update, and sync addons.
-- It downloads addon releases from `addon.hoobi.io` (Steward, HoobiScripts), `api.hoobi.io` (Steward API's mirror of RestedXP's release manifest), `github.com` (the RestedXP zip itself), and (for RestedXP guides, if you sign in to that service) `rxpgcr.restedxp.com`.
-- It reads addon owner avatars from `github.com`.
-- It checks the Microsoft Store's own update service for its own updates.
+- You sign in with Discord in your own browser, through the Steward API (`api.hoobi.io`). Steward never sees your Discord password.
+- The Steward API gives the app a session token. Steward keeps it encrypted with Windows DPAPI, so only your Windows account on this PC can decrypt it.
+- Signing out deletes the token.
 
-## Local Files
+## Data sent to the Steward API
 
-| What | Where |
-|------|-------|
-| App state, session tokens (DPAPI-protected) | `%LocalAppData%\Steward\state.json` |
-| RestedXP guide cache | `%LocalAppData%\Steward\guides\` |
-| Switch-to-Store log (for an installed MSI still finding its way to the Store) | `%LocalAppData%\Steward\update.log` |
+The Steward API at `api.hoobi.io` is run by the developer of Steward. Every request carries your session token, the app version and your IP address.
 
-The Steward API session token and the RestedXP session are both encrypted with Windows DPAPI, so they can only be decrypted on the machine and under the Windows account that created them.
+- **Your account:** your Discord user id, roles and the guild you select, to show what you have access to.
+- **Character sync** (only if you have the sync feature and the Steward addon writes data): for each character the Steward addon has recorded, its name, id, realm, guild, guild rank, level, class, race, last online time, professions and recipes, and equipped, bag and bank items. It goes only to the guilds that list that character's WoW guild.
+- **Journeys** (only if you have the sync feature and install the Steward: Journey addon): the file that addon writes for each character, which holds the route that character took (positions, zones and times).
+- **CurseForge** (only while CurseForge management is on in Settings):
+  - To find your installed addons on CurseForge, Steward sends the folder names and file fingerprints of the addons it does not manage. These are checksums of the addon files, not the files themselves.
+  - It also sends your addon searches.
+  - If a CurseForge download fails, it sends the addon id, version, download URL and the error, so the developer can see CDN problems.
+- **Addon downloads:** requests for addon manifests and files, including protected addons.
 
-## Network Access
+The Steward API answers with your guild's roster, members, professions and banners, which Steward writes into the Steward addon's folder for the game to read.
 
-Steward talks to:
+## Other services
 
-- `api.hoobi.io` (Steward API): Discord sign-in, reading your guild's roster, Discord member list, and admin role, and RestedXP's release manifest and icon.
-- `addon.hoobi.io`: addon release manifests and zips for Steward and HoobiScripts.
-- `github.com`: the RestedXP zip and addon owner avatar images shown in the app.
-- `rxpgcr.restedxp.com` and RestedXP's Keycloak realm: only if you sign in to RestedXP for levelling guides, to download guide content you have purchased.
-- The Microsoft Store's own update service, to check for and install app updates.
+- **`addon.hoobi.io`:** addon manifests and zip files. These requests carry no account data.
+- **RestedXP** (`sso.restedxp.com`, `rxpbck.restedxp.com`, `rxpgcr.restedxp.com`): only if you sign in to RestedXP for levelling guides.
+  - Your RestedXP username and password, and a two-factor code if asked, go to RestedXP only.
+  - Steward does not store your password. It keeps the RestedXP session tokens encrypted with DPAPI.
+- **GitHub** (`github.com`, `api.github.com`): the MSI build downloads its updates from this repository's releases and checks each one against GitHub's published checksum.
+- **Microsoft Store:** the Store build checks for and installs its own updates through Windows.
+- **Images:** addon icons and Discord avatars load from the addresses the Steward API and addon manifests give (for example Discord's and CurseForge's image servers). Those servers see your IP address.
 
-None of these requests carry telemetry beyond what the Microsoft Store itself collects for a Store-installed app under Microsoft's own privacy terms; they are the addon-update and guild-sync features working as designed. Steward itself makes no other outbound requests and has no analytics, crash reporting, or telemetry of its own.
+## What Steward writes into your WoW folders
 
-## Third-Party Services
+Steward writes only into `Interface\AddOns`, never into `WTF`, except for the optional beta-to-live copy, which copies your own files from the beta install to the live install when you ask it to.
 
-Discord (via Steward API's OAuth flow), GitHub, RestedXP, and Microsoft, each only for the purpose described above.
+- Addon files it installs and updates.
+- `Steward\StewardSync.lua` and avatar images, so the Steward addon can show your guild's data.
+- `StewardGuides\Guides.lua`, the RestedXP guides you bought.
+- `Core\Theme.lua` in protected addons, holding your Discord user id. If someone shares a copy of a protected addon, this id shows who downloaded it. The addon's notice in the app says this too.
+- `StewardIcon.tga` and an icon line in the addon's TOC file, for addons that have no in-game icon.
+
+## What Steward reads on your PC
+
+- **WoW folders:** install details (`.build.info`, `.flavor.info`), addon folders and their TOC files, and these saved variables: `Steward.lua`, `StewardGuides.lua` and `StewardJourney.lua`. It also reads file dates under `WTF\Account` to tell when the game last saved.
+- **Running programs:** whether WoW, CurseForge or WowUp is running. Steward waits for the game to close before some changes, and warns you before it adopts addons another manager handles.
+- **Windows settings:** the Battle.net install location and the Blizzard install path, the startup entries and Startup-folder shortcuts for CurseForge and WowUp, and which app opens `curseforge://` links.
+
+## Files on your PC
+
+All in `%LocalAppData%\Steward`:
+
+| File | What it holds |
+|------|---------------|
+| `state.json` | Settings, WoW install paths, addon install records, the selected guild, and the encrypted Steward and RestedXP sessions |
+| `provider_addons.json` | CurseForge addons you manage |
+| `character_sync.json`, `journey_uploads.json` | What was last sent, so unchanged data is not sent again |
+| `guides\` | Cached RestedXP guides and the BattleTag that bought them |
+| `icons\` | Cached addon icons |
+| `logs\` | Diagnostic logs, deleted after 14 days. They never hold your session token, passwords or sign-in codes |
+| `update.log` | The installer log from the last MSI update |
+
+Start with Windows adds a `Steward` entry under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` on the MSI build, or uses Windows' own startup task on the Store build.
+
+To remove everything, uninstall Steward and delete `%LocalAppData%\Steward`.
 
 ## Contact
 
-If you have questions about this privacy policy, please open an issue at [github.com/hoobio/steward-companion](https://github.com/hoobio/steward-companion/issues).
+For questions, open an issue at [github.com/hoobio/steward-companion](https://github.com/hoobio/steward-companion/issues).
