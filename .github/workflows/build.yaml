@@ -539,6 +539,7 @@ jobs:
           $whatsNew = Get-StoreWhatsNew @whatsNewParams
 
           $sub = Get-StorePendingSubmission -ProductId $env:PRODUCT_ID -PackagePath $package
+          Hide-StoreUploadUrl $sub
 
           foreach ($listing in $sub.Listings.PSObject.Properties) {
             $listing.Value.BaseListing | Add-Member -NotePropertyName ReleaseNotes -NotePropertyValue $whatsNew -Force
@@ -549,7 +550,7 @@ jobs:
           $sub | Add-Member PackageDeliveryOptions $delivery -Force
 
           $sub | ConvertTo-Json -Depth 100 | Set-Content -Path patched.json -Encoding utf8
-          msstore submission update $env:PRODUCT_ID (Get-Content -Raw patched.json)
+          $null = msstore submission update $env:PRODUCT_ID (Get-Content -Raw patched.json) 2>&1
           if ($LASTEXITCODE -ne 0) { throw "submission update failed ($LASTEXITCODE)" }
 
           msstore submission publish $env:PRODUCT_ID
@@ -630,12 +631,13 @@ jobs:
           } while ($true)
 
           $sub = Get-StorePendingSubmission -ProductId $env:PRODUCT_ID -PackagePath $package -FlightId $env:FLIGHT_ID
+          Hide-StoreUploadUrl $sub
           $delivery = $sub.PackageDeliveryOptions ?? [pscustomobject]@{}
           $delivery | Add-Member IsMandatoryUpdate $true -Force
           $delivery | Add-Member MandatoryUpdateEffectiveDate ([DateTime]::UtcNow.ToString('o')) -Force
           $sub | Add-Member PackageDeliveryOptions $delivery -Force
           $sub | ConvertTo-Json -Depth 100 | Set-Content -Path patched.json -Encoding utf8
-          msstore flights submission update $env:PRODUCT_ID $env:FLIGHT_ID (Get-Content -Raw patched.json)
+          $null = msstore flights submission update $env:PRODUCT_ID $env:FLIGHT_ID (Get-Content -Raw patched.json) 2>&1
           if ($LASTEXITCODE -ne 0) { throw "flights submission update failed ($LASTEXITCODE)" }
 
           msstore flights submission publish $env:PRODUCT_ID $env:FLIGHT_ID

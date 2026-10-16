@@ -109,6 +109,17 @@ function Get-StorePendingSubmission {
     exit 1
 }
 
+function Hide-StoreUploadUrl {
+    param([Parameter(Mandatory)]$Submission)
+
+    # FileUploadUrl is a write-enabled SAS URL for the package blob; this repo's logs are public.
+    $url = $Submission.FileUploadUrl
+    if (-not $url) { return }
+    Write-Host "::add-mask::$url"
+    Write-Host "::add-mask::$($url.Replace('&', '\' + 'u0026'))"
+    if ($url -match '[?&]sig=([^&]+)') { Write-Host "::add-mask::$($Matches[1])" }
+}
+
 if ($MyInvocation.InvocationName -ne '.') {
     if (Test-StoreSubmissionBusy -StatusOutput 'Submission Status = Certification') { throw 'self-check failed: Certification should be deletable' }
     if (Test-StoreSubmissionBusy -StatusOutput 'Submission Status = PendingCommit') { throw 'self-check failed: PendingCommit should be deletable' }
