@@ -45,6 +45,7 @@ Because the addon file is only read at login or `/reload`, there is no client-cl
 | Rejected | The saved variable carries the current generation and a status text for the string | Critical-tinted row, pill `Failed`, the addon's own status text as the message, `Retry` re-writes the folder |
 | Not finished | The saved variable carries the current generation, with neither a mark nor a status for the string | Caution-tinted row, pill `Not finished`, dim "Import did not finish; it runs again on the next login", no `Retry` |
 | Session expired | Refresh token gone while the page is open | Caution `InfoBar` above the cards with a `Sign in` action, rows dimmed to mute; dismissing it or cancelling the dialog returns to Addons, since the nav item collapses without a session |
+| Loading | Signed in, first `/user-products` and timestamps fetch of the session still running | A row with a 16px `ProgressRing` and "Loading your guides from RestedXP…" in place of the product rows; never shown while a fetched list is on screen |
 | No purchases | `/user-products` empty | "No guides on this account" with a `Browse guides` link |
 
 The retry wording matches the account page's own guard, which reads "Try again in 10 seconds".

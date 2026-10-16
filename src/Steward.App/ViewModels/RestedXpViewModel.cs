@@ -214,7 +214,14 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsSessionActive { get; set; } = true;
 
-    public Visibility NoGuidesVisibility => When(Rows.Count == 0);
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NoGuidesVisibility))]
+    public partial bool IsCatalogueLoaded { get; set; }
+
+    [ObservableProperty]
+    public partial Visibility LoadingVisibility { get; set; } = Visibility.Collapsed;
+
+    public Visibility NoGuidesVisibility => When(IsCatalogueLoaded && Rows.Count == 0);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WrittenText))]
@@ -307,6 +314,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
     private readonly Func<bool> _hasGuidesFeature;
     private readonly DispatcherQueue? _dispatcher = DispatcherQueue.GetForCurrentThread();
     private readonly Dictionary<string, SavedVariablesWatcher> _watchers = new(StringComparer.OrdinalIgnoreCase);
+    private bool _catalogueFailed;
 
     public RestedXpViewModel(RestedXpService service, Func<bool> hasGuidesFeature)
     {
@@ -358,6 +366,9 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
     public partial bool IsBusy { get; set; }
 
     public bool IsPreview { get; private set; }
+
+    public static bool IsCatalogueLoading(bool signedIn, bool hasCatalogue, bool fetchFailed) =>
+        signedIn && !hasCatalogue && !fetchFailed;
 
     public string SubtitleDetails => string.Concat(
         string.IsNullOrEmpty(BattleTag) ? "" : $" · {BattleTag}",
@@ -506,6 +517,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
             return;
         }
 
+        SetCatalogueFailed(false);
         try
         {
             await _service.EnsureFreshSessionAsync(forCall: true, CancellationToken.None).ConfigureAwait(true);
@@ -520,6 +532,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
         catch (Exception ex) when (IsRecoverable(ex))
         {
             ErrorMessage = ex.Message;
+            SetCatalogueFailed(true);
             return;
         }
 
@@ -541,6 +554,32 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
             _service.ProductImages,
             product => _service.IsAllowed(card.Install, product));
         card.WrittenAt = _service.WrittenAt(card.Install);
+        ApplyCatalogueState(card);
+    }
+
+    private void ApplyCatalogueState(RestedXpInstallViewModel card)
+    {
+        card.IsCatalogueLoaded = _service.HasCatalogue;
+        card.LoadingVisibility = IsCatalogueLoading(IsSignedIn, _service.HasCatalogue, _catalogueFailed)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private void SetCatalogueFailed(bool failed)
+    {
+        _catalogueFailed = failed;
+        foreach (var card in Guides)
+        {
+            ApplyCatalogueState(card);
+        }
+    }
+
+    partial void OnIsSignedInChanged(bool value)
+    {
+        if (!IsPreview)
+        {
+            SetCatalogueFailed(false);
+        }
     }
 
     [RelayCommand]

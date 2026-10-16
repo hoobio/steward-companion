@@ -64,6 +64,8 @@ public sealed class RestedXpService : IDisposable
 
     public IReadOnlyDictionary<string, long> Timestamps { get; private set; } = new Dictionary<string, long>();
 
+    public bool HasCatalogue { get; private set; }
+
     public bool IsSignedIn => Session is not null;
 
     public string? Username => Session?.Username;
@@ -155,6 +157,7 @@ public sealed class RestedXpService : IDisposable
         BattleTag = null;
         Products = [];
         ProductImages = new Dictionary<string, Uri>();
+        HasCatalogue = false;
         _lastFailure.Clear();
         _stateStore.Save(_stateStore.Load() with { EncryptedRestedXpSession = null });
     }
@@ -209,6 +212,7 @@ public sealed class RestedXpService : IDisposable
                 .DistinctBy(p => p.ProductName, StringComparer.Ordinal)
                 .ToDictionary(p => p.ProductName, p => new Uri(p.ProductImageUrl!), StringComparer.Ordinal);
             Timestamps = await _client.GetTimestampsAsync(session, cancellationToken).ConfigureAwait(true);
+            HasCatalogue = true;
         }
         catch (RestedXpSessionExpiredException)
         {

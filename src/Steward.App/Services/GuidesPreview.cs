@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Steward.App.ViewModels;
 using Steward.Core;
 
@@ -47,7 +48,7 @@ public static class GuidesPreview
         main.IsAuthorized = true;
         main.IsSignedIn = true;
 
-        var products = scenario == "none" ? [] : Catalogue;
+        var products = scenario is "none" or "loading" ? [] : Catalogue;
         var timestamps = products.ToDictionary(
             entry => entry.Product,
             entry => DateTimeOffset.Now.Subtract(entry.Age).ToUnixTimeMilliseconds(),
@@ -57,6 +58,8 @@ public static class GuidesPreview
         {
             AddonVersion = "v4.11.4",
             IsSessionActive = scenario != "expired",
+            IsCatalogueLoaded = scenario != "loading",
+            LoadingVisibility = scenario == "loading" ? Visibility.Visible : Visibility.Collapsed,
         };
         string[] selected = scenario == "current" ? [Forever, Mists] : [Forever];
         card.SetProducts(
