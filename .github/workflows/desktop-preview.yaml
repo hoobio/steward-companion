@@ -2,7 +2,7 @@ name: Desktop Preview
 
 on:
   push:
-    branches: [refactor/avalonia-rebuild]
+    branches: [main, refactor/avalonia-rebuild]
     paths-ignore: ["**.md", "docs/**", "tools/**", ".githooks/**", "scripts/Install-DevBuild.ps1"]
   workflow_dispatch:
 
@@ -68,14 +68,15 @@ jobs:
               -p:IncludeNativeLibrariesForSelfExtract=true `
               -p:EnableCompressionInSingleFile=true `
               -p:GitHubRelease=true `
+              -p:PreviewZip=true `
               -p:StoreDisplayVersion=$env:DISPLAY_VERSION `
               -o $env:PUBLISH_DIR
             if ($LASTEXITCODE -eq 0) { break }
             Write-Host "dotnet publish failed (exit $LASTEXITCODE), attempt $attempt of 3"
           } while ($attempt -lt 3)
           if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)" }
-          $exe = Join-Path $env:PUBLISH_DIR 'Steward.Desktop.exe'
-          if (-not (Test-Path $exe)) { throw "Expected Steward.Desktop.exe in publish output" }
+          $exe = Join-Path $env:PUBLISH_DIR 'Steward.App.exe'
+          if (-not (Test-Path $exe)) { throw "Expected Steward.App.exe in publish output" }
           $stray = Get-ChildItem $env:PUBLISH_DIR -File -Filter *.dll
           if ($stray) { throw "Native libraries left beside the exe: $($stray.Name -join ', ')" }
           New-Item -ItemType Directory -Path staging\licences -Force | Out-Null
@@ -125,12 +126,15 @@ jobs:
           if-no-files-found: error
 
   windows-msix:
-    name: Windows MSIX
+    name: Windows MSIX smoke and certification
     needs: [version]
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       DISPLAY_VERSION: ${{ needs.version.outputs.display }}
+    outputs:
+      cert-result: ${{ steps.wack.outputs.result }}
+      cert-detail: ${{ steps.wack.outputs.detail }}
     steps:
       - uses: actions/checkout@v7
 
@@ -149,7 +153,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: desktop-msix-x64
+          name: msix-test-x64
           path: staging/*
           if-no-files-found: error
 
@@ -213,12 +217,12 @@ jobs:
             $deadline = (Get-Date).AddSeconds(60)
             do {
               Start-Sleep -Seconds 1
-              $process = Get-Process -Name Steward.Desktop -ErrorAction SilentlyContinue | Where-Object MainWindowHandle -ne 0 | Select-Object -First 1
+              $process = Get-Process -Name Steward.App -ErrorAction SilentlyContinue | Where-Object MainWindowHandle -ne 0 | Select-Object -First 1
             } until ($process -or (Get-Date) -gt $deadline)
             if (-not $process) { throw 'The packaged app showed no window within 60 seconds' }
             Write-Host "Window '$($process.MainWindowTitle)' from $($process.Path)"
             if (-not $process.Path.StartsWith($installed.InstallLocation, [StringComparison]::OrdinalIgnoreCase)) { throw "The window is not from the package: $($process.Path)" }
-            $started = Find-LogLine 'INF Steward\.Desktop\.App: Steward .* starting \(store-avalonia' 30
+            $started = Find-LogLine 'INF Steward\.Desktop\.App: Steward .* starting \(store,' 30
             if (-not $started) { throw 'No packaged startup line in either log folder' }
             Write-Host "Startup line in $($started.Path): $($started.Line)"
             Start-Sleep -Seconds 5
@@ -235,7 +239,7 @@ jobs:
             New-Item -ItemType Directory -Path smoke\logs -Force | Out-Null
             if (Test-Path $logDirs[0]) { Copy-Item $logDirs[0] smoke\logs\real -Recurse -Force }
             if (Test-Path $logDirs[1]) { Copy-Item $logDirs[1] smoke\logs\packaged -Recurse -Force }
-            Get-Process -Name Steward.Desktop -ErrorAction SilentlyContinue | Stop-Process -Force
+            Get-Process -Name Steward.App -ErrorAction SilentlyContinue | Stop-Process -Force
             Start-Sleep -Seconds 2
             Remove-AppxPackage -Package $installed.PackageFullName
             Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)", "Cert:\LocalMachine\TrustedPeople\$($cert.Thumbprint)" -ErrorAction SilentlyContinue
@@ -246,6 +250,72 @@ jobs:
         if: always()
         with:
           name: smoke-windows-msix
+          path: smoke
+          if-no-files-found: ignore
+
+      - name: Run the Windows App Certification Kit on the MSIX
+        id: wack
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path report -Force | Out-Null
+          ./.github/scripts/Invoke-AppCert.ps1 -MsixPath (Get-ChildItem staging\*.msix).FullName -ReportPath report\certification-report.html `
+            -XmlPath report\appcert.xml -RunUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: certification-report
+          path: report
+          if-no-files-found: ignore
+
+  windows-msi:
+    name: Windows MSI upgrade from the last release
+    needs: [version]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.version.outputs.release }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+      - name: Publish the MSI payload as build.yaml does
+        shell: pwsh
+        run: |
+          $attempt = 0
+          do {
+            $attempt++
+            dotnet publish $env:PROJECT_PATH -c Release -f net10.0-windows10.0.26100.0 -r win-x64 --self-contained `
+              -p:PublishSingleFile=false -p:GitHubRelease=true -p:Version=$env:RELEASE_VERSION -o publish\x64
+            if ($LASTEXITCODE -eq 0) { break }
+            Write-Host "dotnet publish failed (exit $LASTEXITCODE), attempt $attempt of 3"
+          } while ($attempt -lt 3)
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)" }
+          if (-not (Test-Path publish\x64\Steward.App.exe)) { throw 'Expected Steward.App.exe in publish output' }
+
+      - name: Build MSI
+        uses: hoobio/pipeline-tools/pipeline/github/step/build-msi-wix@v2.3.2
+        with:
+          wix-source-path: installer/Steward.wxs
+          version: ${{ needs.version.outputs.release }}
+          platform: x64
+          payload-dir: ${{ github.workspace }}\publish\x64
+          output-dir: ${{ github.workspace }}\staging\msi-x64
+          extensions: WixToolset.UI.wixext/5.0.2,WixToolset.Util.wixext/5.0.2
+
+      - name: Install the last release, then upgrade it to this MSI
+        shell: pwsh
+        run: ./.github/scripts/Test-MsiUpgrade.ps1 -Msi (Get-ChildItem staging\msi-x64\*.msi).FullName -OutDir smoke
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: smoke-windows-msi
           path: smoke
           if-no-files-found: ignore
 
@@ -329,12 +399,41 @@ jobs:
             grep -q "INF Steward.Desktop.App: Steward .* starting" /out/logs/*.log || { echo "no startup line in the app log"; exit 1; }
             echo "steward ran for 15 seconds"'
 
+      - name: Smoke test the signed .rpm on Fedora
+        if: matrix.arch == 'x64'
+        shell: bash
+        run: |
+          mkdir -p smoke/rpm
+          docker run --rm -v "$PWD/staging:/pkg:ro" -v "$PWD/packaging/linux:/keys:ro" -v "$PWD/smoke/rpm:/out" \
+            -e RPM="/pkg/Steward-$DISPLAY_VERSION-linux-x64.rpm" fedora:44 sh -c '
+            set -e
+            rpm --import /keys/steward.asc
+            rpm --checksig "$RPM" | tee /out/checksig.txt
+            grep -q "digests signatures OK" /out/checksig.txt
+            dnf install -y -q "$RPM" /usr/bin/xvfb-run xauth >/dev/null
+            xvfb-run -a -s "-screen 0 1280x800x24" sh -c "
+              steward > /out/steward.out 2>&1 &
+              pid=\$!
+              sleep 15
+              kill -0 \$pid || { echo steward exited early; cat /out/steward.out; exit 1; }
+              kill \$pid"
+            cp -r /root/.local/share/Steward/logs /out/ 2>/dev/null || true
+            grep -q "INF Steward.Desktop.App: Steward .* starting (linux," /out/logs/*.log || { echo "no startup line in the app log"; exit 1; }
+            echo "steward from the rpm ran for 15 seconds"'
+
       - uses: actions/upload-artifact@v7
         if: always() && matrix.arch == 'x64'
         with:
           name: smoke-linux-x64
           path: smoke
           if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v7
+        if: matrix.arch == 'x64'
+        with:
+          name: login-screen-linux-x64
+          path: smoke/linux-x64.png
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@v7
         with:
@@ -388,7 +487,7 @@ jobs:
           plutil -lint "$app/Contents/Info.plist"
           iconset="$RUNNER_TEMP/Steward.iconset"
           mkdir -p "$iconset"
-          src=src/Steward.App/Assets/Steward-256.png
+          src=src/Steward.Desktop/Assets/Steward-256.png
           for size in 16 32 128 256; do
             sips -z "$size" "$size" "$src" --out "$iconset/icon_${size}x${size}.png" >/dev/null
           done
@@ -505,6 +604,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v8
         with:
           name: desktop-win-x64
@@ -562,11 +663,23 @@ jobs:
           }
           if ($failures) { throw "$($failures.Count) of $($runs.Count) launches failed" }
 
+      - name: Open the real tray menu, press Down, then check Escape closes it
+        if: always()
+        shell: pwsh
+        run: ./.github/scripts/Test-TrayMenu.ps1 -Exe (Resolve-Path app\Steward.exe).Path -OutDir smoke\tray
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: smoke-windows-x64
           path: smoke
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: windows-tray-x64
+          path: smoke/tray
           if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v7
@@ -683,6 +796,12 @@ jobs:
           if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v7
+        with:
+          name: login-screen-macos-${{ matrix.arch }}
+          path: smoke/macos-${{ matrix.arch }}-default.png
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: macos-popups-${{ matrix.arch }}
@@ -691,9 +810,48 @@ jobs:
             smoke/logs/popups-*
           if-no-files-found: ignore
 
+  virus-scan:
+    name: Virus scan
+    needs: [windows-exe, linux-packages, macos-dmg]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      summary: ${{ steps.scan.outputs.summary }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-*
+          path: scan
+          merge-multiple: true
+
+      - name: Install ClamAV and update signatures
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q clamav
+          sudo systemctl stop clamav-freshclam || true
+          sudo freshclam || { sleep 30; sudo freshclam; }
+
+      - name: Scan every pre-release asset
+        id: scan
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path report -Force | Out-Null
+          ./.github/scripts/Invoke-VirusScan.ps1 -ScanDirectory scan -ReportPath report/virus-scan-report.html `
+            -RunUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: virus-scan-report
+          path: report
+          if-no-files-found: ignore
+
   pre-release:
     name: Publish pre-release
-    needs: [version, windows-exe, windows-msix, linux-packages, macos-dmg, ui-tests, windows-smoke, macos-smoke]
+    needs: [version, windows-exe, windows-msix, windows-msi, linux-packages, macos-dmg, ui-tests, windows-smoke, macos-smoke, virus-scan]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -703,21 +861,40 @@ jobs:
       TAG: desktop-preview-${{ github.run_number }}
       DISPLAY_VERSION: ${{ needs.version.outputs.display }}
     steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v8
         with:
           pattern: desktop-*
           path: release
           merge-multiple: true
 
+      - uses: actions/download-artifact@v8
+        with:
+          name: virus-scan-report
+          path: release
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: certification-report
+          path: certification
+
       - name: Write release notes
         shell: bash
+        env:
+          VIRUS_SCAN: ${{ needs.virus-scan.outputs.summary }}
+          CERT_RESULT: ${{ needs.windows-msix.outputs.cert-result }}
+          CERT_DETAIL: ${{ needs.windows-msix.outputs.cert-detail }}
         run: |
+          cp certification/certification-report.html release/
           {
-            echo "Preview builds of the Avalonia rebuild of Steward $DISPLAY_VERSION, from the \`$GITHUB_REF_NAME\` branch at $GITHUB_SHA. They are for testing and are not for general use."
+            pwsh -NoProfile -File .github/scripts/New-TrustHeader.ps1 -Tag "$TAG" -VirusScanSummary "$VIRUS_SCAN" -CertificationResult "$CERT_RESULT" -CertificationDetail "$CERT_DETAIL"
+            echo
+            echo "Preview builds of Steward $DISPLAY_VERSION, from \`$GITHUB_REF_NAME\` at $GITHUB_SHA. They are for testing and are not for general use. On Windows, the usual install is the Microsoft Store or the MSI of the latest release."
             echo
             echo "On Windows, extract the zip and run \`Steward.exe\`. The \`licences\` folder holds the licences of the bundled fonts."
             echo
-            echo "The \`.msix\` and \`.msixupload\` are the unsigned Microsoft Store package of this build, for Store submission tests. Windows installs them only after the Store signs them."
+            echo "The certification report comes from a Windows App Certification Kit run on this build's Store package. This pre-release does not attach that package."
             echo
             echo "macOS does not open these builds until you remove the quarantine flag, because they are not notarised. Drag Steward to Applications, then run \`xattr -dr com.apple.quarantine /Applications/Steward.app\` in Terminal. Alternatively, open Steward once, then go to System Settings > Privacy & Security and select Open Anyway."
             echo

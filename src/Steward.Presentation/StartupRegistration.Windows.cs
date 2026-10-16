@@ -5,7 +5,7 @@ namespace Steward.App;
 internal static partial class StartupRegistration
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "Steward";
+    private static readonly string ValueName = AppInfo.IsPreviewZip ? "Steward Preview" : "Steward";
 
     public static bool IsEnabled()
     {

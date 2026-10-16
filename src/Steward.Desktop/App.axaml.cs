@@ -82,7 +82,7 @@ public sealed partial class App : Application
         desktop.Exit += (_, _) => _host.Dispose();
 
         var logger = _host.Services.GetRequiredService<ILogger<App>>();
-        logger.Info($"Steward {AppInfo.StoreDisplayVersion ?? MainViewModel.InstalledVersion} starting ({AppInfo.LogName}, {RuntimeInformation.OSDescription}, {RuntimeInformation.ProcessArchitecture})");
+        logger.Info($"Steward {AppInfo.StoreDisplayVersion ?? MainViewModel.InstalledVersion} starting ({AppInfo.BuildName}, {RuntimeInformation.OSDescription}, {RuntimeInformation.ProcessArchitecture})");
         Dispatcher.UIThread.UnhandledException += (_, e) => logger.Crit(e.Exception, "Unhandled UI exception");
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             logger.Crit(e.ExceptionObject as Exception, "Unhandled AppDomain exception");

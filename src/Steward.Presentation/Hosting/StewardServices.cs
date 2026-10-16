@@ -26,7 +26,7 @@ public static class StewardServices
         SecretProtection.Folder = Path.Combine(dataFolder, "secrets");
 
         builder.Logging.AddDebug();
-        builder.Services.AddSingleton<ILoggerProvider>(_ => new FileLoggerProvider(Path.Combine(dataFolder, "logs"), AppInfo.LogName));
+        builder.Services.AddSingleton<ILoggerProvider>(_ => new FileLoggerProvider(Path.Combine(dataFolder, "logs"), AppInfo.BuildName));
         builder.Logging.AddFilter("Steward", LogLevel.Information);
         builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
         builder.Logging.AddFilter("System", LogLevel.Warning);

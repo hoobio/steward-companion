@@ -19,9 +19,9 @@ concurrency:
 env:
   DOTNET_SDK_VERSION: "10.0.203"
   SOLUTION_PATH: Steward.slnx
-  PROJECT_PATH: src/Steward.App/Steward.App.csproj
-  APPXMANIFEST_PATH: src/Steward.App/Package.appxmanifest
+  PROJECT_PATH: src/Steward.Desktop/Steward.Desktop.csproj
   WIX_SOURCE_PATH: installer/Steward.wxs
+  AVALONIA_TELEMETRY_OPTOUT: "1"
 
 jobs:
   release-please:
@@ -42,8 +42,16 @@ jobs:
           app-private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
 
   lint-and-test:
-    name: Lint & Test
-    runs-on: windows-latest
+    name: Lint & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows
+            runner: windows-latest
+          - os: linux
+            runner: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -54,10 +62,28 @@ jobs:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
       - name: Build
+        if: runner.os == 'Windows'
         run: dotnet build ${{ env.SOLUTION_PATH }} -c Release
 
       - name: Test
-        run: dotnet test --project tests/Steward.Core.Tests/Steward.Core.Tests.csproj -c Release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          dotnet test --project tests/Steward.Core.Tests/Steward.Core.Tests.csproj -c Release --no-build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test --project tests/Steward.Desktop.Tests/Steward.Desktop.Tests.csproj -c Release --no-build
+
+      - name: Install Xvfb
+        if: runner.os == 'Linux'
+        run: command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xvfb >/dev/null; }
+
+      - name: Build and test
+        if: runner.os == 'Linux'
+        run: |
+          dotnet build tests/Steward.Core.Tests/Steward.Core.Tests.csproj -c Release -f net10.0 -p:EnableWindowsTargeting=true
+          dotnet build tests/Steward.Desktop.Tests/Steward.Desktop.Tests.csproj -c Release -f net10.0 -p:EnableWindowsTargeting=true
+          dotnet test --project tests/Steward.Core.Tests/Steward.Core.Tests.csproj -c Release -f net10.0 --no-build -p:EnableWindowsTargeting=true
+          xvfb-run -a -s "-screen 0 1920x1200x24" dotnet test --project tests/Steward.Desktop.Tests/Steward.Desktop.Tests.csproj -c Release -f net10.0 --no-build -p:EnableWindowsTargeting=true
 
   build-msi:
     name: Build MSI
@@ -96,11 +122,10 @@ jobs:
             $attempt++
             dotnet publish $env:PROJECT_PATH `
               -c Release `
-              -p:Platform=x64 `
-              -p:RuntimeIdentifier=win-x64 `
-              -p:WindowsPackageType=None `
-              -p:WindowsAppSDKSelfContained=true `
-              -p:SelfContained=true `
+              -f net10.0-windows10.0.26100.0 `
+              -r win-x64 `
+              --self-contained `
+              -p:PublishSingleFile=false `
               -p:GitHubRelease=true `
               -p:Version=$env:VERSION `
               -o $env:PUBLISH_DIR
@@ -184,52 +209,21 @@ jobs:
           $displayVersion = if ($env:RELEASE_CREATED -eq 'true') { $release } else { "$nextVersion-pre.$($env:GITHUB_RUN_NUMBER)" }
           "display-version=$displayVersion" | Out-File -Append $env:GITHUB_OUTPUT
 
-      - name: Stamp Package.appxmanifest version
-        uses: hoobio/pipeline-tools/pipeline/github/step/stamp-msix-version@v2.3.2
-        with:
-          manifest-path: ${{ env.APPXMANIFEST_PATH }}
-          version: ${{ steps.version.outputs.version }}
-
-      - name: Build MSIX
-        id: build-msix
-        continue-on-error: true
-        uses: hoobio/pipeline-tools/pipeline/github/step/build-msix-dotnet@v2.3.2
-        env:
-          GitHubRelease: 'true'
-          StorePreRelease: ${{ needs.release-please.outputs.release_created == 'true' && 'false' || 'true' }}
-          StoreDisplayVersion: ${{ steps.version.outputs.display-version }}
-        with:
-          project-path: ${{ env.PROJECT_PATH }}
-          platform: x64
-          output-dir: ${{ github.workspace }}\AppPackages
-
-      - name: Build MSIX (retry)
-        if: steps.build-msix.outcome == 'failure'
-        uses: hoobio/pipeline-tools/pipeline/github/step/build-msix-dotnet@v2.3.2
-        env:
-          GitHubRelease: 'true'
-          StorePreRelease: ${{ needs.release-please.outputs.release_created == 'true' && 'false' || 'true' }}
-          StoreDisplayVersion: ${{ steps.version.outputs.display-version }}
-        with:
-          project-path: ${{ env.PROJECT_PATH }}
-          platform: x64
-          output-dir: ${{ github.workspace }}\AppPackages
-
-      - name: Package msixupload
+      - name: Build MSIX and msixupload
         shell: pwsh
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          DISPLAY_VERSION: ${{ steps.version.outputs.display-version }}
+          PRE_RELEASE: ${{ needs.release-please.outputs.release_created != 'true' }}
           STAGE_DIR: ${{ github.workspace }}\staging\msix-x64
         run: |
-          $msix = Get-ChildItem -Path "${{ github.workspace }}\AppPackages" -Recurse -Filter *.msix -ErrorAction Stop | Select-Object -First 1
-          if (-not $msix) { throw "No MSIX produced by dotnet publish" }
+          $ErrorActionPreference = 'Stop'
+          $package = ./scripts/Build-DesktopMsix.ps1 -Identity Store -Version $env:VERSION -StoreDisplayVersion $env:DISPLAY_VERSION `
+            -PreRelease:($env:PRE_RELEASE -eq 'true') -OutputDirectory "$env:RUNNER_TEMP\msix"
+          $package | Format-List | Out-String | Write-Host
           New-Item -ItemType Directory -Path $env:STAGE_DIR -Force | Out-Null
-          Copy-Item -Path $msix.FullName -Destination (Join-Path $env:STAGE_DIR "Steward-$env:VERSION-x64.msix")
-          $zip = Join-Path $env:STAGE_DIR "Steward-$env:VERSION-x64.zip"
-          Compress-Archive -Path $msix.FullName -DestinationPath $zip -Force
-          $upload = Join-Path $env:STAGE_DIR "Steward-$env:VERSION-Store-x64.msixupload"
-          Move-Item -Path $zip -Destination $upload -Force
-          Write-Host "Produced $upload"
+          Copy-Item $package.Msix, $package.MsixUpload $env:STAGE_DIR
+          Get-ChildItem $env:STAGE_DIR | Format-Table Name, Length | Out-String | Write-Host
 
       - name: Upload msixupload artifact
         uses: actions/upload-artifact@v7
@@ -245,6 +239,40 @@ jobs:
           path: ${{ github.workspace }}\staging\msix-x64\Steward-${{ steps.version.outputs.version }}-x64.msix
           if-no-files-found: error
 
+  certify:
+    name: Windows App Certification Kit
+    needs: [build-msix]
+    if: always() && needs.build-msix.result == 'success'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      result: ${{ steps.wack.outputs.result }}
+      detail: ${{ steps.wack.outputs.detail }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download MSIX
+        uses: actions/download-artifact@v8
+        with:
+          name: msix-x64
+          path: package
+
+      - name: Run the kit on the MSIX
+        id: wack
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path report -Force | Out-Null
+          ./.github/scripts/Invoke-AppCert.ps1 -MsixPath (Get-ChildItem package\*.msix).FullName -ReportPath report\certification-report.html `
+            -XmlPath report\appcert.xml -RunUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: certification-report
+          path: report
+          if-no-files-found: error
+
   virus-scan:
     name: Virus scan
     needs: [build-msix, build-msi]
@@ -255,6 +283,8 @@ jobs:
     outputs:
       summary: ${{ steps.scan.outputs.summary }}
     steps:
+      - uses: actions/checkout@v7
+
       - name: Download MSIX
         uses: actions/download-artifact@v8
         with:
@@ -283,16 +313,22 @@ jobs:
 
       - name: Scan packages
         id: scan
+        shell: pwsh
         run: |
-          # The default 100MB limits skip a large package silently; raised here, and an exceeded limit alerts as a detection.
-          clamscan --recursive --infected --max-filesize=4000M --max-scansize=4000M --max-files=100000 --alert-exceeds-max=yes scan
-          IFS=/ read -r engine signatures signed <<< "$(clamscan --version)"
-          files=$(ls scan | sed 's/.*/`&`/' | paste -sd ' ')
-          echo "summary=no threats found in ${files} by ${engine} (signatures ${signatures}, ${signed})." >> "$GITHUB_OUTPUT"
+          New-Item -ItemType Directory -Path report -Force | Out-Null
+          ./.github/scripts/Invoke-VirusScan.ps1 -ScanDirectory scan -ReportPath report/virus-scan-report.html `
+            -RunUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: virus-scan-report
+          path: report
+          if-no-files-found: ignore
 
   release:
     name: Publish Release
-    needs: [release-please, lint-and-test, build-msix, build-msi, virus-scan]
+    needs: [release-please, lint-and-test, build-msix, build-msi, virus-scan, certify]
     if: >-
       always()
       && needs.release-please.outputs.release_created == 'true'
@@ -350,12 +386,32 @@ jobs:
           file-path: release/Steward-${{ needs.build-msi.outputs.version }}-x64.msi
           github-token: ${{ github.token }}
 
+      - name: Download the reports
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*-report"
+          path: reports
+          merge-multiple: true
+
+      - name: Attach the reports to the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          for report in reports/virus-scan-report.html reports/certification-report.html; do
+            [ -f "$report" ] && gh release upload "$TAG" "$report" --clobber
+          done
+          true
+
       - name: Stack release notes back to the last minor
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
           VIRUS_SCAN: ${{ needs.virus-scan.outputs.summary }}
+          CERT_RESULT: ${{ needs.certify.outputs.result }}
+          CERT_DETAIL: ${{ needs.certify.outputs.detail }}
         run: |
           $version = $env:TAG.TrimStart('v')
           $notes = [System.Collections.Generic.List[string]]::new()
@@ -371,20 +427,8 @@ jobs:
             if ($started) { $notes.Add($line) }
           }
           if ($notes.Count -eq 0) { throw "No CHANGELOG.md section for $version" }
-          $repo = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY"
-          $header = @(
-            "<a href=`"https://apps.microsoft.com/detail/9PBKMZFKZHKX`"><img src=`"https://get.microsoft.com/images/en-us%20dark.svg`" alt=`"Get it from Microsoft`" height=`"40`"></a> <a href=`"$repo/actions/workflows/codeql.yaml`"><img src=`"$repo/actions/workflows/codeql.yaml/badge.svg`" alt=`"CodeQL`"></a>"
-            ''
-            "- **Microsoft Store:** Microsoft scans, certifies and signs the Store version before it reaches you."
-            "- **Open source:** built from commit [``$($env:GITHUB_SHA.Substring(0, 7))``]($repo/commit/$env:GITHUB_SHA) by [this public workflow run]($repo/actions/runs/$env:GITHUB_RUN_ID). The Store package and the files attached here come from that run."
-            "- **Code analysis:** [CodeQL]($repo/actions/workflows/codeql.yaml) checks the source for security issues on every change."
-          )
-          if ($env:VIRUS_SCAN) { $header += "- **Virus scan:** $env:VIRUS_SCAN" }
-          $header += @(
-            "- **Privacy:** no telemetry or analytics. The [privacy policy]($repo/blob/main/PRIVACY.md) lists what Steward reads, stores and sends."
-            ''
-          )
-          Set-Content -Path notes.md -Value ($header + $notes)
+          $header = ./.github/scripts/New-TrustHeader.ps1 -Tag $env:TAG -VirusScanSummary $env:VIRUS_SCAN -CertificationResult $env:CERT_RESULT -CertificationDetail $env:CERT_DETAIL
+          Set-Content -Path notes.md -Value (@($header) + $notes)
           gh release edit $env:TAG --notes-file notes.md
           if ($LASTEXITCODE -ne 0) { throw "gh release edit failed (exit $LASTEXITCODE)" }
 

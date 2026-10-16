@@ -6,14 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
     <PackageVersion Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.9169" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageVersion Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
-    <PackageVersion Include="CommunityToolkit.WinUI.Controls.Segmented" Version="8.2.251219" />
-    <PackageVersion Include="H.NotifyIcon.WinUI" Version="2.4.1" />
-    <PackageVersion Include="H.NotifyIcon" Version="2.4.1" />
-    <PackageVersion Include="H.GeneratedIcons.System.Drawing" Version="2.4.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />

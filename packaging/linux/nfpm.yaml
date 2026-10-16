@@ -20,15 +20,15 @@ contents:
     type: symlink
   - src: ./packaging/linux/steward.desktop
     dst: /usr/share/applications/steward.desktop
-  - src: ./src/Steward.App/Assets/Square44x44Logo.targetsize-16_altform-unplated.png
+  - src: ./src/Steward.Desktop/Assets/Square44x44Logo.targetsize-16_altform-unplated.png
     dst: /usr/share/icons/hicolor/16x16/apps/steward.png
-  - src: ./src/Steward.App/Assets/Square44x44Logo.targetsize-24_altform-unplated.png
+  - src: ./src/Steward.Desktop/Assets/Square44x44Logo.targetsize-24_altform-unplated.png
     dst: /usr/share/icons/hicolor/24x24/apps/steward.png
-  - src: ./src/Steward.App/Assets/Square44x44Logo.targetsize-32_altform-unplated.png
+  - src: ./src/Steward.Desktop/Assets/Square44x44Logo.targetsize-32_altform-unplated.png
     dst: /usr/share/icons/hicolor/32x32/apps/steward.png
-  - src: ./src/Steward.App/Assets/Square44x44Logo.targetsize-48_altform-unplated.png
+  - src: ./src/Steward.Desktop/Assets/Square44x44Logo.targetsize-48_altform-unplated.png
     dst: /usr/share/icons/hicolor/48x48/apps/steward.png
-  - src: ./src/Steward.App/Assets/Steward-256.png
+  - src: ./src/Steward.Desktop/Assets/Steward-256.png
     dst: /usr/share/icons/hicolor/256x256/apps/steward.png
   - src: ./src/Steward.Desktop/Assets/Fonts/*.txt
     dst: /usr/share/doc/steward/

@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-Builds the Avalonia app (Steward.Desktop) as an unsigned x64 MSIX layout, .msix and .msixupload.
+Builds Steward (src/Steward.Desktop) as an unsigned x64 MSIX layout, .msix and .msixupload.
 #>
 [CmdletBinding()]
 param(
@@ -15,7 +15,9 @@ param(
     [ValidateNotNullOrEmpty()]
     [string] $OutputDirectory = (Join-Path ([IO.Path]::GetTempPath()) 'Steward.DesktopMsix'),
 
-    [string] $StoreDisplayVersion
+    [string] $StoreDisplayVersion,
+
+    [switch] $PreRelease
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,7 +25,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $projectPath = Join-Path $repoRoot 'src\Steward.Desktop\Steward.Desktop.csproj'
 $manifestSource = Join-Path $repoRoot 'packaging\windows\Package.appxmanifest'
-$assetSource = Join-Path $repoRoot 'src\Steward.App\Assets'
+$assetSource = Join-Path $repoRoot 'src\Steward.Desktop\Assets'
 
 function Find-SdkTool {
     [CmdletBinding()]
@@ -88,6 +90,7 @@ $publishArgs = @(
     '-o', $layout
 )
 if ($StoreDisplayVersion) { $publishArgs += "-p:StoreDisplayVersion=$StoreDisplayVersion" }
+if ($PreRelease) { $publishArgs += '-p:StorePreRelease=true' }
 Write-Verbose "Publishing Steward.Desktop ($Identity, $Version) to $layout"
 $attempt = 0
 do {
@@ -97,7 +100,7 @@ do {
     Write-Warning "dotnet publish failed (exit $LASTEXITCODE), attempt $attempt of 3"
 } while ($attempt -lt 3)
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)" }
-if (-not (Test-Path -LiteralPath (Join-Path $layout 'Steward.Desktop.exe'))) { throw 'The publish produced no Steward.Desktop.exe' }
+if (-not (Test-Path -LiteralPath (Join-Path $layout 'Steward.App.exe'))) { throw 'The publish produced no Steward.App.exe' }
 
 $visualAssets = Get-ChildItem -LiteralPath $assetSource -File -Filter *.png |
     Where-Object Name -match '^(SplashScreen|Square150x150Logo|Square44x44Logo|StoreLogo|Wide310x150Logo)[.]'

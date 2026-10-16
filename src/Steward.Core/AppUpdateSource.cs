@@ -10,13 +10,13 @@ public enum AppUpdateSource
 
 public static class AppUpdateSources
 {
-    // The Avalonia build has no Store package or MSI of its own yet, so installing either would replace it with the WinUI app.
-    public static AppUpdateSource Resolve(bool isWindows, bool isPackaged, bool isGitHubRelease, bool isAvalonia) =>
-        (isGitHubRelease, isWindows && !isAvalonia, isPackaged) switch
+    public static AppUpdateSource Resolve(bool isWindows, bool isPackaged, bool isGitHubRelease, bool isPreviewZip) =>
+        (isGitHubRelease, isWindows, isPackaged, isPreviewZip) switch
         {
-            (false, _, _) => AppUpdateSource.None,
-            (true, false, _) => AppUpdateSource.ReleasePage,
-            (true, true, true) => AppUpdateSource.Store,
-            (true, true, false) => AppUpdateSource.Msi,
+            (false, _, _, _) => AppUpdateSource.None,
+            (true, _, false, true) => AppUpdateSource.ReleasePage,
+            (true, false, _, _) => AppUpdateSource.ReleasePage,
+            (true, true, true, _) => AppUpdateSource.Store,
+            (true, true, false, _) => AppUpdateSource.Msi,
         };
 }

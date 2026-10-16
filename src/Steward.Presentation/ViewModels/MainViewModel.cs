@@ -231,7 +231,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var shown = Uri.TryCreate(target, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp) ? LogRedactor.PathOnly(target) : target;
         _logger.Warn(null, $"Could not open {shown}: {failure}");
-        StatusMessage = $"Could not open {shown}: {failure}.";
+        StatusMessage = $"Could not open {shown}: {failure}.{(_updateHint is { } hint && hint.Target == target ? $" {hint.Hint}" : "")}";
     });
 
     private Task WriteMeAfterInstallAsync()
@@ -279,7 +279,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string? UserName { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusMessageIsOpen))]
+    [NotifyPropertyChangedFor(nameof(StatusMessageIsOpen), nameof(GateAppUpdateMessage))]
     public partial string? StatusMessage { get; set; }
 
     [ObservableProperty]
@@ -346,7 +346,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial string? SignInError { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(NotAuthorizedVisibility), nameof(SignInFailedVisibility), nameof(IsApiReachable), nameof(StatusActionVisibility), nameof(StatusActionLabel), nameof(ClientOutdatedVisibility), nameof(UpdateAllEnabled))]
+    [NotifyPropertyChangedFor(nameof(TimeoutVisibility), nameof(SessionExpiredVisibility), nameof(UnreachableVisibility), nameof(NotAuthorizedVisibility), nameof(SignInFailedVisibility), nameof(IsApiReachable), nameof(StatusActionVisibility), nameof(StatusActionLabel), nameof(ClientOutdatedVisibility), nameof(UpdateAllEnabled), nameof(GateAppUpdateMessage))]
     [NotifyCanExecuteChangedFor(nameof(UpdateAllCommand), nameof(UpdateAllInstallsCommand))]
     public partial GateFailure Failure { get; set; }
 
@@ -425,7 +425,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial AppUpdateCheck? LastAppUpdateCheck { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AppUpdateVisibility), nameof(AppUpdateIdleVisibility), nameof(AppUpdateProgressVisibility), nameof(IsAppUpdateInProgress), nameof(AppUpdateActionLabel), nameof(AboutDescription), nameof(AboutActionLabel))]
+    [NotifyPropertyChangedFor(nameof(AppUpdateVisibility), nameof(AppUpdateIdleVisibility), nameof(AppUpdateProgressVisibility), nameof(IsAppUpdateInProgress), nameof(AppUpdateActionLabel), nameof(AboutDescription), nameof(AboutActionLabel), nameof(GateAppUpdateMessage))]
     [NotifyCanExecuteChangedFor(nameof(InstallAppUpdateCommand), nameof(CheckOrInstallAppUpdateCommand))]
     public partial StoreUpdateProgress AppUpdateProgress { get; set; } = StoreUpdateProgress.None;
 
@@ -437,18 +437,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool AppUpdateProgressVisibility => IsAppUpdateInProgress;
 
+    public string GateAppUpdateMessage => IsAppUpdateInProgress ? AppUpdateProgress.Text
+        : Failure == GateFailure.ClientOutdated ? string.Empty
+        : StatusMessage ?? string.Empty;
+
     public string AppUpdateTitle => AppInfo.UpdateSource == AppUpdateSource.Store
         ? "A Steward update is available in the Microsoft Store"
         : $"Steward {AppUpdate?.Version.TrimStart('v', 'V')} is available";
 
     public string AppUpdateActionLabel => IsAppUpdateInProgress ? "Installing…" : InstallUpdateLabel;
 
-    private static string InstallUpdateLabel => AppInfo.UpdateSource == AppUpdateSource.ReleasePage ? "Open release page" : "Install update";
+    private static string InstallUpdateLabel => AppInfo.UpdateSource == AppUpdateSource.ReleasePage && !InstallsReleaseInApp ? "Open release page" : "Install update";
 
     public Uri? AppUpdateChangelogUri => AppUpdate is null ? null
         : new Uri(AppInfo.UpdateSource == AppUpdateSource.Store
             ? "https://github.com/hoobio/steward-companion/releases/latest"
-            : $"https://github.com/hoobio/steward-companion/releases/tag/{Uri.EscapeDataString(AppUpdate.Version)}");
+            : AppUpdate.Website ?? $"https://github.com/hoobio/steward-companion/releases/tag/{Uri.EscapeDataString(AppUpdate.Version)}");
 
 #pragma warning disable CA1822 // x:Bind resolves these through a ViewModel instance
     public bool CheckForUpdatesVisibility => AppInfo.IsGitHubRelease;
@@ -741,6 +745,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!IsSignedIn)
         {
             SetAddonCatalogue(null);
+            if (AppInfo.UpdateSource == AppUpdateSource.ReleasePage)
+            {
+                await CheckAppUpdateAsync().ConfigureAwait(true);
+            }
+
             return;
         }
 
@@ -1042,7 +1051,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AppUpdate = AppInfo.UpdateSource switch
         {
             AppUpdateSource.Store => await CheckStoreUpdateAsync().ConfigureAwait(true),
-            AppUpdateSource.Msi or AppUpdateSource.ReleasePage => await CheckMsiUpdateAsync().ConfigureAwait(true),
+            AppUpdateSource.Msi => await CheckMsiUpdateAsync().ConfigureAwait(true),
+            AppUpdateSource.ReleasePage => await CheckReleaseUpdateAsync().ConfigureAwait(true),
             _ => null,
         };
     }
@@ -1075,7 +1085,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private static string UpdateCheckLabel => AppInfo.UpdateSource == AppUpdateSource.Msi ? "MSI update check" : "Release update check";
+    private const string UpdateCheckLabel = "MSI update check";
 
     private async Task InstallMsiUpdateAsync(AddonRelease release)
     {
@@ -1416,7 +1426,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (AppInfo.UpdateSource == AppUpdateSource.ReleasePage)
         {
-            OpenUri(AppUpdateChangelogUri!);
+            await InstallReleaseUpdateAsync(AppUpdate).ConfigureAwait(true);
             return;
         }
 
@@ -3086,14 +3096,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     _lastBannersSync = DateTimeOffset.Now;
                     await SyncBannersAsync().ConfigureAwait(true);
                 }
-                if (IsDue(_lastStoreCheck, StoreCheckInterval))
-                {
-                    await CheckAppUpdateAsync().ConfigureAwait(true);
-                }
             }
             else if (result == AuthCheckResult.Unreachable && _addonCatalogue is not null)
             {
                 await CheckAsync(background: true, CancellationToken.None, pullGuildRoster: false).ConfigureAwait(true);
+            }
+
+            // The update check uses no route behind /api/me, and a client_outdated build needs the update most.
+            if (IsSignedIn && IsDue(_lastStoreCheck, StoreCheckInterval))
+            {
+                await CheckAppUpdateAsync().ConfigureAwait(true);
             }
 
             await RestedXp.RefreshSessionAsync().ConfigureAwait(true);

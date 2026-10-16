@@ -1,6 +1,5 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Steward.App/Steward.App.csproj" />
     <Project Path="src/Steward.Core/Steward.Core.csproj" />
     <Project Path="src/Steward.Desktop/Steward.Desktop.csproj" />
     <Project Path="src/Steward.Presentation/Steward.Presentation.csproj" />

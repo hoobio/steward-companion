@@ -10,8 +10,6 @@ public static class AppInfo
     // The build flags are stamped on the app's own assembly, not on this library.
     public static readonly Assembly EntryAssembly = Assembly.GetEntryAssembly() ?? typeof(AppInfo).Assembly;
 
-    public static readonly string IconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Steward.ico");
-
     public static readonly bool IsGitHubRelease = EntryAssembly
         .GetCustomAttributes<AssemblyMetadataAttribute>()
         .Any(attribute => attribute.Key == "GitHubRelease" && attribute.Value == "true");
@@ -20,15 +18,15 @@ public static class AppInfo
         .GetCustomAttributes<AssemblyMetadataAttribute>()
         .Any(attribute => attribute.Key == "StorePreRelease" && attribute.Value == "true");
 
+    public static readonly bool IsPreviewZip = EntryAssembly
+        .GetCustomAttributes<AssemblyMetadataAttribute>()
+        .Any(attribute => attribute.Key == "PreviewZip" && attribute.Value == "true");
+
     public static readonly string? StoreDisplayVersion = EntryAssembly
         .GetCustomAttributes<AssemblyMetadataAttribute>()
         .FirstOrDefault(attribute => attribute.Key == "StoreDisplayVersion")?.Value is { Length: > 0 } value
             ? value
             : null;
-
-    public static readonly bool IsAvalonia = EntryAssembly
-        .GetCustomAttributes<AssemblyMetadataAttribute>()
-        .Any(attribute => attribute.Key == "UiStack" && attribute.Value == "Avalonia");
 
     public const string PackageFamilyName = "Hoobi.Steward_thayxpy3eqg0g";
 
@@ -43,19 +41,15 @@ public static class AppInfo
     public static readonly string BuildName = ResolveBuildName();
 
     public static readonly AppUpdateSource UpdateSource =
-        AppUpdateSources.Resolve(OperatingSystem.IsWindows(), IsPackaged, IsGitHubRelease, IsAvalonia);
+        AppUpdateSources.Resolve(OperatingSystem.IsWindows() && !IsWine, IsPackaged, IsGitHubRelease, IsPreviewZip);
 
     public static string BuildSuffix => IsGitHubRelease ? (IsPreRelease ? " (Pre-release)" : "")
         : BuildName == "debug" ? " (Debug)" : " (Development)";
 
     public static string WindowTitle => $"Steward{BuildSuffix}{(IsLinux ? " (Linux)" : "")}";
 
-    private const string AvaloniaSuffix = "-avalonia";
-
-    public static readonly string LogName = BuildName + (IsAvalonia ? AvaloniaSuffix : "");
-
     // The Store release and a Store flight are the same package on a machine, so they contend for the same instance.
-    public static readonly string Train = (BuildName == "prerelease" ? "store" : BuildName) + (IsAvalonia ? AvaloniaSuffix : "");
+    public static readonly string Train = BuildName == "prerelease" ? "store" : BuildName;
 
     public static string TrainDisplayName(string train) => train switch
     {
@@ -65,7 +59,7 @@ public static class AppInfo
         "debug" => "Debug",
         "linux" => "Linux",
         "macos" => "macOS",
-        _ when train.EndsWith(AvaloniaSuffix, StringComparison.Ordinal) => $"{TrainDisplayName(train[..^AvaloniaSuffix.Length])} (Avalonia)",
+        _ when train.EndsWith("-avalonia", StringComparison.Ordinal) => "preview",
         _ => train,
     };
 
@@ -83,7 +77,7 @@ public static class AppInfo
         (true, true, true) => "prerelease",
         (true, true, false) => "store",
         (true, false, _) => "dev",
-        (false, true, _) => OperatingSystem.IsWindows() ? "msi" : OperatingSystem.IsMacOS() ? "macos" : "linux",
+        (false, true, _) => OperatingSystem.IsWindows() ? (IsPreviewZip ? "preview" : "msi") :OperatingSystem.IsMacOS() ? "macos" : "linux",
         (false, false, _) => "debug",
     };
 

@@ -79,7 +79,7 @@ To remove everything, uninstall Steward and delete `%LocalAppData%\Steward`.
 
 Steward collects and sends the same data on every system. These parts differ:
 
-- **Data folder:** `~/.local/share/Steward` on Linux (or `$XDG_DATA_HOME/Steward`) and `~/Library/Application Support/Steward` on macOS, holding the same files as the table above except `update.log`, which only the MSI build writes.
+- **Data folder:** `~/.local/share/Steward` on Linux (or `$XDG_DATA_HOME/Steward`) and `~/Library/Application Support/Steward` on macOS, holding the same files as the table above.
 - **Session encryption:** the key that encrypts the saved sessions is kept in the Secret Service keyring on Linux and the login Keychain on macOS. With no keyring, it is kept in `secrets/session.key` in the data folder, readable only by your user account.
 - **Finding WoW:** Steward looks for World of Warcraft in Wine, Lutris, Heroic and Steam prefixes in your home folder, and reads Lutris game configs to find them.
 - **Start on login:** an autostart entry in `~/.config/autostart` on Linux, or a LaunchAgent in `~/Library/LaunchAgents` on macOS.

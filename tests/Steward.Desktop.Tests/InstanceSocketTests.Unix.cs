@@ -84,22 +84,22 @@ public sealed class InstanceSocketTests : IDisposable
     [Fact]
     public async Task Quit_goes_to_a_live_other_train_and_skips_its_own_and_dead_ones()
     {
-        StaleSocket(InstanceSocket.PathFor(_directory, "dev-avalonia"));
-        using var own = InstanceSocket.Listen(InstanceSocket.PathFor(_directory, "debug-avalonia"));
-        using var other = InstanceSocket.Listen(InstanceSocket.PathFor(_directory, "msi-avalonia"));
+        StaleSocket(InstanceSocket.PathFor(_directory, "macos"));
+        using var own = InstanceSocket.Listen(InstanceSocket.PathFor(_directory, "debug"));
+        using var other = InstanceSocket.Listen(InstanceSocket.PathFor(_directory, "linux"));
         var quit = new TaskCompletionSource<string>();
         _ = InstanceSocket.AcceptAsync(own, message => quit.TrySetResult("own:" + message), _ => { }, Patience);
         _ = InstanceSocket.AcceptAsync(other, message => quit.TrySetResult(message), _ => { }, Patience);
 
-        Assert.Equal("msi-avalonia", InstanceSocket.QuitOtherTrain(_directory, "debug-avalonia"));
+        Assert.Equal("linux", InstanceSocket.QuitOtherTrain(_directory, "debug"));
         Assert.Equal(InstanceSocket.Quit, await quit.Task.WaitAsync(Patience, TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public void No_other_train_answers_quit_when_none_is_live()
     {
-        StaleSocket(InstanceSocket.PathFor(_directory, "msi-avalonia"));
-        Assert.Null(InstanceSocket.QuitOtherTrain(_directory, "debug-avalonia"));
+        StaleSocket(InstanceSocket.PathFor(_directory, "linux"));
+        Assert.Null(InstanceSocket.QuitOtherTrain(_directory, "debug"));
     }
 
     [Fact]

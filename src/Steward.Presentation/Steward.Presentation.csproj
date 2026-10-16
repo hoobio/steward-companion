@@ -16,7 +16,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Steward.App" />
     <InternalsVisibleTo Include="Steward.Desktop" />
     <InternalsVisibleTo Include="Steward.Desktop.Tests" />
   </ItemGroup>

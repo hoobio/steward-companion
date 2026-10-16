@@ -10,9 +10,10 @@
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyTitle>Steward</AssemblyTitle>
-    <ApplicationIcon>..\Steward.App\Assets\Steward.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\Steward.ico</ApplicationIcon>
     <GitHubRelease Condition="'$(GitHubRelease)' == ''">false</GitHubRelease>
     <StorePreRelease Condition="'$(StorePreRelease)' == ''">false</StorePreRelease>
+    <PreviewZip Condition="'$(PreviewZip)' == ''">false</PreviewZip>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
@@ -26,14 +27,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\Steward.App\appsettings.json" Link="appsettings.json" LogicalName="Steward.Desktop.appsettings.json" />
-    <AvaloniaResource Include="..\Steward.App\Assets\Steward.ico" Link="Assets\Steward.ico" />
-    <AvaloniaResource Include="..\Steward.App\Assets\Steward-256.png" Link="Assets\Steward-256.png" />
-    <AvaloniaResource Include="..\Steward.App\Assets\Professions.png" Link="Assets\Professions.png" />
-    <AvaloniaResource Include="..\Steward.App\Assets\GuildProfessions.png" Link="Assets\GuildProfessions.png" />
-    <AvaloniaResource Include="..\Steward.App\Assets\GuildRoster.png" Link="Assets\GuildRoster.png" />
-    <AvaloniaResource Include="..\Steward.App\Assets\Journeys.png" Link="Assets\Journeys.png" />
-    <AvaloniaResource Include="..\Steward.App\Assets\Products\*.png" Link="Assets\Products\%(Filename)%(Extension)" />
+    <EmbeddedResource Include="appsettings.json" LogicalName="Steward.Desktop.appsettings.json" />
+    <AvaloniaResource Include="Assets\Steward.ico" />
+    <AvaloniaResource Include="Assets\Steward-256.png" />
+    <AvaloniaResource Include="Assets\Professions.png" />
+    <AvaloniaResource Include="Assets\GuildProfessions.png" />
+    <AvaloniaResource Include="Assets\GuildRoster.png" />
+    <AvaloniaResource Include="Assets\Journeys.png" />
+    <AvaloniaResource Include="Assets\Products\*.png" />
     <AvaloniaResource Include="Assets\Fonts\*.ttf" />
     <Content Include="Assets\Fonts\*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
@@ -41,7 +42,7 @@
   <ItemGroup>
     <AssemblyMetadata Include="GitHubRelease" Value="$(GitHubRelease)" />
     <AssemblyMetadata Include="StorePreRelease" Value="$(StorePreRelease)" />
-    <AssemblyMetadata Include="UiStack" Value="Avalonia" />
+    <AssemblyMetadata Include="PreviewZip" Value="$(PreviewZip)" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(StoreDisplayVersion)' != ''">
@@ -73,5 +74,10 @@
     <ProjectReference Include="..\Steward.Core\Steward.Core.csproj" />
     <ProjectReference Include="..\Steward.Presentation\Steward.Presentation.csproj" />
   </ItemGroup>
+
+  <!-- Installed WinUI builds start Steward.App.exe from the Run value, pins, the MSI's taskkill and the Store manifest, so a Windows publish keeps that name. -->
+  <Target Name="NameWindowsExeStewardApp" AfterTargets="Publish" Condition="'$(TargetPlatformIdentifier)' == 'windows' and $(RuntimeIdentifier.StartsWith('win'))">
+    <Move SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFiles="$(PublishDir)Steward.App.exe" />
+  </Target>
 
 </Project>

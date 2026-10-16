@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 
 namespace Steward.Desktop.Services;
@@ -22,6 +24,21 @@ public static class TrayMenuFocus
             {
                 presenter.Focusable = true;
                 window.Activated += (_, _) => Dispatcher.UIThread.Post(() => presenter.Focus());
+                // MoveSelection focuses the item with NavigationMethod.Unspecified, so it never gets :focus-visible and the selected-item style draws no highlight.
+                presenter.AddHandler(InputElement.KeyDownEvent, (_, e) =>
+                {
+                    if (e.Key is Key.Up or Key.Down or Key.Home or Key.End)
+                    {
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            if (presenter.ContainerFromIndex(presenter.SelectedIndex) is { } item)
+                            {
+                                presenter.Focus();
+                                item.Focus(NavigationMethod.Directional);
+                            }
+                        });
+                    }
+                }, RoutingStrategies.Bubble, handledEventsToo: true);
             }
         });
     }

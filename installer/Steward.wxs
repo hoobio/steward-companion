@@ -37,7 +37,7 @@
 
     <Media Id="1" Cabinet="Steward.cab" EmbedCab="yes" CompressionLevel="high" />
 
-    <Icon Id="StewardIcon" SourceFile="$(var.PayloadDir)\Assets\Steward.ico" />
+    <Icon Id="StewardIcon" SourceFile="$(sys.SOURCEFILEDIR)..\src\Steward.Desktop\Assets\Steward.ico" />
 
     <Property Id="ARPPRODUCTICON" Value="StewardIcon" />
     <Property Id="ARPHELPLINK" Value="https://github.com/hoobio/steward-companion" />
@@ -73,7 +73,8 @@
     </Feature>
 
     <!-- A tray-parked Steward cancels WM_CLOSE and hides instead, so util:CloseApplication never freed the files; taskkill is what actually ends it. -->
-    <SetProperty Id="StopSteward"
+    <SetProperty Id="WixQuietExecCmdLine"
+                 Action="SetStopStewardCmdLine"
                  Value='"[SystemFolder]taskkill.exe" /f /im Steward.App.exe'
                  Before="StopSteward"
                  Sequence="execute" />
@@ -101,7 +102,8 @@
                  After="FindRelatedProducts"
                  Sequence="ui"
                  Condition="NOT WIX_UPGRADE_DETECTED" />
-    <SetProperty Id="RegisterStartup"
+    <SetProperty Id="WixQuietExecCmdLine"
+                 Action="SetRegisterStartupCmdLine"
                  Value='"[SystemFolder]reg.exe" add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Steward /t REG_SZ /d "\"[INSTALLFOLDER]Steward.App.exe\" --tray" /f'
                  Before="ExecuteAction"
                  Sequence="ui" />
@@ -118,6 +120,7 @@
     <UI>
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="99" />
       <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="99" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="SetRegisterStartupCmdLine" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed AND NOT WIX_UPGRADE_DETECTED" Order="97" />
       <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="RegisterStartup" Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed AND NOT WIX_UPGRADE_DETECTED" Order="98" />
       <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchSteward" Condition="NOT Installed OR WIX_UPGRADE_DETECTED" Order="99" />
     </UI>

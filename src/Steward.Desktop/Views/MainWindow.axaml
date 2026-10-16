@@ -319,6 +319,19 @@
                     HorizontalAlignment="Center"
                     TextAlignment="Center" />
                 <ui:FAInfoBar
+                    x:Name="GateAppUpdateBar"
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Informational"
+                    HorizontalAlignment="Center"
+                    IsVisible="{Binding AppUpdateVisibility}"
+                    Title="{Binding AppUpdateTitle}"
+                    Message="{Binding GateAppUpdateMessage}">
+                    <ui:FAInfoBar.ActionButton>
+                        <Button Content="{Binding AppUpdateActionLabel}" Command="{Binding InstallAppUpdateCommand}" />
+                    </ui:FAInfoBar.ActionButton>
+                </ui:FAInfoBar>
+                <ui:FAInfoBar
                     IsOpen="True"
                     IsClosable="False"
                     Severity="Warning"

@@ -16,7 +16,7 @@ public sealed class PackageManifestTests
 
     private static readonly XDocument Manifest = XDocument.Load(Path.Combine(RepoRoot, "packaging", "windows", "Package.appxmanifest"));
 
-    private static readonly string AppExe = typeof(App).Assembly.GetName().Name + ".exe";
+    private const string AppExe = "Steward.App.exe";
 
     [Fact]
     public void Store_identity_is_the_reserved_one()
@@ -28,7 +28,7 @@ public sealed class PackageManifestTests
     }
 
     [Fact]
-    public void Application_and_startup_task_start_the_avalonia_exe()
+    public void Application_and_startup_task_start_the_published_windows_exe()
     {
         var application = Manifest.Descendants(Foundation + "Application").Single();
         Assert.Equal(AppExe, (string?)application.Attribute("Executable"));
@@ -50,7 +50,7 @@ public sealed class PackageManifestTests
     [Fact]
     public void Every_visual_asset_has_a_file()
     {
-        var assets = Directory.GetFiles(Path.Combine(RepoRoot, "src", "Steward.App", "Assets"), "*.png").Select(Path.GetFileName).ToList();
+        var assets = Directory.GetFiles(Path.Combine(RepoRoot, "src", "Steward.Desktop", "Assets"), "*.png").Select(Path.GetFileName).ToList();
         var references = Manifest.Descendants()
             .SelectMany(e => e.Attributes().Select(a => a.Value).Append(e.HasElements ? "" : e.Value))
             .Where(v => v.StartsWith(@"Assets\", StringComparison.Ordinal))

@@ -32,6 +32,7 @@ public sealed class TrayMenuFocusTests(AvaloniaSession session)
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal(0, presenter.SelectedIndex);
+        Assert.Contains(":focus-visible", presenter.ContainerFromIndex(0)!.Classes);
         window.Close();
     });
 
