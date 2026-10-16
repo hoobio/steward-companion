@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.24.0](https://github.com/hoobio/steward-companion/compare/v0.23.2...v0.24.0) (2026-10-16)
+
+
+### Features
+
+* ✨ Steward runs one Avalonia app on Windows, Linux and macOS ([886dec9](https://github.com/hoobio/steward-companion/commit/886dec9649422fe198eb25dae3c3c7a1ac5d08a8))
+
+
+### Bug Fixes
+
+* 🐛 a locked StewardSync.lua no longer makes Steward re-check the server every few seconds ([8080a87](https://github.com/hoobio/steward-companion/commit/8080a87db572c69aa59c549a399e3a64303ab8ef))
+* 🐛 BugGrabber's in-game icon no longer fails on every start ([bf62a2c](https://github.com/hoobio/steward-companion/commit/bf62a2c67eac2059e7820daa7d0825c8d9e40f7e))
+* 🐛 confirmation dialogs start on Cancel, so a stray key never installs, removes or closes anything ([392c781](https://github.com/hoobio/steward-companion/commit/392c781124eac3e3a8488e68415dde3be36651bf))
+* 🐛 Enter saves the Edit install and Release channel dialogs again ([1e94ba2](https://github.com/hoobio/steward-companion/commit/1e94ba28335a3ab9049481ec280b273e9b1c798c))
+* 🐛 Settings links to the privacy policy, which lists what Steward reads, stores and sends ([fe07222](https://github.com/hoobio/steward-companion/commit/fe07222b3f8d624d2eacbf75d88dceef5ea7be04))
+* 🐛 the account entry's tooltip no longer starts with a comma while your name is still loading ([b04a31e](https://github.com/hoobio/steward-companion/commit/b04a31e1be464f9be7070207c28ab1a772e6794d))
+* 🐛 the Addons page error bar has a close button and even spacing above and below ([7b2581a](https://github.com/hoobio/steward-companion/commit/7b2581af5690d40cc65c63b2f002ed8af65f9804))
+* 🐛 the Addons table no longer flickers between its stacked and column layouts at certain window widths ([80743a3](https://github.com/hoobio/steward-companion/commit/80743a3c90fa9980c0abfed147c65f98aa287a66))
+* 🐛 the beta sync result shows as a toast that fades out after 6 seconds instead of a banner ([a3a9f7d](https://github.com/hoobio/steward-companion/commit/a3a9f7de84c2a77e97b0855f7f8c189432f6256e))
+* 🐛 the Guides page shows a loading row while your guides load from RestedXP instead of "No guides on this account" ([c631ff7](https://github.com/hoobio/steward-companion/commit/c631ff7bc5dfc798731394b2dcb207f88ad2599e))
+* 🐛 turning CurseForge management back on fills in BugSack and BugGrabber at once ([7424747](https://github.com/hoobio/steward-companion/commit/7424747ace865a3b0db361219338960564e35f9e))
+
 ## [0.23.2](https://github.com/hoobio/steward-companion/compare/v0.23.1...v0.23.2) (2026-10-14)
 
 
