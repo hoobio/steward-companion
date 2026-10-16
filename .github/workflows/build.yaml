@@ -34,12 +34,20 @@ jobs:
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - id: rp
         uses: hoobio/pipeline-tools/pipeline/github/step/release-please@v2.3.2
         with:
           app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
           app-private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+
+      - id: version
+        if: steps.rp.outputs.release_created == 'true'
+        shell: bash
+        env:
+          TAG: ${{ steps.rp.outputs.tag_name }}
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
   lint-and-test:
     name: Lint & Test (${{ matrix.os }})
@@ -239,6 +247,19 @@ jobs:
           path: ${{ github.workspace }}\staging\msix-x64\Steward-${{ steps.version.outputs.version }}-x64.msix
           if-no-files-found: error
 
+  desktop:
+    name: Desktop builds
+    needs: [release-please]
+    if: always() && needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/desktop-builds.yaml
+    with:
+      version: ${{ needs.release-please.outputs.version }}
+      display-version: ${{ needs.release-please.outputs.version }}
+      preview: false
+    secrets: inherit
+
   certify:
     name: Windows App Certification Kit
     needs: [build-msix]
@@ -275,7 +296,7 @@ jobs:
 
   virus-scan:
     name: Virus scan
-    needs: [build-msix, build-msi]
+    needs: [build-msix, build-msi, desktop]
     if: always() && needs.build-msix.result == 'success'
     runs-on: ubuntu-latest
     permissions:
@@ -284,6 +305,14 @@ jobs:
       summary: ${{ steps.scan.outputs.summary }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Download the Windows zip, Linux packages and dmgs
+        if: needs.desktop.result == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-*
+          path: scan
+          merge-multiple: true
 
       - name: Download MSIX
         uses: actions/download-artifact@v8
@@ -328,11 +357,12 @@ jobs:
 
   release:
     name: Publish Release
-    needs: [release-please, lint-and-test, build-msix, build-msi, virus-scan, certify]
+    needs: [release-please, lint-and-test, build-msix, build-msi, desktop, virus-scan, certify]
     if: >-
       always()
       && needs.release-please.outputs.release_created == 'true'
       && needs.lint-and-test.result == 'success'
+      && needs.desktop.result == 'success'
       && needs.virus-scan.result != 'failure'
     runs-on: ubuntu-latest
     permissions:
@@ -386,6 +416,22 @@ jobs:
           file-path: release/Steward-${{ needs.build-msi.outputs.version }}-x64.msi
           github-token: ${{ github.token }}
 
+      - name: Download the Windows zip, Linux packages and dmgs
+        uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-*
+          path: desktop
+          merge-multiple: true
+
+      - name: Attach the Windows zip, Linux packages and dmgs to the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          ls -l desktop
+          gh release upload "$TAG" desktop/* --clobber
+
       - name: Download the reports
         uses: actions/download-artifact@v8
         with:
@@ -428,7 +474,13 @@ jobs:
           }
           if ($notes.Count -eq 0) { throw "No CHANGELOG.md section for $version" }
           $header = ./.github/scripts/New-TrustHeader.ps1 -Tag $env:TAG -VirusScanSummary $env:VIRUS_SCAN -CertificationResult $env:CERT_RESULT -CertificationDetail $env:CERT_DETAIL
-          Set-Content -Path notes.md -Value (@($header) + $notes)
+          $platforms = @(
+            ''
+            'macOS does not open the dmg until you remove the quarantine flag, because the build is not notarised. Drag Steward to Applications, then run `xattr -dr com.apple.quarantine /Applications/Steward.app` in Terminal. Alternatively, open Steward once, then go to System Settings > Privacy & Security and select Open Anyway.'
+            ''
+            'On Linux, install from the signed package feed so that `apt upgrade` or `dnf upgrade` gets the next release. The [README](https://github.com/hoobio/steward-companion/blob/main/README.md#linux) shows how to set it up.'
+          )
+          Set-Content -Path notes.md -Value (@($header) + $notes + $platforms)
           gh release edit $env:TAG --notes-file notes.md
           if ($LASTEXITCODE -ne 0) { throw "gh release edit failed (exit $LASTEXITCODE)" }
 
@@ -437,6 +489,19 @@ jobs:
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           github-token: ${{ github.token }}
+
+  linux-feed:
+    name: Linux package feed
+    needs: [release-please, release]
+    if: always() && needs.release.result == 'success'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/linux-feed.yaml
+    with:
+      version: ${{ needs.release-please.outputs.version }}
+    secrets: inherit
 
   store-submit:
     name: Publish to Microsoft Store

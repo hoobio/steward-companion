@@ -1,0 +1,57 @@
+name: Linux package feed
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: The display version the calling run published; its .rpm files must be signed.
+        required: true
+        type: string
+
+jobs:
+  linux-feed:
+    name: Linux package feed
+    runs-on: ubuntu-latest
+    # A release merge runs both workflows; deploys run one at a time and each rebuilds every channel, so the last holds the full state.
+    concurrency:
+      group: linux-feed
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install repository tools
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq apt-utils createrepo-c rpm >/dev/null
+
+      - name: Build the signed stable and preview feeds
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          LINUX_SIGNING_KEY: ${{ secrets.LINUX_SIGNING_KEY }}
+          LINUX_SIGNING_PASSPHRASE: ${{ secrets.LINUX_SIGNING_PASSPHRASE }}
+          PASSPHRASE_FILE: ${{ runner.temp }}/passphrase
+          VERSION: ${{ inputs.version }}
+        run: |
+          printf '%s\n' "$LINUX_SIGNING_KEY" | gpg --batch --import
+          (umask 077 && printf '%s' "$LINUX_SIGNING_PASSPHRASE" > "$PASSPHRASE_FILE")
+          sh packaging/linux/build-feed.sh site "$VERSION"
+          rm -f "$PASSPHRASE_FILE"
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v5

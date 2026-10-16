@@ -1,6 +1,6 @@
-[steward-preview]
-name=Steward (preview)
-baseurl=https://hoobio.github.io/steward-companion/rpm/preview/$basearch
+[steward]
+name=Steward
+baseurl=https://hoobio.github.io/steward-companion/rpm/stable/$basearch
 enabled=1
 gpgcheck=1
 repo_gpgcheck=1
