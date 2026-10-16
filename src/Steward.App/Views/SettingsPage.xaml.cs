@@ -124,6 +124,9 @@ public sealed partial class SettingsPage : Page
     private void OnRepositoryClick(object sender, RoutedEventArgs e) =>
         Open("https://github.com/hoobio/steward-companion");
 
+    private void OnPrivacyClick(object sender, RoutedEventArgs e) =>
+        Open("https://github.com/hoobio/steward-companion/blob/main/PRIVACY.md");
+
     private void OnOpenDataFolderClick(object sender, RoutedEventArgs e)
     {
         if (ViewModel is { } viewModel)

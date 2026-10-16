@@ -221,6 +221,20 @@
                 </controls:SettingsCard>
 
                 <controls:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Privacy policy"
+                    Description="What Steward reads, stores and sends"
+                    IsClickEnabled="True"
+                    Click="OnPrivacyClick">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE72E;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <controls:SettingsCard.ActionIcon>
+                        <FontIcon Glyph="&#xE8A7;" FontSize="14" />
+                    </controls:SettingsCard.ActionIcon>
+                </controls:SettingsCard>
+
+                <controls:SettingsCard
                     CornerRadius="{StaticResource GroupBottomCornerRadius}"
                     Header="Source and issues"
                     Description="github.com/hoobio/steward-companion"
