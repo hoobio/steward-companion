@@ -21,7 +21,7 @@ internal static class AppDialogs
             dialog.Resources["ButtonBackgroundPointerOver"] = Application.Current.Resources["DialogButtonBackgroundPointerOver"];
             dialog.Resources["ButtonBackgroundPressed"] = Application.Current.Resources["DialogButtonBackgroundPressed"];
             // With no DefaultButton and no focusable content WinUI focuses Primary, so a stray Enter or Space would confirm.
-            if (!string.IsNullOrEmpty(dialog.CloseButtonText))
+            if (dialog.DefaultButton == ContentDialogButton.None && !string.IsNullOrEmpty(dialog.CloseButtonText))
             {
                 dialog.DefaultButton = ContentDialogButton.Close;
             }
