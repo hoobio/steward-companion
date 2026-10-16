@@ -21,15 +21,17 @@ WoW itself runs through Wine, Lutris or Proton. Steward is a native Linux app an
 Debian and Ubuntu:
 
 1. Download the key: `sudo install -d -m 0755 /etc/apt/keyrings && sudo curl -fsSLo /etc/apt/keyrings/steward.gpg https://hoobio.github.io/steward-companion/steward.gpg`
-2. Check the key: `gpg --show-keys /etc/apt/keyrings/steward.gpg`. The fingerprint must match the one above.
+2. Check the key against the fingerprint above. The command prints "Steward key OK", or removes the key on a mismatch: `gpg --show-keys --with-colons /etc/apt/keyrings/steward.gpg | awk -F: '/^fpr:/ {print $10; exit}' | grep -qx '498B931B1F0FCDED1174620EE6ED105810B41C42' && echo "Steward key OK" || { echo "Steward key does NOT match: removed it, stop here"; sudo rm -f /etc/apt/keyrings/steward.gpg; }`
 3. Add the feed: `echo "deb [signed-by=/etc/apt/keyrings/steward.gpg] https://hoobio.github.io/steward-companion/apt preview main" | sudo tee /etc/apt/sources.list.d/steward.list`
 4. Update the package lists: `sudo apt update`
 5. Install Steward: `sudo apt install steward`
 
 Fedora and RHEL:
 
-1. Add the feed: `sudo dnf config-manager addrepo --from-repofile=https://hoobio.github.io/steward-companion/steward.repo`. On dnf 4 (RHEL 9 and earlier Fedora), use `sudo dnf config-manager --add-repo https://hoobio.github.io/steward-companion/steward.repo`.
-2. Install Steward: `sudo dnf install steward`. When dnf asks you to import the key, check that the fingerprint matches, then accept.
+1. Download the key and check it against the fingerprint above. The command prints "Steward key OK", or removes the key on a mismatch: `curl -fsSLo /tmp/steward.asc https://hoobio.github.io/steward-companion/steward.asc && gpg --show-keys --with-colons /tmp/steward.asc | awk -F: '/^fpr:/ {print $10; exit}' | grep -qx '498B931B1F0FCDED1174620EE6ED105810B41C42' && echo "Steward key OK" || { echo "Steward key does NOT match: removed it, stop here"; rm -f /tmp/steward.asc; }`
+2. Import the key: `sudo rpm --import /tmp/steward.asc`
+3. Add the feed: `sudo dnf config-manager addrepo --from-repofile=https://hoobio.github.io/steward-companion/steward.repo`. On dnf 4 (RHEL 9 and earlier Fedora), use `sudo dnf config-manager --add-repo https://hoobio.github.io/steward-companion/steward.repo`.
+4. Install Steward: `sudo dnf install steward`
 
 New previews arrive with your system updates, through `sudo apt upgrade` or `sudo dnf upgrade`. Start Steward from your applications menu, or run `steward`.
 
