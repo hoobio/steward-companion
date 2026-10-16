@@ -2,7 +2,7 @@ name: Desktop Preview
 
 on:
   push:
-    branches: [main, refactor/avalonia-rebuild]
+    branches: [main]
     paths-ignore: ["**.md", "docs/**", "tools/**", ".githooks/**", "scripts/Install-DevBuild.ps1"]
   workflow_dispatch:
 
