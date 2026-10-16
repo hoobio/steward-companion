@@ -18,9 +18,9 @@ public static class AppInfo
         .GetCustomAttributes<AssemblyMetadataAttribute>()
         .Any(attribute => attribute.Key == "StorePreRelease" && attribute.Value == "true");
 
-    public static readonly bool IsPreviewZip = EntryAssembly
+    public static readonly bool IsPortableZip = EntryAssembly
         .GetCustomAttributes<AssemblyMetadataAttribute>()
-        .Any(attribute => attribute.Key == "PreviewZip" && attribute.Value == "true");
+        .Any(attribute => attribute.Key == "PortableZip" && attribute.Value == "true");
 
     public static readonly string? StoreDisplayVersion = EntryAssembly
         .GetCustomAttributes<AssemblyMetadataAttribute>()
@@ -41,7 +41,7 @@ public static class AppInfo
     public static readonly string BuildName = ResolveBuildName();
 
     public static readonly AppUpdateSource UpdateSource =
-        AppUpdateSources.Resolve(OperatingSystem.IsWindows() && !IsWine, IsPackaged, IsGitHubRelease, IsPreviewZip);
+        AppUpdateSources.Resolve(OperatingSystem.IsWindows() && !IsWine, IsPackaged, IsGitHubRelease, IsPortableZip);
 
     public static string BuildSuffix => IsGitHubRelease ? (IsPreRelease ? " (Pre-release)" : "")
         : BuildName == "debug" ? " (Debug)" : " (Development)";
@@ -77,7 +77,8 @@ public static class AppInfo
         (true, true, true) => "prerelease",
         (true, true, false) => "store",
         (true, false, _) => "dev",
-        (false, true, _) => OperatingSystem.IsWindows() ? (IsPreviewZip ? "preview" : "msi") :OperatingSystem.IsMacOS() ? "macos" : "linux",
+        (false, true, _) => OperatingSystem.IsWindows() ? (IsPortableZip ? AppUpdateSources.PortableZipBuildName(StoreDisplayVersion) : "msi")
+            : OperatingSystem.IsMacOS() ? "macos" : "linux",
         (false, false, _) => "debug",
     };
 

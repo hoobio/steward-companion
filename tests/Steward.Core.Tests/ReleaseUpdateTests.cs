@@ -116,8 +116,8 @@ public sealed class ReleaseUpdateTests
         var stub = new Stub(request => request.Headers.IfNoneMatch.Count > 0 ? new HttpResponseMessage(HttpStatusCode.NotModified) : Ok(json, "\"abc\""));
         var updater = Updater(stub);
 
-        var first = await updater.CheckReleaseAsync("0.23.2-preview.28", Deb, TestContext.Current.CancellationToken);
-        var second = await updater.CheckReleaseAsync("0.23.2-preview.28", Deb, TestContext.Current.CancellationToken);
+        var first = await updater.CheckReleaseAsync("0.23.2-preview.28", Deb, true, TestContext.Current.CancellationToken);
+        var second = await updater.CheckReleaseAsync("0.23.2-preview.28", Deb, true, TestContext.Current.CancellationToken);
 
         Assert.Equal("0.23.2-preview.31", first!.Version);
         Assert.Equal(first, second);
@@ -135,7 +135,43 @@ public sealed class ReleaseUpdateTests
     {
         var json = Json(Release("desktop-preview-31", true, "2026-10-16T09:00:00Z", false, Preview(31) + Deb));
 
-        Assert.Null(await Updater(new Stub(_ => Ok(json))).CheckReleaseAsync(installed, Deb, TestContext.Current.CancellationToken));
+        Assert.Null(await Updater(new Stub(_ => Ok(json))).CheckReleaseAsync(installed, Deb, true, TestContext.Current.CancellationToken));
+    }
+
+    private static string AfterTheNextRelease() => Json(
+        Release("desktop-preview-70", true, "2026-10-20T09:00:00Z", false, "Steward-0.24.2-preview.70" + Deb),
+        Release("v0.24.1", false, "2026-10-19T09:00:00Z", false, "Steward-0.24.1" + Deb),
+        Release("desktop-preview-62", true, "2026-10-18T09:00:00Z", false, "Steward-0.24.1-preview.62" + Deb),
+        Release("v0.24.0", false, "2026-10-17T09:00:00Z", false, "Steward-0.24.0-x64.msi"));
+
+    [Theory]
+    [InlineData("0.24.0", null, false, "0.24.1")]
+    [InlineData("0.24.0", "/etc/apt/sources.list.d/steward.list", false, "0.24.1")]
+    [InlineData("0.24.0", "/etc/apt/sources.list.d/steward.list", true, "0.24.2-preview.70")]
+    [InlineData("0.24.1-preview.62", null, false, "0.24.2-preview.70")]
+    [InlineData("0.24.1-preview.62", "/etc/apt/sources.list.d/steward.list", false, "0.24.1")]
+    [InlineData("0.24.1", "/etc/apt/sources.list.d/steward.list", false, null)]
+    public async Task CheckReleaseAsync_OffersPreviewsOnlyToThePreviewChannel(string installed, string? feed, bool previewFeed, string? expected)
+    {
+        var json = AfterTheNextRelease();
+        var channel = new LinuxInstall(LinuxPackageKind.Deb, feed, previewFeed).IncludesPreReleases(installed);
+
+        var offered = await Updater(new Stub(_ => Ok(json))).CheckReleaseAsync(installed, Deb, channel, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, offered?.Version);
+    }
+
+    [Fact]
+    public async Task CheckReleaseAsync_BeforeTheNextRelease_AStableInstallIsNotOfferedThePreview()
+    {
+        var json = Json(
+            Release("desktop-preview-62", true, "2026-10-18T09:00:00Z", false, "Steward-0.24.1-preview.62" + Deb),
+            Release("v0.24.0", false, "2026-10-17T09:00:00Z", false, "Steward-0.24.0" + Deb));
+        Task<AddonRelease?> Check(bool includePreRelease) =>
+            Updater(new Stub(_ => Ok(json))).CheckReleaseAsync("0.24.0", Deb, includePreRelease, TestContext.Current.CancellationToken);
+
+        Assert.Null(await Check(includePreRelease: false));
+        Assert.Equal("0.24.1-preview.62", (await Check(includePreRelease: true))?.Version);
     }
 
     [Fact]
@@ -143,7 +179,7 @@ public sealed class ReleaseUpdateTests
     {
         var stub = new Stub(_ => new HttpResponseMessage(HttpStatusCode.Forbidden) { Content = new StringContent("{}") });
 
-        await Assert.ThrowsAsync<HttpRequestException>(() => Updater(stub).CheckReleaseAsync("0.23.2-preview.28", Deb, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<HttpRequestException>(() => Updater(stub).CheckReleaseAsync("0.23.2-preview.28", Deb, true, TestContext.Current.CancellationToken));
     }
 
     private static Stub DownloadStub(string releaseJson) => new(request => request.RequestUri!.Host == "api.github.com"

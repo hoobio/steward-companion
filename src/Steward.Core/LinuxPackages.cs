@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace Steward.Core;
 
@@ -9,9 +10,12 @@ public enum LinuxPackageKind
     Rpm,
 }
 
-public sealed record LinuxInstall(LinuxPackageKind Kind, string? FeedSource)
+public sealed record LinuxInstall(LinuxPackageKind Kind, string? FeedSource, bool PreviewFeed = false)
 {
     public bool FromFeed => FeedSource is not null;
+
+    // A feed install can only upgrade from its own suite, so the feed is the channel; any other install follows the build it runs.
+    public bool IncludesPreReleases(string runningVersion) => FromFeed ? PreviewFeed : AppVersion.IsPreRelease(runningVersion);
 }
 
 public sealed record CommandResult(int ExitCode, string Output);
@@ -25,7 +29,7 @@ public enum PackageInstallOutcome
     Failed,
 }
 
-public static class LinuxPackages
+public static partial class LinuxPackages
 {
     public const string PackageName = "steward";
 
@@ -49,31 +53,39 @@ public static class LinuxPackages
         if (run("dpkg-query", ["-S", exePath]) is { ExitCode: 0 } deb
             && deb.Output.StartsWith($"{PackageName}:", StringComparison.Ordinal))
         {
-            return new LinuxInstall(LinuxPackageKind.Deb, FeedFile(Path.Combine(etc, "apt", "sources.list.d"), ".list", ".sources"));
+            return Feed(LinuxPackageKind.Deb, Path.Combine(etc, "apt", "sources.list.d"), ".list", ".sources");
         }
 
         if (run("rpm", ["-qf", "--queryformat", "%{NAME}", exePath]) is { ExitCode: 0 } rpm
             && rpm.Output.Trim() == PackageName)
         {
-            return new LinuxInstall(LinuxPackageKind.Rpm, FeedFile(Path.Combine(etc, "yum.repos.d"), ".repo"));
+            return Feed(LinuxPackageKind.Rpm, Path.Combine(etc, "yum.repos.d"), ".repo");
         }
 
         return new LinuxInstall(LinuxPackageKind.None, null);
     }
 
-    private static string? FeedFile(string directory, params string[] extensions)
+    private static LinuxInstall Feed(LinuxPackageKind kind, string directory, params string[] extensions)
     {
         if (!Directory.Exists(directory))
         {
-            return null;
+            return new LinuxInstall(kind, null);
         }
 
-        return Directory.EnumerateFiles(directory)
+        var feeds = Directory.EnumerateFiles(directory)
             .Where(file => extensions.Contains(Path.GetExtension(file), StringComparer.Ordinal))
             .Order(StringComparer.Ordinal)
-            .FirstOrDefault(file => File.ReadLines(file)
-                .Any(line => !line.TrimStart().StartsWith('#') && line.Contains(FeedHost, StringComparison.Ordinal)));
+            .Select(file => (File: file, Lines: File.ReadLines(file).Where(line => !line.TrimStart().StartsWith('#')).ToList()))
+            .Where(feed => feed.Lines.Any(line => line.Contains(FeedHost, StringComparison.Ordinal)))
+            .ToList();
+        var preview = feeds.FirstOrDefault(feed => feed.Lines.Any(line => PreviewWord().IsMatch(line)));
+        return preview.File is not null
+            ? new LinuxInstall(kind, preview.File, PreviewFeed: true)
+            : new LinuxInstall(kind, feeds.FirstOrDefault().File);
     }
+
+    [GeneratedRegex(@"\bpreview\b")]
+    private static partial Regex PreviewWord();
 
     public static string? AssetSuffix(LinuxPackageKind kind, Architecture architecture) => architecture switch
     {

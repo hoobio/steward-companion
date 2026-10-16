@@ -38,7 +38,7 @@ public sealed partial class AppUpdater(HttpClient httpClient, Uri msiManifestUri
 
     internal static readonly Uri GitHubReleasesApi = new("https://api.github.com/repos/hoobio/steward-companion/releases?per_page=30");
 
-    public async Task<AddonRelease?> CheckReleaseAsync(string installedVersion, string assetSuffix, CancellationToken cancellationToken)
+    public async Task<AddonRelease?> CheckReleaseAsync(string installedVersion, string assetSuffix, bool includePreRelease, CancellationToken cancellationToken)
     {
         var cached = _manifestCache.Get(GitHubReleasesApi);
         using var request = GitHubRequest(GitHubReleasesApi);
@@ -58,7 +58,7 @@ public sealed partial class AppUpdater(HttpClient httpClient, Uri msiManifestUri
         {
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            latest = LatestRelease(json, assetSuffix, includePreRelease: AppVersion.IsPreRelease(installedVersion));
+            latest = LatestRelease(json, assetSuffix, includePreRelease);
             _manifestCache.Set(GitHubReleasesApi, response.Headers.ETag?.ToString(), latest);
         }
 

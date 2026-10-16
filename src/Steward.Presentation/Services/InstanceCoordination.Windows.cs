@@ -7,7 +7,7 @@ public sealed partial class InstanceCoordination : IDisposable
     private const string GlobalMutexName = "Local\\Steward.App";
     private const string QuitEventName = "Local\\Steward.App.Quit";
     // The -avalonia trains are the desktop previews from before the cutover, still closed when a current build starts.
-    private static readonly string[] Trains = ["store", "msi", "preview", "dev", "debug", "store-avalonia", "msi-avalonia", "dev-avalonia", "debug-avalonia"];
+    private static readonly string[] Trains = ["store", "msi", "preview", "portable", "dev", "debug", "store-avalonia", "msi-avalonia", "dev-avalonia", "debug-avalonia"];
 
     private readonly Mutex _mutex;
     private readonly EventWaitHandle _running;

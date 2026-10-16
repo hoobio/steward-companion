@@ -13,7 +13,7 @@
     <ApplicationIcon>Assets\Steward.ico</ApplicationIcon>
     <GitHubRelease Condition="'$(GitHubRelease)' == ''">false</GitHubRelease>
     <StorePreRelease Condition="'$(StorePreRelease)' == ''">false</StorePreRelease>
-    <PreviewZip Condition="'$(PreviewZip)' == ''">false</PreviewZip>
+    <PortableZip Condition="'$(PortableZip)' == ''">false</PortableZip>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
@@ -42,7 +42,7 @@
   <ItemGroup>
     <AssemblyMetadata Include="GitHubRelease" Value="$(GitHubRelease)" />
     <AssemblyMetadata Include="StorePreRelease" Value="$(StorePreRelease)" />
-    <AssemblyMetadata Include="PreviewZip" Value="$(PreviewZip)" />
+    <AssemblyMetadata Include="PortableZip" Value="$(PortableZip)" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(StoreDisplayVersion)' != ''">

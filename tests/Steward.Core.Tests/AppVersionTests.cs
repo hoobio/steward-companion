@@ -36,6 +36,15 @@ public sealed class AppVersionTests
         Assert.Equal("0.23.2-preview.31", AppVersion.FromPackageVersion("0.23.2~preview.31\n"));
 
     [Theory]
+    [InlineData("0.24.1~preview.3", "0.24.0", true)]
+    [InlineData("0.24.1", "0.24.1~preview.3", true)]
+    [InlineData("0.24.2~preview.1", "0.24.1", true)]
+    [InlineData("0.24.0~preview.90", "0.24.0", false)]
+    [InlineData("0.24.1~preview.4", "0.24.1~preview.3", true)]
+    public void IsNewer_PackageVersionsKeepThePreviewsBetweenReleases(string available, string installed, bool expected) =>
+        Assert.Equal(expected, AppVersion.IsNewer(AppVersion.FromPackageVersion(available), AppVersion.FromPackageVersion(installed)));
+
+    [Theory]
     [InlineData("0.23.2-preview.31", true)]
     [InlineData("v0.23.2", false)]
     [InlineData("0.23.2+meta", false)]

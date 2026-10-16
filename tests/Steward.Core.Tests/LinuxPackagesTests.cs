@@ -67,6 +67,49 @@ public sealed class LinuxPackagesTests : IDisposable
         Assert.True(install.FromFeed);
     }
 
+    [Fact]
+    public void Detect_StableFeed_IsNotThePreviewChannel()
+    {
+        WriteEtc("apt/sources.list.d/steward.list", "deb [signed-by=/etc/apt/keyrings/steward.gpg] https://hoobio.github.io/steward-companion/apt stable main\n");
+
+        var install = LinuxPackages.Detect(Exe, Owner("steward: /opt/steward/Steward.Desktop", null), _etc.FullName);
+
+        Assert.True(install.FromFeed);
+        Assert.False(install.PreviewFeed);
+    }
+
+    [Fact]
+    public void Detect_StableAndPreviewRepos_PicksThePreviewOne()
+    {
+        WriteEtc("yum.repos.d/steward.repo", "[steward]\nbaseurl=https://hoobio.github.io/steward-companion/rpm/stable/$basearch\n");
+        WriteEtc("yum.repos.d/steward-preview.repo", "[steward-preview]\nbaseurl=https://hoobio.github.io/steward-companion/rpm/preview/$basearch\n");
+
+        var install = LinuxPackages.Detect(Exe, Owner(null, "steward"), _etc.FullName);
+
+        Assert.Equal(Path.Combine(_etc.FullName, "yum.repos.d", "steward-preview.repo"), install.FeedSource);
+        Assert.True(install.PreviewFeed);
+    }
+
+    [Theory]
+    [InlineData("deb https://hoobio.github.io/steward-companion/apt preview main", true)]
+    [InlineData("Types: deb\nURIs: https://hoobio.github.io/steward-companion/apt\nSuites: preview", true)]
+    [InlineData("deb https://hoobio.github.io/steward-companion/apt stable main\n# deb https://hoobio.github.io/steward-companion/apt preview main", false)]
+    public void Detect_ReadsTheSuiteFromTheFeedFile(string content, bool preview)
+    {
+        WriteEtc("apt/sources.list.d/steward.sources", content + "\n");
+
+        Assert.Equal(preview, LinuxPackages.Detect(Exe, Owner("steward: /opt/steward/Steward.Desktop", null), _etc.FullName).PreviewFeed);
+    }
+
+    [Theory]
+    [InlineData("0.24.0", "/etc/apt/sources.list.d/steward.list", true, true)]
+    [InlineData("0.24.0", "/etc/apt/sources.list.d/steward.list", false, false)]
+    [InlineData("0.24.0", null, false, false)]
+    [InlineData("0.24.1-preview.62", null, false, true)]
+    [InlineData("0.24.1-preview.62", "/etc/apt/sources.list.d/steward.list", false, false)]
+    public void IncludesPreReleases_TheFeedDecidesElseTheRunningBuild(string running, string? feed, bool previewFeed, bool expected) =>
+        Assert.Equal(expected, new LinuxInstall(LinuxPackageKind.Deb, feed, previewFeed).IncludesPreReleases(running));
+
     [Theory]
     [InlineData(null, null)]
     [InlineData("other: /opt/steward/Steward.Desktop", null)]

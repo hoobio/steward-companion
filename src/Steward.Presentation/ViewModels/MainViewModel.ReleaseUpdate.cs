@@ -29,7 +29,7 @@ public sealed partial class MainViewModel
 
     private async Task<AddonRelease?> CheckReleaseUpdateAsync()
     {
-        if (OperatingSystem.IsWindows() && !AppInfo.IsPreviewZip)
+        if (OperatingSystem.IsWindows() && !AppInfo.IsPortableZip)
         {
             return await CheckMsiUpdateAsync().ConfigureAwait(true);
         }
@@ -44,7 +44,8 @@ public sealed partial class MainViewModel
 
         try
         {
-            var release = await _appUpdater.CheckReleaseAsync(DisplayedVersion, suffix, CancellationToken.None).ConfigureAwait(true);
+            var release = await _appUpdater.CheckReleaseAsync(
+                DisplayedVersion, suffix, LinuxInstall.Value.IncludesPreReleases(DisplayedVersion), CancellationToken.None).ConfigureAwait(true);
             _logger.Info(release is null
                 ? $"Release update check: {DisplayedVersion} is up to date ({suffix}, {LinuxInstall.Value})"
                 : $"Release update check: {release.Version} available ({suffix}, {LinuxInstall.Value})");
