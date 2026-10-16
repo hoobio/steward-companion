@@ -245,13 +245,59 @@ jobs:
           path: ${{ github.workspace }}\staging\msix-x64\Steward-${{ steps.version.outputs.version }}-x64.msix
           if-no-files-found: error
 
+  virus-scan:
+    name: Virus scan
+    needs: [build-msix, build-msi]
+    if: always() && needs.build-msix.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      summary: ${{ steps.scan.outputs.summary }}
+    steps:
+      - name: Download MSIX
+        uses: actions/download-artifact@v8
+        with:
+          name: msix-x64
+          path: scan
+
+      - name: Download msixupload
+        uses: actions/download-artifact@v8
+        with:
+          name: msixupload-x64
+          path: scan
+
+      - name: Download MSI
+        if: needs.build-msi.result == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          name: msi-x64
+          path: scan
+
+      - name: Install ClamAV and update signatures
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q clamav
+          sudo systemctl stop clamav-freshclam || true
+          sudo freshclam || { sleep 30; sudo freshclam; }
+
+      - name: Scan packages
+        id: scan
+        run: |
+          # The default 100MB limits skip a large package silently; raised here, and an exceeded limit alerts as a detection.
+          clamscan --recursive --infected --max-filesize=4000M --max-scansize=4000M --max-files=100000 --alert-exceeds-max=yes scan
+          IFS=/ read -r engine signatures signed <<< "$(clamscan --version)"
+          files=$(ls scan | sed 's/.*/`&`/' | paste -sd ' ')
+          echo "summary=no threats found in ${files} by ${engine} (signatures ${signatures}, ${signed})." >> "$GITHUB_OUTPUT"
+
   release:
     name: Publish Release
-    needs: [release-please, lint-and-test, build-msix, build-msi]
+    needs: [release-please, lint-and-test, build-msix, build-msi, virus-scan]
     if: >-
       always()
       && needs.release-please.outputs.release_created == 'true'
       && needs.lint-and-test.result == 'success'
+      && needs.virus-scan.result != 'failure'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -309,6 +355,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
+          VIRUS_SCAN: ${{ needs.virus-scan.outputs.summary }}
         run: |
           $version = $env:TAG.TrimStart('v')
           $notes = [System.Collections.Generic.List[string]]::new()
@@ -324,7 +371,20 @@ jobs:
             if ($started) { $notes.Add($line) }
           }
           if ($notes.Count -eq 0) { throw "No CHANGELOG.md section for $version" }
-          Set-Content -Path notes.md -Value $notes
+          $repo = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY"
+          $header = @(
+            "<a href=`"https://apps.microsoft.com/detail/9PBKMZFKZHKX`"><img src=`"https://get.microsoft.com/images/en-us%20dark.svg`" alt=`"Get it from Microsoft`" height=`"40`"></a> <a href=`"$repo/actions/workflows/codeql.yaml`"><img src=`"$repo/actions/workflows/codeql.yaml/badge.svg`" alt=`"CodeQL`"></a>"
+            ''
+            "- **Microsoft Store:** Microsoft scans, certifies and signs the Store version before it reaches you."
+            "- **Open source:** built from commit [``$($env:GITHUB_SHA.Substring(0, 7))``]($repo/commit/$env:GITHUB_SHA) by [this public workflow run]($repo/actions/runs/$env:GITHUB_RUN_ID). The Store package and the files attached here come from that run."
+            "- **Code analysis:** [CodeQL]($repo/actions/workflows/codeql.yaml) checks the source for security issues on every change."
+          )
+          if ($env:VIRUS_SCAN) { $header += "- **Virus scan:** $env:VIRUS_SCAN" }
+          $header += @(
+            "- **Privacy:** no telemetry or analytics. The [privacy policy]($repo/blob/main/PRIVACY.md) lists what Steward reads, stores and sends."
+            ''
+          )
+          Set-Content -Path notes.md -Value ($header + $notes)
           gh release edit $env:TAG --notes-file notes.md
           if ($LASTEXITCODE -ne 0) { throw "gh release edit failed (exit $LASTEXITCODE)" }
 
