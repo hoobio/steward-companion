@@ -215,6 +215,7 @@
                             <Run Text="{x:Bind NotInstalledRunText, Mode=OneWay}" /><Run Text="{x:Bind InstalledRunText, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" />
                         </TextBlock>
                         <Button
+                            x:Name="VersionButton"
                             HorizontalAlignment="Left"
                             HorizontalContentAlignment="Left"
                             MinHeight="0"
@@ -288,12 +289,14 @@
                             </Grid>
                         </Button>
                         <TextBlock
+                            x:Name="ReleasedLine"
                             Text="{x:Bind ReleasedText, Mode=OneWay}"
                             ToolTipService.ToolTip="{x:Bind ReleasedTip, Mode=OneWay}"
                             FontSize="11.5"
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                             Visibility="{x:Bind ReleasedVisibility, Mode=OneWay}" />
                         <TextBlock
+                            x:Name="NoReleasesLine"
                             Text="No releases yet"
                             FontSize="12.5"
                             Foreground="{ThemeResource TextFillColorTertiaryBrush}"

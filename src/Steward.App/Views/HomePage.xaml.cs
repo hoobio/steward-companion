@@ -54,6 +54,7 @@ public sealed partial class HomePage : Page
 
     private readonly HashSet<Grid> _tableRows = [];
     private readonly TextBlock _versionMeasure = new() { TextWrapping = TextWrapping.NoWrap };
+    private readonly TextBlock _releasedMeasure = new() { TextWrapping = TextWrapping.NoWrap };
     private readonly Dictionary<Grid, double> _versionNeeds = [];
     private double _nameNeed;
     private double _versionCellNeed;
@@ -85,10 +86,45 @@ public sealed partial class HomePage : Page
             IEnumerable<UIElement> targets = index == NameIndex && child is StackPanel lines ? lines.Children.Take(2) : [child];
             foreach (var target in targets.Where(target => target.Visibility == Visibility.Visible))
             {
-                target.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                need = Math.Max(need, Math.Ceiling(target.DesiredSize.Width));
-                target.InvalidateMeasure();
+                need = Math.Max(need, MeasureWidth(target));
             }
+        }
+
+        return need;
+    }
+
+    private static double MeasureWidth(UIElement element)
+    {
+        element.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var width = Math.Ceiling(element.DesiredSize.Width);
+        element.InvalidateMeasure();
+        return width;
+    }
+
+    private double MeasureVersionCell(Grid row)
+    {
+        if (row.Tag is not AddonRowViewModel item)
+        {
+            return MeasureColumnContent(row, VersionIndex);
+        }
+
+        var need = MeasureColumnContent(row, ChannelIndex);
+        if (item.VersionPairVisibility != Visibility.Visible && row.FindName("VersionButton") is Button button)
+        {
+            need = Math.Max(need, MeasureWidth(button));
+        }
+
+        if (item.NoReleasesVisibility == Visibility.Visible && row.FindName("NoReleasesLine") is TextBlock none)
+        {
+            need = Math.Max(need, MeasureWidth(none));
+        }
+
+        if (item.ReleasedText.Length > 0 && item.NoReleasesVisibility != Visibility.Visible && row.FindName("ReleasedLine") is TextBlock released)
+        {
+            _releasedMeasure.FontFamily = released.FontFamily;
+            _releasedMeasure.FontSize = released.FontSize;
+            _releasedMeasure.Text = item.ReleasedText;
+            need = Math.Max(need, MeasureWidth(_releasedMeasure));
         }
 
         return need;
@@ -110,7 +146,7 @@ public sealed partial class HomePage : Page
         foreach (var row in _tableRows.Append(TableHeader))
         {
             names.Add(MeasureColumnContent(row, NameIndex));
-            version = Math.Max(version, MeasureColumnContent(row, VersionIndex));
+            version = Math.Max(version, MeasureVersionCell(row));
             channel = Math.Max(channel, MeasureColumnContent(row, ChannelIndex));
             source = Math.Max(source, MeasureColumnContent(row, SourceIndex));
             status = Math.Max(status, MeasureColumnContent(row, StatusIndex));
