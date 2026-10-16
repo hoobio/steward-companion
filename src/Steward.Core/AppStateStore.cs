@@ -10,10 +10,7 @@ public sealed class AppStateStore
     public AppStateStore(IReadOnlyList<string> addonIds, string? path = null)
     {
         _addonIds = addonIds;
-        _path = path ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Steward",
-            "state.json");
+        _path = path ?? Path.Combine(LocalData.Folder, "state.json");
     }
 
     public static string Key(string flavourPath, string addonId) => $"{flavourPath}|{addonId}";

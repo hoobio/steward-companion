@@ -40,6 +40,9 @@ public sealed class AddonUpdater
 {
     internal static readonly Lock AddOnsWriteLock = new();
 
+    // The Windows client reads AddOns (natively or under Wine), so a folder name follows Windows' file name rules on every OS.
+    private static readonly char[] InvalidFolderChars = [.. "\"<>|:*?\\/", .. Enumerable.Range(0, 32).Select(code => (char)code)];
+
     private readonly HttpClient _httpClient;
     private readonly HttpClient? _sessionClient;
     private readonly ILogger _logger;
@@ -361,7 +364,7 @@ public sealed class AddonUpdater
     {
         foreach (var folder in folders)
         {
-            if (string.IsNullOrWhiteSpace(folder) || folder is "." or ".." || folder.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            if (string.IsNullOrWhiteSpace(folder) || folder is "." or ".." || folder.IndexOfAny(InvalidFolderChars) >= 0)
             {
                 throw new InvalidOperationException($"{addonId} lists an invalid folder name '{folder}'");
             }

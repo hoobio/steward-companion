@@ -21,7 +21,7 @@ public static class AddonThemeFile
             return false;
         }
 
-        if (folder is "." or ".." || !string.Equals(Path.GetFileName(folder), folder, StringComparison.Ordinal))
+        if (folder is "." or ".." || folder.Contains('\\', StringComparison.Ordinal) || !string.Equals(Path.GetFileName(folder), folder, StringComparison.Ordinal))
         {
             throw new InvalidOperationException($"refusing a folder name that is not a single path segment: {folder}");
         }

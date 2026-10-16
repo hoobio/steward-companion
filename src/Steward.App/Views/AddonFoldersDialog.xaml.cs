@@ -11,8 +11,11 @@ namespace Steward.App.Views;
 
 public sealed partial class AddonFoldersDialog : ContentDialog
 {
-    public AddonFoldersDialog(string title, IReadOnlyList<FolderEntry> folders, ILogger logger)
+    private readonly IUiPlatform _platform;
+
+    public AddonFoldersDialog(string title, IReadOnlyList<FolderEntry> folders, IUiPlatform platform, ILogger logger)
     {
+        _platform = platform;
         InitializeComponent();
         Title = title;
         Caption.Text = $"Also installed with {title}:";
@@ -29,7 +32,7 @@ public sealed partial class AddonFoldersDialog : ContentDialog
         var addon = await Task.Run(() => LocalAddons.Read(folder.AddOnsPath, folder.Folder, folder.ClientInterface)).ConfigureAwait(true);
         slot.Content = addon is null
             ? Row(new FontIcon { Glyph = "", FontSize = 15, Foreground = Brush("TextFillColorSecondaryBrush") }, null, folder, null)
-            : Row(await Tile(folder, addon.Name, logger).ConfigureAwait(true), addon.Name, folder, addon);
+            : Row(await Tile(_platform, folder, addon.Name, logger).ConfigureAwait(true), addon.Name, folder, addon);
     }
 
     public FolderEntry? ChangelogRequest { get; private set; }
@@ -100,7 +103,7 @@ public sealed partial class AddonFoldersDialog : ContentDialog
         return button;
     }
 
-    private static async Task<UIElement> Tile(FolderEntry folder, string name, ILogger logger)
+    private static async Task<UIElement> Tile(IUiPlatform platform, FolderEntry folder, string name, ILogger logger)
     {
         var tile = new Grid();
         tile.Children.Add(new TextBlock
@@ -110,9 +113,9 @@ public sealed partial class AddonFoldersDialog : ContentDialog
             FontWeight = Microsoft.UI.Text.FontWeights.Bold,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = InitialsTile.Brush(folder.Folder),
+            Foreground = BindConvert.ColorBrush(InitialsTile.Color(folder.Folder)),
         });
-        if (await LocalAddonIcon.LoadAsync(folder.AddOnsPath, folder.Folder, logger).ConfigureAwait(true) is { } icon)
+        if (await LocalAddonIcon.LoadAsync(platform, folder.AddOnsPath, folder.Folder, logger).ConfigureAwait(true) is ImageSource icon)
         {
             tile.Children.Add(new Image { Source = icon, Stretch = Stretch.UniformToFill });
         }
@@ -206,7 +209,7 @@ public sealed partial class AddonFoldersDialog : ContentDialog
             MinWidth = 0,
             MinHeight = 0,
             Padding = new Thickness(0),
-            Content = new FontIcon { Glyph = folder.NoticeGlyph, FontSize = 13, Foreground = Brush("TextFillColorSecondaryBrush") },
+            Content = new FontIcon { Glyph = BindConvert.Glyph(folder.NoticeGlyph), FontSize = 13, Foreground = Brush("TextFillColorSecondaryBrush") },
             Resources =
             {
                 ["ButtonBackground"] = Brush("SubtleFillColorTransparentBrush"),

@@ -1,0 +1,1024 @@
+<UserControl
+    x:Class="Steward.Desktop.Views.HomePage"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:views="using:Steward.Desktop.Views"
+    xmlns:vm="using:Steward.App.ViewModels"
+    x:DataType="vm:MainViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.TableRow">
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="MinHeight" Value="{StaticResource CardRowMinHeight}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Setter Property="BorderBrush" Value="{DynamicResource RowHairlineBrush}" />
+        </Style>
+        <Style Selector="Button.Subtle">
+            <Setter Property="Theme" Value="{StaticResource SubtleButtonStyle}" />
+        </Style>
+        <Style Selector="Button.Fill">
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+        </Style>
+        <Style Selector="Button.Fill:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+        </Style>
+        <Style Selector="Button.Fill:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+        </Style>
+        <Style Selector="MenuItem.Critical">
+            <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+        </Style>
+        <Style Selector="MenuItem.Critical /template/ ContentPresenter#PART_HeaderPresenter">
+            <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+        </Style>
+        <Style Selector="TextBlock.Sort">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style Selector="TextBlock.SortGlyph">
+            <Setter Property="FontSize" Value="9" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style Selector="Button.Sort">
+            <Setter Property="Height" Value="26" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="Margin" Value="-4,0,0,0" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*">
+        <Grid Margin="26,7,26,0" ColumnDefinitions="*,Auto">
+            <TextBlock
+                Text="Addons"
+                FontFamily="{StaticResource DisplayFontFamily}"
+                FontSize="28"
+                FontWeight="SemiBold"
+                VerticalAlignment="Center" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button
+                    Classes="Fill"
+                    Height="32"
+                    Content="Sync from beta"
+                    Command="{Binding SyncFromBetaCommand}"
+                    IsVisible="{Binding SyncFromBetaVisibility}" />
+                <Button
+                    Classes="Fill"
+                    Height="32"
+                    VerticalAlignment="Center"
+                    Click="OnGetAddonsClick"
+                    AutomationProperties.Name="Get addons"
+                    IsVisible="{Binding GetAddonsVisibility}">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Add}" FontSize="12" />
+                        <TextBlock Text="Get addons" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <views:BannerList Grid.Row="1" Margin="26,10,26,0" Banners="{Binding Banners}" />
+
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="26,10,26,26" Spacing="10">
+                <Border
+                    CornerRadius="8"
+                    Padding="12,8"
+                    Background="{DynamicResource InfoBarInformationalSeverityBackgroundBrush}"
+                    IsVisible="{Binding AppUpdateVisibility}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                        <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Info}" FontSize="16" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding AppUpdateIdleVisibility}">
+                            <TextBlock Text="{Binding AppUpdateTitle}" FontWeight="SemiBold" Margin="0,1,0,0" VerticalAlignment="Center" />
+                            <HyperlinkButton Padding="4,0" VerticalAlignment="Center" NavigateUri="{Binding AppUpdateChangelogUri}">
+                                <TextBlock Text="View changelog" />
+                            </HyperlinkButton>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center" IsVisible="{Binding AppUpdateProgressVisibility}">
+                            <TextBlock Text="{Binding AppUpdateProgress.Text}" FontWeight="SemiBold" />
+                            <ProgressBar
+                                Maximum="100"
+                                Value="{Binding AppUpdateProgress.Percent}"
+                                IsIndeterminate="{Binding AppUpdateProgress.IsIndeterminate}" />
+                        </StackPanel>
+                        <Button
+                            Grid.Column="2"
+                            Height="32"
+                            Theme="{StaticResource AccentButtonStyle}"
+                            Content="{Binding AppUpdateActionLabel}"
+                            Command="{Binding InstallAppUpdateCommand}" />
+                    </Grid>
+                </Border>
+
+                <Border
+                    Margin="0,0,0,10"
+                    CornerRadius="8"
+                    Padding="12,8"
+                    Background="{DynamicResource CriticalTintBrush}"
+                    IsVisible="{Binding StatusMessageIsOpen}">
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+                        <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Error}" FontSize="16" Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                        <TextBlock Grid.Column="1" Margin="0,1,0,0" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding StatusMessage}" />
+                        <Button
+                            Grid.Column="2"
+                            Height="28"
+                            Padding="10,0"
+                            VerticalAlignment="Center"
+                            Content="{Binding StatusActionLabel}"
+                            Command="{Binding StatusActionCommand}"
+                            IsVisible="{Binding StatusActionVisibility}" />
+                        <Button
+                            Grid.Column="3"
+                            Width="28"
+                            Height="28"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            Command="{Binding DismissStatusCommand}"
+                            AutomationProperties.Name="Dismiss">
+                            <Path Classes="CloseGlyph" />
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="10">
+                    <Panel Width="220" VerticalAlignment="Center" IsVisible="{Binding TableVisibility}">
+                        <TextBox
+                            Height="32"
+                            Text="{Binding FilterText, Mode=TwoWay}"
+                            PlaceholderText="Filter addons"
+                            Padding="32,6,10,6"
+                            VerticalContentAlignment="Center"
+                            AutomationProperties.Name="Filter addons" />
+                        <TextBlock
+                            Classes="Glyph"
+                            Text="{StaticResource Glyph.Search}"
+                            FontSize="13"
+                            Margin="11,0,0,0"
+                            HorizontalAlignment="Left"
+                            IsHitTestVisible="False"
+                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    </Panel>
+
+                    <ListBox
+                        Grid.Column="1"
+                        Theme="{StaticResource SegmentedStyle}"
+                        SelectionMode="Single,AlwaysSelected"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding TableVisibility}"
+                        SelectedIndex="{Binding FilterIndex, Mode=TwoWay}">
+                        <ListBoxItem Content="All" />
+                        <ListBoxItem AutomationProperties.Name="{Binding UpdatesSegmentLabel}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Updates" VerticalAlignment="Center" />
+                                <Border
+                                    MinWidth="18"
+                                    Height="18"
+                                    Padding="5,0"
+                                    CornerRadius="9"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                    IsVisible="{Binding UpdatesBadgeVisibility}">
+                                    <TextBlock
+                                        Text="{Binding SelectedUpdateCountText}"
+                                        FontSize="11"
+                                        FontWeight="SemiBold"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </ListBoxItem>
+                        <ListBoxItem AutomationProperties.Name="{Binding HiddenSegmentLabel}" IsVisible="{Binding HiddenSegmentVisibility}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Hidden" VerticalAlignment="Center" />
+                                <Border
+                                    MinWidth="18"
+                                    Height="18"
+                                    Padding="5,0"
+                                    CornerRadius="9"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource ChipBrush}">
+                                    <TextBlock
+                                        Text="{Binding HiddenCountText}"
+                                        FontSize="11"
+                                        FontWeight="SemiBold"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </ListBoxItem>
+                    </ListBox>
+
+                    <Button
+                        Grid.Column="2"
+                        Height="32"
+                        Content="Default order"
+                        VerticalAlignment="Center"
+                        Command="{Binding DefaultOrderCommand}"
+                        IsVisible="{Binding DefaultOrderVisibility}" />
+
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock
+                            x:Name="CheckedLabel"
+                            Text="{Binding CheckedText}"
+                            FontSize="12"
+                            VerticalAlignment="Center"
+                            Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+
+                        <Button
+                            Width="32"
+                            Height="32"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            Command="{Binding RefreshCommand}"
+                            AutomationProperties.Name="Check for updates"
+                            ToolTip.Tip="{Binding CheckedText}">
+                            <TextBlock
+                                Classes="Glyph"
+                                Text="{StaticResource Glyph.Refresh}"
+                                FontSize="14"
+                                views:Spinner.IsSpinning="{Binding RefreshCommand.IsRunning}" />
+                        </Button>
+
+                        <StackPanel
+                            Orientation="Horizontal"
+                            Spacing="1"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding UpdateAllVisibility}">
+                            <Button
+                                Height="32"
+                                CornerRadius="4,0,0,4"
+                                Theme="{StaticResource AccentButtonStyle}"
+                                AutomationProperties.Name="{Binding UpdateAllOnInstallAccessibleName}"
+                                IsEnabled="{Binding UpdateAllEnabled}"
+                                Click="OnUpdateAllClick">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Download}" FontSize="13" />
+                                    <TextBlock Text="Update all" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button
+                                x:Name="UpdateAllMore"
+                                Width="34"
+                                Height="32"
+                                Padding="0"
+                                CornerRadius="0,4,4,0"
+                                Theme="{StaticResource AccentButtonStyle}"
+                                AutomationProperties.Name="More update options"
+                                IsEnabled="{Binding UpdateAllEnabled}">
+                                <TextBlock Classes="Glyph" Text="{StaticResource Glyph.ChevronDown}" FontSize="10" />
+                                <Button.Flyout>
+                                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                        <MenuItem
+                                            AutomationProperties.Name="{Binding UpdateAllOnInstallAccessibleName}"
+                                            Command="{Binding UpdateAllCommand}">
+                                            <MenuItem.Header>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Margin="24,0,0,0" Text="{Binding SelectedUpdateCountText}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    <TextBlock Text="{Binding UpdateAllOnInstallLabel}" />
+                                                </DockPanel>
+                                            </MenuItem.Header>
+                                        </MenuItem>
+                                        <MenuItem
+                                            AutomationProperties.Name="{Binding UpdateAllInstallsAccessibleName}"
+                                            Command="{Binding UpdateAllInstallsCommand}">
+                                            <MenuItem.Header>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Margin="24,0,0,0" Text="{Binding TotalUpdateCountText}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    <TextBlock Text="Update all installs" />
+                                                </DockPanel>
+                                            </MenuItem.Header>
+                                        </MenuItem>
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
+                        </StackPanel>
+
+                        <StackPanel
+                            Orientation="Horizontal"
+                            Spacing="1"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding AdoptAllVisibility}">
+                            <Button
+                                Height="32"
+                                CornerRadius="4,0,0,4"
+                                Theme="{StaticResource CautionButtonStyle}"
+                                AutomationProperties.Name="{Binding AdoptAllAccessibleName}"
+                                Command="{Binding AdoptAllCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Add}" FontSize="13" />
+                                    <TextBlock Text="Adopt all" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button
+                                Width="34"
+                                Height="32"
+                                Padding="0"
+                                CornerRadius="0,4,4,0"
+                                Theme="{StaticResource CautionButtonStyle}"
+                                AutomationProperties.Name="More adopt options">
+                                <TextBlock Classes="Glyph" Text="{StaticResource Glyph.ChevronDown}" FontSize="10" />
+                                <Button.Flyout>
+                                    <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                        <MenuItem Header="Adopt none" Command="{Binding AdoptNoneCommand}" />
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <Border
+                    Margin="0,10,0,0"
+                    CornerRadius="8"
+                    Background="{DynamicResource LayerFillColorDefaultBrush}"
+                    IsVisible="{Binding TableVisibility}">
+                    <StackPanel x:Name="TableBody" SizeChanged="OnTableSizeChanged">
+                        <Border
+                            x:Name="TableHeader"
+                            Padding="16,6"
+                            CornerRadius="{StaticResource GroupTopCornerRadius}"
+                            Background="{DynamicResource LayerFillColorAltBrush}">
+                            <Grid ColumnDefinitions="30,3*,2*,1.2*,1*,*,32" ColumnSpacing="12">
+                                <Button Grid.Column="1" Classes="Subtle Sort" Command="{Binding SortByCommand}" CommandParameter="name">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Classes="Sort" Text="Name" />
+                                        <TextBlock Classes="Glyph SortGlyph" Text="{Binding NameSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
+                                    </StackPanel>
+                                </Button>
+                                <Button
+                                    Grid.Column="2"
+                                    Classes="Subtle Sort"
+                                    AutomationProperties.Name="Sort by last updated"
+                                    Command="{Binding SortByCommand}"
+                                    CommandParameter="version">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Classes="Sort" Text="Version" />
+                                        <TextBlock Classes="Glyph SortGlyph" Text="{Binding VersionSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
+                                    </StackPanel>
+                                </Button>
+                                <TextBlock Grid.Column="3" Classes="Sort" Text="Channel" VerticalAlignment="Center" />
+                                <Button Grid.Column="4" Classes="Subtle Sort" Command="{Binding SortByCommand}" CommandParameter="source">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Classes="Sort" Text="Source" />
+                                        <TextBlock Classes="Glyph SortGlyph" Text="{Binding SourceSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="5" Classes="Subtle Sort" Command="{Binding SortByCommand}" CommandParameter="status">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Classes="Sort" Text="Status" />
+                                        <TextBlock Classes="Glyph SortGlyph" Text="{Binding StatusSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <ItemsControl ItemsSource="{Binding TableRows}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <VirtualizingStackPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.DataTemplates>
+                                <DataTemplate DataType="vm:AddonRowViewModel">
+                                    <Border
+                                        Classes="TableRow"
+                                        AttachedToVisualTree="OnRowAttached"
+                                        DetachedFromVisualTree="OnRowDetached"
+                                        DataContextChanged="OnRowDataContextChanged">
+                                        <Border.Resources>
+                                            <MenuFlyout x:Key="RowMenu" Placement="BottomEdgeAlignedRight">
+                                                <MenuItem Header="{Binding IgnoreLabel}" Command="{Binding ToggleIgnoredCommand}" IsVisible="{Binding IgnoreVisibility}" />
+                                                <MenuItem Header="Change channel" Command="{Binding ChangeChannelCommand}" IsVisible="{Binding ChannelChipVisibility}" />
+                                                <MenuItem Header="{Binding HideLabel}" Command="{Binding ToggleHiddenCommand}" IsVisible="{Binding HideVisibility}" />
+                                                <MenuItem Header="Open folder" Command="{Binding OpenFolderCommand}" IsVisible="{Binding InstalledActionsVisibility}" />
+                                                <MenuItem Header="Reinstall" Command="{Binding ReinstallCommand}" IsVisible="{Binding ReleaseActionsVisibility}" />
+                                                <MenuItem
+                                                    Header="Unmanage addon"
+                                                    ToolTip.Tip="Steward will stop managing updates for this addon and treat it like a local install"
+                                                    Command="{Binding UnmanageCommand}"
+                                                    IsVisible="{Binding UnmanageVisibility}" />
+                                                <Separator IsVisible="{Binding UninstallVisibility}" />
+                                                <MenuItem Classes="Critical" Header="Uninstall" Command="{Binding UninstallCommand}" IsVisible="{Binding UninstallVisibility}" />
+                                            </MenuFlyout>
+                                        </Border.Resources>
+                                        <Border.ContextFlyout>
+                                            <StaticResource ResourceKey="RowMenu" />
+                                        </Border.ContextFlyout>
+                                        <Grid ColumnDefinitions="30,3*,2*,1.2*,1*,*,32" ColumnSpacing="12">
+                                            <Border
+                                                Width="30"
+                                                Height="30"
+                                                VerticalAlignment="Center"
+                                                CornerRadius="6"
+                                                ClipToBounds="True"
+                                                Background="{DynamicResource ChipBrush}">
+                                                <Panel>
+                                                    <TextBlock
+                                                        Text="{Binding Initials}"
+                                                        FontSize="12"
+                                                        FontWeight="Bold"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{Binding InitialsColor, Converter={x:Static views:BindConvert.ColorBrush}}" />
+                                                    <Image Source="{Binding FallbackIcon, Converter={x:Static views:BindConvert.Image}}" Stretch="UniformToFill" />
+                                                    <views:IconImage
+                                                        Source="{Binding Icon, Converter={x:Static views:BindConvert.Image}}"
+                                                        Stretch="UniformToFill"
+                                                        Failed="OnManifestIconFailed"
+                                                        IsVisible="{Binding ManifestIconVisibility}" />
+                                                </Panel>
+                                            </Border>
+
+                                            <ProgressBar
+                                                Grid.ColumnSpan="7"
+                                                Margin="0,0,0,-6"
+                                                VerticalAlignment="Bottom"
+                                                Maximum="1"
+                                                Value="{Binding UpdateProgress}"
+                                                IsVisible="{Binding UpdatingVisibility}" />
+
+                                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                <Grid HorizontalAlignment="Left" ColumnDefinitions="*,Auto,Auto">
+                                                    <TextBlock
+                                                        Text="{Binding DisplayName}"
+                                                        views:MatchHighlight.Match="{Binding NameMatch}"
+                                                        FontSize="13.5"
+                                                        TextWrapping="NoWrap"
+                                                        TextTrimming="CharacterEllipsis"
+                                                        ToolTip.Tip="{Binding DisplayName}"
+                                                        VerticalAlignment="Center" />
+                                                    <Button
+                                                        Grid.Column="1"
+                                                        Classes="Subtle"
+                                                        Width="20"
+                                                        Height="22"
+                                                        MinWidth="0"
+                                                        MinHeight="0"
+                                                        Padding="0"
+                                                        AutomationProperties.Name="Out of date for this client"
+                                                        ToolTip.Tip="{Binding OutOfDateTip}"
+                                                        IsVisible="{Binding OutOfDateVisibility}">
+                                                        <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Warning}" FontSize="13" Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                                    </Button>
+                                                    <Button
+                                                        Grid.Column="2"
+                                                        Classes="Subtle"
+                                                        Width="20"
+                                                        Height="22"
+                                                        MinWidth="0"
+                                                        MinHeight="0"
+                                                        Padding="0"
+                                                        AutomationProperties.Name="{Binding NoticeTip}"
+                                                        ToolTip.Tip="{Binding NoticeTip}"
+                                                        IsVisible="{Binding RowNoticeVisibility}">
+                                                        <TextBlock Classes="Glyph" Text="{Binding NoticeGlyph, Converter={x:Static views:BindConvert.Glyph}}" FontSize="13" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    </Button>
+                                                </Grid>
+                                                <Grid HorizontalAlignment="Left" ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                                                    <TextBlock
+                                                        Text="{Binding FolderName}"
+                                                        FontFamily="{StaticResource MonoFontFamily}"
+                                                        FontSize="11"
+                                                        TextTrimming="CharacterEllipsis"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                    <HyperlinkButton
+                                                        Grid.Column="1"
+                                                        Padding="2,0"
+                                                        MinHeight="0"
+                                                        FontFamily="{StaticResource MonoFontFamily}"
+                                                        FontSize="11"
+                                                        VerticalAlignment="Center"
+                                                        AutomationProperties.Name="Show the other installed folders"
+                                                        Click="OnExtraFoldersClick"
+                                                        IsVisible="{Binding ExtraFoldersVisibility}">
+                                                        <TextBlock Text="{Binding ExtraFoldersText}" />
+                                                    </HyperlinkButton>
+                                                </Grid>
+                                                <TextBlock
+                                                    Classes="Caption"
+                                                    Text="/reload in-game to update"
+                                                    TextWrapping="Wrap"
+                                                    Foreground="{DynamicResource SystemFillColorSuccessBrush}"
+                                                    IsVisible="{Binding ReloadHintVisibility}" />
+                                                <TextBlock
+                                                    Classes="Caption"
+                                                    Text="{Binding StatusMessage}"
+                                                    TextWrapping="Wrap"
+                                                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                                    IsVisible="{Binding FailedMessageVisibility}" />
+                                                <TextBlock
+                                                    Classes="Caption"
+                                                    Text="{Binding UninstallError}"
+                                                    TextWrapping="Wrap"
+                                                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                                    IsVisible="{Binding UninstallErrorVisibility}" />
+                                                <TextBlock
+                                                    Classes="Caption"
+                                                    Text="{Binding StatusMessage}"
+                                                    TextWrapping="Wrap"
+                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                    IsVisible="{Binding NoticeVisibility}" />
+                                            </StackPanel>
+
+                                            <ContentControl
+                                                Grid.Column="2"
+                                                Focusable="{Binding HasVersionCellTip}"
+                                                VerticalAlignment="Center"
+                                                HorizontalContentAlignment="Stretch"
+                                                HorizontalAlignment="Stretch"
+                                                AutomationProperties.Name="{Binding VersionCellTip}"
+                                                ToolTip.Tip="{Binding VersionCellTip}">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock
+                                                        FontSize="12"
+                                                        TextWrapping="NoWrap"
+                                                        SizeChanged="OnVersionSizeChanged"
+                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                        IsVisible="{Binding StackedVersionPairVisibility}">
+                                                        <Run Text="{Binding NotInstalledRunText}" /><Run Text="{Binding InstalledRunText}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5" />
+                                                    </TextBlock>
+                                                    <Button
+                                                        Name="VersionButton"
+                                                        Classes="Subtle"
+                                                        HorizontalAlignment="Left"
+                                                        HorizontalContentAlignment="Left"
+                                                        MinHeight="0"
+                                                        Margin="-4,0,0,0"
+                                                        Padding="4,2"
+                                                        IsEnabled="{Binding HasChangelog}"
+                                                        AutomationProperties.Name="Changelog"
+                                                        ToolTip.Tip="{Binding VersionButtonTip}"
+                                                        Click="OnChangelogClick">
+                                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                                                            <TextBlock
+                                                                Name="VersionPair"
+                                                                FontSize="12"
+                                                                TextWrapping="NoWrap"
+                                                                TextTrimming="CharacterEllipsis"
+                                                                VerticalAlignment="Center"
+                                                                SizeChanged="OnVersionSizeChanged"
+                                                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                                IsVisible="{Binding WideVersionPairVisibility}">
+                                                                <Run Text="{Binding NotInstalledRunText}" /><Run Text="{Binding InstalledRunText}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5" /><Run Text=" &#x2192; " /><Run Text="{Binding AvailableVersionShort}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5" Foreground="{Binding NewVersionBrush, Converter={x:Static views:BindConvert.Brush}}" />
+                                                            </TextBlock>
+                                                            <TextBlock
+                                                                FontSize="12"
+                                                                TextWrapping="NoWrap"
+                                                                TextTrimming="CharacterEllipsis"
+                                                                VerticalAlignment="Center"
+                                                                SizeChanged="OnVersionSizeChanged"
+                                                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                                IsVisible="{Binding StackedVersionPairVisibility}">
+                                                                <Run Text="&#x2192; " /><Run Text="{Binding AvailableVersionShort}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5" Foreground="{Binding NewVersionBrush, Converter={x:Static views:BindConvert.Brush}}" />
+                                                            </TextBlock>
+                                                            <TextBlock
+                                                                Text="{Binding InstalledVersionShort}"
+                                                                FontFamily="{StaticResource MonoFontFamily}"
+                                                                FontSize="11.5"
+                                                                TextTrimming="CharacterEllipsis"
+                                                                VerticalAlignment="Center"
+                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                IsVisible="{Binding CurrentVersionVisibility}" />
+                                                            <TextBlock
+                                                                Text="{Binding AvailableVersionShort}"
+                                                                FontFamily="{StaticResource MonoFontFamily}"
+                                                                FontSize="11.5"
+                                                                TextTrimming="CharacterEllipsis"
+                                                                VerticalAlignment="Center"
+                                                                Foreground="{DynamicResource AvailableVersionBrush}"
+                                                                IsVisible="{Binding UpdatingVisibility}" />
+                                                            <TextBlock
+                                                                Name="ChangelogIcon"
+                                                                Grid.Column="1"
+                                                                Classes="Glyph"
+                                                                Width="12"
+                                                                Text="{StaticResource Glyph.BulletedList}"
+                                                                FontSize="12"
+                                                                Margin="0,1,0,0"
+                                                                SizeChanged="OnVersionSizeChanged"
+                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                IsVisible="{Binding HasChangelog}" />
+                                                        </Grid>
+                                                    </Button>
+                                                    <TextBlock
+                                                        Name="ReleasedLine"
+                                                        Text="{Binding ReleasedText}"
+                                                        Background="Transparent"
+                                                        ToolTip.Tip="{Binding ReleasedTip}"
+                                                        FontSize="11.5"
+                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                        IsVisible="{Binding ReleasedVisibility}" />
+                                                    <TextBlock
+                                                        Name="NoReleasesLine"
+                                                        Text="No releases yet"
+                                                        FontSize="12.5"
+                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                        IsVisible="{Binding NoReleasesVisibility}" />
+                                                    <Button
+                                                        Height="24"
+                                                        MinHeight="0"
+                                                        Padding="8,0,6,0"
+                                                        HorizontalAlignment="Left"
+                                                        Background="{DynamicResource ChipBrush}"
+                                                        Command="{Binding ChangeChannelCommand}"
+                                                        AutomationProperties.Name="Release channel"
+                                                        IsVisible="{Binding CompactChannelChipVisibility}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <TextBlock Text="{Binding Channel}" FontSize="12" VerticalAlignment="Center" />
+                                                            <TextBlock Classes="Glyph" Text="{StaticResource Glyph.ChevronDown}" FontSize="9" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                        </StackPanel>
+                                                    </Button>
+                                                    <ContentControl
+                                                        Focusable="True"
+                                                        HorizontalAlignment="Left"
+                                                        AutomationProperties.Name="{Binding SingleChannelTip}"
+                                                        ToolTip.Tip="{Binding SingleChannelTip}"
+                                                        IsVisible="{Binding CompactSingleChannelVisibility}">
+                                                        <TextBlock Text="{Binding Channel}" FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    </ContentControl>
+                                                </StackPanel>
+                                            </ContentControl>
+
+                                            <Button
+                                                Grid.Column="3"
+                                                Height="24"
+                                                MinHeight="0"
+                                                Padding="8,0,6,0"
+                                                VerticalAlignment="Center"
+                                                Background="{DynamicResource ChipBrush}"
+                                                Command="{Binding ChangeChannelCommand}"
+                                                AutomationProperties.Name="Release channel"
+                                                IsVisible="{Binding ChannelChipVisibility}">
+                                                <Button.RenderTransform>
+                                                    <TranslateTransform X="-8" />
+                                                </Button.RenderTransform>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding Channel}" FontSize="12" VerticalAlignment="Center" />
+                                                    <TextBlock Classes="Glyph" Text="{StaticResource Glyph.ChevronDown}" FontSize="9" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                </StackPanel>
+                                            </Button>
+                                            <ContentControl
+                                                Grid.Column="3"
+                                                Focusable="True"
+                                                VerticalAlignment="Center"
+                                                HorizontalAlignment="Left"
+                                                AutomationProperties.Name="{Binding SingleChannelTip}"
+                                                ToolTip.Tip="{Binding SingleChannelTip}"
+                                                IsVisible="{Binding SingleChannelVisibility}">
+                                                <TextBlock Text="{Binding Channel}" FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </ContentControl>
+                                            <TextBlock
+                                                Grid.Column="3"
+                                                Text="-"
+                                                VerticalAlignment="Center"
+                                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                IsVisible="{Binding NoChannelVisibility}" />
+
+                                            <TextBlock
+                                                Grid.Column="4"
+                                                Text="{Binding Source}"
+                                                TextTrimming="CharacterEllipsis"
+                                                FontSize="12.5"
+                                                VerticalAlignment="Center"
+                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+                                            <Panel Grid.Column="5" VerticalAlignment="Center">
+                                                <TextBlock
+                                                    Text="{Binding StatusText}"
+                                                    FontSize="12.5"
+                                                    TextTrimming="CharacterEllipsis"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{Binding StatusBrush, Converter={x:Static views:BindConvert.Brush}}"
+                                                    IsVisible="{Binding StatusTextVisibility}" />
+                                                <TextBlock
+                                                    Text="Up to date"
+                                                    FontSize="12.5"
+                                                    TextTrimming="CharacterEllipsis"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                    ToolTip.Tip="Up to date"
+                                                    IsVisible="{Binding UpToDateVisibility}" />
+                                                <StackPanel VerticalAlignment="Center" IsVisible="{Binding IgnoredStatusVisibility}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Warning}" FontSize="13" Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                                        <TextBlock Text="Updates ignored" FontSize="12.5" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                                    </StackPanel>
+                                                    <TextBlock
+                                                        Text="Update available"
+                                                        FontSize="12"
+                                                        TextTrimming="CharacterEllipsis"
+                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                        IsVisible="{Binding IgnoredUpdateVisibility}" />
+                                                </StackPanel>
+                                                <Border
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Center"
+                                                    CornerRadius="4"
+                                                    Padding="8,2"
+                                                    Background="{DynamicResource ChipBrush}"
+                                                    IsVisible="{Binding HiddenPillVisibility}">
+                                                    <TextBlock Text="Hidden" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                </Border>
+                                                <Button
+                                                    Height="32"
+                                                    HorizontalAlignment="Left"
+                                                    Content="{Binding ActionLabel}"
+                                                    Theme="{Binding ActionStyle, Converter={x:Static views:BindConvert.Theme}}"
+                                                    Command="{Binding UpdateCommand}"
+                                                    IsVisible="{Binding ActionVisibility}" />
+                                                <Button Height="32" HorizontalAlignment="Left" Content="Retry" Command="{Binding UpdateCommand}" IsVisible="{Binding FailedVisibility}" />
+                                                <Button
+                                                    Height="32"
+                                                    HorizontalAlignment="Left"
+                                                    Content="Sign in to RestedXP"
+                                                    Command="{Binding RestedXpSignInCommand}"
+                                                    IsVisible="{Binding RestedXpSignInVisibility}" />
+                                            </Panel>
+
+                                            <Button
+                                                Grid.Column="6"
+                                                Width="32"
+                                                Height="32"
+                                                Padding="0"
+                                                VerticalAlignment="Center"
+                                                AutomationProperties.Name="More options"
+                                                ToolTip.Tip="More"
+                                                Flyout="{StaticResource RowMenu}"
+                                                IsVisible="{Binding OverflowVisibility}">
+                                                <TextBlock Classes="Glyph" Text="{StaticResource Glyph.More}" FontSize="14" />
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+
+                                <DataTemplate DataType="vm:LocalAddonRowViewModel">
+                                    <Border
+                                        Classes="TableRow"
+                                        AttachedToVisualTree="OnRowAttached"
+                                        DetachedFromVisualTree="OnRowDetached"
+                                        DataContextChanged="OnRowDataContextChanged">
+                                        <Border.Resources>
+                                            <MenuFlyout x:Key="RowMenu" Placement="BottomEdgeAlignedRight">
+                                                <MenuItem Header="Adopt from CurseForge" Command="{Binding AdoptCommand}" IsVisible="{Binding AdoptFromMenuVisibility}" />
+                                                <MenuItem Header="{Binding HideLabel}" Command="{Binding ToggleHiddenCommand}" />
+                                                <MenuItem Header="Open folder" Command="{Binding OpenFolderCommand}" />
+                                                <Separator />
+                                                <MenuItem Classes="Critical" Header="Uninstall" Command="{Binding UninstallCommand}" />
+                                            </MenuFlyout>
+                                        </Border.Resources>
+                                        <Border.ContextFlyout>
+                                            <StaticResource ResourceKey="RowMenu" />
+                                        </Border.ContextFlyout>
+                                        <Grid ColumnDefinitions="30,3*,2*,1.2*,1*,*,32" ColumnSpacing="12">
+                                            <Border
+                                                Width="30"
+                                                Height="30"
+                                                VerticalAlignment="Center"
+                                                CornerRadius="6"
+                                                ClipToBounds="True"
+                                                Background="{DynamicResource ChipBrush}">
+                                                <Panel>
+                                                    <TextBlock
+                                                        Text="{Binding Initials}"
+                                                        FontSize="12"
+                                                        FontWeight="Bold"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{Binding InitialsColor, Converter={x:Static views:BindConvert.ColorBrush}}" />
+                                                    <Image Source="{Binding Icon, Converter={x:Static views:BindConvert.Image}}" Stretch="UniformToFill" />
+                                                </Panel>
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                <Grid HorizontalAlignment="Left" ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                                                    <TextBlock
+                                                        Text="{Binding DisplayName}"
+                                                        views:MatchHighlight.Match="{Binding NameMatch}"
+                                                        FontSize="13.5"
+                                                        TextWrapping="NoWrap"
+                                                        TextTrimming="CharacterEllipsis"
+                                                        ToolTip.Tip="{Binding DisplayName}"
+                                                        VerticalAlignment="Center" />
+                                                    <Button
+                                                        Grid.Column="1"
+                                                        Classes="Subtle"
+                                                        Width="22"
+                                                        Height="22"
+                                                        MinHeight="0"
+                                                        Padding="0"
+                                                        AutomationProperties.Name="Out of date for this client"
+                                                        ToolTip.Tip="{Binding OutOfDateTip}"
+                                                        IsVisible="{Binding OutOfDateVisibility}">
+                                                        <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Warning}" FontSize="13" Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                                    </Button>
+                                                </Grid>
+                                                <Grid HorizontalAlignment="Left" ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                                                    <TextBlock
+                                                        Text="{Binding FolderName}"
+                                                        FontFamily="{StaticResource MonoFontFamily}"
+                                                        FontSize="11"
+                                                        TextTrimming="CharacterEllipsis"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                    <HyperlinkButton
+                                                        Grid.Column="1"
+                                                        Padding="2,0"
+                                                        MinHeight="0"
+                                                        FontFamily="{StaticResource MonoFontFamily}"
+                                                        FontSize="11"
+                                                        VerticalAlignment="Center"
+                                                        AutomationProperties.Name="Show the other installed folders"
+                                                        Click="OnExtraFoldersClick"
+                                                        IsVisible="{Binding ExtraFoldersVisibility}">
+                                                        <TextBlock Text="{Binding ExtraFoldersText}" />
+                                                    </HyperlinkButton>
+                                                </Grid>
+                                                <TextBlock
+                                                    Classes="Caption"
+                                                    Text="{Binding FailureMessage}"
+                                                    TextWrapping="Wrap"
+                                                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                                    IsVisible="{Binding FailedVisibility}" />
+                                            </StackPanel>
+
+                                            <ContentControl
+                                                Grid.Column="2"
+                                                Focusable="{Binding HasVersionTip}"
+                                                VerticalAlignment="Center"
+                                                HorizontalAlignment="Left"
+                                                AutomationProperties.Name="{Binding VersionTip}"
+                                                ToolTip.Tip="{Binding VersionTip}">
+                                                <TextBlock
+                                                    Text="{Binding Version}"
+                                                    FontFamily="{StaticResource MonoFontFamily}"
+                                                    FontSize="11.5"
+                                                    TextTrimming="CharacterEllipsis"
+                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </ContentControl>
+
+                                            <TextBlock
+                                                Grid.Column="3"
+                                                Text="-"
+                                                VerticalAlignment="Center"
+                                                Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+
+                                            <TextBlock
+                                                Grid.Column="4"
+                                                Text="{Binding Source}"
+                                                TextTrimming="CharacterEllipsis"
+                                                FontSize="12.5"
+                                                VerticalAlignment="Center"
+                                                Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+
+                                            <TextBlock
+                                                Grid.Column="5"
+                                                Text="-"
+                                                VerticalAlignment="Center"
+                                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                IsVisible="{Binding StatusDashVisibility}" />
+                                            <Border
+                                                Grid.Column="5"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center"
+                                                CornerRadius="4"
+                                                Padding="8,2"
+                                                Background="{DynamicResource ChipBrush}"
+                                                IsVisible="{Binding HiddenPillVisibility}">
+                                                <TextBlock Text="Hidden" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </Border>
+                                            <Button
+                                                Grid.Column="5"
+                                                Height="32"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center"
+                                                Theme="{StaticResource CautionButtonStyle}"
+                                                CornerRadius="4"
+                                                Content="Adopt"
+                                                AutomationProperties.Name="{Binding AdoptAccessibleName}"
+                                                Command="{Binding AdoptCommand}"
+                                                IsVisible="{Binding AdoptVisibility}" />
+
+                                            <Button
+                                                Grid.Column="6"
+                                                Width="32"
+                                                Height="32"
+                                                Padding="0"
+                                                VerticalAlignment="Center"
+                                                AutomationProperties.Name="More options"
+                                                ToolTip.Tip="More"
+                                                Flyout="{StaticResource RowMenu}">
+                                                <TextBlock Classes="Glyph" Text="{StaticResource Glyph.More}" FontSize="14" />
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.DataTemplates>
+                        </ItemsControl>
+
+                        <TextBlock
+                            Text="No addons match"
+                            Padding="0,28"
+                            HorizontalAlignment="Center"
+                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                            IsVisible="{Binding NoMatchVisibility}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            MaxWidth="460"
+            Spacing="12"
+            IsVisible="{Binding GameVersionPromptVisibility}">
+            <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Warning}" FontSize="36" Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+            <TextBlock
+                Text="Choose a game version for this install"
+                FontSize="16"
+                FontWeight="SemiBold"
+                HorizontalAlignment="Center"
+                TextAlignment="Center" />
+            <TextBlock
+                TextWrapping="Wrap"
+                HorizontalAlignment="Center"
+                TextAlignment="Center"
+                FontSize="13"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="Steward needs to know which game this folder runs so it installs the matching addon builds. Folders added by hand have no .flavor.info to read it from." />
+            <Button
+                Height="32"
+                HorizontalAlignment="Center"
+                Content="Choose game version"
+                Theme="{StaticResource AccentButtonStyle}"
+                Command="{Binding EditInstallCommand}" />
+        </StackPanel>
+
+        <StackPanel
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            MaxWidth="460"
+            Spacing="12"
+            IsVisible="{Binding MissingInstallVisibility}">
+            <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Warning}" FontSize="36" Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+            <TextBlock
+                Text="Folder not found"
+                FontSize="16"
+                FontWeight="SemiBold"
+                HorizontalAlignment="Center"
+                TextAlignment="Center" />
+            <TextBlock
+                TextWrapping="Wrap"
+                HorizontalAlignment="Center"
+                TextAlignment="Center"
+                FontSize="13"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{Binding MissingInstallBody}" />
+            <Button
+                Height="32"
+                HorizontalAlignment="Center"
+                Content="Remove"
+                Theme="{StaticResource AccentButtonStyle}"
+                Command="{Binding RemoveSelectedInstallCommand}" />
+        </StackPanel>
+
+        <StackPanel
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            MaxWidth="460"
+            Spacing="12"
+            IsVisible="{Binding NoInstallsVisibility}">
+            <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Folder}" FontSize="44" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+            <TextBlock
+                Text="No World of Warcraft installs found"
+                FontFamily="{StaticResource DisplayFontFamily}"
+                FontSize="20"
+                FontWeight="SemiBold"
+                HorizontalAlignment="Center"
+                TextAlignment="Center" />
+            <TextBlock
+                TextWrapping="Wrap"
+                HorizontalAlignment="Center"
+                TextAlignment="Center"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="Steward finds a World of Warcraft: Forever folder by its .flavor.info, such as _forever_." />
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <Button
+                    Height="32"
+                    Content="Add install"
+                    Theme="{StaticResource AccentButtonStyle}"
+                    Command="{Binding BrowseCommand}" />
+                <Button Height="32" Content="Rescan" Command="{Binding RescanCommand}" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

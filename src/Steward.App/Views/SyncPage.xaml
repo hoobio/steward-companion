@@ -9,7 +9,7 @@
     <Page.Resources>
         <DataTemplate x:Key="PullDatasetTemplate" x:DataType="vm:SyncDatasetViewModel">
             <Grid
-                BorderThickness="{x:Bind HairlineThickness}"
+                BorderThickness="{x:Bind views:BindConvert.TopHairline(ShowsHairline)}"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
                 Padding="{StaticResource CardRowPadding}"
                 MinHeight="{StaticResource CardRowMinHeight}"
@@ -27,7 +27,7 @@
                     VerticalAlignment="Center"
                     CornerRadius="6"
                     Background="{ThemeResource ChipBrush}">
-                    <Image Source="{x:Bind IconSource}" Stretch="UniformToFill" />
+                    <Image Source="{x:Bind views:BindConvert.Image(IconSource)}" Stretch="UniformToFill" />
                 </Border>
 
                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
@@ -273,7 +273,7 @@
                             Visibility="{x:Bind ViewModel.Current.DatasetsVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
                         <Border
                             BorderBrush="{ThemeResource RowHairlineBrush}"
-                            BorderThickness="{x:Bind ViewModel.Current.ProfessionsHairlineThickness, Mode=OneWay, FallbackValue=0}"
+                            BorderThickness="{x:Bind views:BindConvert.TopHairline(ViewModel.Current.ShowsProfessionsHairline), Mode=OneWay, FallbackValue=0}"
                             Visibility="{x:Bind ViewModel.Current.DatasetsVisibility, Mode=OneWay, FallbackValue=Collapsed}">
                             <Expander
                                 IsExpanded="{x:Bind ViewModel.Current.IsProfessionsExpanded, Mode=TwoWay, FallbackValue=False}"
@@ -303,7 +303,7 @@
                                             VerticalAlignment="Center"
                                             CornerRadius="6"
                                             Background="{ThemeResource ChipBrush}">
-                                            <Image Source="{x:Bind ViewModel.Current.ProfessionsDataset.IconSource, Mode=OneWay, FallbackValue={x:Null}}" Stretch="UniformToFill" />
+                                            <Image Source="{x:Bind views:BindConvert.Image(ViewModel.Current.ProfessionsDataset.IconSource), Mode=OneWay, FallbackValue={x:Null}}" Stretch="UniformToFill" />
                                         </Border>
 
                                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
@@ -358,7 +358,7 @@
                     </StackPanel>
 
                     <Grid
-                        BorderThickness="{x:Bind ViewModel.JourneyHairline, Mode=OneWay}"
+                        BorderThickness="{x:Bind views:BindConvert.TopHairline(ViewModel.ShowsJourneyHairline), Mode=OneWay}"
                         BorderBrush="{ThemeResource RowHairlineBrush}"
                         Padding="{StaticResource CardRowPadding}"
                         MinHeight="{StaticResource CardRowMinHeight}"
@@ -412,7 +412,7 @@
                     </Grid>
 
                     <Grid
-                        BorderThickness="{x:Bind ViewModel.GeneratedFileHairline, Mode=OneWay}"
+                        BorderThickness="{x:Bind views:BindConvert.TopHairline(ViewModel.ShowsGeneratedFileHairline), Mode=OneWay}"
                         BorderBrush="{ThemeResource RowHairlineBrush}"
                         Padding="{StaticResource CardRowPadding}"
                         MinHeight="{StaticResource CardRowMinHeight}"

@@ -1,0 +1,11 @@
+<Project>
+
+  <ItemGroup Condition="'$(TargetPlatformIdentifier)' == 'windows'">
+    <Compile Remove="**\*.Unix.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetPlatformIdentifier)' != 'windows'">
+    <Compile Remove="**\*.Windows.cs" />
+  </ItemGroup>
+
+</Project>

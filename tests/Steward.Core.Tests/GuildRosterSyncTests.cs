@@ -52,6 +52,7 @@ public sealed class GuildRosterSyncTests : IDisposable
     [Fact]
     public void WriteIfChanged_ReturnsFalseAndRecordsNothing_WhenTheFileCannotBeWritten()
     {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "Only Windows refuses to replace a file another handle opened with FileShare.None");
         var install = InstallAddon();
         var stateStore = new AppStateStore(["steward"], StatePath);
         var target = Path.Combine(install.AddOnsPath, "Steward", "StewardSync.lua");

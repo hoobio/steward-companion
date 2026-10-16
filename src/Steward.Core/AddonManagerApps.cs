@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Runtime.Versioning;
+using System.Text.RegularExpressions;
 
 using Microsoft.Win32;
 
@@ -6,7 +8,7 @@ namespace Steward.Core;
 
 public sealed record AddonManagerApp(string Name, bool StartsWithWindows, bool IsRunning);
 
-public static class AddonManagerApps
+public static partial class AddonManagerApps
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ApprovedKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\";
@@ -16,11 +18,68 @@ public static class AddonManagerApps
 
     public static IReadOnlyList<AddonManagerApp> Detect()
     {
-        var startup = StartupTargets().Where(File.Exists).Select(Path.GetFileNameWithoutExtension).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (OperatingSystem.IsLinux())
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var config = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") is { Length: > 0 } configHome ? configHome : Path.Combine(home, ".config");
+            return DetectLinux(Path.Combine(config, "autostart"), ProcFs.Root);
+        }
+
+        var startup = (OperatingSystem.IsWindows() ? StartupTargets() : []).Where(File.Exists).Select(Path.GetFileNameWithoutExtension).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return [.. Names
             .Select(name => new AddonManagerApp(name, startup.Contains(name), IsRunning(name)))
             .Where(app => app.StartsWithWindows || app.IsRunning)];
     }
+
+    internal static IReadOnlyList<AddonManagerApp> DetectLinux(string autostartFolder, string procRoot)
+    {
+        var startup = AutostartTargets(autostartFolder).Where(File.Exists).Select(AppKey).ToHashSet(StringComparer.Ordinal);
+        var running = ProcFs.Processes(procRoot)
+            .SelectMany(process => process.Environment().GetValueOrDefault("APPIMAGE") is { } appImage
+                ? process.Arguments.Take(1).Append(appImage)
+                : process.Arguments.Take(1))
+            .Select(AppKey)
+            .ToHashSet(StringComparer.Ordinal);
+        return [.. Names
+            .Select(name => new AddonManagerApp(name, startup.Contains(AppKey(name)), running.Contains(AppKey(name))))
+            .Where(app => app.StartsWithWindows || app.IsRunning)];
+    }
+
+    internal static IEnumerable<string> AutostartTargets(string autostartFolder)
+    {
+        if (!Directory.Exists(autostartFolder))
+        {
+            yield break;
+        }
+
+        foreach (var entry in Directory.EnumerateFiles(autostartFolder, "*.desktop"))
+        {
+            var lines = File.ReadAllLines(entry).Select(line => line.Trim()).ToList();
+            if (lines.Any(line => line.Equals("Hidden=true", StringComparison.OrdinalIgnoreCase) || line.Equals("X-GNOME-Autostart-enabled=false", StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            if (lines.FirstOrDefault(line => line.StartsWith("Exec=", StringComparison.Ordinal)) is { } exec && ExePath(exec[5..]) is { } path)
+            {
+                yield return path;
+            }
+        }
+    }
+
+    internal static string AppKey(string path)
+    {
+        var name = ProcFs.FileName(path);
+        if (name.EndsWith(".AppImage", StringComparison.OrdinalIgnoreCase))
+        {
+            name = name[..^".AppImage".Length];
+        }
+
+        return AppVersionSuffix().Replace(name, string.Empty).Replace("-", string.Empty, StringComparison.Ordinal).Replace("_", string.Empty, StringComparison.Ordinal).ToLowerInvariant();
+    }
+
+    [GeneratedRegex(@"[-_ ]v?\d[\w.\-]*$")]
+    private static partial Regex AppVersionSuffix();
 
     public static string? ExePath(string? command)
     {
@@ -42,6 +101,7 @@ public static class AddonManagerApps
 
     public static bool IsApproved(byte[]? value) => value is not { Length: > 0 } || value[0] == 2;
 
+    [SupportedOSPlatform("windows")]
     private static IEnumerable<string> StartupTargets()
     {
         foreach (var (hive, run, approved) in new[]
@@ -85,6 +145,7 @@ public static class AddonManagerApps
         }
     }
 
+    [SupportedOSPlatform("windows")]
     private static string? ShortcutTarget(string link)
     {
         if (Type.GetTypeFromProgID("WScript.Shell") is not { } type)

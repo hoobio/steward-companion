@@ -1,0 +1,7 @@
+[steward-preview]
+name=Steward (preview)
+baseurl=https://hoobio.github.io/steward-companion/rpm/preview/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://hoobio.github.io/steward-companion/steward.asc

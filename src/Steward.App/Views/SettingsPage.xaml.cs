@@ -132,7 +132,7 @@ public sealed partial class SettingsPage : Page
         if (ViewModel is { } viewModel)
         {
             Directory.CreateDirectory(viewModel.DataFolder);
-            Open(App.DisplayDataFolder(viewModel.DataFolder));
+            Open(WindowsShell.DisplayDataFolder(viewModel.DataFolder));
         }
     }
 
@@ -141,7 +141,7 @@ public sealed partial class SettingsPage : Page
         if (ViewModel is { } viewModel)
         {
             Directory.CreateDirectory(viewModel.LogFolder);
-            Open(App.DisplayDataFolder(viewModel.LogFolder));
+            Open(WindowsShell.DisplayDataFolder(viewModel.LogFolder));
         }
     }
 }

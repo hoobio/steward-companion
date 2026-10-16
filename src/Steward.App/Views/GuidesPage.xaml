@@ -9,7 +9,7 @@
     <Page.Resources>
         <DataTemplate x:Key="GuideRowTemplate" x:DataType="vm:GuideRowViewModel">
             <Grid
-                Background="{x:Bind RowBackground, Mode=OneWay}"
+                Background="{x:Bind views:BindConvert.Brush(RowBackground), Mode=OneWay}"
                 BorderThickness="0,1,0,0"
                 BorderBrush="{ThemeResource RowHairlineBrush}"
                 Padding="16,12"
@@ -45,25 +45,25 @@
                     Opacity="{x:Bind ImageOpacity}">
                     <Border CornerRadius="6">
                         <Border.Background>
-                            <ImageBrush ImageSource="{x:Bind Image}" Stretch="UniformToFill" />
+                            <ImageBrush ImageSource="{x:Bind views:BindConvert.Image(Image)}" Stretch="UniformToFill" />
                         </Border.Background>
                     </Border>
                 </Border>
 
                 <StackPanel Grid.Column="2" Spacing="1" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind ProductName}" FontSize="13.5" TextWrapping="NoWrap" TextLineBounds="TrimToCapHeight" Foreground="{x:Bind NameBrush}" />
+                    <TextBlock Text="{x:Bind ProductName}" FontSize="13.5" TextWrapping="NoWrap" TextLineBounds="TrimToCapHeight" Foreground="{x:Bind views:BindConvert.Brush(NameBrush)}" />
                     <TextBlock
                         Text="{x:Bind UpdatedText}"
                         FontSize="12"
                         TextLineBounds="TrimToBaseline"
-                        Foreground="{x:Bind UpdatedBrush}"
+                        Foreground="{x:Bind views:BindConvert.Brush(UpdatedBrush)}"
                         Visibility="{x:Bind UpdatedVisibility, Mode=OneWay}" />
                     <TextBlock
                         Text="{x:Bind MessageText, Mode=OneWay}"
                         FontSize="12"
                         TextLineBounds="TrimToBaseline"
                         TextWrapping="Wrap"
-                        Foreground="{x:Bind MessageBrush, Mode=OneWay}"
+                        Foreground="{x:Bind views:BindConvert.Brush(MessageBrush), Mode=OneWay}"
                         Visibility="{x:Bind MessageVisibility, Mode=OneWay}" />
                 </StackPanel>
 
@@ -77,7 +77,7 @@
                     <TextBlock
                         Text="{x:Bind PillText, Mode=OneWay}"
                         FontSize="11.5"
-                        Foreground="{x:Bind PillBrush, Mode=OneWay}" />
+                        Foreground="{x:Bind views:BindConvert.Brush(PillBrush), Mode=OneWay}" />
                 </Border>
 
                 <Button
@@ -133,7 +133,7 @@
                         Text="WoW is running, /reload to load new guides"
                         TextTrimming="CharacterEllipsis"
                         Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                        Visibility="{x:Bind ViewModel.SelectedGuide.ReloadNoticeVisibility(ViewModel.SelectedInstall.Client, ViewModel.SelectedGuide.WrittenAt), Mode=OneWay, FallbackValue=Collapsed}" />
+                        Visibility="{x:Bind views:GuidesPage.ReloadNoticeVisibility(ViewModel.SelectedGuide, ViewModel.SelectedInstall.Client, ViewModel.SelectedGuide.WrittenAt), Mode=OneWay, FallbackValue=Collapsed}" />
                 </StackPanel>
 
                 <Button
@@ -192,7 +192,7 @@
                                 VerticalAlignment="Center"
                                 CornerRadius="6"
                                 Background="{ThemeResource ChipBrush}">
-                                <Image Source="{x:Bind ViewModel.SelectedGuide.AddonIcon, Mode=OneWay, FallbackValue={x:Null}}" Stretch="UniformToFill" />
+                                <Image Source="{x:Bind views:BindConvert.Image(ViewModel.SelectedGuide.AddonIcon), Mode=OneWay, FallbackValue={x:Null}}" Stretch="UniformToFill" />
                             </Border>
                             <StackPanel Grid.Column="2" Spacing="1" VerticalAlignment="Center">
                                 <TextBlock Text="Base guides" FontSize="13.5" TextWrapping="NoWrap" TextLineBounds="TrimToCapHeight" />
@@ -213,7 +213,7 @@
                                     Width="16"
                                     Height="16"
                                     VerticalAlignment="Center"
-                                    IsActive="True" />
+                                    IsActive="{x:Bind ViewModel.SelectedGuide.LoadingVisibility, Mode=OneWay, FallbackValue=False}" />
                                 <TextBlock
                                     Text="Loading your guides from RestedXP…"
                                     VerticalAlignment="Center"

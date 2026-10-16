@@ -73,7 +73,7 @@ public static partial class CurseForgeFingerprint
                 break;
             }
 
-            AddWithIncludes(Path.GetFullPath(Path.Combine(directory, target)), files, matched);
+            AddWithIncludes(Path.GetFullPath(Path.Combine(directory, target.Replace('\\', Path.DirectorySeparatorChar))), files, matched);
         }
     }
 

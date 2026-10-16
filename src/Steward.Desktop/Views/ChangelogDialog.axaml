@@ -1,0 +1,14 @@
+<ui:FAContentDialog
+    x:Class="Steward.Desktop.Views.ChangelogDialog"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="using:FluentAvalonia.UI.Controls"
+    xmlns:views="using:Steward.Desktop.Views"
+    x:DataType="views:ChangelogDialog"
+    CloseButtonText="Close"
+    DefaultButton="Close">
+
+    <ScrollViewer MaxHeight="320">
+        <views:ChangelogView Blocks="{Binding Blocks}" />
+    </ScrollViewer>
+</ui:FAContentDialog>

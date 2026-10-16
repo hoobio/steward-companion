@@ -1,0 +1,614 @@
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+
+using Steward.Core;
+using Steward.App.Services;
+using Steward.Core.Diagnostics;
+
+namespace Steward.App.ViewModels;
+
+public sealed partial class MainViewModel
+{
+    private static readonly TimeSpan CurseForgeCheckInterval = TimeSpan.FromMinutes(30);
+
+    private const string DefaultHandlerBannerId = "curseforge-default-handler";
+
+    private DateTimeOffset _lastCurseForgeCheck;
+    private int _defaultHandlerCheck;
+
+    public async Task EvaluateCurseForgeDefaultHandlerAsync()
+    {
+        var check = ++_defaultHandlerCheck;
+        await Task.Delay(500).ConfigureAwait(true);
+        if (check != _defaultHandlerCheck)
+        {
+            return;
+        }
+
+        var aumid = CurseForgeDefaultQuery.Aumid;
+        bool? isDefault = false;
+        if (aumid is not null && IsAuthorized && IsCurseForgeEnabled)
+        {
+            try
+            {
+                isDefault = await Task.Run(() => CurseForgeDefaultQuery.IsDefault(aumid)).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Could not query the default app for curseforge links");
+                return;
+            }
+        }
+
+        var shown = _localBanners.Any(banner => banner.Id == DefaultHandlerBannerId);
+        var wanted = aumid is not null && IsAuthorized && IsCurseForgeEnabled && isDefault == false
+            && !(_stateStore.Load().DismissedBanners ?? []).ContainsKey(DefaultHandlerBannerId);
+        if (wanted && !shown)
+        {
+            ShowLocalInfoBanner(
+                "Open CurseForge links with Steward",
+                DefaultHandlerBannerId,
+                "Set as default",
+                () => _ = PickCurseForgeHandlerAsync(aumid!),
+                RecordDefaultHandlerBannerDismissed,
+                "Install buttons on curseforge.com open Steward once it is the default app for CurseForge links.");
+        }
+        else if (!wanted && shown)
+        {
+            _localBanners.RemoveAll(banner => banner.Id == DefaultHandlerBannerId);
+            RefreshBanners();
+        }
+    }
+
+    private void RecordDefaultHandlerBannerDismissed() => _stateStore.Save(_stateStore.Load() with
+    {
+        DismissedBanners = new Dictionary<string, int>(_stateStore.Load().DismissedBanners ?? [], StringComparer.Ordinal) { [DefaultHandlerBannerId] = 0 },
+    });
+
+    private async Task PickCurseForgeHandlerAsync(string aumid)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            await SetCurseForgeHandlerAsync(aumid).ConfigureAwait(true);
+            return;
+        }
+
+        try
+        {
+            // The picker offers "Always" only while no app is the default; otherwise it can only open the link once.
+            if (CurseForgeDefaultQuery.HasAnyDefault())
+            {
+                await WindowsShell.LaunchUriAsync(new Uri($"ms-settings:defaultapps?registeredAUMID={Uri.EscapeDataString(aumid)}")).ConfigureAwait(true);
+                return;
+            }
+
+            await WindowsShell.LaunchWithAppPickerAsync(new Uri("curseforge://"), OwnerWindowHandle).ConfigureAwait(true);
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "CurseForge app picker failed, opening Default apps instead");
+        }
+
+        await WindowsShell.LaunchUriAsync(new Uri($"ms-settings:defaultapps?registeredAUMID={Uri.EscapeDataString(aumid)}")).ConfigureAwait(true);
+    }
+
+    private async Task SetCurseForgeHandlerAsync(string aumid)
+    {
+        try
+        {
+            if (await Task.Run(() => CurseForgeDefaultQuery.TrySetDefault(aumid)).ConfigureAwait(true))
+            {
+                _logger.Info("Steward is now the default app for curseforge links");
+                // xdg-utils 1.1.3's generic query skipped the mimeapps.list default it had just written (Ubuntu 24.04, 16 Oct 2026).
+                RecordDefaultHandlerBannerDismissed();
+                await EvaluateCurseForgeDefaultHandlerAsync().ConfigureAwait(true);
+                return;
+            }
+
+            StatusMessage = "Could not make Steward the default app for CurseForge links.";
+        }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
+        {
+            _logger.Warn(ex, "Could not set the default app for curseforge links");
+            StatusMessage = $"Could not make Steward the default app for CurseForge links: {ex.Message}";
+        }
+    }
+
+    public int? CurseForgeVersionType(WowInstall install) =>
+        install?.ProductCode is { } product && _curseForgeVersionTypes.TryGetValue(product, out var versionType) ? versionType : null;
+
+    private List<ProviderAddonRecord> ProviderRecords(string flavourPath) =>
+        _stateStore.Load().ProviderAddons.GetValueOrDefault(flavourPath) ?? [];
+
+    private IReadOnlyList<ManagedAddon> ProviderAddons(string flavourPath) => IsCurseForgeEnabled
+        ? [.. ProviderRecords(flavourPath)
+            .Where(record => record.Source == CurseForgeAddons.Source)
+            .OrderBy(record => record.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(record => CurseForgeAddons.ToManagedAddon(record, _stewardClient.CurseForgeManifestBaseUrl(record.ModId, record.VersionType)))]
+        : [];
+
+    private IReadOnlyList<ManagedAddon> AddonsFor(string flavourPath) => [.. VisibleAddons(), .. ProviderAddons(flavourPath)];
+
+    private IReadOnlyList<ManagedAddon> AllProviderAddons() =>
+        [.. Installs.SelectMany(install => ProviderAddons(install.FlavourPath)).DistinctBy(addon => addon.Id, StringComparer.OrdinalIgnoreCase)];
+
+    private IReadOnlyList<ManagedAddon> AllVisibleAddons() => [.. VisibleAddons(), .. AllProviderAddons()];
+
+    private async Task<IReadOnlyList<ProviderAddonRecord>> IdentifyCurseForgeAsync(WowInstallViewModel install, IReadOnlyList<LocalAddon> scanned)
+    {
+        if (CurseForgeVersionType(install.Install) is not { } versionType || scanned.Count == 0)
+        {
+            return [];
+        }
+
+        try
+        {
+            var folders = scanned.SelectMany(addon => addon.FoldedFolders.Prepend(addon.FolderName)).ToList();
+            var request = await Task.Run(() => CurseForgeAddons.MatchRequest(install.AddOnsPath, folders, TocFile.InterfaceNumber(install.ClientVersion))).ConfigureAwait(false);
+            var matches = await _stewardClient.MatchCurseForgeAsync(versionType, request, CancellationToken.None).ConfigureAwait(false);
+            var titles = scanned.ToDictionary(addon => addon.FolderName, addon => addon.Name, StringComparer.OrdinalIgnoreCase);
+            var adopted = CurseForgeAddons.Adopt(
+                matches,
+                versionType,
+                folder => Directory.Exists(Path.Combine(install.AddOnsPath, folder)),
+                folder => titles.GetValueOrDefault(folder));
+
+            _logger.Info($"CurseForge match on {install.FlavourPath}: {folders.Count} folder(s) sent, {request.Declared.Count} declared, {matches.Count} match(es), {adopted.Count} addon(s) identified");
+            return adopted;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or SessionExpiredException or TaskCanceledException or JsonException or IOException or UnauthorizedAccessException)
+        {
+            _logger.Warn(ex, $"CurseForge match failed on {install.FlavourPath}");
+            return [];
+        }
+    }
+
+    private bool ReconcileProviderAddons(WowInstallViewModel install, IReadOnlyList<ProviderAddonRecord> identified)
+    {
+        if (!CurseForgeEnabled)
+        {
+            return false;
+        }
+
+        var state = _stateStore.Load();
+        var records = state.ProviderAddons.GetValueOrDefault(install.FlavourPath) ?? [];
+        var busy = install.AddonRows.Where(row => row.IsBusy).Select(row => row.AddonId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var kept = records.Where(record => busy.Contains(record.Id) || Directory.Exists(Path.Combine(install.AddOnsPath, record.FolderName))).ToList();
+        var added = identified.Where(record => !kept.Any(existing => string.Equals(existing.Id, record.Id, StringComparison.OrdinalIgnoreCase))).ToList();
+        if (kept.Count == records.Count && added.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var gone in records.Except(kept))
+        {
+            state.Installs.Remove(AppStateStore.Key(install.FlavourPath, gone.Id));
+            _logger.Info($"CurseForge addon {gone.Id} dropped from {install.FlavourPath}: {gone.FolderName} is gone");
+        }
+
+        SaveProviderRecords(state, install.FlavourPath, [.. kept, .. added]);
+        SyncProviderRows(install);
+        if (added.Count > 0 && IsCurseForgeEnabled)
+        {
+            _ = ProbeAddedProviderAddonsAsync(ProviderAddons(install.FlavourPath).Where(addon => added.Any(record => record.Id == addon.Id)).ToList());
+        }
+
+        return added.Count > 0;
+    }
+
+    private void SaveProviderRecords(AppState state, string flavourPath, List<ProviderAddonRecord> records)
+    {
+        if (records.Count == 0)
+        {
+            state.ProviderAddons.Remove(flavourPath);
+        }
+        else
+        {
+            state.ProviderAddons[flavourPath] = records;
+        }
+
+        _stateStore.Save(state);
+    }
+
+    private async Task<bool> ConfirmAdoptAsync()
+    {
+        IReadOnlyList<AddonManagerApp> apps;
+        try
+        {
+            apps = await Task.Run(AddonManagerApps.Detect).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or COMException or InvalidOperationException)
+        {
+            _logger.Warn(ex, "Addon manager detection failed");
+            return true;
+        }
+
+        if (apps.Count == 0 || ShowConfirmDialog is not { } show)
+        {
+            return true;
+        }
+
+        _logger.Info($"Adopt warning: {string.Join(", ", apps.Select(app => $"{app.Name} running={app.IsRunning} startup={app.StartsWithWindows}"))}");
+        var (startsWith, startupSettings) = OperatingSystem.IsWindows()
+            ? ("starts with Windows", "Windows Settings > Apps > Startup")
+            : ("starts when you log in", "your desktop's startup applications settings");
+        var facts = string.Join(" ", apps.Select(app => $"{app.Name} {(app.IsRunning, app.StartsWithWindows) switch
+        {
+            (true, true) => $"is running and {startsWith}",
+            (true, false) => "is running",
+            _ => startsWith,
+        }}."));
+        var (it, its) = apps.Count == 1 ? ("It", "its") : ("They", "their");
+        var steps = string.Join(" and ", new[]
+        {
+            apps.Any(app => app.IsRunning) ? $"close {it.ToLowerInvariant()}" : null,
+            apps.Any(app => app.StartsWithWindows) ? $"turn off {its} startup in {startupSettings}" : null,
+        }.OfType<string>());
+        return await show(
+            "Adopt from CurseForge?",
+            $"{facts} {it} will update the same addons as Steward and overwrite each other's changes, so {steps}.",
+            "Adopt anyway").ConfigureAwait(true);
+    }
+
+    private void UnmanageProviderAddon(WowInstallViewModel install, string addonId)
+    {
+        var state = _stateStore.Load();
+        var records = state.ProviderAddons.GetValueOrDefault(install.FlavourPath) ?? [];
+        if (records.FirstOrDefault(record => string.Equals(record.Id, addonId, StringComparison.OrdinalIgnoreCase)) is not { } record)
+        {
+            return;
+        }
+
+        var key = AppStateStore.Key(install.FlavourPath, record.Id);
+        state.Installs.Remove(key);
+        state.IgnoredAddons.RemoveAll(ignored => string.Equals(ignored, key, StringComparison.OrdinalIgnoreCase));
+        var keptLocal = CurseForgeAddons.KeptLocalKey(install.FlavourPath, record);
+        if (!state.KeptLocalAddons.Contains(keptLocal, StringComparer.OrdinalIgnoreCase))
+        {
+            state.KeptLocalAddons.Add(keptLocal);
+        }
+
+        _logger.Info($"CurseForge addon {record.Id} unmanaged on {install.FlavourPath}");
+        SaveProviderRecords(state, install.FlavourPath, [.. records.Where(existing => existing != record)]);
+        install.ShowAsLocal(record);
+        SyncProviderRows(install);
+        _ = install.RescanLocalAsync();
+    }
+
+    private void SyncProviderRows(WowInstallViewModel install)
+    {
+        install.SyncAddons(AddonsFor(install.FlavourPath));
+        install.SetIsAdmin(IsAdminFor);
+        install.ApplyStatus(_status, background: false);
+        RebuildAddonChannels();
+        RecomputeSummary();
+    }
+
+    private async Task ProbeAddedProviderAddonsAsync(IReadOnlyList<ManagedAddon> addons)
+    {
+        if (await ProbeProviderAddonsAsync(addons).ConfigureAwait(true))
+        {
+            ApplyStatus(background: false);
+            RecomputeSummary();
+        }
+    }
+
+    private async Task<bool> ProbeProviderAddonsAsync(IReadOnlyList<ManagedAddon> addons, bool noCache = false)
+    {
+        try
+        {
+            var state = _stateStore.Load();
+            foreach (var addon in addons)
+            {
+                var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, CancellationToken.None, noCache).ConfigureAwait(true);
+                _releases[addon.Id] = releases;
+                _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases, addon.Channels, addon.DefaultPreference);
+            }
+
+            ResolveApiRetry("curseforge");
+        }
+        catch (SessionExpiredException)
+        {
+            _logger.Info("CurseForge manifest check: 401, session expired");
+            SignOutTo(GateFailure.SessionExpired);
+            return false;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
+        {
+            _logger.Warn(ex, "CurseForge manifest check failed");
+            ReportFailure(ex, "curseforge", async () =>
+            {
+                await ProbeProviderAddonsAsync(addons).ConfigureAwait(true);
+                return !_apiRetries.ContainsKey("curseforge");
+            });
+            if (!TransientHttp.IsRetryable(ex))
+            {
+                StatusMessage = $"CurseForge check failed: {ex.Message}";
+            }
+        }
+
+        return true;
+    }
+
+    public bool GetAddonsVisibility =>
+        IsCurseForgeEnabled && SelectedInstall is { IsMissing: false } install && CurseForgeVersionType(install.Install) is not null;
+
+    public GetAddonsViewModel? CreateGetAddons() =>
+        SelectedInstall is { } install && CurseForgeVersionType(install.Install) is { } versionType
+            ? new GetAddonsViewModel(this, install, versionType, _stewardClient, _logger)
+            : null;
+
+    public static bool IsCurseForgeInstalled(WowInstallViewModel install, int modId, int versionType) =>
+        install.AddonRows.Any(row => string.Equals(row.AddonId, CurseForgeAddons.Id(modId, versionType), StringComparison.OrdinalIgnoreCase) && row.IsInstalled);
+
+    public Func<string, string, string?, string, Task<bool>>? ShowLinkDialog { get; set; }
+
+    public Func<string, IReadOnlyList<string>, int, string, Task<int?>>? ChooseLinkFile { get; set; }
+
+    public async Task ReceiveCurseForgeLinkAsync(string uri)
+    {
+        if (CurseForgeLinks.Parse(uri) is not { } link)
+        {
+            _logger.Info($"Ignored a CurseForge link that is not curseforge://install with two positive ids: {uri}");
+            return;
+        }
+
+        _logger.Info($"CurseForge link received: mod {link.ModId}, file {link.FileId}");
+        if (InitializeCommand.ExecutionTask is { } initializing)
+        {
+            await initializing.ConfigureAwait(true);
+        }
+
+        if (!IsSignedIn || !HasAddonsFeature)
+        {
+            ShowLocalInfoBanner("CurseForge installs are not enabled for your account.");
+            return;
+        }
+
+        if (!CurseForgeEnabled)
+        {
+            ShowLocalInfoBanner("CurseForge addon management is turned off in Settings.");
+            return;
+        }
+
+        try
+        {
+            await HandleCurseForgeLinkAsync(link).ConfigureAwait(true);
+        }
+        catch (SessionExpiredException)
+        {
+            SignOutTo(GateFailure.SessionExpired);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or TaskCanceledException or JsonException or COMException)
+        {
+            _logger.Warn(ex, $"CurseForge link for mod {link.ModId}, file {link.FileId} failed");
+            StatusMessage = $"Could not open the CurseForge link: {ex.Message}";
+        }
+    }
+
+    private async Task HandleCurseForgeLinkAsync(CurseForgeLink link)
+    {
+        var selectedVersionType = SelectedInstall is { } selected ? CurseForgeVersionType(selected.Install) : null;
+        if (await _stewardClient.GetCurseForgeFileAsync(link.ModId, link.FileId, CancellationToken.None, selectedVersionType).ConfigureAwait(true) is not { } file)
+        {
+            StatusMessage = "That CurseForge file was not found.";
+            return;
+        }
+
+        if (SelectedInstall is not { } install || ShowLinkDialog is not { } show)
+        {
+            StatusMessage = "Pick a World of Warcraft install to add CurseForge addons to.";
+            return;
+        }
+
+        var versionType = CurseForgeVersionType(install.Install);
+        var id = versionType is { } type ? CurseForgeAddons.Id(file.ModId, type) : null;
+        var row = install.AddonRows.FirstOrDefault(row => row.AddonId == id && row.IsInstalled);
+        var installedAt = id is null ? null : _stateStore.Load().Installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, id))?.InstalledAt;
+        var installedReleased = id is null ? null : _releases.GetValueOrDefault(id)?.Values.FirstOrDefault(release => release?.Version == row?.InstalledVersion)?.Released;
+        var newer = row is not null && CurseForgeLinks.IsNewer(file.File, row.InstalledVersion, installedReleased, installedAt);
+        var state = CurseForgeLinks.State(file, versionType, row is not null, newer);
+        var name = file.Name;
+        var version = file.File.Version;
+        var game = install.GameVersionName ?? install.Label;
+        var channel = CurseForgeLinks.Channel(file.ReleaseType);
+        _logger.Info($"CurseForge link for {name} {version} on {install.FlavourPath}: {state}");
+
+        switch (state)
+        {
+            case CurseForgeLinkState.NotBuilt when versionType is null:
+                await show($"{name} {version} is not built for {game}.", $"Steward cannot install CurseForge addons on {game}.", null, "Close").ConfigureAwait(true);
+                return;
+            case CurseForgeLinkState.NotBuilt:
+                if (!await show($"Install {name}?", CurseForgeLinks.ConfirmBody(file, game), "Install", "Cancel").ConfigureAwait(true))
+                {
+                    _logger.Info($"CurseForge link install of {name} {version} cancelled");
+                    return;
+                }
+
+                await InstallForThisClientAsync(install, link, file, versionType.Value, game, row).ConfigureAwait(true);
+                return;
+            case CurseForgeLinkState.Installed:
+                NavigateToAddons?.Invoke();
+                ShowLocalInfoBanner($"{name} {row!.InstalledVersion} is already installed.");
+                return;
+            case CurseForgeLinkState.NotDistributable:
+                if (await show($"{name} is only available on CurseForge", $"Its author does not allow other apps to download it, so {version} has to be installed from CurseForge.", "Open on CurseForge", "Cancel").ConfigureAwait(true)
+                    && Uri.TryCreate(file.File.Website ?? file.WebsiteUrl, UriKind.Absolute, out var website) && website.Scheme == Uri.UriSchemeHttps)
+                {
+                    ShellOpen.Open(website.AbsoluteUri);
+                }
+
+                return;
+        }
+
+        if (!await show($"Install {name}?", CurseForgeLinks.ConfirmBody(file, game), "Install", "Cancel").ConfigureAwait(true))
+        {
+            _logger.Info($"CurseForge link install of {name} {version} cancelled");
+            return;
+        }
+
+        await InstallLinkedAsync(install, file, versionType!.Value, channel, file.File).ConfigureAwait(true);
+    }
+
+    private async Task InstallForThisClientAsync(WowInstallViewModel install, CurseForgeLink link, CurseForgeModFile file, int versionType, string game, AddonRowViewModel? row)
+    {
+        var record = new ProviderAddonRecord(CurseForgeAddons.Id(file.ModId, versionType), file.Name, file.Name, CurseForgeAddons.Source, file.ModId, versionType, []);
+        var probe = CurseForgeAddons.ToManagedAddon(record, _stewardClient.CurseForgeManifestBaseUrl(file.ModId, versionType));
+        var releases = await _addonUpdater.ProbeChannelsAsync(probe, AddonChannelStatus.Ordered, CancellationToken.None).ConfigureAwait(true);
+        if (CurseForgeLinks.Alternative(releases) is (var altChannel, var alt))
+        {
+            _logger.Info($"CurseForge link for {file.Name} {file.File.Version} is for another client; {game} has {alt.Version} on {altChannel}");
+            if (row is not null && string.Equals(row.InstalledVersion, alt.Version, StringComparison.Ordinal))
+            {
+                NavigateToAddons?.Invoke();
+                ShowLocalInfoBanner($"{file.Name} {alt.Version} is already installed.");
+            }
+            else if (await InstallLinkedAsync(install, file, versionType, altChannel, alt).ConfigureAwait(true))
+            {
+                ShowLocalInfoBanner($"Installed the {game} build {alt.Version} of {file.Name} instead of the linked file.");
+            }
+
+            return;
+        }
+
+        if (ChooseLinkFile is not { } choose)
+        {
+            return;
+        }
+
+        var choices = CurseForgeLinks.Choices(await _stewardClient.GetCurseForgeLatestFilesAsync(file.ModId, CancellationToken.None).ConfigureAwait(true), file, link.FileId);
+        if (await choose(
+                $"{file.Name} has no build for {game}.",
+                [.. choices.Select(choice => $"{choice.Client} · {choice.Version}")],
+                CurseForgeLinks.Preselect(choices, link.FileId),
+                $"It will show as out of date and updates only once a {game} build is published.").ConfigureAwait(true) is not { } index)
+        {
+            return;
+        }
+
+        var chosen = choices[index].FileId == link.FileId
+            ? file
+            : await _stewardClient.GetCurseForgeFileAsync(file.ModId, choices[index].FileId, CancellationToken.None, versionType).ConfigureAwait(true);
+        if (chosen is null)
+        {
+            StatusMessage = "That CurseForge file was not found.";
+            return;
+        }
+
+        await InstallLinkedAsync(install, file, versionType, CurseForgeLinks.Channel(chosen.ReleaseType), chosen.File).ConfigureAwait(true);
+    }
+
+    private async Task<bool> InstallLinkedAsync(WowInstallViewModel install, CurseForgeModFile file, int versionType, string channel, AddonRelease release)
+    {
+        NavigateToAddons?.Invoke();
+        var result = new CurseForgeResult(file.ModId, file.Name, null, null, file.IconUrl, file.WebsiteUrl, release.Version, file.AllowDistribution);
+        if (await InstallCurseForgeAsync(install, result, versionType, (channel, release)).ConfigureAwait(true) is { } failure)
+        {
+            StatusMessage = failure;
+            return false;
+        }
+
+        return true;
+    }
+
+    public Task<string?> InstallCurseForgeAsync(WowInstallViewModel install, CurseForgeResult result, int versionType) =>
+        InstallCurseForgeAsync(install, result, versionType, null);
+
+    private async Task<string?> InstallCurseForgeAsync(WowInstallViewModel install, CurseForgeResult result, int versionType, (string Channel, AddonRelease File)? pinned)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+        ArgumentNullException.ThrowIfNull(result);
+        if (!HasAddonsFeature)
+        {
+            return "CurseForge is not enabled for your account.";
+        }
+
+        if (!CurseForgeEnabled)
+        {
+            return "CurseForge addon management is turned off in Settings.";
+        }
+
+        var id = CurseForgeAddons.Id(result.Id, versionType);
+        var draft = new ProviderAddonRecord(id, result.Name, result.Name, CurseForgeAddons.Source, result.Id, versionType, [], result.IconUrl, result.WebsiteUrl);
+        var probe = CurseForgeAddons.ToManagedAddon(draft, _stewardClient.CurseForgeManifestBaseUrl(result.Id, versionType));
+        IReadOnlyDictionary<string, AddonRelease?> releases;
+        try
+        {
+            releases = await _addonUpdater.ProbeChannelsAsync(probe, VisibleChannels, CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (SessionExpiredException)
+        {
+            SignOutTo(GateFailure.SessionExpired);
+            return "Your session has expired.";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or OperationCanceledException)
+        {
+            _logger.Warn(ex, $"CurseForge manifest for {id} failed");
+            return $"Could not reach CurseForge: {ex.Message}";
+        }
+
+        if (pinned is var (pinnedChannel, pinnedFile))
+        {
+            releases = new Dictionary<string, AddonRelease?>(releases) { [pinnedChannel] = pinnedFile };
+        }
+
+        var status = AddonChannelStatus.Resolve(pinned?.Channel ?? _stateStore.Load().Channels.GetValueOrDefault(id), releases, probe.Channels, probe.DefaultPreference);
+        if (status.Release is not { Folders: { Count: > 0 } folders })
+        {
+            return $"No {install.GameVersionName} build of {result.Name} is on CurseForge.";
+        }
+
+        if (folders.FirstOrDefault(folder => ExcludedFoldersForOthers(install, id).Contains(folder, StringComparer.OrdinalIgnoreCase)) is { } taken)
+        {
+            return $"{taken} is already managed by another row.";
+        }
+
+        var state = _stateStore.Load();
+        var records = (state.ProviderAddons.GetValueOrDefault(install.FlavourPath) ?? []).Where(record => record.Id != id).ToList();
+        records.Add(draft with { FolderName = CurseForgeAddons.PrimaryFolder(folders), Folders = folders });
+        if (pinned is { Channel: var channel })
+        {
+            state.Channels[id] = channel;
+        }
+
+        SaveProviderRecords(state, install.FlavourPath, records);
+        _releases[id] = releases;
+        _status[id] = status;
+        SyncProviderRows(install);
+
+        if (install.AddonRows.FirstOrDefault(row => row.AddonId == id) is not { } row || !row.UpdateCommand.CanExecute(null))
+        {
+            return "Could not start the install.";
+        }
+
+        await row.UpdateCommand.ExecuteAsync(null).ConfigureAwait(true);
+        return row.HasFailed ? row.StatusMessage ?? "Install failed." : null;
+    }
+
+    private IReadOnlyList<string> ExcludedFoldersForOthers(WowInstallViewModel install, string id)
+    {
+        var installs = _stateStore.Load().Installs;
+        return
+        [
+            .. _addons.Concat(_addonCatalogue ?? []).Where(addon => (CurseForgeEnabled || !addon.IsCurseForge) && !string.Equals(addon.Id, id, StringComparison.OrdinalIgnoreCase)).Select(addon => addon.FolderName),
+            .. new[] { StewardGuidesAddon.FolderName }.Where(_ => !string.Equals(id, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase)),
+            .. ProviderRecords(install.FlavourPath).Where(record => CurseForgeEnabled && record.Id != id).SelectMany(record =>
+                CurseForgeAddons.Folders(record).Concat(installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, record.Id))?.Folders ?? [])),
+        ];
+    }
+
+    private Task<bool> CheckProviderAddonsAsync(bool background, bool noCache)
+    {
+        var due = !background || IsDue(_lastCurseForgeCheck, CurseForgeCheckInterval);
+        var addons = AllProviderAddons().Where(addon => due || !_releases.ContainsKey(addon.Id)).ToList();
+        if (due)
+        {
+            _lastCurseForgeCheck = DateTimeOffset.Now;
+        }
+
+        return ProbeProviderAddonsAsync(addons, noCache);
+    }
+}

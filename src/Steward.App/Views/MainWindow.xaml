@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:services="using:Steward.App.Services"
     xmlns:tb="using:H.NotifyIcon"
+    xmlns:views="using:Steward.App.Views"
     xmlns:vm="using:Steward.App.ViewModels">
 
     <Grid Background="{ThemeResource WindowGroundBrush}">
@@ -34,7 +35,7 @@
                                     FontSize="14"
                                     Foreground="{ThemeResource SystemFillColorCautionBrush}"
                                     Visibility="{x:Bind NoGameVersionVisibility}" />
-                                <Image Source="{x:Bind ProductIcon}" Stretch="Uniform" />
+                                <Image Source="{x:Bind views:BindConvert.Image(ProductIcon)}" Stretch="Uniform" />
                             </Grid>
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
@@ -130,7 +131,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                <Image Source="{x:Bind Icon}" Stretch="UniformToFill" />
+                                <Image Source="{x:Bind views:BindConvert.Image(Icon)}" Stretch="UniformToFill" />
                             </Grid>
                         </Border>
 
@@ -234,7 +235,7 @@
                                 Height="20"
                                 VerticalAlignment="Center"
                                 Stretch="Uniform"
-                                Source="{x:Bind ViewModel.SelectedInstall.ProductIcon, Mode=OneWay}"
+                                Source="{x:Bind views:BindConvert.Image(ViewModel.SelectedInstall.ProductIcon), Mode=OneWay}"
                                 Visibility="{x:Bind ViewModel.SelectedInstall.ProductIconVisibility, Mode=OneWay, FallbackValue=Collapsed}" />
                             <TextBlock
                                 Grid.Column="1"
@@ -598,7 +599,7 @@
                             <PersonPicture
                                 Width="24"
                                 Height="24"
-                                ProfilePicture="{x:Bind ViewModel.AvatarImage, Mode=OneWay}"
+                                ProfilePicture="{x:Bind views:BindConvert.Image(ViewModel.AvatarImage), Mode=OneWay}"
                                 DisplayName="{x:Bind ViewModel.UserName, Mode=OneWay}" />
                             <Ellipse
                                 Width="30"
@@ -654,7 +655,7 @@
                                         Width="40"
                                         Height="40"
                                         VerticalAlignment="Center"
-                                        ProfilePicture="{x:Bind ViewModel.AvatarImage, Mode=OneWay}"
+                                        ProfilePicture="{x:Bind views:BindConvert.Image(ViewModel.AvatarImage), Mode=OneWay}"
                                         DisplayName="{x:Bind ViewModel.UserName, Mode=OneWay}" />
                                     <StackPanel x:Name="AccountNameColumn" Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                         <TextBlock
@@ -719,7 +720,7 @@
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
                                                     Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                                <Image Source="{x:Bind ViewModel.SelectedGuild.Icon, Mode=OneWay}" Stretch="UniformToFill" />
+                                                <Image Source="{x:Bind views:BindConvert.Image(ViewModel.SelectedGuild.Icon), Mode=OneWay}" Stretch="UniformToFill" />
                                             </Grid>
                                         </Border>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">

@@ -1,0 +1,700 @@
+<Window
+    x:Class="Steward.Desktop.Views.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:chrome="using:Avalonia.Controls.Chrome"
+    xmlns:styles="using:Steward.Desktop.Styles"
+    xmlns:ui="using:FluentAvalonia.UI.Controls"
+    xmlns:views="using:Steward.Desktop.Views"
+    xmlns:vm="using:Steward.App.ViewModels"
+    x:DataType="vm:MainViewModel"
+    Width="980"
+    Height="720"
+    MinWidth="720"
+    MinHeight="560"
+    WindowStartupLocation="CenterScreen"
+    ExtendClientAreaToDecorationsHint="True"
+    ExtendClientAreaTitleBarHeightHint="{StaticResource TitleBarHeight}"
+    WindowDecorationsTheme="{StaticResource StewardWindowDecorations}"
+    Background="{DynamicResource WindowGroundBrush}"
+    Icon="avares://Steward.Desktop/Assets/Steward.ico">
+    <Window.Styles>
+        <Style Selector="Button.Nav">
+            <Setter Property="Theme" Value="{StaticResource SubtleButtonStyle}" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="Margin" Value="4,2" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="{DynamicResource NavigationViewItemBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource NavigationViewItemForeground}" />
+        </Style>
+        <Style Selector="Button.Nav /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Transitions">
+                <Transitions />
+            </Setter>
+        </Style>
+        <Style Selector="Button.Nav:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource NavigationViewItemBackgroundPointerOver}" />
+            <Setter Property="Foreground" Value="{DynamicResource NavigationViewItemForeground}" />
+        </Style>
+        <Style Selector="Button.Nav:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource NavigationViewItemBackgroundPressed}" />
+            <Setter Property="Foreground" Value="{DynamicResource NavigationViewItemForeground}" />
+        </Style>
+        <Style Selector="Button.Nav.Selected">
+            <Setter Property="Background" Value="{DynamicResource NavigationViewItemBackgroundSelected}" />
+        </Style>
+        <Style Selector="Button.Nav.Selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource NavigationViewItemBackgroundSelectedPointerOver}" />
+        </Style>
+        <Style Selector="Button.Nav.Selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource NavigationViewItemBackgroundSelectedPressed}" />
+        </Style>
+        <Style Selector="Button.Nav Border.Indicator">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="Button.Nav.Selected Border.Indicator">
+            <Setter Property="IsVisible" Value="True" />
+        </Style>
+        <Style Selector="Button.Nav TextBlock.Glyph">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Width" Value="40" />
+            <Setter Property="TextAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.Menu">
+            <Setter Property="Theme" Value="{StaticResource MenuRowButtonStyle}" />
+        </Style>
+    </Window.Styles>
+
+    <Window.Resources>
+        <DataTemplate x:Key="InstallOptionTemplate" x:DataType="vm:WowInstallViewModel">
+            <Grid>
+                <Button
+                    Classes="Menu"
+                    MinHeight="40"
+                    Padding="8,5"
+                    AutomationProperties.Name="{Binding Label}"
+                    ToolTip.Tip="{Binding FlavourPath}"
+                    Tag="{Binding}"
+                    Click="OnInstallOptionClick">
+                    <Grid ColumnDefinitions="Auto,*,Auto,20" ColumnSpacing="12" Opacity="{Binding RowOpacity}">
+                        <Grid Width="32" Height="32" VerticalAlignment="Center">
+                            <TextBlock
+                                Classes="Glyph"
+                                Text="{StaticResource Glyph.Warning}"
+                                FontSize="14"
+                                Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                IsVisible="{Binding NoGameVersionVisibility}" />
+                            <Image Source="{Binding ProductIcon, Converter={x:Static views:BindConvert.Image}}" Stretch="Uniform" />
+                        </Grid>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock FontSize="12.5" TextTrimming="CharacterEllipsis">
+                                <Run Text="{Binding Label}" /><Run Text="{Binding RunningText}" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                            </TextBlock>
+                            <TextBlock
+                                FontSize="11.5"
+                                TextTrimming="CharacterEllipsis"
+                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                IsVisible="{Binding StatusVisibility}">
+                                <Run Text="{Binding StatusText}" /><Run Text="{Binding SelectedDetailText}" />
+                            </TextBlock>
+                            <TextBlock
+                                Text="Game version not set"
+                                FontSize="11.5"
+                                Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                IsVisible="{Binding NoGameVersionVisibility}" />
+                            <TextBlock
+                                Text="Folder not found"
+                                FontSize="11.5"
+                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                IsVisible="{Binding MissingVisibility}" />
+                        </StackPanel>
+                        <Ellipse
+                            Grid.Column="2"
+                            Width="6"
+                            Height="6"
+                            VerticalAlignment="Center"
+                            Fill="{DynamicResource SystemFillColorCautionBrush}"
+                            ToolTip.Tip="World of Warcraft is running"
+                            IsVisible="{Binding RunningDotVisibility}" />
+                    </Grid>
+                </Button>
+                <Border
+                    Width="3"
+                    Height="16"
+                    CornerRadius="1.5"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    IsHitTestVisible="False"
+                    Background="{DynamicResource AccentFillColorDefaultBrush}"
+                    IsVisible="{Binding SelectionIndicatorVisibility}" />
+                <Button
+                    Theme="{StaticResource SubtleButtonStyle}"
+                    Width="28"
+                    Height="28"
+                    MinHeight="28"
+                    Margin="0,0,4,0"
+                    Padding="0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    AutomationProperties.Name="{Binding EditAccessibleName}"
+                    ToolTip.Tip="Edit install"
+                    Tag="{Binding}"
+                    Click="OnEditInstallOptionClick">
+                    <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Edit}" FontSize="13" />
+                </Button>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="GuildOptionTemplate" x:DataType="vm:GuildOptionViewModel">
+            <Button
+                Classes="Menu"
+                MinHeight="40"
+                Padding="8,5"
+                AutomationProperties.Name="{Binding Label}"
+                Tag="{Binding}"
+                Click="OnGuildOptionClick">
+                <Grid ColumnDefinitions="Auto,*,20" ColumnSpacing="12">
+                    <Border Width="24" Height="24" VerticalAlignment="Center" CornerRadius="6" ClipToBounds="True" Background="{DynamicResource ChipBrush}">
+                        <Grid>
+                            <TextBlock
+                                Text="{Binding Initial}"
+                                FontSize="11.5"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                            <Image Source="{Binding Icon, Converter={x:Static views:BindConvert.Image}}" Stretch="UniformToFill" />
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Label}" FontSize="12.5" TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Text="{Binding Detail}"
+                            FontSize="11.5"
+                            TextTrimming="CharacterEllipsis"
+                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    </StackPanel>
+                    <TextBlock
+                        Grid.Column="2"
+                        Classes="Glyph"
+                        Text="{StaticResource Glyph.CheckMark}"
+                        FontSize="13"
+                        Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                        IsVisible="{Binding CurrentVisibility}" />
+                </Grid>
+            </Button>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid x:Name="Root" RowDefinitions="48,*">
+        <Grid Grid.RowSpan="2" IsHitTestVisible="False">
+            <views:DitheredRadialGradient Fill="{DynamicResource GroundGlowTopLeft}" />
+            <views:DitheredRadialGradient Fill="{DynamicResource GroundGlowTopRight}" />
+        </Grid>
+
+        <Grid
+            x:Name="AppTitleBar"
+            Grid.Row="0"
+            ZIndex="1"
+            Background="Transparent"
+            ColumnDefinitions="Auto,*,144"
+            chrome:WindowDecorationProperties.ElementRole="TitleBar">
+            <StackPanel x:Name="TitleArea" Orientation="Horizontal" Spacing="15" Margin="14,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                <Image Source="avares://Steward.Desktop/Assets/Steward-256.png" Width="16" Height="16" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleText" FontSize="12" VerticalAlignment="Center" />
+            </StackPanel>
+            <Panel x:Name="InstallPickerHost" Grid.Column="1" VerticalAlignment="Center" IsVisible="{Binding ShellChromeVisibility}">
+                <Button
+                    x:Name="InstallPicker"
+                    Height="32"
+                    MinHeight="32"
+                    MinWidth="200"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Padding="11,0,10,2"
+                    HorizontalContentAlignment="Stretch"
+                    VerticalContentAlignment="Stretch"
+                    Background="{DynamicResource ChipBrush}"
+                    AutomationProperties.Name="Switch install"
+                    ToolTip.Tip="{Binding SelectedInstall.FlavourPath, FallbackValue={x:Null}}"
+                    IsVisible="{Binding TitleBarPickerVisibility}"
+                    chrome:WindowDecorationProperties.ElementRole="User">
+                    <Button.Styles>
+                        <Style Selector="Button#InstallPicker:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource LayerFillColorAltBrush}" />
+                        </Style>
+                        <Style Selector="Button#InstallPicker:pressed /template/ ContentPresenter#PART_ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource ChipBrush}" />
+                        </Style>
+                    </Button.Styles>
+                    <Button.RenderTransform>
+                        <TranslateTransform />
+                    </Button.RenderTransform>
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                        <TextBlock
+                            Classes="Glyph"
+                            Text="{StaticResource Glyph.Warning}"
+                            FontSize="13"
+                            Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                            IsVisible="{Binding SelectedInstall.NoGameVersionVisibility, FallbackValue=False}" />
+                        <Image
+                            Width="20"
+                            Height="20"
+                            VerticalAlignment="Center"
+                            Stretch="Uniform"
+                            Source="{Binding SelectedInstall.ProductIcon, Converter={x:Static views:BindConvert.Image}, FallbackValue={x:Null}}"
+                            IsVisible="{Binding SelectedInstall.ProductIconVisibility, FallbackValue=False}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Text="{Binding SelectedInstall.Label, FallbackValue={x:Null}}"
+                            FontSize="14"
+                            styles:SegoeMetrics.IsFree="True"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            TextTrimming="CharacterEllipsis" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Ellipse
+                                x:Name="InstallPickerRunningDot"
+                                Width="7"
+                                Height="7"
+                                VerticalAlignment="Center"
+                                Fill="{DynamicResource SystemFillColorCautionBrush}"
+                                ToolTip.Tip="World of Warcraft is running"
+                                IsVisible="{Binding SelectedInstall.RunningDotVisibility, FallbackValue=False}" />
+                            <TextBlock
+                                Classes="Glyph"
+                                Text="{StaticResource Glyph.ChevronDown}"
+                                FontSize="10"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </Grid>
+                    <Button.Flyout>
+                        <Flyout Placement="Bottom" FlyoutPresenterClasses="Tinted Below">
+                            <StackPanel Width="260" Spacing="2">
+                                <TextBlock
+                                    Text="Switch install"
+                                    FontSize="11.5"
+                                    Margin="8,4,8,2"
+                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                <ItemsControl ItemsSource="{Binding Installs}" ItemTemplate="{StaticResource InstallOptionTemplate}" />
+                                <Border Height="1" Margin="-4,2" Background="{DynamicResource MenuFlyoutSeparatorBackground}" />
+                                <Button Classes="Menu" Height="36" MinHeight="36" Padding="8,0" Click="OnOpenAddOnsFolderClick">
+                                    <Grid ColumnDefinitions="32,*" ColumnSpacing="12">
+                                        <TextBlock Classes="Glyph" Text="{StaticResource Glyph.FolderOpen}" FontSize="14" />
+                                        <TextBlock Grid.Column="1" Text="Open AddOns folder" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Button>
+                                <Button Classes="Menu" Height="36" MinHeight="36" Padding="8,0" Click="OnAddInstallClick">
+                                    <Grid ColumnDefinitions="32,*" ColumnSpacing="12">
+                                        <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Add}" FontSize="14" />
+                                        <TextBlock Grid.Column="1" Text="Add install" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Button>
+                                <Button Classes="Menu" Height="36" MinHeight="36" Padding="8,0" Click="OnManageInstallsClick">
+                                    <Grid ColumnDefinitions="32,*" ColumnSpacing="12">
+                                        <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Setting}" FontSize="14" />
+                                        <TextBlock Grid.Column="1" Text="Manage installs" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Button>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+            </Panel>
+        </Grid>
+
+        <Grid x:Name="GatePanel" Grid.Row="0" Grid.RowSpan="2" IsVisible="{Binding GateVisibility}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="460" Spacing="16">
+                <Image Source="avares://Steward.Desktop/Assets/Steward-256.png" Width="56" Height="56" HorizontalAlignment="Center" />
+                <TextBlock
+                    Text="{Binding GateHeading}"
+                    FontFamily="{StaticResource DisplayFontFamily}"
+                    FontSize="28"
+                    FontWeight="SemiBold"
+                    HorizontalAlignment="Center"
+                    TextAlignment="Center" />
+                <ui:FAInfoBar
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Warning"
+                    HorizontalAlignment="Center"
+                    IsVisible="{Binding TimeoutVisibility}"
+                    Message="No sign-in reached Steward from the browser. Sign in again." />
+                <ui:FAInfoBar
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Warning"
+                    HorizontalAlignment="Center"
+                    IsVisible="{Binding SessionExpiredVisibility}"
+                    Message="Your session expired. Sign in again." />
+                <ui:FAInfoBar
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Informational"
+                    HorizontalAlignment="Center"
+                    IsVisible="{Binding AccessRemovedVisibility}"
+                    Message="{Binding AccessRemovedNotice}" />
+                <ui:FAInfoBar
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Error"
+                    HorizontalAlignment="Center"
+                    IsVisible="{Binding NotAuthorizedVisibility}"
+                    Message="This Discord user has no Steward access. Reach out to an Officer or to Hoobi." />
+                <ui:FAInfoBar
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Error"
+                    HorizontalAlignment="Center"
+                    IsVisible="{Binding SignInFailedVisibility}"
+                    Message="{Binding SignInError}" />
+                <ui:FAInfoBar
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Error"
+                    HorizontalAlignment="Center"
+                    IsVisible="{Binding UnreachableVisibility}"
+                    Message="Could not reach api.hoobi.io. Check your connection.">
+                    <ui:FAInfoBar.ActionButton>
+                        <Button Content="Retry" Command="{Binding SignInCommand}" />
+                    </ui:FAInfoBar.ActionButton>
+                </ui:FAInfoBar>
+                <ui:FAInfoBar
+                    IsOpen="True"
+                    IsClosable="False"
+                    Severity="Error"
+                    HorizontalAlignment="Center"
+                    IsVisible="{Binding ClientOutdatedVisibility}"
+                    Message="{Binding StatusMessage}">
+                    <ui:FAInfoBar.ActionButton>
+                        <Button Content="Update Steward" Command="{Binding StatusActionCommand}" />
+                    </ui:FAInfoBar.ActionButton>
+                </ui:FAInfoBar>
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                    <Button
+                        Height="38"
+                        MinHeight="38"
+                        Background="{DynamicResource DiscordBrush}"
+                        Foreground="White"
+                        VerticalContentAlignment="Center"
+                        Command="{Binding SignInCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <views:ProgressRing
+                                Width="16"
+                                Height="16"
+                                IsActive="{Binding IsSigningIn}"
+                                IsVisible="{Binding CancelSignInVisibility}" />
+                            <TextBlock Text="Sign in with Discord" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Content="Cancel" Command="{Binding CancelSignInCommand}" IsVisible="{Binding CancelSignInVisibility}" />
+                </StackPanel>
+                <StackPanel Spacing="8" HorizontalAlignment="Stretch" IsVisible="{Binding PendingSignInVisibility}">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+                        <TextBlock
+                            Text="If your browser didn't open,"
+                            FontSize="12"
+                            VerticalAlignment="Center"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <HyperlinkButton
+                            Content="click this link"
+                            Padding="0"
+                            FontSize="12"
+                            VerticalAlignment="Center"
+                            Command="{Binding OpenBrowserAgainCommand}" />
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox
+                            x:Name="SignInUrlBox"
+                            Text="{Binding PendingSignInUrl}"
+                            IsReadOnly="True"
+                            FontFamily="{StaticResource MonoFontFamily}"
+                            FontSize="12"
+                            BorderThickness="0"
+                            CornerRadius="4"
+                            MinHeight="0"
+                            Padding="10,8"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                            GotFocus="SelectAllSignInUrl" />
+                        <Button Grid.Column="1" Content="Copy link" Command="{Binding CopyLinkCommand}" />
+                    </Grid>
+                    <ui:FAInfoBar
+                        IsOpen="True"
+                        IsClosable="False"
+                        Severity="Informational"
+                        HorizontalAlignment="Center"
+                        IsVisible="{Binding BrowserOpenFailedVisibility}"
+                        Message="Your browser did not open. Use Copy link and paste it into your browser." />
+                    <TextBlock
+                        Text="{Binding CopyLinkStatus}"
+                        FontSize="12"
+                        HorizontalAlignment="Center"
+                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                </StackPanel>
+                <TextBlock
+                    FontSize="12"
+                    TextWrapping="Wrap"
+                    HorizontalAlignment="Center"
+                    TextAlignment="Center"
+                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                    Text="Opens your browser. Steward stores the session on this machine and never sees your password." />
+            </StackPanel>
+
+            <Grid Margin="20,0,20,20" VerticalAlignment="Bottom">
+                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock
+                        Classes="Caption"
+                        Text="{Binding VersionLabel}"
+                        VerticalAlignment="Center"
+                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    <HyperlinkButton
+                        Content="Help"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        NavigateUri="https://github.com/hoobio/steward-companion" />
+                </StackPanel>
+                <HyperlinkButton
+                    Content="Check for updates"
+                    Padding="0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding CheckForUpdatesVisibility}"
+                    Command="{Binding CheckForUpdatesCommand}" />
+            </Grid>
+        </Grid>
+
+        <Grid x:Name="Shell" Grid.Row="1" ColumnDefinitions="48,*" IsVisible="{Binding ShellChromeVisibility}">
+            <DockPanel x:Name="Pane" Margin="0,4,0,3">
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Button
+                        x:Name="AccountButton"
+                        Theme="{StaticResource SubtleButtonStyle}"
+                        Height="36"
+                        MinHeight="36"
+                        Margin="4,2,4,3"
+                        Padding="0"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch"
+                        Background="{DynamicResource NavigationViewItemBackground}"
+                        ToolTip.Tip="{Binding AccountAutomationName}"
+                        AutomationProperties.Name="{Binding AccountAutomationName}">
+                        <Grid ColumnDefinitions="40,*">
+                            <Grid Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Border CornerRadius="12" ClipToBounds="True" Background="{DynamicResource ControlAltFillColorQuarternaryBrush}">
+                                    <Grid>
+                                        <TextBlock
+                                            Text="{Binding UserName, Converter={x:Static views:BindConvert.Initials}}"
+                                            FontSize="10"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center" />
+                                        <Image Source="{Binding AvatarImage, Converter={x:Static views:BindConvert.Image}}" Stretch="UniformToFill" />
+                                    </Grid>
+                                </Border>
+                                <Ellipse
+                                    Width="30"
+                                    Height="30"
+                                    Margin="-3"
+                                    StrokeThickness="2"
+                                    Stroke="{DynamicResource SystemFillColorSuccessBrush}"
+                                    IsVisible="{Binding LiveUpdatesLiveVisibility}" />
+                                <Ellipse
+                                    Width="30"
+                                    Height="30"
+                                    Margin="-3"
+                                    StrokeThickness="2"
+                                    Stroke="{DynamicResource SystemFillColorCautionBrush}"
+                                    IsVisible="{Binding LiveUpdatesReconnectingVisibility}" />
+                            </Grid>
+                            <TextBlock
+                                Grid.Column="1"
+                                Margin="4,0,8,0"
+                                Text="{Binding UserName}"
+                                VerticalAlignment="Center"
+                                TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                        <Button.Flyout>
+                            <Flyout Placement="RightEdgeAlignedBottom" FlyoutPresenterClasses="Tinted Flush">
+                                <StackPanel Width="280">
+                                    <Grid x:Name="AccountHeader" Margin="16,16,16,12" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" Background="Transparent">
+                                        <Border Width="40" Height="40" CornerRadius="20" ClipToBounds="True" VerticalAlignment="Center" Background="{DynamicResource ControlAltFillColorQuarternaryBrush}">
+                                            <Grid>
+                                                <TextBlock
+                                                    Text="{Binding UserName, Converter={x:Static views:BindConvert.Initials}}"
+                                                    FontSize="16"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center" />
+                                                <Image Source="{Binding AvatarImage, Converter={x:Static views:BindConvert.Image}}" Stretch="UniformToFill" />
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel x:Name="AccountNameColumn" Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                            <TextBlock x:Name="AccountName" HorizontalAlignment="Left" Text="{Binding UserName}" FontSize="14" FontWeight="SemiBold" />
+                                            <TextBlock
+                                                Text="{Binding UserHandle}"
+                                                IsVisible="{Binding UserHandleVisibility}"
+                                                FontFamily="{StaticResource MonoFontFamily}"
+                                                FontSize="12"
+                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                        <Border
+                                            x:Name="RolePill"
+                                            Grid.Row="1"
+                                            Grid.Column="1"
+                                            Margin="0,8,0,0"
+                                            HorizontalAlignment="Left"
+                                            CornerRadius="4"
+                                            Padding="6,2"
+                                            Background="{DynamicResource AccentFillColorDefaultBrush}">
+                                            <TextBlock Classes="Caption" Text="{Binding RoleLabel}" Foreground="{DynamicResource AccentButtonForeground}" />
+                                        </Border>
+                                    </Grid>
+                                    <Border Height="1" Background="{DynamicResource RowHairlineBrush}" />
+                                    <Button
+                                        x:Name="GuildRow"
+                                        Classes="Menu"
+                                        Margin="4"
+                                        Padding="12,6"
+                                        IsHitTestVisible="{Binding HasGuildChoice}"
+                                        Focusable="{Binding HasGuildChoice}"
+                                        AutomationProperties.Name="Guild"
+                                        IsVisible="{Binding GuildPickerVisibility}"
+                                        Click="OnGuildRowClick">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                            <Border Width="24" Height="24" VerticalAlignment="Center" CornerRadius="6" ClipToBounds="True" Background="{DynamicResource ChipBrush}">
+                                                <Grid>
+                                                    <TextBlock
+                                                        Text="{Binding SelectedGuild.Initial, FallbackValue={x:Null}}"
+                                                        FontSize="11.5"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                    <Image Source="{Binding SelectedGuild.Icon, Converter={x:Static views:BindConvert.Image}, FallbackValue={x:Null}}" Stretch="UniformToFill" />
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding SelectedGuild.Label, FallbackValue={x:Null}}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="Guild" FontSize="11.5" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                            </StackPanel>
+                                            <TextBlock
+                                                Grid.Column="2"
+                                                Classes="Glyph"
+                                                Text="{StaticResource Glyph.ChevronRight}"
+                                                FontSize="11"
+                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                IsVisible="{Binding GuildChevronVisibility}" />
+                                        </Grid>
+                                        <Button.Flyout>
+                                            <Flyout Placement="RightEdgeAlignedTop" ShowMode="Transient" FlyoutPresenterClasses="Tinted">
+                                                <StackPanel x:Name="GuildFlyoutContent" Width="260" Spacing="2">
+                                                    <ItemsControl ItemsSource="{Binding Guilds}" ItemTemplate="{StaticResource GuildOptionTemplate}" />
+                                                </StackPanel>
+                                            </Flyout>
+                                        </Button.Flyout>
+                                    </Button>
+                                    <Border Height="1" Background="{DynamicResource RowHairlineBrush}" IsVisible="{Binding GuildPickerVisibility}" />
+                                    <Button
+                                        x:Name="OpenGuildPanelButton"
+                                        Classes="Menu"
+                                        Content="Open guild panel"
+                                        HorizontalContentAlignment="Left"
+                                        Margin="4,4,4,2"
+                                        Padding="12,9,12,10"
+                                        Click="OnGuildPanelClick" />
+                                    <Button
+                                        x:Name="AccountSignOutButton"
+                                        Classes="Menu"
+                                        Content="Sign out"
+                                        HorizontalContentAlignment="Left"
+                                        Margin="4,2,4,4"
+                                        Padding="12,9,12,10"
+                                        Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                        Click="OnSignOutClick" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                    <Button x:Name="SettingsItem" Classes="Nav" Tag="settings" ToolTip.Tip="Settings" AutomationProperties.Name="Settings" Click="OnNavItemClick">
+                        <Grid>
+                            <Border Classes="Indicator" Width="3" Height="16" CornerRadius="2" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{DynamicResource NavigationViewSelectionIndicatorForeground}" />
+                            <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Setting}" HorizontalAlignment="Left" />
+                        </Grid>
+                    </Button>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Top">
+                    <Button x:Name="AddonsItem" Classes="Nav" Tag="addons" ToolTip.Tip="Addons" AutomationProperties.Name="Addons" Click="OnNavItemClick">
+                        <Grid>
+                            <Border Classes="Indicator" Width="3" Height="16" CornerRadius="2" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{DynamicResource NavigationViewSelectionIndicatorForeground}" />
+                            <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Game}" HorizontalAlignment="Left" />
+                        </Grid>
+                    </Button>
+                    <Button
+                        x:Name="SyncItem"
+                        Classes="Nav"
+                        Tag="sync"
+                        ToolTip.Tip="Sync"
+                        AutomationProperties.Name="Sync"
+                        IsEnabled="{Binding IsApiReachable}"
+                        IsVisible="{Binding SyncVisibility}"
+                        Click="OnNavItemClick">
+                        <Grid>
+                            <Border Classes="Indicator" Width="3" Height="16" CornerRadius="2" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{DynamicResource NavigationViewSelectionIndicatorForeground}" />
+                            <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Sync}" HorizontalAlignment="Left" />
+                            <ui:FAInfoBadge HorizontalAlignment="Left" VerticalAlignment="Top" Margin="26,6,0,0" IsVisible="{Binding SyncBadgeVisibility}" />
+                        </Grid>
+                    </Button>
+                    <Button
+                        x:Name="GuidesItem"
+                        Classes="Nav"
+                        Tag="guides"
+                        ToolTip.Tip="Guides"
+                        AutomationProperties.Name="Guides"
+                        IsVisible="{Binding GuidesVisibility}"
+                        Click="OnNavItemClick">
+                        <Grid>
+                            <Border Classes="Indicator" Width="3" Height="16" CornerRadius="2" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{DynamicResource NavigationViewSelectionIndicatorForeground}" />
+                            <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Library}" HorizontalAlignment="Left" />
+                        </Grid>
+                    </Button>
+                </StackPanel>
+                <Panel />
+            </DockPanel>
+
+            <Panel Grid.Column="1">
+                <ContentControl x:Name="PageHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
+                <Border
+                    x:Name="ToastHost"
+                    Margin="24"
+                    Padding="16,12"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    CornerRadius="8"
+                    Background="{DynamicResource SolidBackgroundFillColorTertiaryBrush}"
+                    BoxShadow="0 8 16 0 #42000000"
+                    Opacity="0"
+                    RenderTransform="translateY(16px)"
+                    IsHitTestVisible="False">
+                    <Border.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.167" />
+                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.167" />
+                        </Transitions>
+                    </Border.Transitions>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock
+                            Classes="Glyph"
+                            Text="{StaticResource Glyph.Info}"
+                            FontSize="16"
+                            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock x:Name="ToastText" MaxWidth="480" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Panel>
+        </Grid>
+    </Grid>
+</Window>

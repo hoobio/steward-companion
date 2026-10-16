@@ -1,0 +1,379 @@
+<UserControl
+    x:Class="Steward.Desktop.Views.SettingsPage"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:views="using:Steward.Desktop.Views"
+    xmlns:vm="using:Steward.App.ViewModels"
+    x:DataType="vm:MainViewModel">
+
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="SettingsCardStrokeBrush" Color="#19000000" />
+        <SolidColorBrush x:Key="SettingsExpandedHeaderBrush" Color="#0FFFFFFF" />
+        <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#FF73D0FF" />
+        <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#FF73D0FF" />
+        <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#FF73D0FF" />
+        <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FF000000" />
+        <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="#FF000000" />
+        <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="#FF000000" />
+
+        <ControlTheme x:Key="{x:Type views:SettingsCard}" TargetType="views:SettingsCard">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SettingsCardStrokeBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+            <Setter Property="MinHeight" Value="68" />
+            <Setter Property="Padding" Value="16,15.01" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        ClipToBounds="True">
+                        <Border
+                            x:Name="PART_Fill"
+                            Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                <Panel Grid.Column="0" Width="20" Height="20" Margin="2,0,20,0" VerticalAlignment="Center">
+                                    <ContentPresenter Content="{TemplateBinding HeaderIcon}" />
+                                    <TextBlock
+                                        Classes="Glyph"
+                                        FontSize="20"
+                                        Text="{TemplateBinding HeaderGlyph}"
+                                        IsVisible="{TemplateBinding HeaderGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                </Panel>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <ContentPresenter x:Name="PART_Header" Content="{TemplateBinding Header}">
+                                        <ContentPresenter.DataTemplates>
+                                            <DataTemplate DataType="x:String">
+                                                <TextBlock Text="{Binding}" FontSize="{StaticResource ControlContentThemeFontSize}" TextWrapping="Wrap" />
+                                            </DataTemplate>
+                                        </ContentPresenter.DataTemplates>
+                                    </ContentPresenter>
+                                    <ContentPresenter
+                                        x:Name="PART_Description"
+                                        Content="{TemplateBinding Description}"
+                                        TextElement.FontSize="{StaticResource CaptionTextBlockFontSize}"
+                                        TextElement.Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                        <ContentPresenter.DataTemplates>
+                                            <DataTemplate DataType="x:String">
+                                                <TextBlock Classes="Caption" Text="{Binding}" TextWrapping="Wrap" />
+                                            </DataTemplate>
+                                        </ContentPresenter.DataTemplates>
+                                    </ContentPresenter>
+                                </StackPanel>
+                                <ContentPresenter
+                                    Grid.Column="2"
+                                    Margin="16,0,0,0"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Right"
+                                    Content="{TemplateBinding Content}"
+                                    ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                <TextBlock
+                                    Grid.Column="3"
+                                    Classes="Glyph"
+                                    Margin="14,0,0,0"
+                                    FontSize="14"
+                                    Text="{TemplateBinding ActionGlyph}"
+                                    IsVisible="{TemplateBinding ActionGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                            </Grid>
+                        </Border>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^[IsClickEnabled=True]:pointerover /template/ Border#PART_Fill">
+                <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}" />
+            </Style>
+            <Style Selector="^[IsClickEnabled=True]:pressed /template/ Border#PART_Fill">
+                <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorTertiaryBrush}" />
+            </Style>
+            <Style Selector="^:disabled">
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+            </Style>
+            <Style Selector="^:disabled /template/ ContentPresenter#PART_Header">
+                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+            </Style>
+            <Style Selector="^:disabled /template/ ContentPresenter#PART_Description">
+                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+            </Style>
+        </ControlTheme>
+
+        <DataTemplate x:Key="InstallCardTemplate" x:DataType="vm:WowInstallViewModel">
+            <views:SettingsCard
+                Classes="Item"
+                Header="{Binding Label}"
+                Opacity="{Binding RowOpacity}">
+                <views:SettingsCard.Description>
+                    <StackPanel>
+                        <TextBlock Text="{Binding GameVersionName}" IsVisible="{Binding GameVersionLineVisibility}" />
+                        <TextBlock Text="{Binding FlavourPath}" />
+                        <TextBlock Text="Folder not found" IsVisible="{Binding MissingVisibility}" />
+                    </StackPanel>
+                </views:SettingsCard.Description>
+                <views:SettingsCard.HeaderIcon>
+                    <Image Source="{Binding ProductIcon, Converter={x:Static views:BindConvert.Image}}" Width="20" Height="20" />
+                </views:SettingsCard.HeaderIcon>
+                <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <Border
+                        VerticalAlignment="Center"
+                        CornerRadius="4"
+                        Padding="6,2"
+                        Background="{DynamicResource ChipBrush}">
+                        <TextBlock
+                            Text="{Binding ClientVersion}"
+                            FontFamily="{StaticResource MonoFontFamily}"
+                            FontSize="11.5"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </Border>
+                    <Border
+                        VerticalAlignment="Center"
+                        CornerRadius="4"
+                        Padding="6,2"
+                        Background="{DynamicResource AccentFillColorDefaultBrush}"
+                        IsVisible="{Binding AddedByYouVisibility}">
+                        <TextBlock Text="Added by you" Foreground="{DynamicResource AccentButtonForeground}" FontSize="12" />
+                    </Border>
+                    <Button Content="Edit" AutomationProperties.Name="{Binding EditAccessibleName}" Click="OnEditInstallClick" />
+                    <Button Content="Remove" Command="{Binding RemoveCommand}" />
+                </StackPanel>
+            </views:SettingsCard>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="views|SettingsCard.Item">
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="MinHeight" Value="52" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Setter Property="Padding" Value="16,8,16,9" />
+        </Style>
+        <Style Selector="Border#InstallsGroup.expanded views|SettingsCard#InstallsHeader /template/ Border#PART_Fill">
+            <Setter Property="Background" Value="{DynamicResource SettingsExpandedHeaderBrush}" />
+        </Style>
+        <Style Selector="TextBlock#InstallsChevron">
+            <Setter Property="Text" Value="{StaticResource Glyph.ChevronDown}" />
+        </Style>
+        <Style Selector="ToggleSwitch">
+            <Setter Property="Margin" Value="0,-1,-12,-1" />
+        </Style>
+        <Style Selector="Border#InstallsGroup.expanded TextBlock#InstallsChevron">
+            <Setter Property="Text" Value="{StaticResource Glyph.ChevronUp}" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer x:Name="Scroller">
+        <Border MaxWidth="1064" Padding="{StaticResource PageGutter}">
+        <StackPanel Spacing="4">
+
+            <views:BannerList Banners="{Binding Banners}" />
+
+            <TextBlock Text="Account" Classes="BodyStrong" Margin="0,0,0,4" />
+
+            <StackPanel Spacing="1">
+                <views:SettingsCard
+                    CornerRadius="{StaticResource GroupTopCornerRadius}"
+                    Header="{Binding UserName}"
+                    Description="Signed in with Discord, guild.hoobi.io">
+                    <views:SettingsCard.HeaderIcon>
+                        <Border CornerRadius="10" ClipToBounds="True">
+                            <Image Width="20" Height="20" Source="{Binding AvatarImage, Converter={x:Static views:BindConvert.Image}}" />
+                        </Border>
+                    </views:SettingsCard.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Border
+                            VerticalAlignment="Center"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            Background="{DynamicResource AccentFillColorDefaultBrush}">
+                            <TextBlock Text="{Binding RoleLabel}" Foreground="{DynamicResource AccentButtonForeground}" FontSize="12" />
+                        </Border>
+                        <Button
+                            Content="Sign out"
+                            Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                            Command="{Binding SignOutCommand}" />
+                    </StackPanel>
+                </views:SettingsCard>
+
+                <views:SettingsCard
+                    CornerRadius="{StaticResource GroupBottomCornerRadius}"
+                    Header="Guild panel"
+                    Description="guild.hoobi.io"
+                    HeaderGlyph="{StaticResource Glyph.Globe}"
+                    ActionGlyph="{StaticResource Glyph.OpenInNewWindow}"
+                    IsClickEnabled="True"
+                    Click="OnGuildPanelClick" />
+            </StackPanel>
+
+            <Border
+                x:Name="InstallsGroup"
+                Classes="expanded"
+                Margin="0,20,0,0"
+                BorderBrush="{DynamicResource SettingsCardStrokeBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                ClipToBounds="True">
+                <StackPanel>
+                    <views:SettingsCard
+                        x:Name="InstallsHeader"
+                        BorderThickness="0"
+                        CornerRadius="0"
+                        Header="Installs"
+                        Description="{Binding InstallsDescription}"
+                        HeaderGlyph="{StaticResource Glyph.Folder}"
+                        IsClickEnabled="True"
+                        Click="OnInstallsHeaderClick">
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Content="Rescan" Command="{Binding RescanCommand}" />
+                            <Button Content="Add install" Command="{Binding BrowseCommand}" />
+                            <TextBlock
+                                x:Name="InstallsChevron"
+                                Classes="Glyph"
+                                Margin="6,0,0,0"
+                                FontSize="12" />
+                        </StackPanel>
+                    </views:SettingsCard>
+                    <ItemsControl
+                        x:Name="InstallsList"
+                        ItemsSource="{Binding Installs}"
+                        ItemTemplate="{StaticResource InstallCardTemplate}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Behaviour" Classes="BodyStrong" Margin="0,20,0,4" />
+
+            <StackPanel Spacing="1">
+                <views:SettingsCard
+                    x:Name="MinimizeToTrayCard"
+                    CornerRadius="{StaticResource GroupTopCornerRadius}"
+                    Header="Minimise to the tray"
+                    Description="Minimising the window hides Steward to the tray instead of the taskbar"
+                    HeaderGlyph="{StaticResource Glyph.TaskView}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
+                        <TextBlock FontSize="{StaticResource ControlContentThemeFontSize}" VerticalAlignment="Center" Text="{Binding MinimizeToTray, Converter={x:Static views:SettingsPage.OnOff}}" />
+                        <ToggleSwitch x:Name="MinimizeToTrayToggle" AutomationProperties.Name="Minimise to the tray" IsChecked="{Binding MinimizeToTray, Mode=TwoWay}" OnContent="{x:Null}" OffContent="{x:Null}" />
+                    </StackPanel>
+                </views:SettingsCard>
+
+                <views:SettingsCard
+                    x:Name="CloseToTrayCard"
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Close to the tray"
+                    Description="Closing the window keeps Steward running in the tray instead of quitting">
+                    <views:SettingsCard.HeaderIcon>
+                        <Path
+                            Classes="CloseGlyph"
+                            Width="20"
+                            Height="20"
+                            Data="M1.4,1.4 L18.6,18.6 M18.6,1.4 L1.4,18.6"
+                            StrokeThickness="2" />
+                    </views:SettingsCard.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
+                        <TextBlock FontSize="{StaticResource ControlContentThemeFontSize}" VerticalAlignment="Center" Text="{Binding CloseToTray, Converter={x:Static views:SettingsPage.OnOff}}" />
+                        <ToggleSwitch AutomationProperties.Name="Close to the tray" IsChecked="{Binding CloseToTray, Mode=TwoWay}" OnContent="{x:Null}" OffContent="{x:Null}" />
+                    </StackPanel>
+                </views:SettingsCard>
+
+                <views:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Auto-update addons"
+                    Description="{Binding AutoUpdateDescription}"
+                    HeaderGlyph="{StaticResource Glyph.UpdateRestore}">
+                    <ListBox
+                        Theme="{StaticResource SegmentedStyle}"
+                        x:Name="AutoUpdateChoice"
+                        AutomationProperties.Name="Auto-update addons"
+                        SelectionMode="Single">
+                        <ListBoxItem Content="Always" />
+                        <ListBoxItem Content="Out-of-game" />
+                        <ListBoxItem Content="Never" />
+                    </ListBox>
+                </views:SettingsCard>
+
+                <views:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Enable CurseForge addon management"
+                    Description="Find, install and update CurseForge addons, and adopt the ones already installed"
+                    HeaderGlyph="{StaticResource Glyph.Download}"
+                    IsVisible="{Binding CurseForgeSettingVisibility}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
+                        <TextBlock FontSize="{StaticResource ControlContentThemeFontSize}" VerticalAlignment="Center" Text="{Binding CurseForgeEnabled, Converter={x:Static views:SettingsPage.OnOff}}" />
+                        <ToggleSwitch AutomationProperties.Name="Enable CurseForge addon management" IsChecked="{Binding CurseForgeEnabled, Mode=TwoWay}" OnContent="{x:Null}" OffContent="{x:Null}" />
+                    </StackPanel>
+                </views:SettingsCard>
+
+                <views:SettingsCard
+                    CornerRadius="{StaticResource GroupBottomCornerRadius}"
+                    Header="{Binding StartWithWindowsHeader}"
+                    Description="{Binding StartWithWindowsDescription}"
+                    HeaderGlyph="{StaticResource Glyph.PowerButton}"
+                    IsEnabled="{Binding CanStartWithWindows}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
+                        <TextBlock FontSize="{StaticResource ControlContentThemeFontSize}" VerticalAlignment="Center" Text="{Binding StartWithWindows, Converter={x:Static views:SettingsPage.OnOff}}" />
+                        <ToggleSwitch AutomationProperties.Name="{Binding StartWithWindowsHeader}" IsChecked="{Binding StartWithWindows, Mode=TwoWay}" OnContent="{x:Null}" OffContent="{x:Null}" />
+                    </StackPanel>
+                </views:SettingsCard>
+            </StackPanel>
+
+            <TextBlock Text="About" Classes="BodyStrong" Margin="0,20,0,4" />
+
+            <StackPanel Spacing="1">
+                <views:SettingsCard
+                    x:Name="AboutCard"
+                    CornerRadius="{StaticResource GroupTopCornerRadius}"
+                    Header="Steward"
+                    Description="{Binding AboutDescription}"
+                    HeaderGlyph="{StaticResource Glyph.Info}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ProgressBar
+                            Width="160"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            Maximum="100"
+                            Value="{Binding AppUpdateProgress.Percent}"
+                            IsIndeterminate="{Binding AppUpdateProgress.IsIndeterminate}"
+                            IsVisible="{Binding AppUpdateProgressVisibility}" />
+                        <Button Content="{Binding AboutActionLabel}" Command="{Binding CheckOrInstallAppUpdateCommand}" />
+                        <Button Content="Release notes" Click="OnReleasesClick" />
+                    </StackPanel>
+                </views:SettingsCard>
+
+                <views:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="App data"
+                    Description="{Binding StatePath}"
+                    HeaderGlyph="{StaticResource Glyph.Folder}">
+                    <Button Content="Open folder" Click="OnOpenDataFolderClick" />
+                </views:SettingsCard>
+
+                <views:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Diagnostic logs"
+                    Description="{Binding LogFolder}"
+                    HeaderGlyph="{StaticResource Glyph.Diagnostic}">
+                    <Button Content="Open folder" Click="OnOpenLogFolderClick" />
+                </views:SettingsCard>
+
+                <views:SettingsCard
+                    CornerRadius="{StaticResource GroupMiddleCornerRadius}"
+                    Header="Privacy policy"
+                    Description="What Steward reads, stores and sends"
+                    HeaderGlyph="{StaticResource Glyph.Lock}"
+                    ActionGlyph="{StaticResource Glyph.OpenInNewWindow}"
+                    IsClickEnabled="True"
+                    Click="OnPrivacyClick" />
+
+                <views:SettingsCard
+                    CornerRadius="{StaticResource GroupBottomCornerRadius}"
+                    Header="Source and issues"
+                    Description="github.com/hoobio/steward-companion"
+                    HeaderGlyph="{StaticResource Glyph.Code}"
+                    ActionGlyph="{StaticResource Glyph.OpenInNewWindow}"
+                    IsClickEnabled="True"
+                    Click="OnRepositoryClick" />
+            </StackPanel>
+        </StackPanel>
+        </Border>
+    </ScrollViewer>
+</UserControl>

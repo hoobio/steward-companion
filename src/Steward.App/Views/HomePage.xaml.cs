@@ -109,17 +109,17 @@ public sealed partial class HomePage : Page
         }
 
         var need = MeasureColumnContent(row, ChannelIndex);
-        if (item.VersionPairVisibility != Visibility.Visible && row.FindName("VersionButton") is Button button)
+        if (!item.VersionPairVisibility && row.FindName("VersionButton") is Button button)
         {
             need = Math.Max(need, MeasureWidth(button));
         }
 
-        if (item.NoReleasesVisibility == Visibility.Visible && row.FindName("NoReleasesLine") is TextBlock none)
+        if (item.NoReleasesVisibility && row.FindName("NoReleasesLine") is TextBlock none)
         {
             need = Math.Max(need, MeasureWidth(none));
         }
 
-        if (item.ReleasedText.Length > 0 && item.NoReleasesVisibility != Visibility.Visible && row.FindName("ReleasedLine") is TextBlock released)
+        if (item.ReleasedText.Length > 0 && !item.NoReleasesVisibility && row.FindName("ReleasedLine") is TextBlock released)
         {
             _releasedMeasure.FontFamily = released.FontFamily;
             _releasedMeasure.FontSize = released.FontSize;
@@ -259,7 +259,7 @@ public sealed partial class HomePage : Page
         }
 
         _versionMeasure.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var needed = item.VersionPairVisibility == Visibility.Visible
+        var needed = item.VersionPairVisibility
             ? Math.Ceiling(_versionMeasure.DesiredSize.Width) + VersionLineSpacing + (item.HasChangelog ? icon.Width + VersionLineSpacing : 0)
             : 0;
         var floor = VersionFloor;
@@ -289,7 +289,7 @@ public sealed partial class HomePage : Page
     {
         if (TaggedItem<IAddonTableRow>(sender, nameof(OnExtraFoldersClick)) is { } row)
         {
-            var dialog = new AddonFoldersDialog(row.DisplayName, row.ExtraFolders, ViewModel.Logger);
+            var dialog = new AddonFoldersDialog(row.DisplayName, row.ExtraFolders, ViewModel.Platform, ViewModel.Logger);
             await AppDialogs.ShowAsync(dialog, XamlRoot);
             while (dialog.ChangelogRequest is { } folder)
             {

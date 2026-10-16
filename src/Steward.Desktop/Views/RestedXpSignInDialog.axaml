@@ -1,0 +1,192 @@
+<ui:FAContentDialog
+    x:Class="Steward.Desktop.Views.RestedXpSignInDialog"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="using:FluentAvalonia.UI.Controls"
+    xmlns:views="using:Steward.Desktop.Views"
+    xmlns:vm="using:Steward.App.ViewModels"
+    x:DataType="vm:RestedXpViewModel">
+
+    <ui:FAContentDialog.Resources>
+        <Thickness x:Key="ContentDialogPadding">0</Thickness>
+    </ui:FAContentDialog.Resources>
+
+    <ui:FAContentDialog.Styles>
+        <Style Selector="ui|FAContentDialog /template/ ContentControl#Title">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="ui|FAContentDialog /template/ Grid#DialogSpace > Border">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+    </ui:FAContentDialog.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,Auto">
+        <TextBlock
+            Grid.Row="0"
+            Text="Sign in to RestedXP"
+            Margin="24,22,24,0"
+            FontFamily="{StaticResource DisplayFontFamily}"
+            FontSize="20"
+            FontWeight="SemiBold" />
+
+        <StackPanel Grid.Row="1" Margin="24,14,24,22" Spacing="14">
+            <StackPanel Spacing="14" IsVisible="{Binding CredentialsVisibility}">
+                <TextBlock
+                    Text="Your password is used once and never stored."
+                    FontSize="12.5"
+                    TextWrapping="Wrap"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <StackPanel>
+                    <TextBlock Classes="FieldHeader" Text="Username or email" FontSize="13.5" IsEnabled="{Binding IsIdle}" />
+                    <TextBox
+                        PlaceholderText="Username or email"
+                        FontSize="13.5"
+                        MinHeight="32"
+                        IsEnabled="{Binding IsIdle}"
+                        Text="{Binding UsernameInput, Mode=TwoWay}" />
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Classes="FieldHeader" Text="Password" FontSize="13.5" IsEnabled="{Binding IsIdle}" />
+                    <TextBox
+                        PlaceholderText="Password"
+                        PasswordChar="●"
+                        FontSize="13.5"
+                        MinHeight="32"
+                        IsEnabled="{Binding IsIdle}"
+                        Text="{Binding PasswordInput, Mode=TwoWay}" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Spacing="14" IsVisible="{Binding MfaVisibility}">
+                <TextBlock
+                    Text="{Binding UsernameInput}"
+                    FontSize="13"
+                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                <StackPanel Spacing="5" HorizontalAlignment="Center">
+                    <TextBlock
+                        Text="Authenticator code"
+                        HorizontalAlignment="Center"
+                        FontSize="12.5"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <TextBox
+                        x:Name="CodeBox"
+                        Width="186"
+                        Height="38"
+                        MaxLength="7"
+                        FontFamily="{StaticResource MonoFontFamily}"
+                        FontSize="17"
+                        LetterSpacing="2.04"
+                        TextAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        IsEnabled="{Binding IsIdle}">
+                        <TextBox.Resources>
+                            <LinearGradientBrush x:Key="TextControlBackgroundFocused" StartPoint="0,0" EndPoint="0,38">
+                                <GradientStop Offset="0" Color="#B31E1E1E" />
+                                <GradientStop Offset="0.947" Color="#B31E1E1E" />
+                                <GradientStop Offset="0.947" Color="#FF73D0FF" />
+                                <GradientStop Offset="1" Color="#FF73D0FF" />
+                            </LinearGradientBrush>
+                            <LinearGradientBrush x:Key="TextControlBorderBrushFocused" StartPoint="0,0" EndPoint="0,38">
+                                <GradientStop Offset="0" Color="#FF3A404D" />
+                                <GradientStop Offset="0.9737" Color="#FF3A404D" />
+                                <GradientStop Offset="0.9737" Color="#FF73D0FF" />
+                                <GradientStop Offset="1" Color="#FF73D0FF" />
+                            </LinearGradientBrush>
+                            <LinearGradientBrush x:Key="TextControlBorderBrush" StartPoint="0,0" EndPoint="0,38">
+                                <GradientStop Offset="0" Color="#FF3A404D" />
+                                <GradientStop Offset="0.9737" Color="#FF3A404D" />
+                                <GradientStop Offset="0.9737" Color="#FF9FA1A8" />
+                                <GradientStop Offset="1" Color="#FF9FA1A8" />
+                            </LinearGradientBrush>
+                        </TextBox.Resources>
+                    </TextBox>
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel
+                Orientation="Horizontal"
+                Spacing="7"
+                IsVisible="{Binding ErrorVisibility}">
+                <TextBlock
+                    Classes="Glyph"
+                    Text="{StaticResource Glyph.ErrorBadge}"
+                    FontSize="14"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                <TextBlock
+                    Text="{Binding ErrorMessage}"
+                    FontSize="12.5"
+                    TextWrapping="Wrap"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+            </StackPanel>
+        </StackPanel>
+
+        <Border
+            Grid.Row="2"
+            Padding="24,16"
+            BorderThickness="0,1,0,0"
+            BorderBrush="{DynamicResource RowHairlineBrush}">
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button
+                    Grid.Column="0"
+                    Height="32"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Theme="{StaticResource AccentButtonStyle}"
+                    IsEnabled="{Binding IsIdle}"
+                    Command="{Binding SignInCommand}"
+                    AutomationProperties.Name="Sign in"
+                    IsVisible="{Binding CredentialsVisibility}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <views:ProgressRing
+                            Width="14"
+                            Height="14"
+                            IsActive="{Binding IsBusy}"
+                            IsVisible="{Binding BusyVisibility}" />
+                        <TextBlock Text="Sign in" />
+                    </StackPanel>
+                </Button>
+
+                <Button
+                    Grid.Column="0"
+                    Height="32"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Theme="{StaticResource AccentButtonStyle}"
+                    IsEnabled="{Binding IsIdle}"
+                    Command="{Binding VerifyMfaCommand}"
+                    AutomationProperties.Name="Verify"
+                    IsVisible="{Binding MfaVisibility}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <views:ProgressRing
+                            Width="14"
+                            Height="14"
+                            IsActive="{Binding IsBusy}"
+                            IsVisible="{Binding BusyVisibility}" />
+                        <TextBlock Text="Verify" />
+                    </StackPanel>
+                </Button>
+
+                <Button
+                    Grid.Column="1"
+                    Height="32"
+                    Content="Cancel"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Click="OnCancelClick"
+                    IsVisible="{Binding CredentialsVisibility}" />
+
+                <Button
+                    Grid.Column="1"
+                    Height="32"
+                    Content="Back"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Click="OnBackClick"
+                    IsVisible="{Binding MfaVisibility}" />
+            </Grid>
+        </Border>
+    </Grid>
+</ui:FAContentDialog>

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Steward
+Comment=Guild toolkit for World of Warcraft
+Exec=/usr/bin/steward %u
+Icon=steward
+Terminal=false
+Categories=Game;
+MimeType=x-scheme-handler/curseforge;
+StartupWMClass=Steward

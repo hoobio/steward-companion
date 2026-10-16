@@ -31,7 +31,7 @@ public sealed class CurseForgeFingerprintTests : IDisposable
 
     private string Write(string relativePath, string content)
     {
-        var path = Path.Combine(_addOnsPath, relativePath);
+        var path = Path.Combine(_addOnsPath, relativePath.Replace('\\', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content);
         return path;

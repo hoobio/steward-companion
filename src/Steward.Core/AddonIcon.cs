@@ -25,13 +25,8 @@ public static class AddonIcon
                 return null;
             }
 
-            foreach (var candidate in Candidates(resolved))
+            foreach (var candidate in Candidates(resolved).Select(path => FindFile(addOnsPath, path)).OfType<string>())
             {
-                if (!File.Exists(candidate))
-                {
-                    continue;
-                }
-
                 var bytes = File.ReadAllBytes(candidate);
                 return Path.GetExtension(candidate).Equals(".blp", StringComparison.OrdinalIgnoreCase)
                     ? DecodeBlp(bytes)
@@ -75,7 +70,7 @@ public static class AddonIcon
 
     private static string? Resolve(string addOnsPath, string directive)
     {
-        var relative = directive.Replace('/', '\\').TrimStart('\\');
+        var relative = directive.Replace('/', '\\').TrimStart('\\').Replace('\\', Path.DirectorySeparatorChar);
         var flavourPath = Path.GetDirectoryName(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(addOnsPath)));
         if (flavourPath is null)
         {
@@ -85,6 +80,34 @@ public static class AddonIcon
         var addOnsRoot = Path.GetFullPath(Path.TrimEndingDirectorySeparator(addOnsPath) + Path.DirectorySeparatorChar);
         var resolved = Path.GetFullPath(Path.Combine(flavourPath, relative));
         return resolved.StartsWith(addOnsRoot, StringComparison.OrdinalIgnoreCase) ? resolved : null;
+    }
+
+    // The client resolves texture paths case-insensitively, so on a case-sensitive file system each segment below AddOns is matched ignoring case.
+    private static string? FindFile(string addOnsPath, string path)
+    {
+        if (File.Exists(path))
+        {
+            return path;
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
+        var current = Path.GetFullPath(Path.TrimEndingDirectorySeparator(addOnsPath));
+        foreach (var segment in path[(current.Length + 1)..].Split(Path.DirectorySeparatorChar))
+        {
+            if (!Directory.Exists(current)
+                || Directory.EnumerateFileSystemEntries(current).FirstOrDefault(entry => string.Equals(Path.GetFileName(entry), segment, StringComparison.OrdinalIgnoreCase)) is not { } match)
+            {
+                return null;
+            }
+
+            current = match;
+        }
+
+        return File.Exists(current) ? current : null;
     }
 
     private static IEnumerable<string> Candidates(string resolved)

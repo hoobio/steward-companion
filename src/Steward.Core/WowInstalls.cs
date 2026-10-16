@@ -77,6 +77,20 @@ public static class WowInstalls
             yield return registryRoot;
         }
 
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (OperatingSystem.IsMacOS())
+        {
+            yield return "/Applications/World of Warcraft";
+            yield return Path.Combine(home, "Applications", "World of Warcraft");
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            foreach (var wineRoot in WinePrefixes.WowRoots(home, Environment.GetEnvironmentVariable))
+            {
+                yield return wineRoot;
+            }
+        }
+
         foreach (var drive in DriveInfo.GetDrives())
         {
             if (drive.DriveType != DriveType.Fixed || !drive.IsReady)
@@ -93,6 +107,11 @@ public static class WowInstalls
 
     private static IEnumerable<string> RegistryRoots()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            yield break;
+        }
+
         foreach (var keyPath in new[]
         {
             @"SOFTWARE\WOW6432Node\Blizzard Entertainment\World of Warcraft",
@@ -132,8 +151,13 @@ public static class WowInstalls
         }
 
         // A fresh install has no Interface or WTF folder until the client first runs (verified with _forever_, 14 Oct 2026).
-        return Directory.Exists(Path.Combine(flavourPath, "Interface", "AddOns")) || File.Exists(Path.Combine(flavourPath, ".flavor.info"));
+        return Directory.Exists(AddOnsPath(flavourPath)) || File.Exists(Path.Combine(flavourPath, ".flavor.info"));
     }
+
+    // A Wine prefix copied from Windows or written by another tool varies the case of Interface\AddOns, which Linux file names keep.
+    private static string AddOnsPath(string flavourPath) =>
+        (OperatingSystem.IsLinux() ? WinePrefixes.FindIgnoringCase(flavourPath, "Interface", "AddOns") : null)
+            ?? Path.Combine(flavourPath, "Interface", "AddOns");
 
     private static WowInstall BuildInstall(
         string root,
@@ -142,7 +166,7 @@ public static class WowInstalls
         IReadOnlyDictionary<string, string>? productOverrides)
     {
         var flavour = Path.GetFileName(Path.TrimEndingDirectorySeparator(flavourPath));
-        var addOnsPath = Path.Combine(flavourPath, "Interface", "AddOns");
+        var addOnsPath = AddOnsPath(flavourPath);
         var productCode = productOverrides?.GetValueOrDefault(flavourPath) ?? ReadProductCode(flavourPath);
         var clientVersion = ReadClientVersion(root, productCode);
         var displayName = productCode is not null && supportedProducts.TryGetValue(productCode, out var name)

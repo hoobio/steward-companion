@@ -1,0 +1,806 @@
+name: Desktop Preview
+
+on:
+  push:
+    branches: [refactor/avalonia-rebuild]
+    paths-ignore: ["**.md", "docs/**", "tools/**", ".githooks/**", "scripts/Install-DevBuild.ps1"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}"
+  cancel-in-progress: true
+
+env:
+  DOTNET_SDK_VERSION: "10.0.203"
+  PROJECT_PATH: src/Steward.Desktop/Steward.Desktop.csproj
+  AVALONIA_TELEMETRY_OPTOUT: "1"
+  NFPM_VERSION: "2.47.0"
+  NFPM_SHA256: "0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783"
+
+jobs:
+  version:
+    name: Read version
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+      display: ${{ steps.version.outputs.display }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: version
+        shell: bash
+        run: |
+          release="$(tr -d '[:space:]' < version.txt)"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "display=$release-preview.$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+
+  windows-exe:
+    name: Windows exe
+    needs: [version]
+    runs-on: windows-latest
+    env:
+      HAS_SIGNING_CERT: ${{ secrets.SIGNING_CERTIFICATE != '' && vars.SIGNING_CERT_THUMBPRINT != '' }}
+      DISPLAY_VERSION: ${{ needs.version.outputs.display }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+      - name: Publish single-file exe
+        shell: pwsh
+        env:
+          PUBLISH_DIR: ${{ github.workspace }}\publish
+        run: |
+          $attempt = 0
+          do {
+            $attempt++
+            dotnet publish $env:PROJECT_PATH `
+              -c Release `
+              -r win-x64 `
+              --self-contained `
+              -f net10.0-windows10.0.26100.0 `
+              -p:PublishSingleFile=true `
+              -p:IncludeNativeLibrariesForSelfExtract=true `
+              -p:EnableCompressionInSingleFile=true `
+              -p:GitHubRelease=true `
+              -p:StoreDisplayVersion=$env:DISPLAY_VERSION `
+              -o $env:PUBLISH_DIR
+            if ($LASTEXITCODE -eq 0) { break }
+            Write-Host "dotnet publish failed (exit $LASTEXITCODE), attempt $attempt of 3"
+          } while ($attempt -lt 3)
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)" }
+          $exe = Join-Path $env:PUBLISH_DIR 'Steward.Desktop.exe'
+          if (-not (Test-Path $exe)) { throw "Expected Steward.Desktop.exe in publish output" }
+          $stray = Get-ChildItem $env:PUBLISH_DIR -File -Filter *.dll
+          if ($stray) { throw "Native libraries left beside the exe: $($stray.Name -join ', ')" }
+          New-Item -ItemType Directory -Path staging\licences -Force | Out-Null
+          Copy-Item $exe staging\Steward.exe
+          Copy-Item (Join-Path $env:PUBLISH_DIR 'Assets\Fonts\*.txt') staging\licences
+
+      - name: Sign exe
+        if: env.HAS_SIGNING_CERT == 'true'
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.SIGNING_CERTIFICATE }}
+          PFX_PASSWORD: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
+          THUMBPRINT: ${{ vars.SIGNING_CERT_THUMBPRINT }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pfx = Join-Path $env:RUNNER_TEMP ([guid]::NewGuid().ToString('N') + '.pfx')
+          try {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
+            $secure = ConvertTo-SecureString -String $env:PFX_PASSWORD -AsPlainText -Force
+            Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $secure | Out-Null
+          }
+          finally {
+            Remove-Item -LiteralPath $pfx -Force -ErrorAction SilentlyContinue
+          }
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } |
+            Sort-Object { [version]($_.FullName -replace '.*\\(\d+\.\d+\.\d+\.\d+)\\.*', '$1') } -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signtool) { throw "Could not locate signtool.exe under the Windows SDK" }
+          $exe = "staging\Steward.exe"
+          & $signtool sign /fd SHA256 /sha1 $env:THUMBPRINT /td SHA256 $exe
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed for $exe (exit $LASTEXITCODE)" }
+
+      - name: Skip-sign notice
+        if: env.HAS_SIGNING_CERT != 'true'
+        shell: bash
+        run: echo "::warning::SIGNING_CERTIFICATE / SIGNING_CERT_THUMBPRINT not set; exe produced unsigned."
+
+      - name: Zip the exe and licences
+        shell: pwsh
+        run: Compress-Archive -Path staging\Steward.exe, staging\licences -DestinationPath "Steward-$env:DISPLAY_VERSION-win-x64.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-win-x64
+          path: Steward-${{ needs.version.outputs.display }}-win-x64.zip
+          if-no-files-found: error
+
+  windows-msix:
+    name: Windows MSIX
+    needs: [version]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      DISPLAY_VERSION: ${{ needs.version.outputs.display }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+      - name: Build the Store-identity MSIX
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = ./scripts/Build-DesktopMsix.ps1 -Identity Store -OutputDirectory "$env:RUNNER_TEMP\msix" -StoreDisplayVersion $env:DISPLAY_VERSION
+          $package | Format-List | Out-String | Write-Host
+          New-Item -ItemType Directory -Path staging -Force | Out-Null
+          Copy-Item $package.Msix, $package.MsixUpload staging
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-msix-x64
+          path: staging/*
+          if-no-files-found: error
+
+      - name: Sign a copy, install it, launch it and open a CurseForge link
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path smoke -Force | Out-Null
+          $publisher = ([xml](Get-Content packaging\windows\Package.appxmanifest -Raw)).Package.Identity.Publisher
+          $cert = New-SelfSignedCertificate -Type Custom -Subject $publisher -KeyUsage DigitalSignature -FriendlyName 'Steward MSIX smoke' `
+            -CertStoreLocation Cert:\CurrentUser\My -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+          $cer = Join-Path $env:RUNNER_TEMP 'smoke.cer'
+          Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+          Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          $signed = Join-Path $env:RUNNER_TEMP 'Steward-signed.msix'
+          Copy-Item (Get-ChildItem staging\*.msix).FullName $signed
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '\\x64\\signtool\.exe$' } |
+            Sort-Object { [version]($_.FullName -replace '.*\\(\d+\.\d+\.\d+\.\d+)\\.*', '$1') } -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signtool) { throw 'Could not locate signtool.exe under the Windows SDK' }
+          & $signtool sign /fd SHA256 /sha1 $cert.Thumbprint /s My $signed
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed (exit $LASTEXITCODE)" }
+
+          Add-AppxPackage -Path $signed
+          $installed = Get-AppxPackage -Name Hoobi.Steward
+          if (-not $installed) { throw 'Hoobi.Steward is not installed after Add-AppxPackage' }
+          $installed | Format-List Name, Version, PackageFamilyName, InstallLocation, SignatureKind | Out-String | Write-Host
+          $manifest = Get-AppxPackageManifest -Package $installed.PackageFullName
+          $app = $manifest.Package.Applications.Application
+          Write-Host "Application: $($app.Id) $($app.Executable) $($app.EntryPoint)"
+          $protocols = @($app.Extensions.Extension | Where-Object Category -eq 'windows.protocol' | ForEach-Object { $_.Protocol.Name })
+          $startup = $app.Extensions.Extension | Where-Object Category -eq 'windows.startupTask'
+          Write-Host "Protocols: $($protocols -join ', '); startup task: $($startup.StartupTask.TaskId) $($startup.Parameters)"
+          if ('curseforge' -notin $protocols) { throw 'The curseforge protocol is not registered' }
+          if ($startup.StartupTask.TaskId -ne 'StewardStartup') { throw 'The StewardStartup task is not registered' }
+
+          $pfn = $installed.PackageFamilyName
+          $logDirs = @((Join-Path $env:LOCALAPPDATA 'Steward\logs'), (Join-Path $env:LOCALAPPDATA "Packages\$pfn\LocalCache\Local\Steward\logs"))
+          function Find-LogLine([string] $Pattern, [int] $Seconds) {
+            $deadline = (Get-Date).AddSeconds($Seconds)
+            do {
+              $hit = Get-ChildItem $logDirs -Filter *.log -ErrorAction SilentlyContinue | Select-String -Pattern $Pattern | Select-Object -First 1
+              if ($hit) { return $hit }
+              Start-Sleep -Seconds 1
+            } until ((Get-Date) -gt $deadline)
+          }
+          function Save-Screen([string] $Name) {
+            Add-Type -AssemblyName System.Drawing, System.Windows.Forms
+            $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+            $bitmap = [System.Drawing.Bitmap]::new($bounds.Width, $bounds.Height)
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+            $bitmap.Save("smoke\$Name.png", [System.Drawing.Imaging.ImageFormat]::Png)
+            $graphics.Dispose()
+            $bitmap.Dispose()
+          }
+
+          try {
+            Start-Process "shell:AppsFolder\$pfn!App"
+            $deadline = (Get-Date).AddSeconds(60)
+            do {
+              Start-Sleep -Seconds 1
+              $process = Get-Process -Name Steward.Desktop -ErrorAction SilentlyContinue | Where-Object MainWindowHandle -ne 0 | Select-Object -First 1
+            } until ($process -or (Get-Date) -gt $deadline)
+            if (-not $process) { throw 'The packaged app showed no window within 60 seconds' }
+            Write-Host "Window '$($process.MainWindowTitle)' from $($process.Path)"
+            if (-not $process.Path.StartsWith($installed.InstallLocation, [StringComparison]::OrdinalIgnoreCase)) { throw "The window is not from the package: $($process.Path)" }
+            $started = Find-LogLine 'INF Steward\.Desktop\.App: Steward .* starting \(store-avalonia' 30
+            if (-not $started) { throw 'No packaged startup line in either log folder' }
+            Write-Host "Startup line in $($started.Path): $($started.Line)"
+            Start-Sleep -Seconds 5
+            Save-Screen 'windows-msix'
+
+            Start-Process 'curseforge://install?addonId=1&fileId=1'
+            $link = Find-LogLine 'CurseForge link received: mod 1, file 1|Ignored a CurseForge link' 60
+            if (-not $link) { throw 'The running app logged no CurseForge link within 60 seconds' }
+            Write-Host "Link line in $($link.Path): $($link.Line)"
+            Start-Sleep -Seconds 3
+            Save-Screen 'windows-msix-link'
+          }
+          finally {
+            New-Item -ItemType Directory -Path smoke\logs -Force | Out-Null
+            if (Test-Path $logDirs[0]) { Copy-Item $logDirs[0] smoke\logs\real -Recurse -Force }
+            if (Test-Path $logDirs[1]) { Copy-Item $logDirs[1] smoke\logs\packaged -Recurse -Force }
+            Get-Process -Name Steward.Desktop -ErrorAction SilentlyContinue | Stop-Process -Force
+            Start-Sleep -Seconds 2
+            Remove-AppxPackage -Package $installed.PackageFullName
+            Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)", "Cert:\LocalMachine\TrustedPeople\$($cert.Thumbprint)" -ErrorAction SilentlyContinue
+          }
+          if (Get-AppxPackage -Name Hoobi.Steward) { throw 'Hoobi.Steward is still installed after Remove-AppxPackage' }
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: smoke-windows-msix
+          path: smoke
+          if-no-files-found: ignore
+
+  linux-packages:
+    name: Linux packages (${{ matrix.arch }})
+    needs: [version]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            nfpm-arch: amd64
+          - arch: arm64
+            nfpm-arch: arm64
+    env:
+      DISPLAY_VERSION: ${{ needs.version.outputs.display }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+      - name: Publish self-contained build
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            dotnet publish "$PROJECT_PATH" -c Release -r "linux-$ARCH" --self-contained -f net10.0 \
+              -p:EnableWindowsTargeting=true -p:GitHubRelease=true \
+              "-p:StoreDisplayVersion=$DISPLAY_VERSION" -o publish && break
+            echo "dotnet publish failed, attempt $attempt of 3"
+            [ "$attempt" -eq 3 ] && exit 1
+          done
+          test -x publish/Steward.Desktop
+
+      - name: Install nfpm
+        shell: bash
+        run: |
+          archive="nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/$archive"
+          echo "$NFPM_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/nfpm"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/nfpm" nfpm
+          echo "$RUNNER_TEMP/nfpm" >> "$GITHUB_PATH"
+
+      - name: Build .deb and signed .rpm
+        shell: bash
+        env:
+          NFPM_ARCH: ${{ matrix.nfpm-arch }}
+          VERSION: ${{ needs.version.outputs.display }}
+          LINUX_SIGNING_KEY: ${{ secrets.LINUX_SIGNING_KEY }}
+          NFPM_RPM_PASSPHRASE: ${{ secrets.LINUX_SIGNING_PASSPHRASE }}
+          NFPM_RPM_KEY_FILE: ${{ runner.temp }}/signing.asc
+        run: |
+          [ -n "$LINUX_SIGNING_KEY" ] || { echo "::error::LINUX_SIGNING_KEY is not set"; exit 1; }
+          (umask 077 && printf '%s\n' "$LINUX_SIGNING_KEY" > "$NFPM_RPM_KEY_FILE")
+          mkdir -p staging
+          nfpm package --config packaging/linux/nfpm.yaml --packager deb --target "staging/Steward-$DISPLAY_VERSION-linux-$ARCH.deb"
+          nfpm package --config packaging/linux/nfpm.yaml --packager rpm --target "staging/Steward-$DISPLAY_VERSION-linux-$ARCH.rpm"
+          rm -f "$NFPM_RPM_KEY_FILE"
+
+      - name: Smoke test the .deb
+        if: matrix.arch == 'x64'
+        shell: bash
+        run: |
+          mkdir -p smoke
+          docker run --rm -v "$PWD/staging:/pkg:ro" -v "$PWD/smoke:/out" -e DEB="/pkg/Steward-$DISPLAY_VERSION-linux-x64.deb" ubuntu:24.04 sh -c '
+            set -e
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$DEB" xvfb xauth imagemagick >/dev/null
+            xvfb-run -a -s "-screen 0 1280x800x24" sh -c "
+              steward > /out/steward.out 2>&1 &
+              pid=\$!
+              sleep 15
+              kill -0 \$pid || { echo steward exited early; cat /out/steward.out; exit 1; }
+              import -window root /out/linux-x64.png
+              kill \$pid"
+            cp -r /root/.local/share/Steward/logs /out/ 2>/dev/null || true
+            grep -q "INF Steward.Desktop.App: Steward .* starting" /out/logs/*.log || { echo "no startup line in the app log"; exit 1; }
+            echo "steward ran for 15 seconds"'
+
+      - uses: actions/upload-artifact@v7
+        if: always() && matrix.arch == 'x64'
+        with:
+          name: smoke-linux-x64
+          path: smoke
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-linux-${{ matrix.arch }}
+          path: |
+            staging/Steward-${{ needs.version.outputs.display }}-linux-${{ matrix.arch }}.deb
+            staging/Steward-${{ needs.version.outputs.display }}-linux-${{ matrix.arch }}.rpm
+          if-no-files-found: error
+
+  macos-dmg:
+    name: macOS dmg (${{ matrix.arch }})
+    needs: [version]
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x64]
+    env:
+      DISPLAY_VERSION: ${{ needs.version.outputs.display }}
+      RELEASE_VERSION: ${{ needs.version.outputs.release }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+      - name: Publish self-contained build
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            dotnet publish "$PROJECT_PATH" -c Release -r "osx-$ARCH" --self-contained -f net10.0 \
+              -p:EnableWindowsTargeting=true -p:GitHubRelease=true \
+              "-p:StoreDisplayVersion=$DISPLAY_VERSION" -o publish && break
+            echo "dotnet publish failed, attempt $attempt of 3"
+            [ "$attempt" -eq 3 ] && exit 1
+          done
+          test -x publish/Steward.Desktop
+
+      - name: Build Steward.app
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=dmgroot/Steward.app
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp -R publish/. "$app/Contents/MacOS/"
+          cp packaging/macos/Info.plist "$app/Contents/Info.plist"
+          plutil -replace CFBundleShortVersionString -string "$RELEASE_VERSION" "$app/Contents/Info.plist"
+          plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" "$app/Contents/Info.plist"
+          plutil -lint "$app/Contents/Info.plist"
+          iconset="$RUNNER_TEMP/Steward.iconset"
+          mkdir -p "$iconset"
+          src=src/Steward.App/Assets/Steward-256.png
+          for size in 16 32 128 256; do
+            sips -z "$size" "$size" "$src" --out "$iconset/icon_${size}x${size}.png" >/dev/null
+          done
+          sips -z 32 32 "$src" --out "$iconset/icon_16x16@2x.png" >/dev/null
+          sips -z 64 64 "$src" --out "$iconset/icon_32x32@2x.png" >/dev/null
+          cp "$src" "$iconset/icon_128x128@2x.png"
+          iconutil -c icns "$iconset" -o "$app/Contents/Resources/Steward.icns"
+          codesign --force --deep -s - "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+
+      - name: Build dmg
+        shell: bash
+        run: |
+          set -euo pipefail
+          ln -s /Applications dmgroot/Applications
+          mkdir -p staging
+          hdiutil create -volname Steward -srcfolder dmgroot -ov -format UDZO "staging/Steward-$DISPLAY_VERSION-macos-$ARCH.dmg"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-macos-${{ matrix.arch }}
+          path: staging/Steward-${{ needs.version.outputs.display }}-macos-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+
+  ui-tests:
+    name: UI tests (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-arm64
+            runner: macos-latest
+            frameworks: net10.0
+          - name: macos-x64
+            runner: macos-26-intel
+            frameworks: net10.0
+          - name: windows-x64
+            runner: windows-latest
+            frameworks: net10.0 windows
+          - name: linux-x64
+            runner: ubuntu-latest
+            frameworks: net10.0
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
+
+      - name: Install Xvfb
+        if: runner.os == 'Linux'
+        shell: bash
+        run: command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xvfb >/dev/null; }
+
+      - name: Run the Core and Desktop suites with every render saved
+        shell: bash
+        env:
+          FRAMEWORKS: ${{ matrix.frameworks }}
+        run: |
+          set -uo pipefail
+          prefix=()
+          [ "$RUNNER_OS" = Linux ] && prefix=(xvfb-run -a -s "-screen 0 1920x1200x24")
+          failed=0
+          suite() {
+            local project=$1 framework=$2 out=$3
+            for attempt in 1 2 3; do
+              dotnet build "$project" -c Release -f "$framework" -p:EnableWindowsTargeting=true && break
+              [ "$attempt" -eq 3 ] && { failed=1; return; }
+            done
+            ${prefix[@]+"${prefix[@]}"} dotnet test --project "$project" -c Release -f "$framework" --no-build -p:EnableWindowsTargeting=true \
+              --report-xunit-trx --results-directory "$out/results" || failed=1
+          }
+          for f in $FRAMEWORKS; do
+            core=net10.0 desktop=net10.0
+            [ "$f" = windows ] && core=net10.0-windows desktop=net10.0-windows10.0.26100.0
+            out="$GITHUB_WORKSPACE/ui-tests/$desktop"
+            render="$out/render"
+            mkdir -p "$render"
+            suite tests/Steward.Core.Tests/Steward.Core.Tests.csproj "$core" "$GITHUB_WORKSPACE/ui-tests/core-$core"
+            STEWARD_TEXT_CENTRING_PNG_DIR="$render/text-centring" \
+            STEWARD_ACRYLIC_PNG="$render/acrylic.png" \
+            STEWARD_SHELL_PNG="$render/shell.png" \
+            STEWARD_HOME_PNG_DIR="$render/home" \
+            STEWARD_SETTINGS_PNG_DIR="$render/settings" \
+            STEWARD_SYNC_PNG_DIR="$render/sync" \
+            STEWARD_GUIDES_PNG="$render/guides" \
+            STEWARD_DIALOGS_A_DIR="$render/dialogs-a" \
+            STEWARD_DIALOGS_B_PNG_DIR="$render/dialogs-b" \
+            STEWARD_BANDING_PNG_DIR="$render/banding" \
+            STEWARD_UIPATHS_PNG_DIR="$render/uipaths" \
+              suite tests/Steward.Desktop.Tests/Steward.Desktop.Tests.csproj "$desktop" "$out"
+          done
+          exit "$failed"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ui-tests-${{ matrix.name }}
+          path: ui-tests
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: uipaths-${{ matrix.name }}
+          path: ui-tests/*/render/uipaths
+          if-no-files-found: ignore
+
+  windows-smoke:
+    name: Windows launch smoke
+    needs: [version, windows-exe]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: desktop-win-x64
+          path: dist
+
+      - name: Launch Steward.exe once per preview switch and capture each screen
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path smoke -Force | Out-Null
+          Expand-Archive -Path (Get-ChildItem dist\*.zip).FullName -DestinationPath app
+          $exe = (Resolve-Path app\Steward.exe).Path
+          $data = Join-Path $env:LOCALAPPDATA 'Steward'
+          Add-Type -AssemblyName System.Drawing, System.Windows.Forms
+          $runs = [ordered]@{ 'default' = $null; 'banners' = '--banners-preview'; 'update-progress' = '--update-progress-preview'; 'client-outdated' = '--client-outdated-preview'; 'forever-install' = '--forever-install-preview'; 'live-reconnecting' = '--live-preview=reconnecting' }
+          foreach ($s in 'current', 'downloading', 'written', 'failed', 'newer', 'unfinished', 'expired', 'none', 'loading', 'signin', 'signin-error', 'signin-busy', 'mfa', 'mfa-error', 'mfa-busy') { $runs["guides-$s"] = "--guides-preview=$s" }
+          foreach ($s in 'flyout', 'menu', 'settings') { $runs["popups-$s"] = "--popups-preview=$s" }
+          $failures = @()
+          foreach ($name in $runs.Keys) {
+            Remove-Item $data -Recurse -Force -ErrorAction SilentlyContinue
+            $p = if ($runs[$name]) { Start-Process -FilePath $exe -ArgumentList $runs[$name] -PassThru } else { Start-Process -FilePath $exe -PassThru }
+            try {
+              $deadline = (Get-Date).AddSeconds(60)
+              do {
+                Start-Sleep -Seconds 1
+                $p.Refresh()
+                if ($p.HasExited) { throw "exited early with code $($p.ExitCode)" }
+              } until ($p.MainWindowHandle -ne 0 -or (Get-Date) -gt $deadline)
+              if ($p.MainWindowHandle -eq 0) { throw "showed no window within 60 seconds" }
+              Write-Host "${name}: window '$($p.MainWindowTitle)' after $([int]((Get-Date) - $p.StartTime).TotalSeconds) seconds"
+              Start-Sleep -Seconds 5
+              $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+              $bitmap = [System.Drawing.Bitmap]::new($bounds.Width, $bounds.Height)
+              $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+              $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+              $bitmap.Save("smoke\windows-x64-$name.png", [System.Drawing.Imaging.ImageFormat]::Png)
+              $graphics.Dispose()
+              $bitmap.Dispose()
+              $p.Refresh()
+              if ($p.HasExited) { throw "exited after showing its window, code $($p.ExitCode)" }
+            }
+            catch {
+              $failures += "${name}: $_"
+              Write-Host "::error::${name}: $_"
+            }
+            finally {
+              if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+              $p.WaitForExit(15000) | Out-Null
+              Copy-Item (Join-Path $data 'logs') "smoke\logs\$name" -Recurse -ErrorAction SilentlyContinue
+            }
+            if (-not (Select-String -Path "smoke\logs\$name\*.log" -Pattern 'INF Steward\.Desktop\.App: Steward .* starting' -Quiet -ErrorAction SilentlyContinue)) {
+              $failures += "${name}: no startup line in the app log"
+              Write-Host "::error::${name}: no startup line in the app log"
+            }
+          }
+          if ($failures) { throw "$($failures.Count) of $($runs.Count) launches failed" }
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: smoke-windows-x64
+          path: smoke
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: windows-popups-x64
+          path: |
+            smoke/windows-x64-popups-*.png
+            smoke/logs/popups-*
+          if-no-files-found: ignore
+
+  macos-smoke:
+    name: macOS launch smoke (${{ matrix.arch }})
+    needs: [version, macos-dmg]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-26
+          - arch: x64
+            runner: macos-26-intel
+    env:
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: desktop-macos-${{ matrix.arch }}
+          path: dist
+
+      - name: Install Steward.app from the dmg
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p smoke "$RUNNER_TEMP/Applications"
+          mnt="$(mktemp -d)"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mnt" dist/*.dmg
+          cp -R "$mnt/Steward.app" "$RUNNER_TEMP/Applications/"
+          hdiutil detach "$mnt"
+          xattr -dr com.apple.quarantine "$RUNNER_TEMP/Applications/Steward.app" 2>/dev/null || true
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/Applications/Steward.app" 2>&1 | tee smoke/codesign.txt
+
+      - name: Launch Steward.app once per preview switch and capture each screen
+        shell: bash
+        run: |
+          set +e -u
+          cat > "$RUNNER_TEMP/haswindow.swift" <<'EOF'
+          import CoreGraphics
+          import Foundation
+          let pid = Int32(CommandLine.arguments[1])!
+          let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+          let found = windows.contains { w in
+            let bounds = w[kCGWindowBounds as String] as? [String: Any]
+            return (w[kCGWindowOwnerPID as String] as? Int32) == pid
+              && (w[kCGWindowLayer as String] as? Int) == 0
+              && ((bounds?["Width"] as? Double) ?? 0) > 200
+          }
+          exit(found ? 0 : 1)
+          EOF
+          swiftc -O -o "$RUNNER_TEMP/haswindow" "$RUNNER_TEMP/haswindow.swift" || exit 1
+          app="$RUNNER_TEMP/Applications/Steward.app/Contents/MacOS/Steward.Desktop"
+          data="$HOME/Library/Application Support/Steward"
+          names=(default banners update-progress client-outdated forever-install live-reconnecting)
+          switches=("" --banners-preview --update-progress-preview --client-outdated-preview --forever-install-preview --live-preview=reconnecting)
+          for s in current downloading written failed newer unfinished expired none loading signin signin-error signin-busy mfa mfa-error mfa-busy; do
+            names+=("guides-$s")
+            switches+=("--guides-preview=$s")
+          done
+          for s in flyout menu settings; do
+            names+=("popups-$s")
+            switches+=("--popups-preview=$s")
+          done
+          failures=0
+          fail() { echo "::error::$name: $*"; cat "smoke/$name.out"; failures=$((failures + 1)); }
+          launch() {
+            rm -rf "$data"
+            if [ -n "$switch" ]; then "$app" "$switch" > "smoke/$name.out" 2>&1 & else "$app" > "smoke/$name.out" 2>&1 & fi
+            pid=$!
+            shown=0
+            for i in $(seq 60); do
+              if ! kill -0 "$pid" 2>/dev/null; then
+                wait "$pid" && rc=0 || rc=$?
+                fail "exited early with code $rc"
+                return
+              fi
+              if "$RUNNER_TEMP/haswindow" "$pid"; then shown=1; echo "$name: window after $i seconds"; break; fi
+              sleep 1
+            done
+            sleep 5
+            screencapture -x "smoke/macos-$ARCH-$name.png"
+            if [ "$shown" -ne 1 ]; then fail "showed no window within 60 seconds"; elif ! kill -0 "$pid" 2>/dev/null; then fail "exited after showing its window"; fi
+            kill "$pid" 2>/dev/null
+            for i in $(seq 15); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+            kill -9 "$pid" 2>/dev/null
+            wait "$pid" 2>/dev/null
+          }
+          for idx in "${!names[@]}"; do
+            name=${names[$idx]}
+            switch=${switches[$idx]}
+            launch
+            mkdir -p "smoke/logs/$name"
+            cp -R "$data/logs/." "smoke/logs/$name/" 2>/dev/null
+            grep -q "INF Steward.Desktop.App: Steward .* starting" "smoke/logs/$name/"*.log 2>/dev/null || fail "no startup line in the app log"
+          done
+          [ "$failures" -eq 0 ] || { echo "::error::$failures of ${#names[@]} launches failed"; exit 1; }
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: smoke-macos-${{ matrix.arch }}
+          path: smoke
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: macos-popups-${{ matrix.arch }}
+          path: |
+            smoke/macos-*-popups-*.png
+            smoke/logs/popups-*
+          if-no-files-found: ignore
+
+  pre-release:
+    name: Publish pre-release
+    needs: [version, windows-exe, windows-msix, linux-packages, macos-dmg, ui-tests, windows-smoke, macos-smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: desktop-preview-${{ github.run_number }}
+      DISPLAY_VERSION: ${{ needs.version.outputs.display }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-*
+          path: release
+          merge-multiple: true
+
+      - name: Write release notes
+        shell: bash
+        run: |
+          {
+            echo "Preview builds of the Avalonia rebuild of Steward $DISPLAY_VERSION, from the \`$GITHUB_REF_NAME\` branch at $GITHUB_SHA. They are for testing and are not for general use."
+            echo
+            echo "On Windows, extract the zip and run \`Steward.exe\`. The \`licences\` folder holds the licences of the bundled fonts."
+            echo
+            echo "The \`.msix\` and \`.msixupload\` are the unsigned Microsoft Store package of this build, for Store submission tests. Windows installs them only after the Store signs them."
+            echo
+            echo "macOS does not open these builds until you remove the quarantine flag, because they are not notarised. Drag Steward to Applications, then run \`xattr -dr com.apple.quarantine /Applications/Steward.app\` in Terminal. Alternatively, open Steward once, then go to System Settings > Privacy & Security and select Open Anyway."
+            echo
+            echo "On Linux, install from the signed package feed so that \`apt upgrade\` or \`dnf upgrade\` gets the next preview. The [README](https://github.com/hoobio/steward-companion/blob/$GITHUB_REF_NAME/README.md#linux-preview) shows how to set it up."
+            echo
+            echo "Assets:"
+            echo
+            for f in release/*; do echo "- \`$(basename "$f")\`"; done
+          } > notes.md
+          cat notes.md
+
+      - name: Create the draft pre-release
+        shell: bash
+        run: |
+          gh release create "$TAG" release/* \
+            --draft --prerelease --latest=false \
+            --target "$GITHUB_SHA" \
+            --title "Steward desktop preview ${{ github.run_number }}" \
+            --notes-file notes.md
+
+      - name: Publish the pre-release
+        shell: bash
+        run: gh release edit "$TAG" --draft=false --prerelease --latest=false
+
+      - name: Prune old previews
+        shell: bash
+        run: |
+          gh release list --limit 100 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("desktop-preview-"))] | sort_by(.createdAt) | reverse | .[3:] | .[].tagName' |
+            while read -r old; do
+              gh release delete "$old" --yes --cleanup-tag
+            done
+
+  linux-feed:
+    name: Linux package feed
+    needs: [version, pre-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install repository tools
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq apt-utils createrepo-c rpm >/dev/null
+
+      - name: Download the kept previews
+        shell: bash
+        run: |
+          gh release list --limit 100 --json tagName --jq '.[] | select(.tagName | startswith("desktop-preview-")) | .tagName' |
+            while read -r tag; do
+              gh release download "$tag" -p '*.deb' -p '*.rpm' -D packages
+            done
+          ls -l packages
+
+      - name: Build the signed feed
+        shell: bash
+        env:
+          LINUX_SIGNING_KEY: ${{ secrets.LINUX_SIGNING_KEY }}
+          LINUX_SIGNING_PASSPHRASE: ${{ secrets.LINUX_SIGNING_PASSPHRASE }}
+          PASSPHRASE_FILE: ${{ runner.temp }}/passphrase
+          DISPLAY_VERSION: ${{ needs.version.outputs.display }}
+        run: |
+          printf '%s\n' "$LINUX_SIGNING_KEY" | gpg --batch --import
+          (umask 077 && printf '%s' "$LINUX_SIGNING_PASSPHRASE" > "$PASSPHRASE_FILE")
+          sh packaging/linux/build-feed.sh packages site "$DISPLAY_VERSION"
+          rm -f "$PASSPHRASE_FILE"
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v5

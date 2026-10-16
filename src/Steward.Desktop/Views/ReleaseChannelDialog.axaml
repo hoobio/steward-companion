@@ -1,0 +1,119 @@
+<ui:FAContentDialog
+    x:Class="Steward.Desktop.Views.ReleaseChannelDialog"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="using:FluentAvalonia.UI.Controls"
+    xmlns:vm="using:Steward.App.ViewModels"
+    xmlns:views="using:Steward.Desktop.Views"
+    x:DataType="vm:AddonChannelViewModel"
+    Title="Release channel"
+    PrimaryButtonText="Save"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary"
+    PrimaryButtonClick="OnSaveClick">
+
+    <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+            <Border
+                Width="28"
+                Height="28"
+                CornerRadius="6"
+                ClipToBounds="True"
+                VerticalAlignment="Center"
+                Background="{DynamicResource ChipBrush}">
+                <Image Source="{Binding Icon, Converter={x:Static views:BindConvert.Image}}" Stretch="UniformToFill" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Classes="Body" Text="{Binding Name}" FontSize="13.5" />
+                <TextBlock
+                    Text="{Binding FolderName}"
+                    FontFamily="{StaticResource MonoFontFamily}"
+                    FontSize="11.5"
+                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+            </StackPanel>
+        </Grid>
+
+        <ItemsControl x:Name="Options" Margin="0,8,0,0">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="1" RowSpacing="8" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="views:ChannelRow">
+                    <RadioButton
+                        GroupName="Channels"
+                        Tag="{Binding Option.Channel}"
+                        IsEnabled="{Binding Option.IsEnabled}"
+                        AutomationProperties.Name="{Binding Option.Label}"
+                        Padding="8,0,0,0"
+                        Loaded="OnOptionLoaded"
+                        IsCheckedChanged="OnOptionChecked">
+                        <StackPanel Spacing="2">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Classes="Body" Text="{Binding Option.Label}" VerticalAlignment="Center" />
+                                <Border
+                                    IsVisible="{Binding Option.IsCurrent}"
+                                    CornerRadius="4"
+                                    Padding="7,1"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource SuccessTintBrush}">
+                                    <TextBlock
+                                        Text="Current"
+                                        FontSize="11"
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock
+                                    IsVisible="{Binding Option.IsEnabled}"
+                                    Text="{Binding Option.Detail}"
+                                    FontFamily="{StaticResource MonoFontFamily}"
+                                    FontSize="11.5"
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <TextBlock
+                                    IsVisible="{Binding !Option.IsEnabled}"
+                                    Text="{Binding Option.Detail}"
+                                    FontSize="11.5"
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource TextFillColorDisabledBrush}" />
+                                <Button
+                                    Theme="{StaticResource SubtleButtonStyle}"
+                                    IsVisible="{Binding HasChangelog}"
+                                    Width="22"
+                                    Height="22"
+                                    MinHeight="0"
+                                    Padding="0"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.Name="{Binding ChangelogName}"
+                                    ToolTip.Tip="{Binding ChangelogName}"
+                                    Click="OnChangelogClick">
+                                    <TextBlock
+                                        Classes="Glyph"
+                                        Text="{StaticResource Glyph.BulletedList}"
+                                        FontSize="12"
+                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </RadioButton>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <StackPanel x:Name="ChangelogPanel" Spacing="4" IsVisible="False">
+            <TextBlock x:Name="ChangelogCaption" Classes="Caption" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <ScrollViewer MaxHeight="220">
+                <views:ChangelogView x:Name="ChangelogHost" />
+            </ScrollViewer>
+        </StackPanel>
+
+        <TextBlock
+            Classes="Caption"
+            Text="{Binding Hint}"
+            TextWrapping="Wrap"
+            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+    </StackPanel>
+</ui:FAContentDialog>

@@ -1,0 +1,62 @@
+<UserControl
+    x:Class="Steward.Desktop.Views.BannerList"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:views="using:Steward.Desktop.Views"
+    xmlns:vm="using:Steward.App.ViewModels"
+    x:DataType="views:BannerList">
+    <ItemsControl x:Name="List">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:BannerViewModel">
+                <Border CornerRadius="8" Padding="12,8" Background="{Binding Background, Converter={x:Static views:BindConvert.Brush}}">
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+                        <TextBlock
+                            Classes="Glyph"
+                            Text="{Binding IconGlyph, Converter={x:Static views:BindConvert.Glyph}}"
+                            FontSize="16"
+                            Foreground="{Binding IconForeground, Converter={x:Static views:BindConvert.Brush}}" />
+
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock
+                                Text="{Binding Message}"
+                                IsVisible="{Binding HasMessage}"
+                                TextWrapping="Wrap"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+
+                        <ItemsControl Grid.Column="2" VerticalAlignment="Center" ItemsSource="{Binding Actions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:BannerActionViewModel">
+                                    <Button Height="28" Padding="10,0" Content="{Binding Label}" Command="{Binding Command}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Button
+                            Grid.Column="3"
+                            Width="28"
+                            Height="28"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            Command="{Binding DismissCommand}"
+                            IsVisible="{Binding IsDismissible}"
+                            AutomationProperties.Name="Dismiss">
+                            <Path Classes="CloseGlyph" />
+                        </Button>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>

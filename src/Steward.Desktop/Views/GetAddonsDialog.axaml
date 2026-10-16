@@ -1,0 +1,188 @@
+<ui:FAContentDialog
+    x:Class="Steward.Desktop.Views.GetAddonsDialog"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="using:FluentAvalonia.UI.Controls"
+    xmlns:views="using:Steward.Desktop.Views"
+    xmlns:vm="using:Steward.App.ViewModels"
+    x:DataType="vm:GetAddonsViewModel"
+    Title="Get addons"
+    CloseButtonText="Done"
+    DefaultButton="Close">
+
+    <ui:FAContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMinWidth">660</x:Double>
+        <x:Double x:Key="ContentDialogMaxWidth">660</x:Double>
+    </ui:FAContentDialog.Resources>
+
+    <StackPanel Spacing="12">
+        <TextBlock
+            Text="{Binding Lede}"
+            FontSize="13"
+            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBox
+                Height="32"
+                VerticalAlignment="Center"
+                PlaceholderText="Search by name or author"
+                AutomationProperties.Name="Search addons"
+                Text="{Binding Query, Mode=TwoWay}">
+                <TextBox.InnerRightContent>
+                    <TextBlock
+                        Classes="Glyph"
+                        Text="{StaticResource Glyph.Search}"
+                        FontSize="12"
+                        Margin="0,0,10,0"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </TextBox.InnerRightContent>
+            </TextBox>
+            <ComboBox
+                Grid.Column="1"
+                Height="32"
+                MinWidth="150"
+                VerticalAlignment="Center"
+                SelectedIndex="0"
+                FontWeight="Normal"
+                AutomationProperties.Name="Source">
+                <ComboBoxItem>All sources</ComboBoxItem>
+                <ComboBoxItem>CurseForge</ComboBoxItem>
+            </ComboBox>
+        </Grid>
+
+        <TextBlock
+            Text="CurseForge search is not enabled for Steward yet. Showing popular addons."
+            FontSize="12"
+            TextWrapping="Wrap"
+            Foreground="{DynamicResource SystemFillColorCautionBrush}"
+            IsVisible="{Binding SearchUnavailableVisibility}" />
+
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBlock
+                Text="{Binding Heading}"
+                FontSize="12"
+                VerticalAlignment="Center"
+                Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+            <views:ProgressRing
+                x:Name="LoadingRing"
+                Grid.Column="1"
+                Width="14"
+                Height="14"
+                IsActive="{Binding IsLoading}"
+                IsVisible="{Binding LoadingVisibility}" />
+        </Grid>
+
+        <TextBlock
+            Text="{Binding Error}"
+            FontSize="12"
+            TextWrapping="Wrap"
+            Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+            IsVisible="{Binding ErrorVisibility}" />
+
+        <Border
+            CornerRadius="8"
+            ClipToBounds="True"
+            Background="{DynamicResource LayerFillColorDefaultBrush}">
+            <Grid>
+                <TextBlock
+                    Text="{Binding NoResultsText}"
+                    Margin="12,28"
+                    FontSize="13"
+                    TextWrapping="Wrap"
+                    HorizontalAlignment="Center"
+                    TextAlignment="Center"
+                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                    IsVisible="{Binding NoResultsVisibility}" />
+                <ScrollViewer x:Name="ResultsScroller" Height="330">
+                    <ItemsControl ItemsSource="{Binding Results}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CurseForgeResultViewModel">
+                                <Border
+                                    BorderThickness="0,0,0,1"
+                                    BorderBrush="{DynamicResource RowHairlineBrush}">
+                                    <Grid
+                                        Margin="12,10"
+                                        ColumnDefinitions="Auto,*,Auto"
+                                        ColumnSpacing="12">
+                                        <Border
+                                            Width="30"
+                                            Height="30"
+                                            VerticalAlignment="Center"
+                                            CornerRadius="6"
+                                            ClipToBounds="True"
+                                            Background="{DynamicResource ChipBrush}">
+                                            <Grid>
+                                                <TextBlock
+                                                    Text="{Binding Initials}"
+                                                    FontSize="12"
+                                                    FontWeight="Bold"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{Binding InitialsColor, Converter={x:Static views:BindConvert.ColorBrush}}" />
+                                                <Image Source="{Binding Icon, Converter={x:Static views:BindConvert.Image}}" Stretch="UniformToFill" />
+                                            </Grid>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                            <TextBlock TextTrimming="CharacterEllipsis" TextWrapping="NoWrap">
+                                                <Run Text="{Binding Name}" FontSize="13.5" /><Run Text="{Binding ByAuthor}" FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                            </TextBlock>
+                                            <TextBlock
+                                                Text="{Binding Summary}"
+                                                FontSize="12.5"
+                                                TextTrimming="CharacterEllipsis"
+                                                TextWrapping="NoWrap"
+                                                ToolTip.Tip="{Binding Summary}"
+                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <TextBlock FontSize="11.5" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorTertiaryBrush}">
+                                                <Run Text="CurseForge · " /><Run Text="{Binding LatestVersion}" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </TextBlock>
+                                            <TextBlock
+                                                Text="{Binding Failure}"
+                                                FontSize="12"
+                                                TextWrapping="Wrap"
+                                                Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                                IsVisible="{Binding FailureVisibility}" />
+                                        </StackPanel>
+
+                                        <Panel Grid.Column="2" VerticalAlignment="Center">
+                                            <Button
+                                                Height="32"
+                                                Content="Install"
+                                                Command="{Binding InstallCommand}"
+                                                AutomationProperties.Name="{Binding InstallAccessibleName}"
+                                                IsVisible="{Binding InstallVisibility}" />
+                                            <StackPanel
+                                                Orientation="Horizontal"
+                                                Spacing="8"
+                                                VerticalAlignment="Center"
+                                                IsVisible="{Binding InstallingVisibility}">
+                                                <views:ProgressRing Width="14" Height="14" IsActive="{Binding IsInstalling}" />
+                                                <TextBlock Text="Installing" FontSize="12.5" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </StackPanel>
+                                            <StackPanel
+                                                Orientation="Horizontal"
+                                                Spacing="6"
+                                                VerticalAlignment="Center"
+                                                IsVisible="{Binding InstalledVisibility}">
+                                                <TextBlock Classes="Glyph" Text="{StaticResource Glyph.CheckMark}" FontSize="13" Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
+                                                <TextBlock Text="Installed" FontSize="12.5" VerticalAlignment="Center" Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
+                                            </StackPanel>
+                                            <HyperlinkButton
+                                                FontSize="12.5"
+                                                NavigateUri="{Binding WebsiteUri}"
+                                                AutomationProperties.Name="{Binding LinkAccessibleName}"
+                                                IsVisible="{Binding LinkVisibility}">
+                                                <TextBlock Text="Available on CurseForge" />
+                                            </HyperlinkButton>
+                                        </Panel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </StackPanel>
+</ui:FAContentDialog>

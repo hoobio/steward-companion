@@ -43,7 +43,7 @@ public static class Program
     private static string? ActivationLink(string[] args) =>
         args.Select(arg => arg.StartsWith(LinkSwitch, StringComparison.Ordinal) ? arg[LinkSwitch.Length..] : arg)
             .FirstOrDefault(arg => arg.StartsWith($"{CurseForgeLinks.Scheme}:", StringComparison.OrdinalIgnoreCase))
-        ?? (App.IsPackaged
+        ?? (AppInfo.IsPackaged
             && AppInstance.GetCurrent().GetActivatedEventArgs() is { Kind: ExtendedActivationKind.Protocol, Data: IProtocolActivatedEventArgs protocol }
                 ? protocol.Uri.AbsoluteUri
                 : null);

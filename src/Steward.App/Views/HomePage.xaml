@@ -76,10 +76,10 @@
                             FontWeight="Bold"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Foreground="{x:Bind InitialsBrush}" />
-                        <Image Source="{x:Bind FallbackIcon, Mode=OneWay}" Stretch="UniformToFill" />
+                            Foreground="{x:Bind views:BindConvert.ColorBrush(InitialsColor)}" />
+                        <Image Source="{x:Bind views:BindConvert.Image(FallbackIcon), Mode=OneWay}" Stretch="UniformToFill" />
                         <Image
-                            Source="{x:Bind Icon}"
+                            Source="{x:Bind views:BindConvert.Image(Icon)}"
                             Stretch="UniformToFill"
                             Tag="{x:Bind}"
                             ImageFailed="OnManifestIconFailed"
@@ -142,7 +142,7 @@
                                 <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
                                 <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
                             </Button.Resources>
-                            <FontIcon Glyph="{x:Bind NoticeGlyph}" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <FontIcon Glyph="{x:Bind views:BindConvert.Glyph(NoticeGlyph)}" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </Button>
                     </Grid>
                     <Grid HorizontalAlignment="Left" ColumnSpacing="4">
@@ -246,7 +246,7 @@
                                 SizeChanged="OnVersionSizeChanged"
                                 Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                 Visibility="{x:Bind WideVersionPairVisibility, Mode=OneWay}">
-                                <Run Text="{x:Bind NotInstalledRunText, Mode=OneWay}" /><Run Text="{x:Bind InstalledRunText, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" /><Run Text=" &#x2192; " /><Run Text="{x:Bind AvailableVersionShort, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" Foreground="{x:Bind NewVersionBrush, Mode=OneWay}" />
+                                <Run Text="{x:Bind NotInstalledRunText, Mode=OneWay}" /><Run Text="{x:Bind InstalledRunText, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" /><Run Text=" &#x2192; " /><Run Text="{x:Bind AvailableVersionShort, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" Foreground="{x:Bind views:BindConvert.Brush(NewVersionBrush), Mode=OneWay}" />
                             </TextBlock>
                             <TextBlock
                                 FontSize="12"
@@ -256,7 +256,7 @@
                                 SizeChanged="OnVersionSizeChanged"
                                 Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                 Visibility="{x:Bind StackedVersionPairVisibility, Mode=OneWay}">
-                                <Run Text="&#x2192; " /><Run Text="{x:Bind AvailableVersionShort, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" Foreground="{x:Bind NewVersionBrush, Mode=OneWay}" />
+                                <Run Text="&#x2192; " /><Run Text="{x:Bind AvailableVersionShort, Mode=OneWay}" FontFamily="Cascadia Mono" FontSize="11.5" Foreground="{x:Bind views:BindConvert.Brush(NewVersionBrush), Mode=OneWay}" />
                             </TextBlock>
                             <TextBlock
                                 Text="{x:Bind InstalledVersionShort, Mode=OneWay}"
@@ -377,7 +377,7 @@
                         FontSize="12.5"
                         TextTrimming="CharacterEllipsis"
                         VerticalAlignment="Center"
-                        Foreground="{x:Bind StatusBrush, Mode=OneWay}"
+                        Foreground="{x:Bind views:BindConvert.Brush(StatusBrush), Mode=OneWay}"
                         Visibility="{x:Bind StatusTextVisibility, Mode=OneWay}" />
                     <TextBlock
                         Text="Up to date"
@@ -412,7 +412,7 @@
                         Height="32"
                         HorizontalAlignment="Left"
                         Content="{x:Bind ActionLabel, Mode=OneWay}"
-                        Style="{x:Bind ActionStyle, Mode=OneWay}"
+                        Style="{x:Bind views:BindConvert.Style(ActionStyle), Mode=OneWay}"
                         Command="{x:Bind UpdateCommand}"
                         Visibility="{x:Bind ActionVisibility, Mode=OneWay}" />
                     <Button Height="32" HorizontalAlignment="Left" Content="Retry" Command="{x:Bind UpdateCommand}" Visibility="{x:Bind FailedVisibility, Mode=OneWay}" />
@@ -498,8 +498,8 @@
                             FontWeight="Bold"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Foreground="{x:Bind InitialsBrush}" />
-                        <Image Source="{x:Bind Icon, Mode=OneWay}" Stretch="UniformToFill" />
+                            Foreground="{x:Bind views:BindConvert.ColorBrush(InitialsColor)}" />
+                        <Image Source="{x:Bind views:BindConvert.Image(Icon), Mode=OneWay}" Stretch="UniformToFill" />
                     </Grid>
                 </Border>
 
@@ -1037,7 +1037,7 @@
                                 CommandParameter="name">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Text="Name" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <FontIcon Glyph="{x:Bind ViewModel.NameSortGlyph, Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <FontIcon Glyph="{x:Bind views:BindConvert.Glyph(ViewModel.NameSortGlyph), Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
                             </Button>
                             <Button
@@ -1051,7 +1051,7 @@
                                 CommandParameter="version">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Text="Version" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <FontIcon Glyph="{x:Bind ViewModel.VersionSortGlyph, Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <FontIcon Glyph="{x:Bind views:BindConvert.Glyph(ViewModel.VersionSortGlyph), Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
                             </Button>
                             <TextBlock Grid.Column="3" Text="Channel" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -1065,7 +1065,7 @@
                                 CommandParameter="source">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Text="Source" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <FontIcon Glyph="{x:Bind ViewModel.SourceSortGlyph, Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <FontIcon Glyph="{x:Bind views:BindConvert.Glyph(ViewModel.SourceSortGlyph), Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
                             </Button>
                             <Button
@@ -1078,7 +1078,7 @@
                                 CommandParameter="status">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Text="Status" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <FontIcon Glyph="{x:Bind ViewModel.StatusSortGlyph, Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <FontIcon Glyph="{x:Bind views:BindConvert.Glyph(ViewModel.StatusSortGlyph), Mode=OneWay}" FontSize="9" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
                             </Button>
                         </Grid>

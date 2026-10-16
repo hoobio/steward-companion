@@ -1,0 +1,635 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
+
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+using Steward.Core;
+using Steward.Core.Diagnostics;
+
+using Microsoft.Extensions.Logging;
+
+using Steward.App.Services;
+
+namespace Steward.App.ViewModels;
+
+public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
+{
+    private const string ProductPrefix = "World of Warcraft: ";
+
+    private static readonly string[] RowTriggers =
+    [
+        nameof(AddonRowViewModel.IsBusy),
+        nameof(AddonRowViewModel.InstalledVersion),
+        nameof(AddonRowViewModel.AvailableVersion),
+        nameof(AddonRowViewModel.Channel),
+        nameof(AddonRowViewModel.HasFailed),
+        nameof(AddonRowViewModel.IsHidden),
+        nameof(AddonRowViewModel.IsIgnored),
+    ];
+
+    private readonly Action<WowInstallViewModel> _remove;
+    private readonly Action<WowInstallViewModel> _clientExited;
+    private readonly AddonUpdater _updater;
+    private readonly AppStateStore _stateStore;
+    private readonly Func<WowInstallViewModel, string, IReadOnlyList<string>> _excludedFolders;
+    private readonly Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> _identifyProviderAddons;
+    private readonly Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> _reconcileProviderAddons;
+    private readonly Action<WowInstallViewModel, string> _unmanageProviderAddon;
+    private readonly Func<Task<bool>> _confirmAdopt;
+    private readonly Func<ManagedAddon, CancellationToken, Task<bool>> _ensureAuthorized;
+    private readonly Func<bool> _isCurseForgeEnabled;
+    private readonly Action<string> _changeChannelRequested;
+    private readonly Func<string, string, string, Task<bool>> _confirmUninstall;
+    private readonly Func<string, WowInstall, Task> _afterStewardInstalled;
+    private readonly Func<WowInstallViewModel, ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> _installRequirements;
+    private readonly Func<string?> _themeId;
+    private readonly ILogger _logger;
+
+    private readonly IUiPlatform _platform;
+
+    private CancellationTokenSource? _watchCts;
+    private int _scanGeneration;
+    private bool _rescanAfterBusy;
+
+    public WowInstallViewModel(
+        WowInstall install,
+        string? gameVersionName,
+        string? userLabel,
+        IReadOnlyList<ManagedAddon> addons,
+        Func<WowInstallViewModel, string, IReadOnlyList<string>> excludedFolders,
+        Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> identifyProviderAddons,
+        Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> reconcileProviderAddons,
+        Action<WowInstallViewModel, string> unmanageProviderAddon,
+        Func<Task<bool>> confirmAdopt,
+        AddonUpdater updater,
+        AppStateStore stateStore,
+        Func<ManagedAddon, CancellationToken, Task<bool>> ensureAuthorized,
+        Func<bool> isCurseForgeEnabled,
+        Action<string> changeChannelRequested,
+        Func<string, string, string, Task<bool>> confirmUninstall,
+        Action<WowInstallViewModel> remove,
+        Action<WowInstallViewModel> clientExited,
+        Func<string, WowInstall, Task> afterStewardInstalled,
+        Func<WowInstallViewModel, ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> installRequirements,
+        Func<string?> themeId,
+        IUiPlatform platform,
+        ILogger logger)
+    {
+        _platform = platform;
+        _themeId = themeId;
+        ArgumentNullException.ThrowIfNull(install);
+        ArgumentNullException.ThrowIfNull(addons);
+
+        Install = install;
+        GameVersionName = gameVersionName is null ? null : ShortProductName(gameVersionName);
+        UserLabel = string.IsNullOrWhiteSpace(userLabel) ? null : userLabel;
+        _excludedFolders = excludedFolders;
+        _identifyProviderAddons = identifyProviderAddons;
+        _reconcileProviderAddons = reconcileProviderAddons;
+        _unmanageProviderAddon = unmanageProviderAddon;
+        _confirmAdopt = confirmAdopt;
+        _remove = remove;
+        _clientExited = clientExited;
+        _updater = updater;
+        _stateStore = stateStore;
+        _ensureAuthorized = ensureAuthorized;
+        _isCurseForgeEnabled = isCurseForgeEnabled;
+        _changeChannelRequested = changeChannelRequested;
+        _confirmUninstall = confirmUninstall;
+        _afterStewardInstalled = afterStewardInstalled;
+        _installRequirements = installRequirements;
+
+        _logger = logger;
+
+        SyncAddons(addons);
+        _ = RescanLocalAsync();
+    }
+
+    public event EventHandler? RowsChanged;
+
+    public WowInstall Install { get; }
+
+    public string DisplayName => Install.DisplayName;
+
+    public string FlavourPath => Install.FlavourPath;
+
+    public string AddOnsPath => Install.AddOnsPath;
+
+    public string? ClientVersion => Install.ClientVersion;
+
+    public string? GameVersionName { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Label), nameof(EditAccessibleName), nameof(StatusText), nameof(SelectedDetailText), nameof(GameVersionLineVisibility))]
+    public partial string? UserLabel { get; set; }
+
+    public bool IsAnyRowBusy => AddonRows.Any(row => row.IsBusy);
+
+    public bool HasGameVersion => GameVersionName is not null;
+
+    public object? ProductIcon => HasGameVersion ? Services.ProductIcon.For(_platform, Install.ProductCode) : null;
+
+    public bool ProductIconVisibility => ProductIcon is not null;
+
+    public string DefaultName => GameVersionName ?? Install.Flavour;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Label), nameof(EditAccessibleName))]
+    public partial string? NumberedName { get; set; }
+
+    public string Label => UserLabel ?? NumberedName ?? DefaultName;
+
+    public string EditAccessibleName => $"Edit {Label}";
+
+    public string StatusText => string.Join(" · ", new[] { UserLabel is not null ? GameVersionName : null, ClientVersion }.Where(part => !string.IsNullOrEmpty(part)));
+
+    public bool IsMissing => Install.IsMissing;
+
+    public bool MissingVisibility => IsMissing;
+
+    public double RowOpacity => IsMissing ? 0.55 : 1;
+
+    public bool StatusVisibility => HasGameVersion && !IsMissing;
+
+    public bool NoGameVersionVisibility => !HasGameVersion && !IsMissing;
+
+    public bool GameVersionLineVisibility => UserLabel is not null && HasGameVersion;
+
+    public ObservableCollection<AddonRowViewModel> AddonRows { get; } = [];
+
+    public ObservableCollection<LocalAddonRowViewModel> LocalRows { get; } = [];
+
+    public IEnumerable<AddonRowViewModel> TopRows => AddonRows.Where(row => !row.IsFolded);
+
+    public IEnumerable<IAddonTableRow> TableRows => TopRows.Cast<IAddonTableRow>().Concat(LocalRows);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AddedByYouVisibility))]
+    public partial bool IsAddedByUser { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectionIndicatorVisibility), nameof(SelectedDetailText))]
+    public partial bool IsSelected { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsClientRunning), nameof(RunningText), nameof(RunningDotVisibility))]
+    public partial WowClientProcess? Client { get; set; }
+
+    public bool IsClientRunning => Client is not null;
+
+    public string RunningText => IsClientRunning ? " · running" : "";
+
+    public bool RunningDotVisibility => IsClientRunning;
+
+    public string SelectedDetailText => !IsSelected ? "" : StatusText.Length > 0 ? $" · {Install.Flavour}" : Install.Flavour;
+
+    public bool SelectionIndicatorVisibility => IsSelected;
+
+    public int UpdateCount => TopRows.Count(row => row.IsPendingUpdate);
+
+    public int HiddenCount => TableRows.Count(row => row.IsHidden);
+
+    public bool AddedByYouVisibility => IsAddedByUser;
+
+    public static string ShortProductName(string displayName) =>
+        displayName.StartsWith(ProductPrefix, StringComparison.Ordinal) ? displayName[ProductPrefix.Length..] : displayName;
+
+    public string? OutOfDateTip(string? interfaceDirective)
+    {
+        if (interfaceDirective is null || TocFile.InterfaceNumber(ClientVersion) is not { } client
+            || TocFile.MatchesInterface(interfaceDirective, client))
+        {
+            return null;
+        }
+
+        var built = int.TryParse(interfaceDirective, out var single)
+            ? $"{single} ({TocFile.FormatInterface(single)})"
+            : interfaceDirective;
+        return $"Out of date for this client. Built for interface {built}. {Label} runs {client} ({TocFile.FormatInterface(client)}). "
+            + "The game skips it unless Load out of date AddOns is ticked on the AddOns screen.";
+    }
+
+    private string? OutOfDateTipForToc(string tocPath)
+    {
+        try
+        {
+            return File.Exists(tocPath) ? OutOfDateTip(TocFile.ReadDirective(tocPath, "Interface")) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.Warn(ex, $"Could not read {tocPath} for the out of date check");
+            return null;
+        }
+    }
+
+    public void ApplyStatus(IReadOnlyDictionary<string, AddonChannelStatus> status, bool background)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+
+        foreach (var row in AddonRows)
+        {
+            if (background && row.IsBusy) { continue; }
+            if (status.TryGetValue(row.AddonId, out var addonStatus)) { row.Apply(addonStatus); }
+        }
+
+        RefreshRequired();
+    }
+
+    private void RefreshRequired()
+    {
+        foreach (var row in AddonRows)
+        {
+            row.RequiredBy = AddonRows
+                .FirstOrDefault(other => other != row && !row.HasChild(other) && other.IsInstalled && other.Requirements.Any(requirement => AddonRequirements.Matches(row.AddonId, requirement.Id)
+                    || string.Equals(requirement.FolderName, row.FolderName, StringComparison.OrdinalIgnoreCase)))
+                ?.DisplayName;
+        }
+    }
+
+    public void RefreshClientRunning(IReadOnlyList<(string FileName, WowClientProcess Process)>? clients = null)
+    {
+        var client = WowClient.Find(Install, clients ?? WowClient.Snapshot());
+        if (client?.ProcessId != Client?.ProcessId)
+        {
+            StopWatching();
+            if (client is not null)
+            {
+                _watchCts = new CancellationTokenSource();
+                _ = WatchExitAsync(client.ProcessId, _watchCts.Token);
+            }
+        }
+
+        Client = client;
+        foreach (var row in AddonRows)
+        {
+            row.IsClientRunning = IsClientRunning;
+            if (row.NeedsReload && (!IsClientRunning || SavedVariablesFreshness.WrittenSince(Install.FlavourPath, row.ReloadPendingSince)))
+            {
+                row.NeedsReload = false;
+            }
+        }
+    }
+
+    public void Dispose() => StopWatching();
+
+    public void SetIsAdmin(Func<string, bool> isAdmin)
+    {
+        ArgumentNullException.ThrowIfNull(isAdmin);
+        foreach (var row in AddonRows)
+        {
+            row.IsAdmin = isAdmin(row.AddonId);
+        }
+    }
+
+    public void SyncHidden(IReadOnlySet<string> hiddenIds)
+    {
+        foreach (var row in TableRows)
+        {
+            row.IsHidden = IsHiddenRow(row, hiddenIds);
+        }
+    }
+
+    private bool IsHiddenRow(IAddonTableRow row, IReadOnlySet<string> hiddenIds) =>
+        hiddenIds.Contains(row.HiddenId) || (row is LocalAddonRowViewModel && !_isCurseForgeEnabled());
+
+    public void SyncAddons(IReadOnlyList<ManagedAddon> addons)
+    {
+        ArgumentNullException.ThrowIfNull(addons);
+
+        if (!HasGameVersion || IsMissing)
+        {
+            addons = [];
+        }
+
+        var wantedIds = addons.Select(addon => addon.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var gone in AddonRows.Where(row => !wantedIds.Contains(row.AddonId)).ToList())
+        {
+            gone.PropertyChanged -= OnRowPropertyChanged;
+            gone.SetChildren([]);
+            AddonRows.Remove(gone);
+        }
+
+        for (var index = 0; index < addons.Count; index++)
+        {
+            var addon = addons[index];
+            var existing = AddonRows.FirstOrDefault(row => string.Equals(row.AddonId, addon.Id, StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                var row = CreateRow(addon);
+                row.PropertyChanged += OnRowPropertyChanged;
+                AddonRows.Insert(Math.Min(index, AddonRows.Count), row);
+            }
+            else if (AddonRows.IndexOf(existing) != index)
+            {
+                AddonRows.Move(AddonRows.IndexOf(existing), index);
+            }
+        }
+
+        var foldedInto = AddonGroups.FoldedInto(addons);
+        foreach (var row in AddonRows)
+        {
+            row.IsFolded = foldedInto.ContainsKey(row.AddonId);
+            row.SetChildren([.. AddonRows.Where(child => foldedInto.TryGetValue(child.AddonId, out var parent) && string.Equals(parent, row.AddonId, StringComparison.OrdinalIgnoreCase))]);
+        }
+
+        RefreshRequired();
+        RaiseRowsChanged();
+    }
+
+    public async Task RescanLocalAsync()
+    {
+        if (IsMissing)
+        {
+            return;
+        }
+
+        var generation = Interlocked.Increment(ref _scanGeneration);
+        try
+        {
+            var excluded = _excludedFolders(this, "");
+            var identify = _isCurseForgeEnabled();
+            var scanned = HasGameVersion
+                ? await Task.Run(() => LocalAddons.Scan(AddOnsPath, excluded, _logger, TocFile.InterfaceNumber(ClientVersion))).ConfigureAwait(false)
+                : [];
+            var identified = HasGameVersion && identify ? await _identifyProviderAddons(this, scanned).ConfigureAwait(false) : [];
+            await OnUiThreadAsync(() =>
+            {
+                if (generation == _scanGeneration)
+                {
+                    foreach (var row in AddonRows.Where(row => !row.IsBusy))
+                    {
+                        row.RefreshInstalledVersion();
+                    }
+
+                    _reconcileProviderAddons(this, []);
+                    ApplyLocalScan(generation, scanned, identified);
+                }
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, $"Local addon rescan failed for {FlavourPath}");
+        }
+    }
+
+    public void ShowAsLocal(ProviderAddonRecord record)
+    {
+        if (IsMissing || !HasGameVersion)
+        {
+            return;
+        }
+
+        var scanned = LocalAddons.Scan(AddOnsPath, _excludedFolders(this, ""), _logger, TocFile.InterfaceNumber(ClientVersion));
+        ApplyLocalScan(Interlocked.Increment(ref _scanGeneration), scanned, [.. LocalRows.Select(row => row.Match).OfType<ProviderAddonRecord>(), record]);
+    }
+
+    private Task OnUiThreadAsync(Action action)
+    {
+        if (_platform.HasThreadAccess)
+        {
+            action();
+            return Task.CompletedTask;
+        }
+
+        var done = new TaskCompletionSource();
+        if (!_platform.TryEnqueue(() =>
+        {
+            try
+            {
+                action();
+                done.SetResult();
+            }
+            catch (Exception ex)
+            {
+                done.SetException(ex);
+            }
+        }))
+        {
+            done.SetException(new InvalidOperationException("The UI thread is no longer running."));
+        }
+
+        return done.Task;
+    }
+
+    private void RaiseRowsChanged()
+    {
+        if (_platform.HasThreadAccess)
+        {
+            RowsChanged?.Invoke(this, EventArgs.Empty);
+        }
+        else
+        {
+            _platform.TryEnqueue(() => RowsChanged?.Invoke(this, EventArgs.Empty));
+        }
+    }
+
+    private void ApplyLocalScan(int generation, IReadOnlyList<LocalAddon> scanned, IReadOnlyList<ProviderAddonRecord> identified)
+    {
+        if (generation != _scanGeneration)
+        {
+            return;
+        }
+
+        var state = _stateStore.Load();
+        var hidden = state.HiddenAddons.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var kept = state.KeptLocalAddons.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unrecorded = _isCurseForgeEnabled()
+            ? CurseForgeAddons.Adoptable(identified, state.ProviderAddons.GetValueOrDefault(FlavourPath) ?? [], [], FlavourPath)
+            : [];
+        var wanted = scanned.Select(addon =>
+        {
+            var match = CurseForgeAddons.MatchFor(unrecorded, addon);
+            return LocalRows.FirstOrDefault(row => row.Matches(addon, match))
+                ?? new LocalAddonRowViewModel(
+                    Install,
+                    addon,
+                    _stateStore,
+                    OutOfDateTip(addon.Interface),
+                    ConfirmUninstallAsync,
+                    OnLocalRemoved,
+                    match,
+                    match is not null && kept.Contains(CurseForgeAddons.KeptLocalKey(FlavourPath, match)),
+                    row => _ = AdoptAsync([row.Match!]),
+                    _platform,
+                    _logger);
+        }).ToList();
+        foreach (var row in wanted)
+        {
+            row.IsHidden = IsHiddenRow(row, hidden);
+        }
+
+        foreach (var row in LocalRows)
+        {
+            row.PropertyChanged -= OnLocalRowPropertyChanged;
+        }
+
+        LocalRows.Clear();
+        foreach (var row in wanted)
+        {
+            row.PropertyChanged += OnLocalRowPropertyChanged;
+            LocalRows.Add(row);
+        }
+
+        RaiseRowsChanged();
+    }
+
+    private Task<bool> ConfirmUninstallAsync(string name, string folders) => _confirmUninstall(name, folders, Label);
+
+    private void OnLocalRemoved(LocalAddonRowViewModel row) => _ = RescanLocalAsync();
+
+    public IReadOnlyList<LocalAddonRowViewModel> AdoptableRows => [.. LocalRows.Where(row => row.CanAdopt && !row.IsHidden)];
+
+    public void AdoptAll() => _ = AdoptAsync([.. AdoptableRows.Select(row => row.Match!)]);
+
+    public void KeepAllLocal()
+    {
+        var rows = AdoptableRows;
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        var state = _stateStore.Load();
+        foreach (var key in rows.Select(row => CurseForgeAddons.KeptLocalKey(FlavourPath, row.Match!)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!state.KeptLocalAddons.Contains(key, StringComparer.OrdinalIgnoreCase))
+            {
+                state.KeptLocalAddons.Add(key);
+            }
+        }
+
+        _stateStore.Save(state);
+        foreach (var row in LocalRows.Where(row => rows.Any(adoptable => adoptable.Match!.Id == row.Match?.Id)))
+        {
+            row.IsKeptLocal = true;
+        }
+    }
+
+    private async Task AdoptAsync(IReadOnlyList<ProviderAddonRecord> matches)
+    {
+        var records = matches.DistinctBy(record => record.Id, StringComparer.OrdinalIgnoreCase).ToList();
+        if (records.Count == 0 || !_isCurseForgeEnabled() || !await _confirmAdopt().ConfigureAwait(true))
+        {
+            return;
+        }
+
+        var state = _stateStore.Load();
+        var keys = records.Select(record => CurseForgeAddons.KeptLocalKey(FlavourPath, record)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (state.KeptLocalAddons.RemoveAll(keys.Contains) > 0)
+        {
+            _stateStore.Save(state);
+        }
+
+        _logger.Info($"Adopting {string.Join(", ", records.Select(record => record.Id))} on {FlavourPath}");
+        foreach (var row in LocalRows.Where(row => records.Any(record => record.Id == row.Match?.Id)).ToList())
+        {
+            row.PropertyChanged -= OnLocalRowPropertyChanged;
+            LocalRows.Remove(row);
+        }
+
+        _reconcileProviderAddons(this, records);
+        RaiseRowsChanged();
+        _ = RescanLocalAsync();
+    }
+
+    private void OnLocalRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(LocalAddonRowViewModel.IsHidden) or nameof(LocalAddonRowViewModel.IsKeptLocal))
+        {
+            RaiseRowsChanged();
+        }
+    }
+
+    private AddonRowViewModel CreateRow(ManagedAddon addon)
+    {
+        return new AddonRowViewModel(
+            Install,
+            addon,
+            _updater,
+            _stateStore,
+            ct => _ensureAuthorized(addon, ct),
+            _changeChannelRequested,
+            ConfirmUninstallAsync,
+            OutOfDateTipForToc,
+            _afterStewardInstalled,
+            CurseForgeAddons.IsRecorded(addon) ? () => _unmanageProviderAddon(this, addon.Id) : null,
+            (dependant, channel, release, status, progress) => _installRequirements(this, dependant, channel, release, status, progress),
+            _themeId,
+            () => _excludedFolders(this, addon.Id),
+            _platform,
+            _logger);
+    }
+
+    [RelayCommand]
+    private void Remove() => _remove(this);
+
+    [RelayCommand]
+    private void OpenFolder()
+    {
+        if (!IsMissing)
+        {
+            ShellOpen.Open(AddOnsPath);
+        }
+    }
+
+    private void StopWatching()
+    {
+        _watchCts?.Cancel();
+        _watchCts?.Dispose();
+        _watchCts = null;
+    }
+
+    private async Task WatchExitAsync(int processId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await WowClient.WaitForExitAsync(processId, cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        RefreshClientRunning();
+        _clientExited(this);
+    }
+
+    private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is null || !RowTriggers.Contains(e.PropertyName))
+        {
+            return;
+        }
+
+        if (e.PropertyName == nameof(AddonRowViewModel.InstalledVersion))
+        {
+            RefreshRequired();
+            // A scan while another row is still extracting would identify its half-written folders.
+            if (IsAnyRowBusy)
+            {
+                _rescanAfterBusy = true;
+            }
+            else
+            {
+                _ = RescanLocalAsync();
+            }
+
+            return;
+        }
+
+        if (e.PropertyName == nameof(AddonRowViewModel.IsBusy) && _rescanAfterBusy && !IsAnyRowBusy)
+        {
+            _rescanAfterBusy = false;
+            _ = RescanLocalAsync();
+        }
+
+        RaiseRowsChanged();
+    }
+}

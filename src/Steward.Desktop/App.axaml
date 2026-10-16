@@ -1,0 +1,21 @@
+<Application
+    x:Class="Steward.Desktop.App"
+    Name="Steward"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sty="using:FluentAvalonia.Styling"
+    RequestedThemeVariant="Dark">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Steward.Desktop/Styles/Resources.axaml" />
+                <ResourceInclude Source="avares://Steward.Desktop/Styles/Glyphs.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+    <Application.Styles>
+        <sty:FluentAvaloniaTheme PreferSystemTheme="False" PreferUserAccentColor="False" CustomAccentColor="#FF409FFF" UseSystemFontOnWindows="False" />
+        <StyleInclude Source="avares://Steward.Desktop/Styles/Controls.axaml" />
+        <StyleInclude Source="avares://Steward.Desktop/Styles/Dialogs.axaml" />
+    </Application.Styles>
+</Application>

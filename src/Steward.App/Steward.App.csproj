@@ -79,6 +79,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Steward.Core\Steward.Core.csproj" />
+    <ProjectReference Include="..\Steward.Presentation\Steward.Presentation.csproj" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">

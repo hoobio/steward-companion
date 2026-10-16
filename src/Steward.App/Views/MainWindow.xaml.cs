@@ -75,12 +75,12 @@ public sealed partial class MainWindow : Window
             }
         };
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
-        AppWindow.SetIcon(App.IconPath);
+        AppWindow.SetIcon(AppInfo.IconPath);
         ViewModel = viewModel;
-        Title = MainViewModel.WindowTitle;
-        AppTitleBar.Title = MainViewModel.WindowTitle;
-        TrayIcon.ToolTipText = MainViewModel.WindowTitle;
-        ViewModel.OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        Title = AppInfo.WindowTitle;
+        AppTitleBar.Title = AppInfo.WindowTitle;
+        TrayIcon.ToolTipText = AppInfo.WindowTitle;
+        services.GetRequiredService<WinUiPlatform>().OwnerWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         ViewModel.NavigateToAddons = () => Nav.SelectedItem = AddonsItem;
         ViewModel.NavigateToPageTag = tag => Nav.SelectedItem = tag switch
         {
@@ -110,7 +110,7 @@ public sealed partial class MainWindow : Window
         AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(980 * scale), (int)(720 * scale)));
 
         // A packaged IconSource resolves asynchronously, so the icon was added with no HICON and the later modify did not repaint it on Windows 10.
-        TrayIcon.Icon = new System.Drawing.Icon(App.IconPath, Native.SmallIconSize, Native.SmallIconSize);
+        TrayIcon.Icon = new System.Drawing.Icon(AppInfo.IconPath, Native.SmallIconSize, Native.SmallIconSize);
         // x:Bind in a Window evaluates only once its content loads, which a --tray launch never does.
         TrayIcon.LeftClickCommand = TrayIcon.DoubleClickCommand = new RelayCommand(ShowFromTray);
         TrayIcon.ForceCreate(enablesEfficiencyMode: false);
@@ -310,7 +310,7 @@ public sealed partial class MainWindow : Window
         }
 
         if (e.PropertyName is nameof(MainViewModel.SyncVisibility)
-            && ViewModel.SyncVisibility == Visibility.Collapsed
+            && !ViewModel.SyncVisibility
             && RootFrame.Content is SyncPage)
         {
             Nav.SelectedItem = AddonsItem;
@@ -318,7 +318,7 @@ public sealed partial class MainWindow : Window
         }
 
         if (e.PropertyName is not nameof(MainViewModel.GuidesVisibility)
-            || ViewModel.GuidesVisibility == Visibility.Visible
+            || ViewModel.GuidesVisibility
             || RootFrame.Content is not GuidesPage
             || (ViewModel.RestedXp.IsSessionExpired && ViewModel.HasGuidesFeature))
         {
@@ -772,9 +772,6 @@ internal static class Native
     [DllImport("kernel32.dll")]
     private static extern uint GetCurrentThreadId();
 
-    [DllImport("user32.dll")]
-    private static extern bool IsWindowVisible(nint hWnd);
-
     [DllImport("kernel32.dll")]
     private static extern nint GetCurrentProcess();
 
@@ -812,18 +809,6 @@ internal static class Native
 
     // Windows sends these to request/confirm a logoff, reboot or app-update shutdown; unhandled, the app would not exit until Windows force-kills it.
     public static void HookSessionEnd(nint handle, SubclassProc proc) => SetWindowSubclass(handle, proc, nint.Zero, nint.Zero);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    private static extern int RegisterApplicationRestart([MarshalAs(UnmanagedType.LPWStr)] string? pwzCommandline, int dwFlags);
-
-    // RESTART_NO_CRASH | RESTART_NO_HANG | RESTART_NO_REBOOT: only an update should restart the app, not a crash, hang or reboot.
-    private const int RestartNoCrashHangReboot = 1 | 2 | 8;
-
-    // Windows closes the app to apply a Store update and relaunches it under this registration; neither argument lets the relaunch take focus.
-    public static int RegisterRestartForStoreUpdate(nint handle) =>
-        RegisterApplicationRestart(
-            IsWindowVisible(handle) ? StartupRegistration.NoActivateArgument : StartupRegistration.TrayArgument,
-            RestartNoCrashHangReboot);
 
     // Windows refuses SetForegroundWindow to a process that did not receive the last input event; a tray click goes to explorer, so borrow its input queue for the call.
     public static void ForceForeground(nint handle)

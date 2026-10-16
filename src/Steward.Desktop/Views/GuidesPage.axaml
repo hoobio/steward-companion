@@ -1,0 +1,281 @@
+<UserControl
+    x:Class="Steward.Desktop.Views.GuidesPage"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="using:FluentAvalonia.UI.Controls"
+    xmlns:views="using:Steward.Desktop.Views"
+    xmlns:vm="using:Steward.App.ViewModels"
+    x:DataType="vm:MainViewModel">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="GuideRowTemplate" x:DataType="vm:GuideRowViewModel">
+            <Border
+                Background="{Binding RowBackground, Converter={x:Static views:BindConvert.Brush}}"
+                BorderThickness="0,1,0,0"
+                BorderBrush="{DynamicResource RowHairlineBrush}"
+                Padding="16,12"
+                ToolTip.Tip="{Binding RowTooltip}">
+                <Grid ColumnSpacing="14" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                    <CheckBox
+                        Grid.Column="0"
+                        MinWidth="0"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding IsAllowed}"
+                        IsChecked="{Binding IsSelected}" />
+
+                    <Border
+                        Grid.Column="1"
+                        Width="36"
+                        Height="36"
+                        VerticalAlignment="Center"
+                        CornerRadius="6"
+                        ClipToBounds="True"
+                        Background="{DynamicResource ChipBrush}"
+                        Opacity="{Binding ImageOpacity}">
+                        <Image Source="{Binding Image, Converter={x:Static views:BindConvert.Image}}" Stretch="UniformToFill" />
+                    </Border>
+
+                    <StackPanel Grid.Column="2" Spacing="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ProductName}" FontSize="13.5" TextWrapping="NoWrap" Foreground="{Binding NameBrush, Converter={x:Static views:BindConvert.Brush}}" />
+                        <TextBlock
+                            Text="{Binding UpdatedText}"
+                            FontSize="12"
+                            Foreground="{Binding UpdatedBrush, Converter={x:Static views:BindConvert.Brush}}"
+                            IsVisible="{Binding UpdatedVisibility}" />
+                        <TextBlock
+                            Text="{Binding MessageText}"
+                            FontSize="12"
+                            TextWrapping="Wrap"
+                            Foreground="{Binding MessageBrush, Converter={x:Static views:BindConvert.Brush}}"
+                            IsVisible="{Binding MessageVisibility}" />
+                    </StackPanel>
+
+                    <Border
+                        Grid.Column="3"
+                        VerticalAlignment="Center"
+                        CornerRadius="4"
+                        Padding="9,3"
+                        Background="{DynamicResource ChipBrush}"
+                        IsVisible="{Binding PillVisibility}">
+                        <TextBlock
+                            Text="{Binding PillText}"
+                            FontSize="11.5"
+                            Foreground="{Binding PillBrush, Converter={x:Static views:BindConvert.Brush}}" />
+                    </Border>
+
+                    <Button
+                        Grid.Column="4"
+                        Height="32"
+                        Content="Retry"
+                        VerticalAlignment="Center"
+                        Command="{Binding RetryCommand}"
+                        IsVisible="{Binding RetryVisibility}" />
+
+                    <Grid
+                        Grid.Row="1"
+                        Grid.ColumnSpan="5"
+                        Margin="0,10,0,0"
+                        IsVisible="{Binding ProgressVisibility}">
+                        <Border Height="3" CornerRadius="2" Background="{DynamicResource ChipBrush}" />
+                        <ProgressBar Height="3" MinHeight="0" IsIndeterminate="True" Background="Transparent" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer>
+        <StackPanel Margin="{StaticResource PageGutter}" Spacing="10">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="RestedXP Guides" FontFamily="{StaticResource DisplayFontFamily}" FontSize="26" FontWeight="SemiBold" Margin="{StaticResource PageTitleMargin}" />
+                    <Grid HorizontalAlignment="Left" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBlock
+                            Classes="Body"
+                            VerticalAlignment="Center"
+                            TextWrapping="NoWrap"
+                            TextTrimming="CharacterEllipsis"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                            <Run Text="{Binding RestedXp.SignedInAs}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" /><Run Text="{Binding RestedXp.SubtitleDetails}" />
+                        </TextBlock>
+                        <HyperlinkButton
+                            Theme="{StaticResource SubtleButtonStyle}"
+                            Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                            Grid.Column="1"
+                            Content="Sign out"
+                            Padding="4,0"
+                            Margin="0,1"
+                            MinHeight="0"
+                            VerticalAlignment="Center"
+                            Command="{Binding RestedXp.SignOutCommand}" />
+                    </Grid>
+                    <TextBlock
+                        Classes="Body"
+                        Text="WoW is running, /reload to load new guides"
+                        TextTrimming="CharacterEllipsis"
+                        Foreground="{DynamicResource SystemFillColorCautionBrush}">
+                        <TextBlock.IsVisible>
+                            <MultiBinding Converter="{x:Static views:GuidesPage.ReloadNotice}">
+                                <Binding Path="SelectedGuide" />
+                                <Binding Path="SelectedInstall.Client" />
+                                <Binding Path="SelectedGuide.WrittenAt" />
+                            </MultiBinding>
+                        </TextBlock.IsVisible>
+                    </TextBlock>
+                </StackPanel>
+
+                <Button
+                    Grid.Column="1"
+                    Width="32"
+                    Height="32"
+                    Padding="0"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Refresh"
+                    ToolTip.Tip="Check now"
+                    Command="{Binding RefreshCommand}">
+                    <TextBlock
+                        Classes="Glyph"
+                        Text="{StaticResource Glyph.Refresh}"
+                        FontSize="14"
+                        views:Spinner.IsSpinning="{Binding RefreshCommand.IsRunning, FallbackValue=False}" />
+                </Button>
+            </Grid>
+
+            <views:BannerList Banners="{Binding Banners}" />
+
+            <ui:FAInfoBar
+                x:Name="SessionExpiredBar"
+                Severity="Warning"
+                IsClosable="True"
+                CornerRadius="8"
+                CloseButtonClick="OnSessionBarClosed"
+                IsOpen="{Binding RestedXp.IsSessionExpired}"
+                Message="Your RestedXP session expired. Sign in again.">
+                <ui:FAInfoBar.ActionButton>
+                    <Button Content="Sign in" Click="OnSignInClick" />
+                </ui:FAInfoBar.ActionButton>
+            </ui:FAInfoBar>
+
+            <StackPanel Spacing="6" IsVisible="{Binding SelectedGuideVisibility}">
+                <TextBlock
+                    Text="KEEP IN GAME"
+                    Margin="16,0,0,0"
+                    FontSize="11"
+                    FontWeight="SemiBold"
+                    LetterSpacing="0.77"
+                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+
+                <Border CornerRadius="8" ClipToBounds="True" Background="{DynamicResource LayerFillColorDefaultBrush}">
+                    <StackPanel>
+                        <Grid Margin="16,12" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="14">
+                            <CheckBox MinWidth="0" Padding="0" VerticalAlignment="Center" IsChecked="True" IsEnabled="False" AutomationProperties.Name="Base guides" />
+                            <Border
+                                Grid.Column="1"
+                                Width="36"
+                                Height="36"
+                                VerticalAlignment="Center"
+                                CornerRadius="6"
+                                ClipToBounds="True"
+                                Background="{DynamicResource ChipBrush}">
+                                <Image Source="{Binding SelectedGuide.AddonIcon, Converter={x:Static views:BindConvert.Image}}" Stretch="UniformToFill" />
+                            </Border>
+                            <StackPanel Grid.Column="2" Spacing="1" VerticalAlignment="Center">
+                                <TextBlock Text="Base guides" FontSize="13.5" TextWrapping="NoWrap" />
+                                <TextBlock
+                                    Text="{Binding SelectedGuide.BaseGuidesText, FallbackValue=''}"
+                                    FontSize="12"
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Grid>
+                        <ItemsControl
+                            ItemsSource="{Binding SelectedGuide.Rows}"
+                            ItemTemplate="{StaticResource GuideRowTemplate}"
+                            IsEnabled="{Binding SelectedGuide.IsSessionActive, FallbackValue=False}" />
+                        <Border Padding="16,14" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource RowHairlineBrush}" IsVisible="{Binding SelectedGuide.LoadingVisibility, FallbackValue=False}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <views:ProgressRing
+                                    Width="16"
+                                    Height="16"
+                                    VerticalAlignment="Center"
+                                    IsActive="{Binding SelectedGuide.LoadingVisibility, FallbackValue=False}" />
+                                <TextBlock
+                                    Classes="Body"
+                                    Text="Loading your guides from RestedXP…"
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Padding="16,14" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource RowHairlineBrush}" IsVisible="{Binding SelectedGuide.NoGuidesVisibility, FallbackValue=False}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock
+                                    Classes="Body"
+                                    Text="No guides on this account"
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                <HyperlinkButton
+                                    Theme="{StaticResource SubtleButtonStyle}"
+                                    Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                    Content="Browse guides"
+                                    Padding="4,0"
+                                    Margin="0,1"
+                                    MinHeight="0"
+                                    VerticalAlignment="Center"
+                                    NavigateUri="https://shop.restedxp.com/guides/" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border
+                            BorderThickness="0,1,0,0"
+                            BorderBrush="{DynamicResource RowHairlineBrush}"
+                            Padding="{StaticResource CardRowPadding}"
+                            MinHeight="{StaticResource CardRowMinHeight}"
+                            ToolTip.Tip="{Binding SelectedGuide.GuidesFilePath, FallbackValue=''}">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                <TextBlock
+                                    Classes="Glyph"
+                                    Text="{StaticResource Glyph.Document}"
+                                    FontSize="16"
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+                                <TextBlock
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    TextTrimming="CharacterEllipsis"
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                    <Run Text="Guides.lua" FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5" /><Run Text="{Binding SelectedGuide.WrittenText, FallbackValue=''}" />
+                                </TextBlock>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <views:ProgressRing
+                                        Width="16"
+                                        Height="16"
+                                        VerticalAlignment="Center"
+                                        IsActive="{Binding RestedXp.WriteAgainCommand.IsRunning}" />
+                                    <Button
+                                        Height="32"
+                                        Content="Write again"
+                                        Command="{Binding RestedXp.WriteAgainCommand}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <Border
+                CornerRadius="8"
+                Padding="16,14"
+                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                IsVisible="{Binding GuidesNotInstalledVisibility}">
+                <TextBlock
+                    Classes="Body"
+                    Text="{Binding GuidesNotInstalledText}"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

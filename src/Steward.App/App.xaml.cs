@@ -1,6 +1,3 @@
-using System.Reflection;
-using System.Runtime.InteropServices;
-
 using Steward.App.Hosting;
 using Steward.App.Services;
 using Steward.App.Views;
@@ -16,57 +13,6 @@ namespace Steward.App;
 
 public partial class App : Application
 {
-    public static readonly string IconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Steward.ico");
-
-    public static readonly bool IsGitHubRelease = typeof(App).Assembly
-        .GetCustomAttributes<AssemblyMetadataAttribute>()
-        .Any(attribute => attribute.Key == "GitHubRelease" && attribute.Value == "true");
-
-    public static readonly bool IsPreRelease = typeof(App).Assembly
-        .GetCustomAttributes<AssemblyMetadataAttribute>()
-        .Any(attribute => attribute.Key == "StorePreRelease" && attribute.Value == "true");
-
-    public static readonly string? StoreDisplayVersion = typeof(App).Assembly
-        .GetCustomAttributes<AssemblyMetadataAttribute>()
-        .FirstOrDefault(attribute => attribute.Key == "StoreDisplayVersion")?.Value is { Length: > 0 } value
-            ? value
-            : null;
-
-    public const string PackageFamilyName = "Hoobi.Steward_thayxpy3eqg0g";
-
-    private const int AppModelErrorNoPackage = 15700;
-
-    public static readonly bool IsPackaged = ResolveIsPackaged();
-
-    public static readonly string BuildName = ResolveBuildName();
-
-    // The Store release and a Store flight are the same package on a machine, so they contend for the same instance.
-    public static readonly string Train = BuildName == "prerelease" ? "store" : BuildName;
-
-    public static string TrainDisplayName(string train) => train switch
-    {
-        "store" => "Store",
-        "msi" => "MSI",
-        "dev" => "Development",
-        "debug" => "Debug",
-        _ => train,
-    };
-
-    private static readonly string RealDataRoot = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Steward");
-
-    public static string DisplayDataFolder(string realDataFolder)
-    {
-        if (!IsPackaged)
-        {
-            return realDataFolder;
-        }
-
-        var relative = Path.GetRelativePath(RealDataRoot, realDataFolder);
-        var virtualised = Path.Combine(Windows.Storage.ApplicationData.Current.LocalCacheFolder.Path, "Local", "Steward", relative);
-        return Directory.Exists(virtualised) ? virtualised : realDataFolder;
-    }
-
     private readonly InstanceCoordination _instanceCoordination;
     private IHost? _host;
     private MainWindow? _window;
@@ -81,7 +27,7 @@ public partial class App : Application
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
         builder.Configuration.SetBasePath(AppContext.BaseDirectory).AddJsonFile("appsettings.json", optional: false, reloadOnChange: false);
-        builder.ConfigureSteward();
+        builder.ConfigureSteward(new WinUiPlatform(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()));
         _host = builder.Build();
 
         var logger = _host.Services.GetRequiredService<ILogger<App>>();
@@ -93,7 +39,11 @@ public partial class App : Application
 
         _window = _host.Services.GetRequiredService<MainWindow>();
         _window.Closed += (_, _) => _host.Dispose();
-        _instanceCoordination.ListenForSignals(_window);
+        _instanceCoordination.ListenForSignals(
+            _window.ViewModel.Platform,
+            _window.ShowFromTray,
+            _window.QuitFromAnotherBuildAsync,
+            _window.ViewModel.ReceiveCurseForgeLinkAsync);
         if (_instanceCoordination.ClosedTrainDisplayName is { } closedTrainDisplayName)
         {
             _window.ViewModel.ShowLocalInfoBanner($"Closed the {closedTrainDisplayName} build automatically");
@@ -163,22 +113,4 @@ public partial class App : Application
             _ = _window.ViewModel.ReceiveCurseForgeLinkAsync(link);
         }
     }
-
-    private static bool ResolveIsPackaged()
-    {
-        var length = 0;
-        return GetCurrentPackageFullName(ref length, nint.Zero) != AppModelErrorNoPackage;
-    }
-
-    private static string ResolveBuildName() => (IsPackaged, IsGitHubRelease, IsPreRelease) switch
-    {
-        (true, true, true) => "prerelease",
-        (true, true, false) => "store",
-        (true, false, _) => "dev",
-        (false, true, _) => "msi",
-        (false, false, _) => "debug",
-    };
-
-    [DllImport("kernel32.dll")]
-    private static extern int GetCurrentPackageFullName(ref int packageFullNameLength, nint packageFullName);
 }

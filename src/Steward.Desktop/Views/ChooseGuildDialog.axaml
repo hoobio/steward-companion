@@ -1,0 +1,57 @@
+<ui:FAContentDialog
+    x:Class="Steward.Desktop.Views.ChooseGuildDialog"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="using:FluentAvalonia.UI.Controls"
+    xmlns:vm="using:Steward.App.ViewModels"
+    xmlns:views="using:Steward.Desktop.Views"
+    x:DataType="views:ChooseGuildDialog"
+    Title="Choose a guild"
+    PrimaryButtonText="Continue"
+    DefaultButton="Primary">
+
+    <StackPanel Spacing="12">
+        <TextBlock
+            Classes="Body"
+            Text="Steward syncs your characters to this guild. You can change it later from the account menu."
+            FontSize="13"
+            TextWrapping="Wrap"
+            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+        <ItemsControl ItemsSource="{Binding Guilds}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:GuildOptionViewModel">
+                    <RadioButton GroupName="Guilds" Tag="{Binding}" Padding="8,0,0,0" Loaded="OnGuildLoaded" IsCheckedChanged="OnGuildChecked">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <Border
+                                Width="24"
+                                Height="24"
+                                CornerRadius="6"
+                                ClipToBounds="True"
+                                VerticalAlignment="Center"
+                                Background="{DynamicResource ChipBrush}">
+                                <Grid>
+                                    <TextBlock
+                                        Classes="Body"
+                                        Text="{Binding Initial}"
+                                        FontSize="11.5"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                    <Image Source="{Binding Icon, Converter={x:Static views:BindConvert.Image}}" Stretch="UniformToFill" />
+                                </Grid>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Classes="Body" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    Classes="Caption"
+                                    Text="{Binding Detail}"
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Grid>
+                    </RadioButton>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</ui:FAContentDialog>

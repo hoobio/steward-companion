@@ -34,7 +34,7 @@ public sealed partial class ChooseGuildDialog : ContentDialog
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = Brush("TextFillColorTertiaryBrush"),
         });
-        tile.Children.Add(new Image { Source = guild.Icon, Stretch = Stretch.UniformToFill });
+        tile.Children.Add(new Image { Source = guild.Icon as ImageSource, Stretch = Stretch.UniformToFill });
 
         var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         text.Children.Add(new TextBlock { Text = guild.Label, FontSize = 14, TextTrimming = TextTrimming.CharacterEllipsis });

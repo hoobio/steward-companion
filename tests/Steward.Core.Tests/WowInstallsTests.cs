@@ -42,6 +42,18 @@ public sealed class WowInstallsTests : IDisposable
     }
 
     [Fact]
+    public void DiscoverAt_FindsAddOnsWhateverItsCase_OnLinux()
+    {
+        Assert.SkipUnless(OperatingSystem.IsLinux(), "Linux only");
+        var flavourPath = Path.Combine(_root, "_classic_beta_");
+        var addOns = Directory.CreateDirectory(Path.Combine(flavourPath, "interface", "ADDONS")).FullName;
+
+        var install = Assert.Single(WowInstalls.DiscoverAt(_root, SupportedProducts, new Dictionary<string, string> { [flavourPath] = "wow_classic_beta" }));
+
+        Assert.Equal(addOns, install.AddOnsPath);
+    }
+
+    [Fact]
     public void DiscoverAt_FindsAFreshInstallWithOnlyFlavorInfo()
     {
         var flavourPath = Path.Combine(_root, "_classic_beta_");
