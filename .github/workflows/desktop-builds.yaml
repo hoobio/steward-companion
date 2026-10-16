@@ -411,6 +411,66 @@ jobs:
             smoke/logs/popups-*
           if-no-files-found: ignore
 
+  linux-arm64-smoke:
+    name: Linux arm64 launch smoke
+    needs: [linux-packages]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: desktop-linux-arm64
+          path: staging
+
+      - name: Smoke test the .deb
+        shell: bash
+        run: |
+          mkdir -p smoke
+          docker run --rm -v "$PWD/staging:/pkg:ro" -v "$PWD/smoke:/out" -e DEB="/pkg/Steward-$DISPLAY_VERSION-linux-arm64.deb" ubuntu:24.04 sh -c '
+            set -e
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$DEB" xvfb xauth imagemagick >/dev/null
+            xvfb-run -a -s "-screen 0 1280x800x24" sh -c "
+              steward > /out/steward.out 2>&1 &
+              pid=\$!
+              sleep 15
+              kill -0 \$pid || { echo steward exited early; cat /out/steward.out; exit 1; }
+              import -window root /out/linux-arm64.png
+              kill \$pid"
+            cp -r /root/.local/share/Steward/logs /out/ 2>/dev/null || true
+            grep -q "INF Steward.Desktop.App: Steward .* starting (linux, .*, Arm64)" /out/logs/*.log || { echo "no arm64 startup line in the app log"; cat /out/logs/*.log; exit 1; }
+            echo "steward from the arm64 deb ran for 15 seconds"'
+
+      - name: Smoke test the signed .rpm on Fedora
+        shell: bash
+        run: |
+          mkdir -p smoke/rpm
+          docker run --rm -v "$PWD/staging:/pkg:ro" -v "$PWD/packaging/linux:/keys:ro" -v "$PWD/smoke/rpm:/out" \
+            -e RPM="/pkg/Steward-$DISPLAY_VERSION-linux-arm64.rpm" fedora:44 sh -c '
+            set -e
+            rpm --import /keys/steward.asc
+            rpm --checksig "$RPM" | tee /out/checksig.txt
+            grep -q "digests signatures OK" /out/checksig.txt
+            dnf install -y -q "$RPM" /usr/bin/xvfb-run xauth >/dev/null
+            xvfb-run -a -s "-screen 0 1280x800x24" sh -c "
+              steward > /out/steward.out 2>&1 &
+              pid=\$!
+              sleep 15
+              kill -0 \$pid || { echo steward exited early; cat /out/steward.out; exit 1; }
+              kill \$pid"
+            cp -r /root/.local/share/Steward/logs /out/ 2>/dev/null || true
+            grep -q "INF Steward.Desktop.App: Steward .* starting (linux," /out/logs/*.log || { echo "no startup line in the app log"; exit 1; }
+            echo "steward from the arm64 rpm ran for 15 seconds"'
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: smoke-linux-arm64
+          path: smoke
+          if-no-files-found: ignore
+
   macos-smoke:
     name: macOS launch smoke (${{ matrix.arch }})
     needs: [macos-dmg]
