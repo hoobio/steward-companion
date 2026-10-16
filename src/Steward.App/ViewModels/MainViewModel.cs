@@ -571,7 +571,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ => null,
     };
 
-    public string? AccountAutomationName => LiveUpdatesTooltip is { } tooltip ? $"{UserName}, {tooltip}" : UserName;
+    public string? AccountAutomationName => string.Join(", ", new[] { UserName, LiveUpdatesTooltip }.Where(part => !string.IsNullOrEmpty(part))) is { Length: > 0 } name ? name : null;
 
     public Visibility StatusActionVisibility => When(HasApiRetry || Failure is GateFailure.Unreachable or GateFailure.ClientOutdated);
 
