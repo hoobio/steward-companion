@@ -20,6 +20,12 @@ internal static class AppDialogs
             // The app's ButtonBackgroundPointerOver matches ContentDialogBackground, so a hovered Cancel would vanish into the dialog.
             dialog.Resources["ButtonBackgroundPointerOver"] = Application.Current.Resources["DialogButtonBackgroundPointerOver"];
             dialog.Resources["ButtonBackgroundPressed"] = Application.Current.Resources["DialogButtonBackgroundPressed"];
+            // With no DefaultButton and no focusable content WinUI focuses Primary, so a stray Enter or Space would confirm.
+            if (!string.IsNullOrEmpty(dialog.CloseButtonText))
+            {
+                dialog.DefaultButton = ContentDialogButton.Close;
+            }
+
             dialog.XamlRoot = root;
             FlyoutOpener.HideAll(root);
             return await dialog.ShowAsync();

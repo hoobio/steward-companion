@@ -6,7 +6,6 @@
     Title="Release channel"
     PrimaryButtonText="Save"
     CloseButtonText="Cancel"
-    DefaultButton="Primary"
     PrimaryButtonClick="OnSaveClick">
 
     <StackPanel Spacing="12">

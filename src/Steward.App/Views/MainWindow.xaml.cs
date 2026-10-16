@@ -381,7 +381,6 @@ public sealed partial class MainWindow : Window
             Content = new TextBlock { Text = body, TextWrapping = TextWrapping.Wrap },
             PrimaryButtonText = primary ?? "",
             CloseButtonText = close,
-            DefaultButton = primary is null ? ContentDialogButton.Close : ContentDialogButton.None,
         };
         return await AppDialogs.ShowAsync(dialog, Content.XamlRoot) == ContentDialogResult.Primary;
     }
@@ -409,7 +408,6 @@ public sealed partial class MainWindow : Window
             },
             PrimaryButtonText = "Install",
             CloseButtonText = "Skip",
-            DefaultButton = ContentDialogButton.Primary,
         };
         return await AppDialogs.ShowAsync(dialog, Content.XamlRoot) == ContentDialogResult.Primary && files.SelectedIndex >= 0 ? files.SelectedIndex : null;
     }
@@ -483,7 +481,6 @@ public sealed partial class MainWindow : Window
             PrimaryButtonText = firstRun ? "Copy" : "Sync",
             SecondaryButtonText = firstRun ? "I'll do it myself" : "",
             CloseButtonText = firstRun ? "Not now" : "Cancel",
-            DefaultButton = ContentDialogButton.Primary,
         };
         dialog.PrimaryButtonClick += async (_, args) =>
         {

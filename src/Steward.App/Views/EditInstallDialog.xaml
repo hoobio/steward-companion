@@ -7,7 +7,6 @@
     Title="Edit install"
     PrimaryButtonText="Save"
     CloseButtonText="Cancel"
-    DefaultButton="Primary"
     PrimaryButtonClick="OnSaveClick">
 
     <StackPanel Spacing="16">
