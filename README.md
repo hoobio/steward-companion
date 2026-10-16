@@ -31,7 +31,7 @@ Fedora and RHEL:
 1. Download the key and check it against the fingerprint above. The command prints "Steward key OK", or removes the key on a mismatch: `curl -fsSLo /tmp/steward.asc https://hoobio.github.io/steward-companion/steward.asc && gpg --show-keys --with-colons /tmp/steward.asc | awk -F: '/^fpr:/ {print $10; exit}' | grep -qx '498B931B1F0FCDED1174620EE6ED105810B41C42' && echo "Steward key OK" || { echo "Steward key does NOT match: removed it, stop here"; rm -f /tmp/steward.asc; }`
 2. Import the key: `sudo rpm --import /tmp/steward.asc`
 3. Add the feed: `sudo dnf config-manager addrepo --from-repofile=https://hoobio.github.io/steward-companion/steward.repo`. On dnf 4 (RHEL 9 and earlier Fedora), use `sudo dnf config-manager --add-repo https://hoobio.github.io/steward-companion/steward.repo`.
-4. Install Steward: `sudo dnf install steward`
+4. Install Steward: `sudo dnf install steward`. On dnf 5, the first install asks to import the Steward key again to check the feed itself; accept it when the fingerprint matches the one above.
 
 New previews arrive with your system updates, through `sudo apt upgrade` or `sudo dnf upgrade`. Start Steward from your applications menu, or run `steward`.
 
