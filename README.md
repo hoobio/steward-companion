@@ -10,6 +10,29 @@ Steward checks each managed addon's release channel when it starts and every 5 m
 
 Install Steward from the [Microsoft Store](https://apps.microsoft.com/detail/9PBKMZFKZHKX).
 
+## Linux (preview)
+
+Preview builds of Steward for Linux come from a signed package feed at `https://hoobio.github.io/steward-companion/`, for x64 and arm64. The feed holds the 3 newest previews. They are for testing and are not for general use.
+
+The packages and the feed metadata are signed with the Steward Linux packages key, fingerprint `498B 931B 1F0F CDED 1174 620E E6ED 1058 10B4 1C42`.
+
+WoW itself runs through Wine, Lutris or Proton. Steward is a native Linux app and does not need Wine.
+
+Debian and Ubuntu:
+
+1. Download the key: `sudo install -d -m 0755 /etc/apt/keyrings && sudo curl -fsSLo /etc/apt/keyrings/steward.gpg https://hoobio.github.io/steward-companion/steward.gpg`
+2. Check the key: `gpg --show-keys /etc/apt/keyrings/steward.gpg`. The fingerprint must match the one above.
+3. Add the feed: `echo "deb [signed-by=/etc/apt/keyrings/steward.gpg] https://hoobio.github.io/steward-companion/apt preview main" | sudo tee /etc/apt/sources.list.d/steward.list`
+4. Update the package lists: `sudo apt update`
+5. Install Steward: `sudo apt install steward`
+
+Fedora and RHEL:
+
+1. Add the feed: `sudo dnf config-manager addrepo --from-repofile=https://hoobio.github.io/steward-companion/steward.repo`. On dnf 4 (RHEL 9 and earlier Fedora), use `sudo dnf config-manager --add-repo https://hoobio.github.io/steward-companion/steward.repo`.
+2. Install Steward: `sudo dnf install steward`. When dnf asks you to import the key, check that the fingerprint matches, then accept.
+
+New previews arrive with your system updates, through `sudo apt upgrade` or `sudo dnf upgrade`. Start Steward from your applications menu, or run `steward`.
+
 ## Sign-in
 
 Steward opens your default browser for the Discord sign-in and stores the session locally, so you stay signed in between runs.
