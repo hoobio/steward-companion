@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.24.1](https://github.com/hoobio/steward-companion/compare/v0.24.0...v0.24.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* 🐛 a Linux feed install follows its feed's channel, and a release's Windows zip runs as its own portable build ([e650ff1](https://github.com/hoobio/steward-companion/commit/e650ff17c778f6a6ec5d256bc47cd6ba7a15199c))
+* 🐛 a press in a window started without focus releases the dialog gate, so the Forever copy banner opens its wizard after a Store relaunch ([4f0ef1b](https://github.com/hoobio/steward-companion/commit/4f0ef1ba33ab607596907c9a7875ee0aa38afa28))
+
 ## [0.24.0](https://github.com/hoobio/steward-companion/compare/v0.23.2...v0.24.0) (2026-10-16)
 
 
