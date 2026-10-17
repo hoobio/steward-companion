@@ -106,6 +106,14 @@ public sealed partial class MainWindow : Window
             UpdateCaptionButtons();
             _ = ViewModel.EvaluateCurseForgeDefaultHandlerAsync();
         };
+        // A press in the window is the user's own choice of it, even when no Activated has been raised for a start without focus (a Store relaunch, 17 Oct 2026).
+        AddHandler(PointerPressedEvent, (_, _) =>
+        {
+            if (ForegroundGate.Release())
+            {
+                _logger.Info("Window pressed before activation after a start without focus");
+            }
+        }, RoutingStrategies.Tunnel, handledEventsToo: true);
         Deactivated += (_, _) => UpdateCaptionButtons();
         Opened += (_, _) => UpdateCaptionButtons();
         Closing += OnWindowClosing;

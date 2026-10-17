@@ -1,3 +1,6 @@
+using Avalonia;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Threading;
 
 using FluentAvalonia.UI.Controls;
@@ -27,6 +30,28 @@ public sealed class ForegroundGateTests(AvaloniaSession session)
         Assert.True(waiting.IsCompleted);
         Assert.False(gate.IsHeld);
     }
+
+    [Fact]
+    public void A_press_in_the_window_releases_the_gate() => session.Run(() =>
+    {
+        using var host = session.NewHost();
+        var window = host.Services.GetRequiredService<MainWindow>();
+        window.ShowActivated = false;
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        window.ForegroundGate.Hold();
+        try
+        {
+            window.MouseDown(new Point(window.Bounds.Width / 2, window.Bounds.Height / 2), MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(window.ForegroundGate.IsHeld);
+        }
+        finally
+        {
+            window.ForegroundGate.Release();
+            window.Hide();
+        }
+    });
 
     [Fact]
     public void A_dialog_waits_while_the_window_was_started_without_focus() => session.Run(() =>
