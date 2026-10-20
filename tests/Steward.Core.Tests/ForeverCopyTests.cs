@@ -86,12 +86,12 @@ public sealed class ForeverCopyTests : IDisposable
     public void Plan_ListsGraphicsAndSoundSettingsThatDiffer()
     {
         Write(Path.Combine(_beta.FlavourPath, "WTF", "Config.wtf"), New,
-            "SET graphicsQuality \"2\"\r\nSET Sound_MasterVolume \"0.5\"\r\nSET vsync \"1\"\r\nSET portal \"beta\"\r\nSET textLocale \"enGB\"\r\nSET farclip \"1000\"\r\n");
+            "SET graphicsQuality \"2\"\r\nSET Sound_MasterVolume \"0.5\"\r\nSET vsync \"1\"\r\nSET portal \"beta\"\r\nSET textLocale \"enGB\"\r\nSET farclip \"1000\"\r\nSET accessibilityScreenNarrationEnabled \"1\"\r\n");
         Write(Path.Combine(_live.FlavourPath, "WTF", "Config.wtf"), Old, "SET GRAPHICSQUALITY \"6\"\r\nSET vsync \"1\"\r\nSET portal \"\"\r\n");
 
         var plan = ForeverCopy.Plan(_beta, _live, []);
 
-        Assert.Equal(["farclip", "graphicsQuality", "Sound_MasterVolume"], plan.ClientSettings.Order(StringComparer.OrdinalIgnoreCase));
+        Assert.Equal(["accessibilityScreenNarrationEnabled", "farclip", "graphicsQuality", "Sound_MasterVolume"], plan.ClientSettings.Order(StringComparer.OrdinalIgnoreCase));
         Assert.True(plan.ClientSettingsNewer);
         Assert.False(plan.LiveConfigMissing);
     }

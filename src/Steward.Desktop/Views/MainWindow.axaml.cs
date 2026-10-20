@@ -617,7 +617,7 @@ public sealed partial class MainWindow : Window
             "Account settings (keybindings, macros and interface options)",
             plan.SettingsFiles.Count > 0 ? Count(plan.SettingsFiles.Count, "file", "files", "newer on the beta") : null);
         var clientSettings = Option(
-            "Graphics and sound",
+            "Graphics, sound and narration",
             plan.ClientSettings.Count > 0 ? Count(plan.ClientSettings.Count, "setting differs", "settings differ", "from the beta") : null,
             plan.LiveConfigMissing ? "Start Forever once first" : "Same as the beta",
             plan.ClientSettings.Count > 0 && plan.ClientSettingsNewer);

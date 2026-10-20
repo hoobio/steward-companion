@@ -13,11 +13,11 @@ public sealed record ForeverCopyResult(int Copied, int Updated, int SavedVariabl
 
 public static class ForeverCopy
 {
-    private static readonly string[] ClientSettingPrefixes = ["graphics", "raidGraphics", "RAID", "Sound_", "Gx", "maxFPS", "shadow", "lodObject"];
+    private static readonly string[] ClientSettingPrefixes = ["graphics", "raidGraphics", "RAID", "Sound_", "Gx", "maxFPS", "shadow", "lodObject", "accessibility"];
 
     private static readonly HashSet<string> ClientSettingNames = new(
     [
-        "Brightness", "Contrast", "Gamma", "componentTextureLevel", "DepthBasedOpacity", "doodadLodScale", "entityLodDist",
+        "showScreenNarrationDialog", "Brightness", "Contrast", "Gamma", "componentTextureLevel", "DepthBasedOpacity", "doodadLodScale", "entityLodDist",
         "entityShadowFadeScale", "farclip", "ffxAntiAliasingMode", "groundEffectDensity", "groundEffectDist", "horizonClip",
         "horizonStart", "LowLatencyMode", "MSAAAlphaTest", "MSAAQuality", "OutlineEngineMode", "particleDensity",
         "particleMTDensity", "physicsLevel", "projectedTextures", "reflectionMode", "refraction", "RenderFormat", "renderScale",
