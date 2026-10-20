@@ -74,13 +74,55 @@ public sealed class ForeverCopyTests : IDisposable
         Write(Path.Combine(betaWtf, "Account", "1#1", "macros-cache.txt"), Old);
         Write(Path.Combine(betaWtf, "Account", "1#1", "config-cache.old"), New);
         Write(Path.Combine(betaWtf, "Account", "1#1", "Realm", "Char", "cache.md5"), New);
+        Write(Path.Combine(betaWtf, "Account", "1#1", "Realm", "Char", "layout-local.txt"), New);
 
         var plan = ForeverCopy.Plan(_beta, _live, []);
 
-        Assert.Equal(
-            [Path.Combine("1#1", "Realm", "Char", "SavedVariables", "Bagnon.lua"), Path.Combine("1#1", "SavedVariables", "Details.lua")],
-            plan.SavedVariablesFiles.Order(StringComparer.Ordinal));
+        Assert.Equal([Path.Combine("1#1", "SavedVariables", "Details.lua")], plan.SavedVariablesFiles);
         Assert.Equal([Path.Combine("1#1", "bindings-cache.wtf")], plan.SettingsFiles);
+    }
+
+    [Fact]
+    public void Plan_ListsGraphicsAndSoundSettingsThatDiffer()
+    {
+        Write(Path.Combine(_beta.FlavourPath, "WTF", "Config.wtf"), New,
+            "SET graphicsQuality \"2\"\r\nSET Sound_MasterVolume \"0.5\"\r\nSET vsync \"1\"\r\nSET portal \"beta\"\r\nSET textLocale \"enGB\"\r\nSET farclip \"1000\"\r\n");
+        Write(Path.Combine(_live.FlavourPath, "WTF", "Config.wtf"), Old, "SET GRAPHICSQUALITY \"6\"\r\nSET vsync \"1\"\r\nSET portal \"\"\r\n");
+
+        var plan = ForeverCopy.Plan(_beta, _live, []);
+
+        Assert.Equal(["farclip", "graphicsQuality", "Sound_MasterVolume"], plan.ClientSettings.Order(StringComparer.OrdinalIgnoreCase));
+        Assert.True(plan.ClientSettingsNewer);
+        Assert.False(plan.LiveConfigMissing);
+    }
+
+    [Fact]
+    public void Plan_OffersNoGraphicsSettingsWhenEitherConfigIsMissing()
+    {
+        Assert.Empty(ForeverCopy.Plan(_beta, _live, []).ClientSettings);
+
+        Write(Path.Combine(_beta.FlavourPath, "WTF", "Config.wtf"), New, "SET graphicsQuality \"2\"\r\n");
+        var plan = ForeverCopy.Plan(_beta, _live, []);
+
+        Assert.Empty(plan.ClientSettings);
+        Assert.True(plan.LiveConfigMissing);
+        Assert.False(ForeverCopy.Sync(_beta, _live, [], addons: false, savedVariables: false, settings: false, clientSettings: true, (_, ex) => throw ex).ClientSettings > 0);
+        Assert.False(File.Exists(Path.Combine(_live.FlavourPath, "WTF", "Config.wtf")));
+    }
+
+    [Fact]
+    public void Sync_MergesGraphicsAndSoundIntoLiveConfig_KeepsEveryOtherLine()
+    {
+        Write(Path.Combine(_beta.FlavourPath, "WTF", "Config.wtf"), New,
+            "SET graphicsQuality \"2\"\r\nSET Sound_MasterVolume \"0.5\"\r\nSET portal \"beta\"\r\nSET textLocale \"enGB\"\r\n");
+        var liveConfig = Path.Combine(_live.FlavourPath, "WTF", "Config.wtf");
+        Write(liveConfig, Old, "SET portal \"\"\r\nSET graphicsQuality \"6\"\r\nSET textLocale \"enUS\"\r\n");
+
+        var result = ForeverCopy.Sync(_beta, _live, [], addons: false, savedVariables: false, settings: false, clientSettings: true, (_, ex) => throw ex);
+
+        Assert.Equal(2, result.ClientSettings);
+        Assert.Equal("SET portal \"\"\r\nSET graphicsQuality \"2\"\r\nSET textLocale \"enUS\"\r\nSET Sound_MasterVolume \"0.5\"\r\n", File.ReadAllText(liveConfig));
+        Assert.Empty(ForeverCopy.Plan(_beta, _live, []).ClientSettings);
     }
 
     [Fact]
@@ -96,9 +138,9 @@ public sealed class ForeverCopyTests : IDisposable
         Write(Path.Combine(_beta.FlavourPath, "WTF", "Account", "1#1", "SavedVariables", "Details.lua"), New, "beta");
         Write(Path.Combine(_beta.FlavourPath, "WTF", "Account", "1#1", "bindings-cache.wtf"), New, "beta");
 
-        var result = ForeverCopy.Sync(_beta, _live, ["Steward"], addons: true, savedVariables: true, settings: true, (_, ex) => throw ex);
+        var result = ForeverCopy.Sync(_beta, _live, ["Steward"], addons: true, savedVariables: true, settings: true, clientSettings: true, (_, ex) => throw ex);
 
-        Assert.Equal(new ForeverCopyResult(1, 1, 1, 1, 0), result);
+        Assert.Equal(new ForeverCopyResult(1, 1, 1, 1, 0, 0), result);
         Assert.False(File.Exists(Path.Combine(_live.FlavourPath, "WTF", "Config.wtf")));
         Assert.Equal("beta", File.ReadAllText(Path.Combine(_live.AddOnsPath, "Questie", "Questie.toc")));
         Assert.Equal("beta", File.ReadAllText(Path.Combine(_live.AddOnsPath, "Details", "Details.toc")));
@@ -114,7 +156,7 @@ public sealed class ForeverCopyTests : IDisposable
         Write(Path.Combine(_beta.FlavourPath, "WTF", "Account", "1#1", "SavedVariables", "Details.lua"), New);
         Write(Path.Combine(_beta.FlavourPath, "WTF", "Account", "1#1", "bindings-cache.wtf"), New);
 
-        var result = ForeverCopy.Sync(_beta, _live, [], addons: true, savedVariables: true, settings: false, (_, ex) => throw ex);
+        var result = ForeverCopy.Sync(_beta, _live, [], addons: true, savedVariables: true, settings: false, clientSettings: false, (_, ex) => throw ex);
 
         Assert.Equal((1, 0), (result.SavedVariablesFiles, result.SettingsFiles));
         Assert.False(File.Exists(Path.Combine(_live.FlavourPath, "WTF", "Account", "1#1", "bindings-cache.wtf")));

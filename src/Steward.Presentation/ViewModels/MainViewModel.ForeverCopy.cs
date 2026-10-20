@@ -13,7 +13,7 @@ public sealed partial class MainViewModel
 
     private WowInstall? _heldLiveInstall;
 
-    public Func<bool, ForeverCopyPlan, Func<bool, bool, bool, Task>, Task<bool?>>? ShowForeverCopyDialog { get; set; }
+    public Func<bool, ForeverCopyPlan, Func<bool, bool, bool, bool, Task>, Task<bool?>>? ShowForeverCopyDialog { get; set; }
 
     private WowInstallViewModel? BetaInstall => PresentInstalls.FirstOrDefault(install => install.Install.ProductCode == ForeverLaunch.BetaProduct);
 
@@ -120,8 +120,8 @@ public sealed partial class MainViewModel
             return;
         }
 
-        _logger.Info($"Forever copy offered: {plan.NewFolders.Count} folder(s) to copy, {plan.UpdatedFolders.Count} to update, {plan.SavedVariablesFiles.Count} saved variable file(s) and {plan.SettingsFiles.Count} settings file(s) newer on the beta");
-        var choice = await show(firstRun, plan, (addons, savedVariables, settings) => RunForeverCopyAsync(beta, live, managed, addons, savedVariables, settings)).ConfigureAwait(true);
+        _logger.Info($"Forever copy offered: {plan.NewFolders.Count} folder(s) to copy, {plan.UpdatedFolders.Count} to update, {plan.SavedVariablesFiles.Count} saved variable file(s) and {plan.SettingsFiles.Count} settings file(s) newer on the beta, {plan.ClientSettings.Count} graphics and sound setting(s) differ");
+        var choice = await show(firstRun, plan, (addons, savedVariables, settings, clientSettings) => RunForeverCopyAsync(beta, live, managed, addons, savedVariables, settings, clientSettings)).ConfigureAwait(true);
         if (choice is false)
         {
             _logger.Info($"Forever copy declined for {live.FlavourPath}; the user copies by hand");
@@ -129,7 +129,7 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task RunForeverCopyAsync(WowInstallViewModel beta, WowInstall live, IReadOnlyList<string> managed, bool addons, bool savedVariables, bool settings)
+    private async Task RunForeverCopyAsync(WowInstallViewModel beta, WowInstall live, IReadOnlyList<string> managed, bool addons, bool savedVariables, bool settings, bool clientSettings)
     {
         if (ForeverCopyRefusal(beta, live) is { } refusal)
         {
@@ -137,11 +137,11 @@ public sealed partial class MainViewModel
             return;
         }
 
-        _logger.Info($"Forever copy from {beta.FlavourPath} to {live.FlavourPath}: addons {addons}, saved variables {savedVariables}, game settings {settings}");
+        _logger.Info($"Forever copy from {beta.FlavourPath} to {live.FlavourPath}: addons {addons}, saved variables {savedVariables}, game settings {settings}, graphics and sound {clientSettings}");
         ForeverCopyResult result;
         try
         {
-            result = await Task.Run(() => ForeverCopy.Sync(beta.Install, live, managed, addons, savedVariables, settings,
+            result = await Task.Run(() => ForeverCopy.Sync(beta.Install, live, managed, addons, savedVariables, settings, clientSettings,
                 (path, ex) => _logger.Warn(ex, $"Forever copy could not write {path}"))).ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -151,7 +151,7 @@ public sealed partial class MainViewModel
             return;
         }
 
-        _logger.Info($"Forever copy done: {result.Copied} copied, {result.Updated} updated, {result.SavedVariablesFiles} saved variable file(s), {result.SettingsFiles} settings file(s), {result.Failures} failure(s)");
+        _logger.Info($"Forever copy done: {result.Copied} copied, {result.Updated} updated, {result.SavedVariablesFiles} saved variable file(s), {result.SettingsFiles} settings file(s), {result.ClientSettings} graphics and sound setting(s), {result.Failures} failure(s)");
         var catalogue = _addons.Concat(_addonCatalogue ?? []).ToList();
         _stateStore.Save(ForeverCopy.CarryState(
             _stateStore.Load(),
@@ -175,6 +175,7 @@ public sealed partial class MainViewModel
             result.Updated > 0 ? $"{result.Updated} updated" : null,
             result.SavedVariablesFiles > 0 ? $"{result.SavedVariablesFiles} saved variable {(result.SavedVariablesFiles == 1 ? "file" : "files")}" : null,
             result.SettingsFiles > 0 ? $"{result.SettingsFiles} game settings {(result.SettingsFiles == 1 ? "file" : "files")}" : null,
+            result.ClientSettings > 0 ? $"{result.ClientSettings} graphics and sound {(result.ClientSettings == 1 ? "setting" : "settings")}" : null,
         }.OfType<string>().ToList();
         ShowToast(parts.Count > 0 ? $"Synced from the beta: {string.Join(", ", parts)}." : "Synced from the beta: nothing on the beta was newer.");
         if (result.Failures > 0)

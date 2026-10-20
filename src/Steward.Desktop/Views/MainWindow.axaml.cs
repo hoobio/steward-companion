@@ -575,23 +575,22 @@ public sealed partial class MainWindow : Window
         return await AppDialogs.ShowAsync(dialog, this) == FAContentDialogResult.Primary && files.SelectedIndex >= 0 ? files.SelectedIndex : null;
     }
 
-    private async Task<bool?> ShowForeverCopyAsync(bool firstRun, ForeverCopyPlan plan, Func<bool, bool, bool, Task> copy)
+    private async Task<bool?> ShowForeverCopyAsync(bool firstRun, ForeverCopyPlan plan, Func<bool, bool, bool, bool, Task> copy)
     {
         static string Count(int count, string one, string many, string rest) => $"{count} {(count == 1 ? one : many)} {rest}";
 
-        static CheckBox Option(string title, params string?[] counts)
+        static CheckBox Option(string title, string? detail, string empty = "Nothing newer on the beta", bool? isChecked = null)
         {
-            var detail = string.Join(", ", counts.OfType<string>());
             var option = new CheckBox
             {
-                IsChecked = detail.Length > 0,
-                IsEnabled = detail.Length > 0,
+                IsChecked = isChecked ?? detail is not null,
+                IsEnabled = detail is not null,
                 Padding = new Thickness(8, 0, 0, 0),
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Content = new StackPanel
                 {
                     Spacing = 2,
-                    Children = { new TextBlock { Text = title }, Wrapped(detail.Length > 0 ? detail : "Nothing newer on the beta", secondary: true, fontSize: 12) },
+                    Children = { new TextBlock { Text = title }, Wrapped(detail ?? empty, secondary: true, fontSize: 12) },
                 },
             };
             // The CheckBox template top-aligns its glyph in a 32px box, which leaves it high beside a two-line label.
@@ -605,16 +604,23 @@ public sealed partial class MainWindow : Window
             return option;
         }
 
-        var addons = Option(
-            "Addons",
+        var addonCounts = new[]
+        {
             plan.NewFolders.Count > 0 ? Count(plan.NewFolders.Count, "addon", "addons", "to copy") : null,
-            plan.UpdatedFolders.Count > 0 ? plan.NewFolders.Count > 0 ? $"{plan.UpdatedFolders.Count} to update" : Count(plan.UpdatedFolders.Count, "addon", "addons", "to update") : null);
+            plan.UpdatedFolders.Count > 0 ? plan.NewFolders.Count > 0 ? $"{plan.UpdatedFolders.Count} to update" : Count(plan.UpdatedFolders.Count, "addon", "addons", "to update") : null,
+        }.OfType<string>().ToList();
+        var addons = Option("Addons", addonCounts.Count > 0 ? string.Join(", ", addonCounts) : null);
         var savedVariables = Option(
-            "Addon saved variables",
+            "Account saved variables",
             plan.SavedVariablesFiles.Count > 0 ? Count(plan.SavedVariablesFiles.Count, "file", "files", "newer on the beta") : null);
         var settings = Option(
-            "Character settings (keybindings, macros, chat and layout)",
+            "Account settings (keybindings, macros and interface options)",
             plan.SettingsFiles.Count > 0 ? Count(plan.SettingsFiles.Count, "file", "files", "newer on the beta") : null);
+        var clientSettings = Option(
+            "Graphics and sound",
+            plan.ClientSettings.Count > 0 ? Count(plan.ClientSettings.Count, "setting differs", "settings differ", "from the beta") : null,
+            plan.LiveConfigMissing ? "Start Forever once first" : "Same as the beta",
+            plan.ClientSettings.Count > 0 && plan.ClientSettingsNewer);
         var progress = new ProgressBar { IsIndeterminate = true, IsVisible = false };
         var dialog = new FAContentDialog
         {
@@ -622,7 +628,7 @@ public sealed partial class MainWindow : Window
             Content = new StackPanel
             {
                 Spacing = 8,
-                Children = { Wrapped("Steward copies what is newer on the beta. Nothing on Forever is deleted."), addons, savedVariables, settings, progress },
+                Children = { Wrapped("Steward copies what is newer on the beta. Nothing on Forever is deleted."), addons, savedVariables, settings, clientSettings, progress },
             },
             PrimaryButtonText = firstRun ? "Copy" : "Sync",
             SecondaryButtonText = firstRun ? "I'll do it myself" : "",
@@ -632,11 +638,11 @@ public sealed partial class MainWindow : Window
         dialog.PrimaryButtonClick += async (_, args) =>
         {
             var deferral = args.GetDeferral();
-            addons.IsEnabled = savedVariables.IsEnabled = settings.IsEnabled = dialog.IsPrimaryButtonEnabled = dialog.IsSecondaryButtonEnabled = false;
+            addons.IsEnabled = savedVariables.IsEnabled = settings.IsEnabled = clientSettings.IsEnabled = dialog.IsPrimaryButtonEnabled = dialog.IsSecondaryButtonEnabled = false;
             progress.IsVisible = true;
             try
             {
-                await copy(addons.IsChecked == true, savedVariables.IsChecked == true, settings.IsChecked == true);
+                await copy(addons.IsChecked == true, savedVariables.IsChecked == true, settings.IsChecked == true, clientSettings.IsChecked == true);
             }
             finally
             {

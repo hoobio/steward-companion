@@ -1,11 +1,31 @@
 namespace Steward.Core;
 
-public sealed record ForeverCopyPlan(IReadOnlyList<string> NewFolders, IReadOnlyList<string> UpdatedFolders, IReadOnlyList<string> SavedVariablesFiles, IReadOnlyList<string> SettingsFiles);
+public sealed record ForeverCopyPlan(
+    IReadOnlyList<string> NewFolders,
+    IReadOnlyList<string> UpdatedFolders,
+    IReadOnlyList<string> SavedVariablesFiles,
+    IReadOnlyList<string> SettingsFiles,
+    IReadOnlyList<string> ClientSettings,
+    bool ClientSettingsNewer,
+    bool LiveConfigMissing);
 
-public sealed record ForeverCopyResult(int Copied, int Updated, int SavedVariablesFiles, int SettingsFiles, int Failures);
+public sealed record ForeverCopyResult(int Copied, int Updated, int SavedVariablesFiles, int SettingsFiles, int ClientSettings, int Failures);
 
 public static class ForeverCopy
 {
+    private static readonly string[] ClientSettingPrefixes = ["graphics", "raidGraphics", "RAID", "Sound_", "Gx", "maxFPS", "shadow", "lodObject"];
+
+    private static readonly HashSet<string> ClientSettingNames = new(
+    [
+        "Brightness", "Contrast", "Gamma", "componentTextureLevel", "DepthBasedOpacity", "doodadLodScale", "entityLodDist",
+        "entityShadowFadeScale", "farclip", "ffxAntiAliasingMode", "groundEffectDensity", "groundEffectDist", "horizonClip",
+        "horizonStart", "LowLatencyMode", "MSAAAlphaTest", "MSAAQuality", "OutlineEngineMode", "particleDensity",
+        "particleMTDensity", "physicsLevel", "projectedTextures", "reflectionMode", "refraction", "RenderFormat", "renderScale",
+        "ResampleQuality", "ResampleSharpness", "rippleDetail", "spellClutter", "spellVisualDensityFilterSetting", "SSAO",
+        "sunShafts", "targetFPS", "terrainLodDist", "TerrainLodDiv", "terrainMipLevel", "textureFilteringMode", "useMaxFPS",
+        "useMaxFPSBk", "useTargetFPS", "volumeFogLevel", "vsync", "waterDetail", "weatherDensity", "wmoLodDist", "worldBaseMip",
+    ], StringComparer.OrdinalIgnoreCase);
+
     public static bool IsGated(WowInstall install, IEnumerable<WowInstall> installs, IEnumerable<string> done)
     {
         ArgumentNullException.ThrowIfNull(install);
@@ -22,17 +42,21 @@ public static class ForeverCopy
         var folders = Directory.Exists(beta.AddOnsPath)
             ? Directory.GetDirectories(beta.AddOnsPath).Select(Path.GetFileName).OfType<string>().ToList()
             : [];
-        var accountFiles = NewerFiles(Account(beta), Account(live)).ToList();
+        var accountFiles = NewerFiles(Account(beta), Account(live)).Where(IsAccountLevel).ToList();
+        var liveConfigMissing = !File.Exists(Config(live));
         return new ForeverCopyPlan(
             [.. folders.Where(folder => !Directory.Exists(Path.Combine(live.AddOnsPath, folder)))],
             [.. folders.Where(folder => !managed.Contains(folder)
                 && Directory.Exists(Path.Combine(live.AddOnsPath, folder))
                 && NewerFiles(Path.Combine(beta.AddOnsPath, folder), Path.Combine(live.AddOnsPath, folder)).Any())],
             [.. accountFiles.Where(file => IsSavedVariables(file) && !file.EndsWith(".bak", StringComparison.OrdinalIgnoreCase))],
-            [.. accountFiles.Where(file => !IsSavedVariables(file) && !IsClientBackup(file))]);
+            [.. accountFiles.Where(file => !IsSavedVariables(file) && !IsClientBackup(file))],
+            liveConfigMissing ? [] : [.. DifferingClientSettings(beta, live).Select(setting => setting.Name)],
+            IsNewer(Config(beta), Config(live)),
+            liveConfigMissing);
     }
 
-    public static ForeverCopyResult Sync(WowInstall beta, WowInstall live, IEnumerable<string> managedFolders, bool addons, bool savedVariables, bool settings, Action<string, Exception> failed)
+    public static ForeverCopyResult Sync(WowInstall beta, WowInstall live, IEnumerable<string> managedFolders, bool addons, bool savedVariables, bool settings, bool clientSettings, Action<string, Exception> failed)
     {
         ArgumentNullException.ThrowIfNull(beta);
         ArgumentNullException.ThrowIfNull(live);
@@ -79,7 +103,70 @@ public static class ForeverCopy
 
         var savedVariablesFiles = savedVariables ? CopyAccountFiles(plan.SavedVariablesFiles) : 0;
         var settingsFiles = settings ? CopyAccountFiles(plan.SettingsFiles) : 0;
-        return new ForeverCopyResult(copied, updated, savedVariablesFiles, settingsFiles, failures);
+        var clientSettingsCopied = 0;
+        if (clientSettings && plan.ClientSettings.Count > 0 && !Attempt(Config(live), failed, () => clientSettingsCopied = MergeClientSettings(beta, live)))
+        {
+            failures++;
+        }
+
+        return new ForeverCopyResult(copied, updated, savedVariablesFiles, settingsFiles, clientSettingsCopied, failures);
+    }
+
+    // Config.wtf also holds portal, locale and cache counters for its own client, so only video and sound CVars cross over.
+    private static bool IsClientSetting(string name) =>
+        ClientSettingNames.Contains(name) || ClientSettingPrefixes.Any(prefix => name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+    private static (string Name, string Value)? ParseSetting(string line)
+    {
+        var parts = line.Split(' ', 3);
+        return parts is ["SET", var name, var value] && value.Length >= 2 && value[0] == '"' && value[^1] == '"'
+            ? (name, value[1..^1])
+            : null;
+    }
+
+    private static Dictionary<string, string> ReadSettings(string path)
+    {
+        var settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (File.Exists(path))
+        {
+            foreach (var setting in File.ReadLines(path).Select(ParseSetting).OfType<(string Name, string Value)>())
+            {
+                settings[setting.Name] = setting.Value;
+            }
+        }
+
+        return settings;
+    }
+
+    private static List<(string Name, string Value)> DifferingClientSettings(WowInstall beta, WowInstall live)
+    {
+        var liveSettings = ReadSettings(Config(live));
+        return [.. ReadSettings(Config(beta))
+            .Where(setting => IsClientSetting(setting.Key)
+                && !(liveSettings.TryGetValue(setting.Key, out var current) && current == setting.Value))
+            .Select(setting => (setting.Key, setting.Value))];
+    }
+
+    private static int MergeClientSettings(WowInstall beta, WowInstall live)
+    {
+        var changes = DifferingClientSettings(beta, live).ToDictionary(setting => setting.Name, setting => setting.Value, StringComparer.OrdinalIgnoreCase);
+        var path = Config(live);
+        var lines = File.ReadAllLines(path).ToList();
+        var replaced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < lines.Count; i++)
+        {
+            if (ParseSetting(lines[i]) is { } setting && changes.TryGetValue(setting.Name, out var value))
+            {
+                lines[i] = $"SET {setting.Name} \"{value}\"";
+                replaced.Add(setting.Name);
+            }
+        }
+
+        lines.AddRange(changes.Where(change => !replaced.Contains(change.Key)).Select(change => $"SET {change.Key} \"{change.Value}\""));
+        var temp = path + ".steward-copy";
+        File.WriteAllText(temp, string.Concat(lines.Select(line => line + "\r\n")));
+        File.Move(temp, path, overwrite: true);
+        return changes.Count;
     }
 
     public static AppState CarryState(AppState state, string betaPath, string livePath, int? liveVersionType, Func<string, bool> isOnLive, Func<string, string?> catalogueFolder)
@@ -144,8 +231,19 @@ public static class ForeverCopy
 
     private static string Account(WowInstall install) => Path.Combine(install.FlavourPath, "WTF", "Account");
 
+    private static string Config(WowInstall install) => Path.Combine(install.FlavourPath, "WTF", "Config.wtf");
+
+    // Realm and character folders are named after the beta's realms and characters, which live does not share.
+    private static bool IsAccountLevel(string relativePath) =>
+        relativePath.Split(Path.DirectorySeparatorChar) switch
+        {
+            [_, _] => true,
+            [_, var folder, _] => string.Equals(folder, "SavedVariables", StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
+
     private static bool IsSavedVariables(string relativePath) =>
-        relativePath.Split(Path.DirectorySeparatorChar).SkipLast(1).Contains("SavedVariables", StringComparer.OrdinalIgnoreCase);
+        relativePath.Split(Path.DirectorySeparatorChar).Length == 3;
 
     // cache.md5 is the client's checksum of its server-synced settings, so a copied one only describes the beta's.
     private static bool IsClientBackup(string relativePath) =>
