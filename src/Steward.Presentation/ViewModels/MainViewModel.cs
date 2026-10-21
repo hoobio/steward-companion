@@ -2486,7 +2486,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SavedVariablesSnapshot? snapshot;
         try
         {
-            snapshot = await Task.Run(() => StewardSavedVariables.Read(install.FlavourPath)).ConfigureAwait(true);
+            var product = install.Install.ProductCode;
+            snapshot = await Task.Run(() => ReadStewardSavedVariables(install.FlavourPath, product)).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -2663,11 +2664,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return batchId;
     }
 
-    private IReadOnlyList<string> RoutedGuildIds(string flavourPath)
+    internal static SavedVariablesSnapshot? ReadStewardSavedVariables(string flavourPath, string? productCode) =>
+        ForeverLaunch.HasNoCharacters(productCode, DateTimeOffset.Now) ? null : StewardSavedVariables.Read(flavourPath);
+
+    private IReadOnlyList<string> RoutedGuildIds(WowInstallViewModel install)
     {
         try
         {
-            return StewardSavedVariables.Read(flavourPath) is { } snapshot ? [.. CharacterRoutes(snapshot).Select(route => route.GuildId)] : [];
+            return ReadStewardSavedVariables(install.FlavourPath, install.Install.ProductCode) is { } snapshot ? [.. CharacterRoutes(snapshot).Select(route => route.GuildId)] : [];
         }
         catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
         {
@@ -2807,7 +2811,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 continue;
             }
 
-            var routed = RoutedGuildIds(install.FlavourPath);
+            var routed = RoutedGuildIds(install);
             var error = routed
                 .Select(guildId => state.CharacterSync.GetValueOrDefault(AppStateStore.CharacterSyncKey(guildId, install.FlavourPath))?.Error)
                 .FirstOrDefault(message => message is not null);

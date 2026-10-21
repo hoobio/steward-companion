@@ -268,7 +268,7 @@ public sealed partial class SyncViewModel : ObservableObject
         string? readError = null;
         try
         {
-            snapshot = StewardSavedVariables.Read(install.FlavourPath);
+            snapshot = MainViewModel.ReadStewardSavedVariables(install.FlavourPath, install.Install.ProductCode);
         }
         catch (FormatException ex)
         {

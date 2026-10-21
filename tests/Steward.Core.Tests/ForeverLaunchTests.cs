@@ -18,6 +18,15 @@ public sealed class ForeverLaunchTests
         Assert.Null(ForeverLaunch.MoveFromBeta([Beta, Live], Beta, Launch.AddDays(-1), alreadyMoved: false));
 
     [Fact]
+    public void TheLiveClientHasNoCharactersUntilLaunch()
+    {
+        var launch = ForeverSchedule.Launch.Start;
+        Assert.True(ForeverLaunch.HasNoCharacters(ForeverLaunch.LiveProduct, launch.AddMinutes(-1)));
+        Assert.False(ForeverLaunch.HasNoCharacters(ForeverLaunch.LiveProduct, launch));
+        Assert.False(ForeverLaunch.HasNoCharacters(ForeverLaunch.BetaProduct, launch.AddDays(-1)));
+    }
+
+    [Fact]
     public void MovesOnlyOnce() =>
         Assert.Null(ForeverLaunch.MoveFromBeta([Beta, Live], Beta, Launch, alreadyMoved: true));
 
