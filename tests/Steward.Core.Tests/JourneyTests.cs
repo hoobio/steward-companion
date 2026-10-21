@@ -167,6 +167,19 @@ public sealed class JourneyTests : IDisposable
     }
 
     [Fact]
+    public void Quality_CountsANonAsciiSubzoneOnceAndSkipsRowsWithoutATime()
+    {
+        var packed = LuaEscape(Gzip("""[{"ev":"pos","t":100,"sub":"Café"}]"""));
+        var cafeAsWritten = Encoding.Latin1.GetString(Encoding.UTF8.GetBytes("Café"));
+        var text = "StewardJourneyDB = {\r\n\t[\"route\"] = {\r\n"
+            + "\t\t{ [\"ev\"] = \"pos\", [\"t\"] = 200, [\"sub\"] = \"" + cafeAsWritten + "\" },\r\n"
+            + "\t\t{ [\"ev\"] = \"pos\", [\"sub\"] = \"Untimed\" },\r\n\t},\r\n"
+            + "\t[\"packed\"] = {\r\n\t\t{ [\"to\"] = 100, [\"rows\"] = 1, [\"from\"] = 100, [\"data\"] = \"" + packed + "\" },\r\n\t},\r\n}\r\n";
+
+        Assert.Equal(1, JourneyFile.Quality(Encoding.Latin1.GetBytes(text)).Subzones);
+    }
+
+    [Fact]
     public void Quality_NoTable_IsEmpty()
     {
         Assert.Equal("subzones=0;active=0;positions=0;addon=", JourneyFile.Quality(Encoding.Latin1.GetBytes("StewardJourneyDB = nil\r\n")).Header);

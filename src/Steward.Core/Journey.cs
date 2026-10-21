@@ -117,7 +117,7 @@ public static partial class JourneyFile
         }
 
         var rows = (db.GetTable("route")?.Items ?? []).Where(row => row.Kind == LuaKind.Table).Select(row => new QualityRow(
-            row.GetNumber("t"), row.GetString("ev"), row.GetString("sub"), row.GetNumber("x") is not null && row.GetNumber("y") is not null, row.GetString("addon"))).ToList();
+            row.GetNumber("t"), row.GetString("ev"), Utf8(row.GetString("sub")), row.GetNumber("x") is not null && row.GetNumber("y") is not null, row.GetString("addon"))).ToList();
         foreach (var chunk in (db.GetTable("packed")?.Items ?? []).Where(chunk => chunk.Kind == LuaKind.Table))
         {
             rows.AddRange(PackedRows(chunk));
@@ -133,7 +133,7 @@ public static partial class JourneyFile
 
         var addon = rows.Where(row => row is { Ev: "login", T: not null }).MaxBy(row => row.T)?.Addon ?? "";
         return new JourneyQuality(
-            rows.Select(row => row.Sub).Where(sub => !string.IsNullOrEmpty(sub)).Distinct().Count(),
+            rows.Where(row => row.T is not null).Select(row => row.Sub).Where(sub => !string.IsNullOrEmpty(sub)).Distinct().Count(),
             (long)active,
             rows.Count(row => row.HasPosition),
             addon);
@@ -161,6 +161,9 @@ public static partial class JourneyFile
             return [];
         }
     }
+
+    // The file is read as Latin1 so the gzip chunks survive, which leaves route strings as UTF-8 bytes; steward-server decodes them the same way before counting subzones.
+    private static string? Utf8(string? latin1) => latin1 is null ? null : Encoding.UTF8.GetString(Encoding.Latin1.GetBytes(latin1));
 
     private sealed record QualityRow(double? T, string? Ev, string? Sub, bool HasPosition, string? Addon);
 
