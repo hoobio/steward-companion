@@ -2992,7 +2992,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
         viewModel.SetIsAdmin(IsAdminFor);
         viewModel.RowsChanged += OnInstallRowsChanged;
-        Installs.Add(viewModel);
+        Installs.Insert(
+            install.ProductCode == ForeverLaunch.LiveProduct
+                ? Installs.TakeWhile(other => other.Install.ProductCode == ForeverLaunch.LiveProduct).Count()
+                : Installs.Count,
+            viewModel);
         RebuildAddonChannels();
         SyncGuideInstalls();
         SyncCharacterSyncRows();

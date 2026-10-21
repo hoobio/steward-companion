@@ -213,7 +213,6 @@
                     x:Name="InstallPicker"
                     Height="32"
                     MinHeight="32"
-                    MinWidth="200"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
                     Padding="11,0,10,2"
@@ -230,6 +229,12 @@
                         </Style>
                         <Style Selector="Button#InstallPicker:pressed /template/ ContentPresenter#PART_ContentPresenter">
                             <Setter Property="Background" Value="{DynamicResource ChipBrush}" />
+                        </Style>
+                        <Style Selector="Button#InstallPicker Panel#InstallPickerChevron">
+                            <Setter Property="RenderTransform" Value="rotate(0deg)" />
+                        </Style>
+                        <Style Selector="Button#InstallPicker:flyout-open Panel#InstallPickerChevron">
+                            <Setter Property="RenderTransform" Value="rotate(180deg)" />
                         </Style>
                     </Button.Styles>
                     <Button.RenderTransform>
@@ -254,7 +259,7 @@
                             Text="{Binding SelectedInstall.Label, FallbackValue={x:Null}}"
                             FontSize="14"
                             styles:SegoeMetrics.IsFree="True"
-                            HorizontalAlignment="Center"
+                            HorizontalAlignment="Left"
                             VerticalAlignment="Center"
                             TextTrimming="CharacterEllipsis" />
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -266,11 +271,18 @@
                                 Fill="{DynamicResource SystemFillColorCautionBrush}"
                                 ToolTip.Tip="World of Warcraft is running"
                                 IsVisible="{Binding SelectedInstall.RunningDotVisibility, FallbackValue=False}" />
-                            <TextBlock
-                                Classes="Glyph"
-                                Text="{StaticResource Glyph.ChevronDown}"
-                                FontSize="10"
-                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <Panel x:Name="InstallPickerChevron" RenderTransformOrigin="50%,50%">
+                                <Panel.Transitions>
+                                    <Transitions>
+                                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.167" />
+                                    </Transitions>
+                                </Panel.Transitions>
+                                <TextBlock
+                                    Classes="Glyph"
+                                    Text="{StaticResource Glyph.ChevronDown}"
+                                    FontSize="10"
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </Panel>
                         </StackPanel>
                     </Grid>
                     <Button.Flyout>
