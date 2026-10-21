@@ -66,6 +66,13 @@
                     Command="{Binding SyncFromBetaCommand}"
                     IsVisible="{Binding SyncFromBetaVisibility}" />
                 <Button
+                    Height="32"
+                    Theme="{StaticResource AccentButtonStyle}"
+                    Content="Launch Battle.net"
+                    Command="{Binding LaunchGameCommand}"
+                    IsEnabled="{Binding !SelectedInstall.IsClientRunning}"
+                    IsVisible="{Binding LaunchGameVisibility}" />
+                <Button
                     Classes="Fill"
                     Height="32"
                     VerticalAlignment="Center"

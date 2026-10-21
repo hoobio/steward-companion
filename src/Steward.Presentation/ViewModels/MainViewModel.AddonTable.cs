@@ -55,6 +55,7 @@ public sealed partial class MainViewModel
         nameof(UpdateAllEnabled),
         nameof(GetAddonsVisibility),
         nameof(SyncFromBetaVisibility),
+        nameof(LaunchGameVisibility),
         nameof(MissingInstallVisibility),
         nameof(MissingInstallBody),
     ];
