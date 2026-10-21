@@ -173,6 +173,7 @@ public sealed class ForeverCopyTests : IDisposable
         Write(Path.Combine(_beta.AddOnsPath, "Steward", "Steward.toc"), New, "beta");
         Write(Path.Combine(_live.AddOnsPath, "Steward", "Steward.toc"), Old, "live");
         Write(Path.Combine(_beta.FlavourPath, "WTF", "Config.wtf"), New, "beta");
+        Directory.CreateDirectory(Path.Combine(_live.FlavourPath, "WTF", "Account", "1#1"));
         Write(Path.Combine(_beta.FlavourPath, "WTF", "Account", "1#1", "SavedVariables", "Details.lua"), New, "beta");
         Write(Path.Combine(_beta.FlavourPath, "WTF", "Account", "1#1", "bindings-cache.wtf"), New, "beta");
 
@@ -191,6 +192,7 @@ public sealed class ForeverCopyTests : IDisposable
     [Fact]
     public void Sync_TakesOnlyTheChosenAccountFiles()
     {
+        Directory.CreateDirectory(Path.Combine(_live.FlavourPath, "WTF", "Account", "1#1"));
         Write(Path.Combine(_beta.FlavourPath, "WTF", "Account", "1#1", "SavedVariables", "Details.lua"), New);
         Write(Path.Combine(_beta.FlavourPath, "WTF", "Account", "1#1", "bindings-cache.wtf"), New);
 
@@ -198,6 +200,103 @@ public sealed class ForeverCopyTests : IDisposable
 
         Assert.Equal((1, 0), (result.SavedVariablesFiles, result.SettingsFiles));
         Assert.False(File.Exists(Path.Combine(_live.FlavourPath, "WTF", "Account", "1#1", "bindings-cache.wtf")));
+    }
+
+    private string BetaAccount(string name) => Path.Combine(_beta.FlavourPath, "WTF", "Account", name);
+
+    private string LiveAccount(string name) => Path.Combine(_live.FlavourPath, "WTF", "Account", name);
+
+    [Fact]
+    public void DefaultAccountMap_MatchesSameNamesIgnoringCase()
+    {
+        Directory.CreateDirectory(BetaAccount("Abc#1"));
+        Directory.CreateDirectory(BetaAccount("Abc#2"));
+        Directory.CreateDirectory(LiveAccount("ABC#1"));
+        Directory.CreateDirectory(LiveAccount("OTHER"));
+        Directory.CreateDirectory(LiveAccount("EXTRA"));
+
+        var map = ForeverCopy.DefaultAccountMap(_beta, _live);
+
+        Assert.Equal("ABC#1", map["Abc#1"]);
+        Assert.Null(map["Abc#2"]);
+    }
+
+    [Fact]
+    public void DefaultAccountMap_PairsTheOnlyUnmappedBetaAccountWithTheOnlyFreeLiveOne()
+    {
+        Directory.CreateDirectory(BetaAccount("1#1"));
+        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+
+        Assert.Equal("JIMMYBOBOZ", ForeverCopy.DefaultAccountMap(_beta, _live)["1#1"]);
+    }
+
+    [Fact]
+    public void DefaultAccountMap_LeavesAmbiguousAccountsUnmapped()
+    {
+        Directory.CreateDirectory(BetaAccount("1#1"));
+        Directory.CreateDirectory(BetaAccount("1#2"));
+        Directory.CreateDirectory(LiveAccount("ONE"));
+        Directory.CreateDirectory(LiveAccount("TWO"));
+
+        Assert.All(ForeverCopy.DefaultAccountMap(_beta, _live).Values, Assert.Null);
+    }
+
+    [Fact]
+    public void DefaultAccountMap_IsAllNullWithoutLiveAccounts()
+    {
+        Directory.CreateDirectory(BetaAccount("1#1"));
+
+        var plan = ForeverCopy.Plan(_beta, _live, []);
+
+        Assert.All(plan.AccountMap.Values, Assert.Null);
+        Assert.Empty(plan.LiveAccounts);
+        Assert.Empty(plan.SavedVariablesFiles);
+    }
+
+    [Fact]
+    public void Plan_ListsCharactersPerAccount()
+    {
+        Write(Path.Combine(BetaAccount("1#1"), "Realm", "Hoobi", "layout-local.txt"), New);
+        Write(Path.Combine(BetaAccount("1#1"), "Other", "Grug", "layout-local.txt"), New);
+        Write(Path.Combine(BetaAccount("1#1"), "Other", "Hoobi", "layout-local.txt"), New);
+        Write(Path.Combine(BetaAccount("1#1"), "SavedVariables", "Details.lua"), New);
+
+        var account = Assert.Single(ForeverCopy.Plan(_beta, _live, []).BetaAccounts);
+
+        Assert.Equal("1#1", account.Folder);
+        Assert.Equal(["Grug", "Hoobi"], account.Characters);
+    }
+
+    [Fact]
+    public void Sync_CopiesIntoTheMappedAccountAndStampsItsCacheMd5()
+    {
+        Write(Path.Combine(BetaAccount("1#1"), "SavedVariables", "Details.lua"), New, "beta");
+        Write(Path.Combine(BetaAccount("1#1"), "bindings-cache.wtf"), New, "bind UP TOGGLEAUTORUN");
+        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+        Directory.CreateDirectory(LiveAccount("SIGGY72"));
+        var map = new Dictionary<string, string?> { ["1#1"] = "SIGGY72" };
+
+        var result = ForeverCopy.Sync(_beta, _live, [], addons: false, savedVariables: true, settings: true, clientSettings: false, (_, ex) => throw ex, map);
+
+        Assert.Equal((1, 1), (result.SavedVariablesFiles, result.SettingsFiles));
+        Assert.Equal("beta", File.ReadAllText(Path.Combine(LiveAccount("SIGGY72"), "SavedVariables", "Details.lua")));
+        Assert.Equal(Convert.FromHexString("53902DBF37E9DA72E3E62D57F4AED271"), File.ReadAllBytes(Path.Combine(LiveAccount("SIGGY72"), "cache.md5"))[24..40]);
+        Assert.Empty(Directory.GetFileSystemEntries(LiveAccount("JIMMYBOBOZ")));
+        Assert.False(Directory.Exists(LiveAccount("1#1")));
+    }
+
+    [Fact]
+    public void Sync_CopiesNothingForAnUnmappedAccount()
+    {
+        Write(Path.Combine(BetaAccount("1#1"), "SavedVariables", "Details.lua"), New);
+        Write(Path.Combine(BetaAccount("1#1"), "bindings-cache.wtf"), New);
+        Directory.CreateDirectory(LiveAccount("1#1"));
+        var map = new Dictionary<string, string?> { ["1#1"] = null };
+
+        var result = ForeverCopy.Sync(_beta, _live, [], addons: false, savedVariables: true, settings: true, clientSettings: false, (_, ex) => throw ex, map);
+
+        Assert.Equal((0, 0), (result.SavedVariablesFiles, result.SettingsFiles));
+        Assert.Empty(Directory.GetFileSystemEntries(LiveAccount("1#1")));
     }
 
     [Fact]

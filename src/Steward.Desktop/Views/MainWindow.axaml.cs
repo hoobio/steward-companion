@@ -575,24 +575,45 @@ public sealed partial class MainWindow : Window
         return await AppDialogs.ShowAsync(dialog, this) == FAContentDialogResult.Primary && files.SelectedIndex >= 0 ? files.SelectedIndex : null;
     }
 
-    private async Task<bool?> ShowForeverCopyAsync(bool firstRun, ForeverCopyPlan plan, Func<bool, bool, bool, bool, Task> copy)
+    private async Task<bool?> ShowForeverCopyAsync(
+        bool firstRun,
+        ForeverCopyPlan plan,
+        Func<IReadOnlyDictionary<string, string?>, Task<ForeverCopyPlan>> replan,
+        Func<bool, bool, bool, bool, IReadOnlyDictionary<string, string?>, Task> copy)
     {
         static string Count(int count, string one, string many, string rest) => $"{count} {(count == 1 ? one : many)} {rest}";
+
+        static string AccountLabel(ForeverCopyAccount account)
+        {
+            var names = account.Characters.Take(3).ToList();
+            if (account.Characters.Count > 3)
+            {
+                names.Add($"+{account.Characters.Count - 3}");
+            }
+
+            return names.Count == 0 ? account.Folder : $"{account.Folder} ({string.Join(", ", names)})";
+        }
+
+        static void SetOption(CheckBox option, string? detail, string empty, bool? isChecked = null)
+        {
+            option.IsChecked = isChecked ?? detail is not null;
+            option.IsEnabled = detail is not null;
+            ((TextBlock)((StackPanel)option.Content!).Children[1]).Text = detail ?? empty;
+        }
 
         static CheckBox Option(string title, string? detail, string empty = "Nothing newer on the beta", bool? isChecked = null)
         {
             var option = new CheckBox
             {
-                IsChecked = isChecked ?? detail is not null,
-                IsEnabled = detail is not null,
                 Padding = new Thickness(8, 0, 0, 0),
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Content = new StackPanel
                 {
                     Spacing = 2,
-                    Children = { new TextBlock { Text = title }, Wrapped(detail ?? empty, secondary: true, fontSize: 12) },
+                    Children = { new TextBlock { Text = title }, Wrapped(string.Empty, secondary: true, fontSize: 12) },
                 },
             };
+            SetOption(option, detail, empty, isChecked);
             // The CheckBox template top-aligns its glyph in a 32px box, which leaves it high beside a two-line label.
             option.TemplateApplied += (_, e) =>
             {
@@ -610,14 +631,77 @@ public sealed partial class MainWindow : Window
             plan.UpdatedFolders.Count > 0 ? plan.NewFolders.Count > 0 ? $"{plan.UpdatedFolders.Count} to update" : Count(plan.UpdatedFolders.Count, "addon", "addons", "to update") : null,
         }.OfType<string>().ToList();
         var addons = Option("Addons", addonCounts.Count > 0 ? string.Join(", ", addonCounts) : null);
-        var savedVariables = Option(
-            "Account saved variables",
-            plan.SavedVariablesFiles.Count > 0 ? Count(plan.SavedVariablesFiles.Count, "file", "files", "newer on the beta") : null);
-        var settings = Option(
-            "Account settings (keybindings, macros and interface options)",
-            plan.SettingsFiles.Count > 0 ? Count(plan.SettingsFiles.Count, "file differs", "files differ", "from the beta") : null,
-            "Same as the beta",
-            plan.SettingsFiles.Count > 0 && plan.SettingsNewer);
+        var savedVariables = Option("Account saved variables", null);
+        var settings = Option("Account settings (keybindings, macros and interface options)", null);
+
+        void ShowAccountCounts(ForeverCopyPlan current)
+        {
+            const string LogInFirst = "Log in to World of Warcraft: Forever once first";
+            var noLiveAccount = current.LiveAccounts.Count == 0;
+            SetOption(
+                savedVariables,
+                current.SavedVariablesFiles.Count > 0 ? Count(current.SavedVariablesFiles.Count, "file", "files", "newer on the beta") : null,
+                noLiveAccount ? LogInFirst : "Nothing newer on the beta");
+            SetOption(
+                settings,
+                current.SettingsFiles.Count > 0 ? Count(current.SettingsFiles.Count, "file differs", "files differ", "from the beta") : null,
+                noLiveAccount ? LogInFirst : "Same as the beta",
+                current.SettingsFiles.Count > 0 && current.SettingsNewer);
+        }
+
+        ShowAccountCounts(plan);
+        var accountMap = plan.AccountMap.ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
+        var accountCombos = new Dictionary<string, ComboBox>(StringComparer.OrdinalIgnoreCase);
+        var accountChoices = plan.LiveAccounts.Select(AccountLabel).Prepend("Don't copy").ToList();
+        var accountBlock = new StackPanel { IsVisible = plan.BetaAccounts.Count > 0, Spacing = 8 };
+        accountBlock.Children.Add(new TextBlock { Text = "Accounts", Classes = { "FieldHeader" }, Margin = new Thickness(0) });
+        var changingCombos = false;
+        foreach (var account in plan.BetaAccounts)
+        {
+            var combo = new ComboBox
+            {
+                ItemsSource = accountChoices,
+                SelectedIndex = plan.LiveAccounts.ToList().FindIndex(live => string.Equals(live.Folder, accountMap[account.Folder], StringComparison.OrdinalIgnoreCase)) + 1,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
+            accountCombos[account.Folder] = combo;
+            combo.SelectionChanged += async (_, _) =>
+            {
+                if (changingCombos)
+                {
+                    return;
+                }
+
+                var chosen = combo.SelectedIndex > 0 ? plan.LiveAccounts[combo.SelectedIndex - 1].Folder : null;
+                accountMap[account.Folder] = chosen;
+                changingCombos = true;
+                foreach (var other in plan.BetaAccounts.Where(other => chosen is not null && other.Folder != account.Folder && string.Equals(accountMap[other.Folder], chosen, StringComparison.OrdinalIgnoreCase)))
+                {
+                    accountMap[other.Folder] = null;
+                    accountCombos[other.Folder].SelectedIndex = 0;
+                }
+
+                changingCombos = false;
+                foreach (var each in accountCombos.Values)
+                {
+                    each.IsEnabled = false;
+                }
+
+                try
+                {
+                    ShowAccountCounts(await replan(new Dictionary<string, string?>(accountMap)));
+                }
+                finally
+                {
+                    foreach (var each in accountCombos.Values)
+                    {
+                        each.IsEnabled = true;
+                    }
+                }
+            };
+            accountBlock.Children.Add(new StackPanel { Spacing = 4, Children = { Wrapped(AccountLabel(account), secondary: true, fontSize: 12), combo } });
+        }
+
         var clientSettings = Option(
             "Graphics, sound and narration",
             plan.ClientSettings.Count > 0 ? Count(plan.ClientSettings.Count, "setting differs", "settings differ", "from the beta") : null,
@@ -630,7 +714,7 @@ public sealed partial class MainWindow : Window
             Content = new StackPanel
             {
                 Spacing = 8,
-                Children = { Wrapped("Steward copies what is newer on the beta. Nothing on Forever is deleted."), addons, savedVariables, settings, clientSettings, progress },
+                Children = { Wrapped("Steward copies what is newer on the beta. Nothing on Forever is deleted."), addons, accountBlock, savedVariables, settings, clientSettings, progress },
             },
             PrimaryButtonText = firstRun ? "Copy" : "Sync",
             SecondaryButtonText = firstRun ? "I'll do it myself" : "",
@@ -641,10 +725,11 @@ public sealed partial class MainWindow : Window
         {
             var deferral = args.GetDeferral();
             addons.IsEnabled = savedVariables.IsEnabled = settings.IsEnabled = clientSettings.IsEnabled = dialog.IsPrimaryButtonEnabled = dialog.IsSecondaryButtonEnabled = false;
+            accountBlock.IsEnabled = false;
             progress.IsVisible = true;
             try
             {
-                await copy(addons.IsChecked == true, savedVariables.IsChecked == true, settings.IsChecked == true, clientSettings.IsChecked == true);
+                await copy(addons.IsChecked == true, savedVariables.IsChecked == true, settings.IsChecked == true, clientSettings.IsChecked == true, new Dictionary<string, string?>(accountMap));
             }
             finally
             {

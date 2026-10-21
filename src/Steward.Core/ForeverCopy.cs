@@ -11,7 +11,12 @@ public sealed record ForeverCopyPlan(
     bool SettingsNewer,
     IReadOnlyList<string> ClientSettings,
     bool ClientSettingsNewer,
-    bool LiveConfigMissing);
+    bool LiveConfigMissing,
+    IReadOnlyList<ForeverCopyAccount> BetaAccounts,
+    IReadOnlyList<ForeverCopyAccount> LiveAccounts,
+    IReadOnlyDictionary<string, string?> AccountMap);
+
+public sealed record ForeverCopyAccount(string Folder, IReadOnlyList<string> Characters);
 
 public sealed record ForeverCopyResult(int Copied, int Updated, int SavedVariablesFiles, int SettingsFiles, int ClientSettings, int Failures);
 
@@ -48,7 +53,32 @@ public static class ForeverCopy
             && installs.Any(other => other.ProductCode == ForeverLaunch.BetaProduct && !other.IsMissing);
     }
 
-    public static ForeverCopyPlan Plan(WowInstall beta, WowInstall live, IEnumerable<string> managedFolders)
+    public static IReadOnlyDictionary<string, string?> DefaultAccountMap(WowInstall beta, WowInstall live)
+    {
+        ArgumentNullException.ThrowIfNull(beta);
+        ArgumentNullException.ThrowIfNull(live);
+        return DefaultMap(Accounts(beta), Accounts(live));
+    }
+
+    private static Dictionary<string, string?> DefaultMap(List<ForeverCopyAccount> betaAccounts, List<ForeverCopyAccount> liveAccounts)
+    {
+        var map = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var account in betaAccounts)
+        {
+            map[account.Folder] = liveAccounts.Select(live => live.Folder).FirstOrDefault(live => string.Equals(live, account.Folder, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var unmapped = map.Where(entry => entry.Value is null).Select(entry => entry.Key).ToList();
+        var free = liveAccounts.Select(live => live.Folder).Where(live => !map.Values.Contains(live, StringComparer.OrdinalIgnoreCase)).ToList();
+        if (unmapped.Count == 1 && free.Count == 1)
+        {
+            map[unmapped[0]] = free[0];
+        }
+
+        return map;
+    }
+
+    public static ForeverCopyPlan Plan(WowInstall beta, WowInstall live, IEnumerable<string> managedFolders, IReadOnlyDictionary<string, string?>? accountMap = null)
     {
         ArgumentNullException.ThrowIfNull(beta);
         ArgumentNullException.ThrowIfNull(live);
@@ -56,9 +86,25 @@ public static class ForeverCopy
         var folders = Directory.Exists(beta.AddOnsPath)
             ? Directory.GetDirectories(beta.AddOnsPath).Select(Path.GetFileName).OfType<string>().ToList()
             : [];
-        var accountFiles = NewerFiles(Account(beta), Account(live)).Where(IsAccountLevel).ToList();
+        var betaAccounts = Accounts(beta);
+        var liveAccounts = Accounts(live);
+        var requested = accountMap ?? DefaultMap(betaAccounts, liveAccounts);
+        var map = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var account in betaAccounts)
+        {
+            var target = requested.GetValueOrDefault(account.Folder);
+            map[account.Folder] = liveAccounts.Select(liveAccount => liveAccount.Folder).FirstOrDefault(liveFolder => string.Equals(liveFolder, target, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var accountFiles = Directory.Exists(Account(beta))
+            ? Directory.EnumerateFiles(Account(beta), "*", SearchOption.AllDirectories)
+                .Select(file => Path.GetRelativePath(Account(beta), file))
+                .Where(IsAccountLevel)
+                .Where(file => LiveAccountFile(live, map, file) is { } target && IsNewer(Path.Combine(Account(beta), file), target))
+                .ToList()
+            : [];
         var liveConfigMissing = !File.Exists(Config(live));
-        var settingsFiles = DifferingSettingsFiles(beta, live).ToList();
+        var settingsFiles = DifferingSettingsFiles(beta, live, betaAccounts, map).ToList();
         return new ForeverCopyPlan(
             [.. folders.Where(folder => !Directory.Exists(Path.Combine(live.AddOnsPath, folder)))],
             [.. folders.Where(folder => !managed.Contains(folder)
@@ -66,18 +112,21 @@ public static class ForeverCopy
                 && NewerFiles(Path.Combine(beta.AddOnsPath, folder), Path.Combine(live.AddOnsPath, folder)).Any())],
             [.. accountFiles.Where(file => IsSavedVariables(file) && !file.EndsWith(".bak", StringComparison.OrdinalIgnoreCase) && !IsStewardCharacters(file))],
             settingsFiles,
-            settingsFiles.Any(file => IsNewer(Path.Combine(Account(beta), file), Path.Combine(Account(live), file))),
+            settingsFiles.Any(file => IsNewer(Path.Combine(Account(beta), file), LiveAccountFile(live, map, file)!)),
             liveConfigMissing ? [] : [.. DifferingClientSettings(beta, live).Select(setting => setting.Name)],
             IsNewer(Config(beta), Config(live)),
-            liveConfigMissing);
+            liveConfigMissing,
+            betaAccounts,
+            liveAccounts,
+            map);
     }
 
-    public static ForeverCopyResult Sync(WowInstall beta, WowInstall live, IEnumerable<string> managedFolders, bool addons, bool savedVariables, bool settings, bool clientSettings, Action<string, Exception> failed)
+    public static ForeverCopyResult Sync(WowInstall beta, WowInstall live, IEnumerable<string> managedFolders, bool addons, bool savedVariables, bool settings, bool clientSettings, Action<string, Exception> failed, IReadOnlyDictionary<string, string?>? accountMap = null)
     {
         ArgumentNullException.ThrowIfNull(beta);
         ArgumentNullException.ThrowIfNull(live);
         ArgumentNullException.ThrowIfNull(failed);
-        var plan = Plan(beta, live, managedFolders);
+        var plan = Plan(beta, live, managedFolders, accountMap);
         int copied = 0, updated = 0, failures = 0;
         if (addons)
         {
@@ -112,15 +161,18 @@ public static class ForeverCopy
 
         int CopyAccountFiles(IReadOnlyList<string> files, bool accountData)
         {
-            var failedFiles = files.Count(file => !Attempt(Path.Combine(Account(live), file), failed, () =>
+            var failedFiles = files.Count(file =>
             {
-                var target = Path.Combine(Account(live), file);
-                CopyFile(Path.Combine(Account(beta), file), target);
-                if (accountData)
+                var target = LiveAccountFile(live, plan.AccountMap, file)!;
+                return !Attempt(target, failed, () =>
                 {
-                    StampAccountData(target);
-                }
-            }));
+                    CopyFile(Path.Combine(Account(beta), file), target);
+                    if (accountData)
+                    {
+                        StampAccountData(target);
+                    }
+                });
+            });
             failures += failedFiles;
             return files.Count - failedFiles;
         }
@@ -274,12 +326,34 @@ public static class ForeverCopy
         string.Equals(Path.GetFileName(relativePath), "Steward.lua", StringComparison.OrdinalIgnoreCase);
 
     // The client rewrites these files at every login, so their dates say nothing and only a content difference is offered.
-    private static IEnumerable<string> DifferingSettingsFiles(WowInstall beta, WowInstall live) =>
-        Directory.Exists(Account(beta))
-            ? Directory.EnumerateDirectories(Account(beta))
-                .SelectMany(account => AccountDataSlots.Keys.Select(file => Path.Combine(Path.GetFileName(account), file)))
-                .Where(file => File.Exists(Path.Combine(Account(beta), file)) && !SameContents(Path.Combine(Account(beta), file), Path.Combine(Account(live), file)))
+    private static IEnumerable<string> DifferingSettingsFiles(WowInstall beta, WowInstall live, List<ForeverCopyAccount> betaAccounts, Dictionary<string, string?> map) =>
+        betaAccounts
+            .SelectMany(account => AccountDataSlots.Keys.Select(file => Path.Combine(account.Folder, file)))
+            .Where(file => File.Exists(Path.Combine(Account(beta), file))
+                && LiveAccountFile(live, map, file) is { } target
+                && !SameContents(Path.Combine(Account(beta), file), target));
+
+    private static string? LiveAccountFile(WowInstall live, IReadOnlyDictionary<string, string?> map, string relativePath)
+    {
+        var split = relativePath.IndexOf(Path.DirectorySeparatorChar);
+        return map.GetValueOrDefault(relativePath[..split]) is { } mapped ? Path.Combine(Account(live), mapped, relativePath[(split + 1)..]) : null;
+    }
+
+    private static List<ForeverCopyAccount> Accounts(WowInstall install) =>
+        Directory.Exists(Account(install))
+            ? [.. Directory.EnumerateDirectories(Account(install))
+                .Select(account => new ForeverCopyAccount(Path.GetFileName(account), CharacterNames(account)))
+                .OrderBy(account => account.Folder, StringComparer.OrdinalIgnoreCase)]
             : [];
+
+    private static List<string> CharacterNames(string account) =>
+        [.. Directory.EnumerateDirectories(account)
+            .Where(realm => !string.Equals(Path.GetFileName(realm), "SavedVariables", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(realm => Directory.EnumerateDirectories(realm))
+            .Select(Path.GetFileName)
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)];
 
     private static bool SameContents(string source, string target) =>
         File.Exists(target) && File.ReadAllBytes(source).AsSpan().SequenceEqual(File.ReadAllBytes(target));

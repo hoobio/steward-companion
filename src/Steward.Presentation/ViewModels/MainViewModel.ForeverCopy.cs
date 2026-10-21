@@ -13,7 +13,7 @@ public sealed partial class MainViewModel
 
     private WowInstall? _heldLiveInstall;
 
-    public Func<bool, ForeverCopyPlan, Func<bool, bool, bool, bool, Task>, Task<bool?>>? ShowForeverCopyDialog { get; set; }
+    public Func<bool, ForeverCopyPlan, Func<IReadOnlyDictionary<string, string?>, Task<ForeverCopyPlan>>, Func<bool, bool, bool, bool, IReadOnlyDictionary<string, string?>, Task>, Task<bool?>>? ShowForeverCopyDialog { get; set; }
 
     private WowInstallViewModel? BetaInstall => PresentInstalls.FirstOrDefault(install => install.Install.ProductCode == ForeverLaunch.BetaProduct);
 
@@ -121,7 +121,7 @@ public sealed partial class MainViewModel
         ForeverCopyPlan plan;
         try
         {
-            plan = await Task.Run(() => ForeverCopy.Plan(beta.Install, live, managed)).ConfigureAwait(true);
+            plan = await ReplanForeverCopyAsync(beta, live, managed, null).ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -131,7 +131,23 @@ public sealed partial class MainViewModel
         }
 
         _logger.Info($"Forever copy offered: {plan.NewFolders.Count} folder(s) to copy, {plan.UpdatedFolders.Count} to update, {plan.SavedVariablesFiles.Count} saved variable file(s) and {plan.SettingsFiles.Count} settings file(s) newer on the beta, {plan.ClientSettings.Count} graphics and sound setting(s) differ");
-        var choice = await show(firstRun, plan, (addons, savedVariables, settings, clientSettings) => RunForeverCopyAsync(beta, live, managed, addons, savedVariables, settings, clientSettings)).ConfigureAwait(true);
+        var choice = await show(
+            firstRun,
+            plan,
+            async accountMap =>
+            {
+                try
+                {
+                    return await ReplanForeverCopyAsync(beta, live, managed, accountMap).ConfigureAwait(true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _logger.Warn(ex, $"Could not compare {beta.FlavourPath} with {live.FlavourPath}");
+                    StatusMessage = $"Could not read the beta's files: {ex.Message}";
+                    return plan;
+                }
+            },
+            (addons, savedVariables, settings, clientSettings, accountMap) => RunForeverCopyAsync(beta, live, managed, addons, savedVariables, settings, clientSettings, accountMap)).ConfigureAwait(true);
         if (choice is false)
         {
             _logger.Info($"Forever copy declined for {live.FlavourPath}; the user copies by hand");
@@ -139,7 +155,10 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task RunForeverCopyAsync(WowInstallViewModel beta, WowInstall live, IReadOnlyList<string> managed, bool addons, bool savedVariables, bool settings, bool clientSettings)
+    private static Task<ForeverCopyPlan> ReplanForeverCopyAsync(WowInstallViewModel beta, WowInstall live, IReadOnlyList<string> managed, IReadOnlyDictionary<string, string?>? accountMap) =>
+        Task.Run(() => ForeverCopy.Plan(beta.Install, live, managed, accountMap));
+
+    private async Task RunForeverCopyAsync(WowInstallViewModel beta, WowInstall live, IReadOnlyList<string> managed, bool addons, bool savedVariables, bool settings, bool clientSettings, IReadOnlyDictionary<string, string?> accountMap)
     {
         if (ForeverCopyRefusal(beta, live) is { } refusal)
         {
@@ -147,12 +166,13 @@ public sealed partial class MainViewModel
             return;
         }
 
-        _logger.Info($"Forever copy from {beta.FlavourPath} to {live.FlavourPath}: addons {addons}, saved variables {savedVariables}, game settings {settings}, graphics and sound {clientSettings}");
+        var accounts = string.Join(", ", accountMap.Select(entry => $"{entry.Key} -> {entry.Value ?? "none"}"));
+        _logger.Info($"Forever copy from {beta.FlavourPath} to {live.FlavourPath}: addons {addons}, saved variables {savedVariables}, game settings {settings}, graphics and sound {clientSettings}, accounts [{accounts}]");
         ForeverCopyResult result;
         try
         {
             result = await Task.Run(() => ForeverCopy.Sync(beta.Install, live, managed, addons, savedVariables, settings, clientSettings,
-                (path, ex) => _logger.Warn(ex, $"Forever copy could not write {path}"))).ConfigureAwait(true);
+                (path, ex) => _logger.Warn(ex, $"Forever copy could not write {path}"), accountMap)).ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
