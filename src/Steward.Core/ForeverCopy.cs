@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 
@@ -31,7 +30,7 @@ public static class ForeverCopy
         "useMaxFPSBk", "useTargetFPS", "volumeFogLevel", "vsync", "waterDetail", "weatherDensity", "wmoLodDist", "worldBaseMip",
     ], StringComparer.OrdinalIgnoreCase);
 
-    // Slots in an account's cache.md5 (24 bytes each: MD5, save time, padding); the client downloads the server's copy over a file whose slot time is older than the server's.
+    // Slots in an account's cache.md5 (24 bytes each: MD5, save time, padding); at login the client downloads the server's copy whenever the slot time differs from the server's, later or earlier, so only the MD5 is rewritten.
     private static readonly Dictionary<string, int> AccountDataSlots = new(StringComparer.OrdinalIgnoreCase)
     {
         ["config-cache.wtf"] = 0,
@@ -295,10 +294,7 @@ public static class ForeverCopy
             Array.Resize(ref slots, 240);
         }
 
-        var offset = AccountDataSlots[Path.GetFileName(file)] * 24;
-        MD5.HashData(File.ReadAllBytes(file)).CopyTo(slots, offset);
-        BinaryPrimitives.WriteUInt32LittleEndian(slots.AsSpan(offset + 16), (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-        BinaryPrimitives.WriteUInt32LittleEndian(slots.AsSpan(offset + 20), 0);
+        MD5.HashData(File.ReadAllBytes(file)).CopyTo(slots, AccountDataSlots[Path.GetFileName(file)] * 24);
         var temp = path + ".steward-copy";
         File.WriteAllBytes(temp, slots);
         File.Move(temp, path, overwrite: true);
