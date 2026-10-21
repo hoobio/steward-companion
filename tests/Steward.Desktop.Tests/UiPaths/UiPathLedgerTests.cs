@@ -2,7 +2,7 @@ namespace Steward.Desktop.Tests.UiPaths;
 
 public sealed class UiPathLedgerTests
 {
-    private static readonly string[] Extras = ["152", "155", "156", "157", "211", "212", "230", "231", "232", "241", "260", "X1", "X2", "X3", "X4"];
+    private static readonly string[] Extras = ["152", "155", "156", "157", "211", "212", "230", "231", "232", "241", "260", "X1", "X2", "X3", "X4", "X5"];
 
     [Fact]
     public void Every_ledger_path_is_driven_or_skipped_with_a_reason()

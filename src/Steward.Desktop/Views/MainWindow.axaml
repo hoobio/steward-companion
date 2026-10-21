@@ -202,7 +202,7 @@
             Grid.Row="0"
             ZIndex="1"
             Background="Transparent"
-            ColumnDefinitions="Auto,*,144"
+            ColumnDefinitions="Auto,*,Auto,144"
             chrome:WindowDecorationProperties.ElementRole="TitleBar">
             <StackPanel x:Name="TitleArea" Orientation="Horizontal" Spacing="15" Margin="14,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
                 <Image Source="avares://Steward.Desktop/Assets/Steward-256.png" Width="16" Height="16" VerticalAlignment="Center" />
@@ -318,6 +318,44 @@
                     </Button.Flyout>
                 </Button>
             </Panel>
+            <Button
+                x:Name="LaunchCountdownButton"
+                Grid.Column="2"
+                Height="32"
+                MinHeight="32"
+                Margin="0,0,8,0"
+                Padding="11,0,11,2"
+                VerticalAlignment="Center"
+                Background="{DynamicResource ChipBrush}"
+                AutomationProperties.Name="{Binding LaunchCountdown}"
+                IsVisible="{Binding LaunchCountdown, Converter={x:Static ObjectConverters.IsNotNull}}"
+                chrome:WindowDecorationProperties.ElementRole="User">
+                <TextBlock Text="{Binding LaunchCountdown}" FontSize="13" styles:SegoeMetrics.IsFree="True" VerticalAlignment="Center" />
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedRight" FlyoutPresenterClasses="Tinted Below">
+                        <StackPanel x:Name="ScheduleList" Width="340" Spacing="2">
+                            <TextBlock
+                                Text="World of Warcraft: Forever"
+                                FontSize="11.5"
+                                Margin="8,4,8,2"
+                                Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                            <ItemsControl ItemsSource="{Binding ScheduleRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ScheduleRow">
+                                        <Grid Margin="8,6" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="{Binding Name}" />
+                                                <TextBlock Text="{Binding When}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="{Binding Status}" FontSize="13" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
         </Grid>
 
         <Grid x:Name="GatePanel" Grid.Row="0" Grid.RowSpan="2" IsVisible="{Binding GateVisibility}">

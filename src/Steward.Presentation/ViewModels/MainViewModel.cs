@@ -218,6 +218,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SavedVariablesChanged = Sync.ReloadAsync;
         AfterStewardInstalled = install => HasStewardFeature ? Sync.WriteGeneratedFileAsync(install) : WriteMeAfterInstallAsync();
         ShellOpen.Failed += OnShellOpenFailed;
+        StartCountdown();
     }
 
     private void OnShellOpenFailed(string target, string failure) => RunOnUi(() =>

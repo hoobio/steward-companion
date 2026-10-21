@@ -113,6 +113,24 @@ public sealed class ShellPaths(AvaloniaSession session)
     });
 
     [Fact]
+    public void PX5_launch_countdown_menu() => session.Run(() =>
+    {
+        using var world = new UiPathWorld(session, "countdown");
+        var countdown = world.ByName<Button>("LaunchCountdownButton");
+
+        world.Step("X5", "launch countdown menu", () =>
+        {
+            Assert.StartsWith("Launches in ", AutomationProperties.GetName(countdown), StringComparison.Ordinal);
+            Click(countdown);
+            Assert.True(countdown.Flyout!.IsOpen);
+            var text = Text(world.ByName<StackPanel>("ScheduleList"));
+            Assert.Contains("Launch", text, StringComparison.Ordinal);
+            Assert.Contains("Starts in ", text, StringComparison.Ordinal);
+            world.Press(Key.Escape);
+        });
+    });
+
+    [Fact]
     public void P080_P087_account_flyout_and_hover() => session.Run(() =>
     {
         using var world = new UiPathWorld(session, "account");
