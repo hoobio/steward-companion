@@ -21,7 +21,7 @@ Battle.net copied the beta's `WTF` into `_forever_` on install; `Interface\AddOn
 
 1. `appsettings.json`: `wowf` in `SupportedProducts` ("World of Warcraft: Forever"), `RestedXp:ProductPrefixes` and `CurseForge:GameVersionTypes`. BugSack and BugGrabber keep their baked-in `88568`, since both clients share it.
 2. `Assets/Products/wowf.png`, the picker icon, a copy of the beta's.
-3. `ForeverLaunch.MoveFromBeta`: from 1 Nov 2026 a selection still on the beta moves to the live install once.
+3. `ForeverLaunch.MoveFromBeta`: from 21 Oct 2026 a selection still on the beta moves to the live install once.
 4. `ForeverCopy` and `MainViewModel.ForeverCopy.cs`: while a beta install is present, the live install is held out of `Installs` until the user copies from the beta or chooses "I'll do it myself" (`forever_copy_done`), and the Addons page header offers "Sync from beta" on the live install after that. The sync is newer-wins and never deletes: AddOns folders, account-level saved variables and settings under `WTF\Account`, and the video and sound CVars of `WTF\Config.wtf`, merged into the live file with every other line kept.
 
 ## This repo, when the beta is retired
