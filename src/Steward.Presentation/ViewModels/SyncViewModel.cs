@@ -122,8 +122,7 @@ public sealed partial class SyncViewModel : ObservableObject
     public bool NotReleasedVisibility =>
         Installs.Count > 0 && ForeverLaunch.HasNoCharacters(_main.SelectedInstall?.Install.ProductCode, DateTimeOffset.Now);
 
-    public static string NotReleasedText =>
-        $"Your characters show here once you play it. It launches {ForeverSchedule.Launch.Start.ToLocalTime().ToString("dddd d MMMM 'at' HH:mm", System.Globalization.CultureInfo.CurrentCulture)}.";
+    public static string NotReleasedText => "Your characters show here once you play it.";
 
     public bool AddonMissingVisibility =>
         Installs.Count > 0 && Installs.All(install => install.AddonMissing) && !NotReleasedVisibility;
