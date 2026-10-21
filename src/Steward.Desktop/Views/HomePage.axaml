@@ -70,7 +70,6 @@
                     Theme="{StaticResource AccentButtonStyle}"
                     Content="Launch Battle.net"
                     Command="{Binding LaunchGameCommand}"
-                    IsEnabled="{Binding !SelectedInstall.IsClientRunning}"
                     IsVisible="{Binding LaunchGameVisibility}" />
                 <Button
                     Classes="Fill"
