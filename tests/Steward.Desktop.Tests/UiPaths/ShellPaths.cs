@@ -116,13 +116,13 @@ public sealed class ShellPaths(AvaloniaSession session)
     public void PX5_launch_countdown_menu() => session.Run(() =>
     {
         using var world = new UiPathWorld(session, "countdown");
-        var countdown = world.ByName<Button>("LaunchCountdownButton");
+        var picker = world.ByName<Button>("InstallPicker");
 
-        world.Step("X5", "launch countdown menu", () =>
+        world.Step("X5", "launch countdown under the install picker and its timers in the picker menu", () =>
         {
-            Assert.StartsWith("Launches in ", AutomationProperties.GetName(countdown), StringComparison.Ordinal);
-            Click(countdown);
-            Assert.True(countdown.Flyout!.IsOpen);
+            Assert.StartsWith("Launches in ", world.ByName<TextBlock>("LaunchCountdownText").Text, StringComparison.Ordinal);
+            Click(picker);
+            Assert.True(picker.Flyout!.IsOpen);
             var text = Text(world.ByName<StackPanel>("ScheduleList"));
             Assert.Contains("Launch", text, StringComparison.Ordinal);
             Assert.Contains("Starts in ", text, StringComparison.Ordinal);

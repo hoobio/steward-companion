@@ -180,7 +180,7 @@ public static class UiPathLedger
         ("X2", "folders dialog re-shown five times, each through the Released tooltip", null),
         ("X3", "Get addons search scroll resets", null),
         ("X4", "tooltip-then-click three times in the table", null),
-        ("X5", "launch countdown menu", null),
+        ("X5", "launch countdown under the install picker and its timers in the picker menu", null),
     ];
 
     private static readonly string? ResultsFile = Environment.GetEnvironmentVariable("STEWARD_UIPATHS_PNG_DIR") is { Length: > 0 } directory

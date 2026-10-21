@@ -30,7 +30,7 @@ public sealed partial class MainWindow
             // Avalonia.Native 12.1.3 keeps the traffic lights in AppKit's standard 28px title bar whatever the height hint, so the icon and title centre on that row.
             TitleArea.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
             TitleArea.Height = MacTitleBarHeight;
-            AppTitleBar.ColumnDefinitions[3].Width = new GridLength(0);
+            AppTitleBar.ColumnDefinitions[2].Width = new GridLength(0);
         }
         else
         {

@@ -559,7 +559,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string GuidesNotInstalledText => $"RestedXP Guides is not installed on {SelectedInstall?.Label}.";
 
-    public bool TitleBarPickerVisibility => SelectedInstall is not null && !IsSettingsShown;
+    public bool TitleBarPickerVisibility => SelectedInstall is not null;
 
     public bool SyncVisibility => HasStewardFeature || CanPushCharacters;
 

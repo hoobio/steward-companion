@@ -15,7 +15,10 @@ public sealed partial class MainViewModel
     public partial string? LaunchCountdown { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ScheduleVisibility))]
     public partial IReadOnlyList<ScheduleRow> ScheduleRows { get; private set; } = [];
+
+    public bool ScheduleVisibility => ScheduleRows.Count > 0;
 
     private void StartCountdown()
     {

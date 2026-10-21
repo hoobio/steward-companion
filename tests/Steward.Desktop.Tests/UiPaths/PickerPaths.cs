@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -67,7 +68,8 @@ public sealed class PickerPaths(AvaloniaSession session)
             world.Navigate("Addons");
             Click(picker);
             Assert.True(picker.Flyout!.IsOpen);
-            Click(world.Find<TextBlock>(text => text.Text == "Addons" && text.FontSize > 20));
+            var title = world.Find<TextBlock>(text => text.Text == "Addons" && text.FontSize > 20);
+            ClickAt(TopLevel.GetTopLevel(title)!, title.TranslatePoint(new Point(10, title.Bounds.Height / 2), TopLevel.GetTopLevel(title)!)!.Value);
             Assert.False(picker.Flyout.IsOpen);
         });
 
