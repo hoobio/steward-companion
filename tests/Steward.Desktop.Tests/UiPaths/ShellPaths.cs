@@ -120,7 +120,8 @@ public sealed class ShellPaths(AvaloniaSession session)
 
         world.Step("X5", "launch countdown under the install picker and its timers in the picker menu", () =>
         {
-            Assert.StartsWith("Launches in ", world.ByName<TextBlock>("LaunchCountdownText").Text, StringComparison.Ordinal);
+            Assert.Equal(world.Main.LaunchCountdown, world.ByName<TextBlock>("LaunchCountdownText").Text);
+            Assert.DoesNotContain("Launches", world.Main.LaunchCountdown, StringComparison.Ordinal);
             Click(picker);
             Assert.True(picker.Flyout!.IsOpen);
             var text = Text(world.ByName<StackPanel>("ScheduleList"));

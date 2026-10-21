@@ -17,7 +17,7 @@ public static class ForeverSchedule
     public static readonly TimeSpan LiveFor = TimeSpan.FromDays(1);
 
     public static string? TitleCountdown(DateTimeOffset now) =>
-        now < Launch.Start ? $"Launches in {Humanize(Launch.Start - now)}"
+        now < Launch.Start ? Humanize(Launch.Start - now)
         : now < Launch.Start + LiveFor ? "Live now"
         : null;
 

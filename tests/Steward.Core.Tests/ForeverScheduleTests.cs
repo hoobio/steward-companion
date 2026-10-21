@@ -40,7 +40,7 @@ public sealed class ForeverScheduleTests
     public void The_title_countdown_reads_live_now_for_a_day_after_launch()
     {
         var launch = ForeverSchedule.Launch.Start;
-        Assert.StartsWith("Launches in ", ForeverSchedule.TitleCountdown(launch.AddHours(-2)), StringComparison.Ordinal);
+        Assert.Equal("2 hours", ForeverSchedule.TitleCountdown(launch.AddHours(-2)));
         Assert.Equal("Live now", ForeverSchedule.TitleCountdown(launch));
         Assert.Equal("Live now", ForeverSchedule.TitleCountdown(launch.AddHours(23)));
         Assert.Null(ForeverSchedule.TitleCountdown(launch.AddDays(1)));
