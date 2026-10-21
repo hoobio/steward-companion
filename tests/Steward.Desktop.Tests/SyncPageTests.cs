@@ -62,6 +62,12 @@ public sealed class SyncPageTests(AvaloniaSession session)
         main.JourneyError = "Journey upload failed: the server answered 503.";
         Save(window, "sync-errors");
 
+        sync.IsUnreachable = false;
+        main.JourneyError = null;
+        main.SelectedInstall = added;
+        UiPaths.UiPathWorld.WaitFor(() => sync.NotReleasedVisibility == (DateTimeOffset.Now < ForeverSchedule.Launch.Start) && !sync.CardsVisibility == sync.NotReleasedVisibility);
+        Save(window, "sync-not-released");
+
         window.Content = null;
         window.Close();
         sync.IsUnreachable = false;

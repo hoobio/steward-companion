@@ -387,6 +387,33 @@
                     Text="Log in to a character. The addon writes its data when you log out, exit, or type /reload." />
             </StackPanel>
 
+            <StackPanel
+                HorizontalAlignment="Center"
+                MaxWidth="460"
+                Spacing="12"
+                Margin="0,24"
+                IsVisible="{Binding NotReleasedVisibility}">
+                <TextBlock
+                    Classes="Glyph"
+                    Text="{StaticResource Glyph.Game}"
+                    FontSize="44"
+                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                <TextBlock
+                    Text="World of Warcraft: Forever is not out yet"
+                    FontFamily="{StaticResource DisplayFontFamily}"
+                    FontSize="20"
+                    FontWeight="SemiBold"
+                    HorizontalAlignment="Center"
+                    TextAlignment="Center" />
+                <TextBlock
+                    Classes="Body"
+                    TextWrapping="Wrap"
+                    HorizontalAlignment="Center"
+                    TextAlignment="Center"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                    Text="{x:Static vm:SyncViewModel.NotReleasedText}" />
+            </StackPanel>
+
             <Border
                 CornerRadius="8"
                 ClipToBounds="True"
@@ -403,7 +430,7 @@
                         BorderBrush="{DynamicResource RowHairlineBrush}"
                         Padding="{StaticResource CardRowPadding}"
                         MinHeight="{StaticResource CardRowMinHeight}"
-                        IsVisible="{Binding Main.JourneyRowVisibility}">
+                        IsVisible="{Binding JourneyVisibility}">
                         <Grid ColumnDefinitions="30,*,Auto" ColumnSpacing="12">
                             <Border
                                 Width="30"

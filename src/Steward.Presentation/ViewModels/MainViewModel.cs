@@ -2359,7 +2359,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             while (_pendingJourneyUpload && IsAuthorized && CanPushCharacters)
             {
                 _pendingJourneyUpload = false;
-                var flavourPaths = PresentInstalls.Select(install => install.FlavourPath).ToList();
+                var flavourPaths = PresentInstalls
+                    .Where(install => !ForeverLaunch.HasNoCharacters(install.Install.ProductCode, DateTimeOffset.Now))
+                    .Select(install => install.FlavourPath)
+                    .ToList();
                 var result = await Task.Run(() => _journeyUploader.UploadAsync(flavourPaths, CancellationToken.None)).ConfigureAwait(true);
                 var before = (JourneyError, JourneyCount);
                 UpdateJourneyStatus();

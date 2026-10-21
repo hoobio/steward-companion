@@ -27,6 +27,7 @@ public sealed partial class SyncViewModel : ObservableObject
         nameof(Current),
         nameof(AddonMissingVisibility),
         nameof(NeverExportedVisibility),
+        nameof(NotReleasedVisibility),
         nameof(SubtitleGuild),
         nameof(SubtitleSynced),
         nameof(SubtitleRunningVisibility),
@@ -35,6 +36,7 @@ public sealed partial class SyncViewModel : ObservableObject
         nameof(GeneratedFileErrorVisibility),
         nameof(ShowsGeneratedFileHairline),
         nameof(ShowsJourneyHairline),
+        nameof(JourneyVisibility),
         nameof(SyncNowVisibility),
         nameof(IsProfessionsOnlySync),
     ];
@@ -114,15 +116,23 @@ public sealed partial class SyncViewModel : ObservableObject
     public bool CardsVisibility =>
         !NoInstallVisibility
         && !AddonMissingVisibility
-        && !NeverExportedVisibility;
+        && !NeverExportedVisibility
+        && !NotReleasedVisibility;
+
+    public bool NotReleasedVisibility =>
+        Installs.Count > 0 && ForeverLaunch.HasNoCharacters(_main.SelectedInstall?.Install.ProductCode, DateTimeOffset.Now);
+
+    public static string NotReleasedText =>
+        $"Your characters show here once you play it. It launches {ForeverSchedule.Launch.Start.ToLocalTime().ToString("dddd d MMMM 'at' HH:mm", System.Globalization.CultureInfo.CurrentCulture)}.";
 
     public bool AddonMissingVisibility =>
-        Installs.Count > 0 && Installs.All(install => install.AddonMissing);
+        Installs.Count > 0 && Installs.All(install => install.AddonMissing) && !NotReleasedVisibility;
 
     public bool NeverExportedVisibility =>
         Installs.Count > 0
         && !Installs.All(install => install.AddonMissing)
-        && Installs.All(install => install.ReadError is null && install.ExportState == SyncExportState.NoFile);
+        && Installs.All(install => install.ReadError is null && install.ExportState == SyncExportState.NoFile)
+        && !NotReleasedVisibility;
 
     public bool CardVisibility => _main.Installs.Count > 0;
 
@@ -159,7 +169,9 @@ public sealed partial class SyncViewModel : ObservableObject
 
     public bool ShowsJourneyHairline => CardsVisibility;
 
-    public bool ShowsGeneratedFileHairline => CardsVisibility || _main.JourneyRowVisibility;
+    public bool ShowsGeneratedFileHairline => CardsVisibility || JourneyVisibility;
+
+    public bool JourneyVisibility => _main.JourneyRowVisibility && !NotReleasedVisibility;
 
     public bool UnreachableIsOpen => IsUnreachable;
 
