@@ -12,7 +12,10 @@ public sealed partial class MainViewModel
     private UiTimer? _countdownTimer;
 
     [ObservableProperty]
-    public partial string? LaunchCountdown { get; private set; }
+    [NotifyPropertyChangedFor(nameof(CountdownVisibility))]
+    public partial string? LaunchCountdown { get; internal set; }
+
+    public bool CountdownVisibility => LaunchCountdown is not null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ScheduleVisibility))]

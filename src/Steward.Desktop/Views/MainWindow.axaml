@@ -212,10 +212,9 @@
                 <Button
                     x:Name="InstallPicker"
                     MinHeight="32"
-                    Margin="0,4,0,0"
+                    Classes.Countdown="{Binding CountdownVisibility}"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
-                    Padding="11,3,10,4"
                     HorizontalContentAlignment="Stretch"
                     VerticalContentAlignment="Stretch"
                     Background="{DynamicResource ChipBrush}"
@@ -233,6 +232,21 @@
                         <Style Selector="Button#InstallPicker Panel#InstallPickerChevron">
                             <Setter Property="RenderTransform" Value="rotate(0deg)" />
                         </Style>
+                        <Style Selector="Button#InstallPicker Image#InstallPickerIcon">
+                            <Setter Property="Width" Value="20" />
+                            <Setter Property="Height" Value="20" />
+                        </Style>
+                        <Style Selector="Button#InstallPicker.Countdown Image#InstallPickerIcon">
+                            <Setter Property="Width" Value="24" />
+                            <Setter Property="Height" Value="24" />
+                        </Style>
+                        <Style Selector="Button#InstallPicker">
+                            <Setter Property="Padding" Value="11,0,10,2" />
+                        </Style>
+                        <Style Selector="Button#InstallPicker.Countdown">
+                            <Setter Property="Margin" Value="0,4,0,0" />
+                            <Setter Property="Padding" Value="11,3,10,4" />
+                        </Style>
                         <Style Selector="Button#InstallPicker:flyout-open Panel#InstallPickerChevron">
                             <Setter Property="RenderTransform" Value="rotate(180deg)" />
                         </Style>
@@ -248,8 +262,7 @@
                             Foreground="{DynamicResource SystemFillColorCautionBrush}"
                             IsVisible="{Binding SelectedInstall.NoGameVersionVisibility, FallbackValue=False}" />
                         <Image
-                            Width="24"
-                            Height="24"
+                            x:Name="InstallPickerIcon"
                             VerticalAlignment="Center"
                             Stretch="Uniform"
                             Source="{Binding SelectedInstall.ProductIcon, Converter={x:Static views:BindConvert.Image}, FallbackValue={x:Null}}"

@@ -127,6 +127,12 @@ public sealed class ShellPaths(AvaloniaSession session)
             Assert.Contains("Launch", text, StringComparison.Ordinal);
             Assert.Contains("Starts in ", text, StringComparison.Ordinal);
             world.Press(Key.Escape);
+            Assert.Equal(24, world.ByName<Image>("InstallPickerIcon").Bounds.Width);
+
+            world.Main.LaunchCountdown = null;
+            WaitFor(() => picker.Bounds.Height == 32);
+            Assert.Equal(20, world.ByName<Image>("InstallPickerIcon").Bounds.Width);
+            Assert.Equal(default, picker.Margin);
         });
     });
 

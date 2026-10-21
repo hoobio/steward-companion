@@ -14,8 +14,12 @@ public static class ForeverSchedule
 
     public static ScheduleEvent Launch => Events[^1];
 
+    public static readonly TimeSpan LiveFor = TimeSpan.FromDays(1);
+
     public static string? TitleCountdown(DateTimeOffset now) =>
-        now < Launch.Start ? $"Launches in {Humanize(Launch.Start - now)}" : null;
+        now < Launch.Start ? $"Launches in {Humanize(Launch.Start - now)}"
+        : now < Launch.Start + LiveFor ? "Live now"
+        : null;
 
     public static IEnumerable<ScheduleEvent> Current(DateTimeOffset now) =>
         Events.Where(schedule => now < (schedule.End ?? schedule.Start));
