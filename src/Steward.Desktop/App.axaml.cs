@@ -88,6 +88,7 @@ public sealed partial class App : Application
             logger.Crit(e.ExceptionObject as Exception, "Unhandled AppDomain exception");
         TaskScheduler.UnobservedTaskException += (_, e) =>
             logger.Crit(e.Exception, "Unobserved task exception");
+        Avalonia.Logging.Logger.Sink = new AvaloniaLogSink(_host.Services.GetRequiredService<ILogger<AvaloniaLogSink>>());
 
         var window = _host.Services.GetRequiredService<MainWindow>();
         var viewModel = window.ViewModel;
@@ -198,6 +199,11 @@ public sealed partial class App : Application
         }
 
         _ = initializing.ContinueWith(_ => Dispatcher.UIThread.Post(window.TrimIfHidden), TaskScheduler.Default);
+        if (OperatingSystem.IsWindows() && !AppInfo.IsWine)
+        {
+            new UiWatchdog(window, _host.Services.GetRequiredService<ILogger<UiWatchdog>>()).Start();
+        }
+
         if (coordination.Link is { } link)
         {
             _ = viewModel.ReceiveCurseForgeLinkAsync(link);

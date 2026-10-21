@@ -16,6 +16,7 @@ public static partial class Program
     public static int Main(string[] args)
     {
         var withoutFocus = args.Contains(StartupRegistration.TrayArgument) || args.Contains(StartupRegistration.NoActivateArgument);
+        UiWatchdog.WaitForPreviousInstance(args);
         if (!InstanceCoordination.TryAcquire(ActivationLink(args), out var coordination, showRunning: !withoutFocus))
         {
             return 0;
