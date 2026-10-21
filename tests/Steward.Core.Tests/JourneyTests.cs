@@ -87,12 +87,34 @@ public sealed class JourneyTests : IDisposable
     }
 
     private (JourneyUploader Uploader, RecordingHandler Handler, AppStateStore Store) UploaderFor(
-        HttpStatusCode status, string body = """{"result":"added","sha256":"x"}""", TimeSpan? retryAfter = null, Func<DateTimeOffset>? clock = null)
+        HttpStatusCode status, string body = """{"result":"added","sha256":"x"}""", TimeSpan? retryAfter = null, Func<DateTimeOffset>? clock = null, bool anyLength = true)
     {
         var handler = new RecordingHandler(status, body, retryAfter);
         var client = new StewardClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
         var store = new AppStateStore([], Path.Combine(_root, "state", "state.json"));
-        return (new JourneyUploader(client, store, clock), handler, store);
+        return (new JourneyUploader(client, store, clock, anyLength ? _ => true : null), handler, store);
+    }
+
+    [Theory]
+    [InlineData(3600, 3, true)]
+    [InlineData(3599, 3, false)]
+    [InlineData(7200, 2, false)]
+    public void A_journey_is_worth_uploading_from_an_hour_and_three_subzones(long active, int subzones, bool expected) =>
+        Assert.Equal(expected, new JourneyQuality(subzones, active, 0, "").IsWorthUploading);
+
+    [Fact]
+    public async Task Upload_ShortJourney_IsSkippedUntilTheFileChanges()
+    {
+        var path = WriteFile(QualityFixture());
+        var (uploader, handler, store) = UploaderFor(HttpStatusCode.OK, anyLength: false);
+
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+
+        Assert.Empty(handler.Requests);
+        var record = store.Load().JourneyUploads[path];
+        Assert.Equal(JourneyUploader.TooShort, record.Result);
+        Assert.Null(record.UploadedAt);
     }
 
     [Fact]

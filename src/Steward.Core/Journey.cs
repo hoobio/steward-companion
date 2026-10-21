@@ -13,6 +13,11 @@ public sealed record JourneySummary(long Rows, long? First, long? Last, string? 
 
 public sealed partial record JourneyQuality(int Subzones, long ActiveSeconds, int Positions, string Addon)
 {
+    public const long MinActiveSeconds = 3600;
+    public const int MinSubzones = 3;
+
+    public bool IsWorthUploading => ActiveSeconds >= MinActiveSeconds && Subzones >= MinSubzones;
+
     public string Header => string.Create(
         CultureInfo.InvariantCulture,
         $"subzones={Subzones};active={ActiveSeconds};positions={Positions};addon={HeaderUnsafe().Replace(Addon, "")}");
@@ -189,8 +194,10 @@ public enum JourneyPassResult
     SessionExpired,
 }
 
-public sealed class JourneyUploader(StewardClient client, AppStateStore store, Func<DateTimeOffset>? clock = null)
+public sealed class JourneyUploader(StewardClient client, AppStateStore store, Func<DateTimeOffset>? clock = null, Func<JourneyQuality, bool>? worthUploading = null)
 {
+    public const string TooShort = "too_short";
+
     private static readonly TimeSpan DefaultRetryAfter = TimeSpan.FromMinutes(1);
 
     private readonly Func<DateTimeOffset> _now = clock ?? (() => DateTimeOffset.Now);
@@ -287,6 +294,13 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
             return FileResult.Next;
         }
 
+        var quality = JourneyFile.Quality(bytes);
+        if (!(worthUploading ?? (q => q.IsWorthUploading))(quality))
+        {
+            Save(file.Path, _ => new JourneyUploadRecord(sha, info.Length, info.LastWriteTimeUtc, TooShort, null));
+            return FileResult.Next;
+        }
+
         try
         {
             var response = await client.PutJourneyAsync(
@@ -295,7 +309,7 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
                 file.Character,
                 bytes,
                 summary,
-                JourneyFile.Quality(bytes),
+                quality,
                 new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds(),
                 cancellationToken).ConfigureAwait(false);
             Save(file.Path, _ => new JourneyUploadRecord(sha, info.Length, info.LastWriteTimeUtc, response.Result, _now()));
