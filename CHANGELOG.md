@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.25.0](https://github.com/hoobio/steward-companion/compare/v0.24.1...v0.25.0) (2026-10-21)
+
+
+### Features
+
+* ✨ a title bar countdown to the World of Warcraft: Forever launch, with the stress test and name reservation times in its menu ([bce7de8](https://github.com/hoobio/steward-companion/commit/bce7de8fa862e619f5ac71b45791f67bb2d9a85f))
+
+
+### Bug Fixes
+
+* 🐛 a Launch Battle.net button on the Addons page opens Battle.net on the selected install's game ([f138d16](https://github.com/hoobio/steward-companion/commit/f138d16b0b3b6c3cb9040d4808dd05c59dc64fe3))
+* 🐛 Launch Battle.net presses Play when the selected Forever client is Battle.net's default, and stays enabled while the game runs ([8ab990c](https://github.com/hoobio/steward-companion/commit/8ab990c2c8f6a1731114274319db67fa30d1dc57))
+* 🐛 menus and flyouts show the page behind them blurred and tinted, as hoobi-design's Mirage flyout does ([19c3f65](https://github.com/hoobio/steward-companion/commit/19c3f65fb75412c16ae6b5132322bb0ce189d1d5))
+* 🐛 no journeys are uploaded before World of Warcraft: Forever launches ([04bb006](https://github.com/hoobio/steward-companion/commit/04bb006709d314991d10b01f76ccbe407da32133))
+* 🐛 only journeys with an hour of play across three or more subzones are uploaded ([404340c](https://github.com/hoobio/steward-companion/commit/404340c4589498f500f39a408b787b1d3c89d0a8))
+* 🐛 Steward restarts itself when a GPU driver reset leaves its window blank and the tray menu dead ([174d4c8](https://github.com/hoobio/steward-companion/commit/174d4c846e282861fc5dd4860d77cc43c8928617))
+* 🐛 Sync from beta copies graphics and sound settings into the live Config.wtf, and copies account-level WTF files only ([cc6e002](https://github.com/hoobio/steward-companion/commit/cc6e002a72fdd72365e16f718dc66b9a23d2aa90))
+* 🐛 Sync from beta copies the screen narration settings with graphics and sound ([7dbaf48](https://github.com/hoobio/steward-companion/commit/7dbaf48d729296124ec9a141c990f608c9cf91bf))
+* 🐛 Sync from beta no longer copies the beta's Steward characters to the live install ([0af1258](https://github.com/hoobio/steward-companion/commit/0af12582ca62e488afb34bb7c8c5d412a19e06ba))
+* 🐛 the 'Close World of Warcraft first' message clears itself once the game closes ([6406e09](https://github.com/hoobio/steward-companion/commit/6406e099f7aaa9b3f5c47ed2da34e3096930ba38))
+* 🐛 the install picker fits its label, lists Forever installs first and turns its chevron while open ([cc6453d](https://github.com/hoobio/steward-companion/commit/cc6453da51c22f270406ffc1eda4ef215a00fa29))
+* 🐛 the install picker reads Live now for a day after the Forever launch, then returns to its one-line size ([64e5178](https://github.com/hoobio/steward-companion/commit/64e517823531b31a8758c70320bf436179218dac))
+* 🐛 the install picker shows the time to launch without the Launches in prefix ([5eacd1f](https://github.com/hoobio/steward-companion/commit/5eacd1f653fb92bcc5341b0f63494f180f338f4c))
+* 🐛 the install picker's icon is 24px and the picker sits 4px lower in the title bar ([7e686ff](https://github.com/hoobio/steward-companion/commit/7e686ff077fd4340630092d4d63f7c71ee391547))
+* 🐛 the launch countdown sits under the install picker's label and its timers in the picker menu, and the picker shows on Settings ([8a4b2bc](https://github.com/hoobio/steward-companion/commit/8a4b2bc0e0ac326aa01c2a395f7f58c4095da02b))
+* 🐛 the live Forever install is selected over the beta from today ([92d2747](https://github.com/hoobio/steward-companion/commit/92d274747831bddb2542635d80ecbbce4d91b56f))
+* 🐛 the live Forever install shows and pushes no characters until the game launches ([308a5e1](https://github.com/hoobio/steward-companion/commit/308a5e1d4ef0906f9010e64a627000297e5ab409))
+* 🐛 the live install's Sync page drops the launch time from its not-out-yet message ([52c95f2](https://github.com/hoobio/steward-companion/commit/52c95f209d9fa34be53a2d67f5d11398f1d0f40d))
+* 🐛 the Sync page says World of Warcraft: Forever is not out yet on the live install, which uploads no journeys before launch ([e2a265e](https://github.com/hoobio/steward-companion/commit/e2a265eb4c9a2d493fb59060bea079edbd6c7440))
+
 ## [0.24.1](https://github.com/hoobio/steward-companion/compare/v0.24.0...v0.24.1) (2026-10-17)
 
 
