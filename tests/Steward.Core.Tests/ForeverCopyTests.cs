@@ -65,6 +65,7 @@ public sealed class ForeverCopyTests : IDisposable
         Write(Path.Combine(betaWtf, "Config.wtf"), New);
         Write(Path.Combine(betaWtf, "Account", "1#1", "SavedVariables", "Steward.lua"), Old);
         Write(Path.Combine(liveWtf, "Account", "1#1", "SavedVariables", "Steward.lua"), New);
+        Write(Path.Combine(betaWtf, "Account", "1#2", "SavedVariables", "Steward.lua"), New);
         Write(Path.Combine(betaWtf, "Account", "1#1", "SavedVariables", "Details.lua"), Old);
         Write(Path.Combine(betaWtf, "Account", "1#1", "SavedVariables", "Details.lua.bak"), New);
         Write(Path.Combine(betaWtf, "Account", "1#1", "Realm", "Char", "SavedVariables", "Bagnon.lua"), New);

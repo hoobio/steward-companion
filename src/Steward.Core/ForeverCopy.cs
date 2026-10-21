@@ -49,7 +49,7 @@ public static class ForeverCopy
             [.. folders.Where(folder => !managed.Contains(folder)
                 && Directory.Exists(Path.Combine(live.AddOnsPath, folder))
                 && NewerFiles(Path.Combine(beta.AddOnsPath, folder), Path.Combine(live.AddOnsPath, folder)).Any())],
-            [.. accountFiles.Where(file => IsSavedVariables(file) && !file.EndsWith(".bak", StringComparison.OrdinalIgnoreCase))],
+            [.. accountFiles.Where(file => IsSavedVariables(file) && !file.EndsWith(".bak", StringComparison.OrdinalIgnoreCase) && !IsStewardCharacters(file))],
             [.. accountFiles.Where(file => !IsSavedVariables(file) && !IsClientBackup(file))],
             liveConfigMissing ? [] : [.. DifferingClientSettings(beta, live).Select(setting => setting.Name)],
             IsNewer(Config(beta), Config(live)),
@@ -244,6 +244,10 @@ public static class ForeverCopy
 
     private static bool IsSavedVariables(string relativePath) =>
         relativePath.Split(Path.DirectorySeparatorChar).Length == 3;
+
+    // Steward.lua holds the beta's characters, which a live install would then push as its own.
+    private static bool IsStewardCharacters(string relativePath) =>
+        string.Equals(Path.GetFileName(relativePath), "Steward.lua", StringComparison.OrdinalIgnoreCase);
 
     // cache.md5 is the client's checksum of its server-synced settings, so a copied one only describes the beta's.
     private static bool IsClientBackup(string relativePath) =>

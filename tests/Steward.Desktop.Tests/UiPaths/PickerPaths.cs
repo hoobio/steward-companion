@@ -99,7 +99,7 @@ public sealed class PickerPaths(AvaloniaSession session)
             var dialog = world.WaitForDialog();
             var text = Text(dialog);
             Assert.Contains("Copy from the beta", text, StringComparison.Ordinal);
-            Assert.Contains("2 files newer on the beta", text, StringComparison.Ordinal);
+            Assert.Contains("1 file newer on the beta", text, StringComparison.Ordinal);
             Assert.Equal("Copy", dialog.PrimaryButtonText);
         });
 
