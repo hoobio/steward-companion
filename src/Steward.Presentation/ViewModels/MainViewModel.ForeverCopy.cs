@@ -82,11 +82,21 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(SyncFromBetaVisibility));
     }
 
+    private const string ForeverCopyClientRunning = "Close World of Warcraft first. Steward cannot copy from the beta while the game is running.";
+
+    private void ClearForeverCopyClientRunning()
+    {
+        if (StatusMessage == ForeverCopyClientRunning && !Installs.Any(install => install.IsClientRunning))
+        {
+            StatusMessage = null;
+        }
+    }
+
     private string? ForeverCopyRefusal(WowInstallViewModel beta, WowInstall live)
     {
         if (WowClient.IsRunning(beta.Install) || WowClient.IsRunning(live))
         {
-            return "Close World of Warcraft first. Steward cannot copy from the beta while the game is running.";
+            return ForeverCopyClientRunning;
         }
 
         return beta.IsAnyRowBusy || Installs.Any(install => string.Equals(install.FlavourPath, live.FlavourPath, StringComparison.OrdinalIgnoreCase) && install.IsAnyRowBusy)

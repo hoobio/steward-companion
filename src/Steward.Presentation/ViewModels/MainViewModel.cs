@@ -3018,6 +3018,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void OnClientExited(WowInstallViewModel install)
     {
         RestedXp.Confirm(install.FlavourPath);
+        ClearForeverCopyClientRunning();
         _ = NotifySavedVariablesChangedAsync();
         _ = AutoApplyAsync();
         _ = UploadJourneysAsync();
