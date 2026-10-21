@@ -212,6 +212,7 @@
                 <Button
                     x:Name="InstallPicker"
                     MinHeight="32"
+                    Margin="0,4,0,0"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
                     Padding="11,3,10,4"
@@ -247,8 +248,8 @@
                             Foreground="{DynamicResource SystemFillColorCautionBrush}"
                             IsVisible="{Binding SelectedInstall.NoGameVersionVisibility, FallbackValue=False}" />
                         <Image
-                            Width="20"
-                            Height="20"
+                            Width="24"
+                            Height="24"
                             VerticalAlignment="Center"
                             Stretch="Uniform"
                             Source="{Binding SelectedInstall.ProductIcon, Converter={x:Static views:BindConvert.Image}, FallbackValue={x:Null}}"
