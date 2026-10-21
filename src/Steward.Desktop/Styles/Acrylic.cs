@@ -1,30 +1,32 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Reactive;
-
-using Steward.Desktop.Services;
+using Avalonia.VisualTree;
 
 namespace Steward.Desktop.Styles;
 
 public enum AcrylicMode
 {
     Blur,
-    Mock,
     Fallback,
 }
 
 public static class Acrylic
 {
-    public const double TintOpacity = 0.15;
-    public const double LuminosityOpacity = 0.96;
-    public const double NoiseOpacity = 0.02;
-    public const int NoiseSize = 256;
+    // Mirage tints with --color-bg at 72%, which is this window's own ground, so a flyout over plain page vanished into it; this darker tint at 57.5% keeps it apart.
+    public const double TintOpacity = 0.575;
+    public const double BlurSigma = 24;
+    public const double Saturation = 1.4;
+    // Avalonia.Skia 12.1.3 turns a blur radius into a sigma as 0.288675 * radius + 0.5, so this is CSS blur(24px).
+    public const double BlurRadius = (BlurSigma - 0.5) / 0.288675;
 
     public static readonly AttachedProperty<bool> IsEnabledProperty =
         AvaloniaProperty.RegisterAttached<TemplatedControl, bool>("IsEnabled", typeof(Acrylic));
@@ -32,10 +34,7 @@ public static class Acrylic
     public static readonly AttachedProperty<AcrylicMode> ModeProperty =
         AvaloniaProperty.RegisterAttached<TemplatedControl, AcrylicMode>("Mode", typeof(Acrylic));
 
-    private static readonly ConditionalWeakTable<TemplatedControl, IDisposable> Subscriptions = [];
-    private static readonly Dictionary<(Color Tint, Color Fallback, double Scale), Bitmap> MockTiles = [];
-    private static readonly WindowTransparencyLevel[] BlurLevels = [WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.Blur];
-    private static readonly WindowTransparencyLevel[] Hint = [.. BlurLevels, WindowTransparencyLevel.Transparent];
+    private static readonly ConditionalWeakTable<TemplatedControl, Surface> Surfaces = [];
 
     static Acrylic()
     {
@@ -61,122 +60,51 @@ public static class Acrylic
 
     public static AcrylicMode GetMode(TemplatedControl presenter) => presenter.GetValue(ModeProperty);
 
-    public static Color Composite(Color tint, Color? under)
+    public static Color Composite(Color tint, Color? under) => under is { } ground
+        ? Color.FromRgb(Mix(tint.R, ground.R), Mix(tint.G, ground.G), Mix(tint.B, ground.B))
+        : Color.FromArgb(Byte(TintOpacity), tint.R, tint.G, tint.B);
+
+    // The CSS saturate() matrix, applied to sRGB values as browsers do.
+    public static Color Saturate(Color color)
     {
-        double r = 0, g = 0, b = 0, a = 0;
-        if (under is { } ground)
-        {
-            (r, g, b, a) = (ground.R / 255d, ground.G / 255d, ground.B / 255d, 1);
-        }
-
-        foreach (var opacity in new[] { LuminosityOpacity, TintOpacity })
-        {
-            r = tint.R / 255d * opacity + r * (1 - opacity);
-            g = tint.G / 255d * opacity + g * (1 - opacity);
-            b = tint.B / 255d * opacity + b * (1 - opacity);
-            a = opacity + a * (1 - opacity);
-        }
-
-        return Color.FromArgb(Byte(a), Byte(r / a), Byte(g / a), Byte(b / a));
+        var (r, g, b) = Saturate(color.R, color.G, color.B);
+        return Color.FromRgb(r, g, b);
     }
 
-    // WinUI's NoiseAsset_256x256.png holds six greys, 0 to 255 in steps of 51, binomially spread; this is the same distribution from a fixed seed, offset to zero mean so it textures without lightening.
-    public static byte[] NoiseLevels()
+    private static (byte R, byte G, byte B) Saturate(double r, double g, double b)
     {
-        var random = new Random(256);
-        var levels = new byte[NoiseSize * NoiseSize];
-        for (var i = 0; i < levels.Length; i++)
-        {
-            var heads = 0;
-            for (var flip = 0; flip < 5; flip++)
-            {
-                heads += random.Next(2);
-            }
-
-            levels[i] = (byte)(heads * 51);
-        }
-
-        return levels;
+        const double s = Saturation;
+        return (
+            Clamp((0.213 + 0.787 * s) * r + (0.715 - 0.715 * s) * g + (0.072 - 0.072 * s) * b),
+            Clamp((0.213 - 0.213 * s) * r + (0.715 + 0.285 * s) * g + (0.072 - 0.072 * s) * b),
+            Clamp((0.213 - 0.213 * s) * r + (0.715 - 0.715 * s) * g + (0.072 + 0.928 * s) * b));
     }
 
-    public static Bitmap MockTile(Color tint, Color fallback, double scale)
-    {
-        if (MockTiles.TryGetValue((tint, fallback, scale), out var cached))
-        {
-            return cached;
-        }
+    private static byte Mix(byte tint, byte under) => Clamp(tint * TintOpacity + under * (1 - TintOpacity));
 
-        var surface = Composite(tint, fallback);
-        var bitmap = new WriteableBitmap(new PixelSize(NoiseSize, NoiseSize), new Vector(96 * scale, 96 * scale), PixelFormat.Bgra8888, AlphaFormat.Premul);
-        using (var buffer = bitmap.Lock())
-        {
-            var levels = NoiseLevels();
-            var pixels = new byte[levels.Length * 4];
-            for (var i = 0; i < levels.Length; i++)
-            {
-                var shift = NoiseOpacity * (levels[i] - 127.5);
-                pixels[i * 4] = Byte((surface.B + shift) / 255);
-                pixels[i * 4 + 1] = Byte((surface.G + shift) / 255);
-                pixels[i * 4 + 2] = Byte((surface.R + shift) / 255);
-                pixels[i * 4 + 3] = 255;
-            }
+    private static byte Clamp(double value) => (byte)Math.Clamp(Math.Round(value), 0, 255);
 
-            for (var row = 0; row < NoiseSize; row++)
-            {
-                System.Runtime.InteropServices.Marshal.Copy(pixels, row * NoiseSize * 4, buffer.Address + row * buffer.RowBytes, NoiseSize * 4);
-            }
-        }
-
-        MockTiles[(tint, fallback, scale)] = bitmap;
-        return bitmap;
-    }
-
-    private static byte Byte(double unit) => (byte)Math.Clamp(Math.Round(unit * 255), 0, 255);
+    private static byte Byte(double unit) => Clamp(unit * 255);
 
     private static void OnAttached(object? sender, VisualTreeAttachmentEventArgs e) => Attach((TemplatedControl)sender!);
 
     private static void OnDetached(object? sender, VisualTreeAttachmentEventArgs e)
     {
         var presenter = (TemplatedControl)sender!;
-        if (Subscriptions.TryGetValue(presenter, out var subscription))
+        if (Surfaces.TryGetValue(presenter, out var surface))
         {
-            subscription.Dispose();
-            Subscriptions.Remove(presenter);
+            surface.Dispose();
+            Surfaces.Remove(presenter);
         }
     }
 
     private static void Attach(TemplatedControl presenter)
     {
         OnDetached(presenter, null!);
-        if (TopLevel.GetTopLevel(presenter) is not { } top)
+        if (TopLevel.GetTopLevel(presenter) is { } top)
         {
-            return;
+            Surfaces.Add(presenter, new Surface(presenter, top));
         }
-
-        var blur = RequestBlur(top);
-        var owner = Owner(top);
-        var region = blur && top is PopupRoot root ? new PopupRegion(root, presenter) : null;
-        void Update() => Apply(presenter, top, blur, owner?.IsActive != false);
-
-        var activation = owner?.GetObservable(WindowBase.IsActiveProperty).Subscribe(new AnonymousObserver<bool>(_ => Update()));
-        Update();
-        Subscriptions.Add(presenter, new Subscription(activation, region));
-    }
-
-    private static bool RequestBlur(TopLevel top)
-    {
-        if (top is not PopupRoot)
-        {
-            return false;
-        }
-
-        // A macOS popup cannot be clipped, so its blur showed untinted at the corners (16 Oct 2026); it is already Transparent, and Avalonia.Native 12.1.3 sets Opaque when hinted the level it has.
-        if (!OperatingSystem.IsMacOS())
-        {
-            top.TransparencyLevelHint = Hint;
-        }
-
-        return BlurLevels.Contains(top.ActualTransparencyLevel);
     }
 
     private static WindowBase? Owner(TopLevel top)
@@ -190,75 +118,159 @@ public static class Acrylic
         return current as WindowBase;
     }
 
-    private static void Apply(TemplatedControl presenter, TopLevel top, bool blur, bool active)
+    private static List<TopLevel> Behind(TopLevel top)
     {
-        var tint = Resource(presenter, "FlyoutAcrylicTintColor");
-        var fallback = Resource(presenter, "FlyoutAcrylicFallbackColor");
-        var mode = !active ? AcrylicMode.Fallback : blur ? AcrylicMode.Blur : AcrylicMode.Mock;
-        presenter.SetValue(ModeProperty, mode);
-        presenter.Background = mode switch
+        var layers = new List<TopLevel>();
+        for (var current = top as PopupRoot; current?.ParentTopLevel is { } parent; current = parent as PopupRoot)
         {
-            AcrylicMode.Blur => new SolidColorBrush(Composite(tint, null)),
-            AcrylicMode.Mock => Tile(MockTile(tint, fallback, top.RenderScaling)),
-            _ => new SolidColorBrush(fallback),
-        };
-    }
+            layers.Add(parent);
+        }
 
-    private static ImageBrush Tile(Bitmap bitmap) => new(bitmap)
-    {
-        TileMode = TileMode.Tile,
-        Stretch = Stretch.None,
-        AlignmentX = AlignmentX.Left,
-        AlignmentY = AlignmentY.Top,
-        DestinationRect = new RelativeRect(0, 0, bitmap.Size.Width, bitmap.Size.Height, RelativeUnit.Absolute),
-    };
+        if (top is not PopupRoot)
+        {
+            layers.Add(top);
+        }
+
+        layers.Reverse();
+        return layers;
+    }
 
     private static Color Resource(TemplatedControl presenter, string key) =>
         presenter.TryFindResource(key, presenter.ActualThemeVariant, out var value) && value is Color color ? color : Colors.Transparent;
 
-    private sealed class Subscription(IDisposable? activation, PopupRegion? region) : IDisposable
+    // hoobi-design's Mirage flyout, drawn here rather than asked of the OS: the page behind is this app's own window, Linux and macOS popups get no tinted blur, and Avalonia has no saturate effect.
+    private sealed class Surface : IDisposable
     {
+        private readonly TemplatedControl _presenter;
+        private readonly TopLevel _top;
+        private readonly WindowBase? _owner;
+        private readonly IDisposable? _activation;
+        private WriteableBitmap? _bitmap;
+        private PixelRect _applied;
+        private bool _active;
+
+        public Surface(TemplatedControl presenter, TopLevel top)
+        {
+            _presenter = presenter;
+            _top = top;
+            _owner = Owner(top);
+            _presenter.LayoutUpdated += OnLayoutUpdated;
+            _activation = _owner?.GetObservable(WindowBase.IsActiveProperty).Subscribe(new AnonymousObserver<bool>(_ => Apply(force: true)));
+            Apply(force: true);
+        }
+
         public void Dispose()
         {
-            activation?.Dispose();
-            region?.Dispose();
-        }
-    }
-
-    // The blur is a composition visual under the whole popup window, so the window is clipped to the presenter, or the presenter's offset and corners show untinted blur.
-    private sealed class PopupRegion : IDisposable
-    {
-        private readonly PopupRoot _root;
-        private readonly TemplatedControl _presenter;
-        private PixelRect _applied;
-
-        public PopupRegion(PopupRoot root, TemplatedControl presenter)
-        {
-            _root = root;
-            _presenter = presenter;
-            _presenter.LayoutUpdated += OnLayoutUpdated;
-            OnLayoutUpdated(null, EventArgs.Empty);
+            _presenter.LayoutUpdated -= OnLayoutUpdated;
+            _activation?.Dispose();
         }
 
-        public void Dispose() => _presenter.LayoutUpdated -= OnLayoutUpdated;
+        private void OnLayoutUpdated(object? sender, EventArgs e) => Apply(force: false);
 
-        private void OnLayoutUpdated(object? sender, EventArgs e)
+        private void Apply(bool force)
         {
-            if (_root.TryGetPlatformHandle() is not { HandleDescriptor: "HWND" } handle
-                || _presenter.TranslatePoint(default, _root) is not { } origin)
+            var active = _owner?.IsActive != false;
+            var scale = _top.RenderScaling;
+            var rect = new PixelRect(_presenter.PointToScreen(default), PixelSize.FromSize(_presenter.Bounds.Size, scale));
+            if (!force && rect == _applied && active == _active)
             {
                 return;
             }
 
-            var scale = _root.RenderScaling;
-            var bounds = PixelRect.FromRect(new Rect(origin, _presenter.Bounds.Size), scale);
-            if (bounds == _applied)
+            (_applied, _active) = (rect, active);
+            var tint = Resource(_presenter, "FlyoutAcrylicTintColor");
+            var fallback = Resource(_presenter, "FlyoutAcrylicFallbackColor");
+            var mode = active ? AcrylicMode.Blur : AcrylicMode.Fallback;
+            _presenter.SetValue(ModeProperty, mode);
+            _presenter.Background = mode == AcrylicMode.Blur && Snapshot(rect, scale, tint, fallback) is { } snapshot
+                ? new ImageBrush(snapshot) { Stretch = Stretch.Fill }
+                : new SolidColorBrush(mode == AcrylicMode.Blur ? Composite(tint, fallback) : fallback);
+        }
+
+        private WriteableBitmap? Snapshot(PixelRect rect, double scale, Color tint, Color fallback)
+        {
+            if (rect.Width <= 0 || rect.Height <= 0)
             {
-                return;
+                return null;
             }
 
-            _applied = bounds;
-            Native.ClipWindow(handle.Handle, bounds.X, bounds.Y, bounds.Right, bounds.Bottom, (int)Math.Round(2 * Math.Max(0, _presenter.CornerRadius.TopLeft * scale - 2)));
+            var dpi = new Vector(96 * scale, 96 * scale);
+            var size = new Size(rect.Width / scale, rect.Height / scale);
+            var bounds = new Rect(size).Inflate(BlurSigma * 3);
+            using var backdrop = new RenderTargetBitmap(rect.Size, dpi);
+            using (var context = backdrop.CreateDrawingContext())
+            {
+                using (context.PushEffect(new ImmutableBlurEffect(BlurRadius), bounds))
+                {
+                    context.FillRectangle(new ImmutableSolidColorBrush(fallback), bounds);
+                    var layers = Behind(_top);
+                    foreach (var layer in layers)
+                    {
+                        // The window's ground runs on past its edges, as CSS repeats the backdrop's edge, so a flyout by the edge does not blur in the fallback colour.
+                        if (layer.Background is { } ground)
+                        {
+                            context.FillRectangle(ground, layer == layers[0] ? bounds : Place(layer, rect, scale));
+                        }
+
+                        if (layer.Content is not Visual content || content == _presenter || content.IsVisualAncestorOf(_presenter))
+                        {
+                            continue;
+                        }
+
+                        var pixels = PixelSize.FromSize(content.Bounds.Size, scale);
+                        if (pixels.Width <= 0 || pixels.Height <= 0)
+                        {
+                            continue;
+                        }
+
+                        using var image = new RenderTargetBitmap(pixels, dpi);
+                        image.Render(content);
+                        context.DrawImage(image, Place(content, rect, scale));
+                    }
+                }
+            }
+
+            var format = backdrop.Format ?? PixelFormat.Bgra8888;
+            var stride = rect.Width * 4;
+            var data = new byte[stride * rect.Height];
+            var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+            try
+            {
+                backdrop.CopyPixels(new PixelRect(rect.Size), handle.AddrOfPinnedObject(), data.Length, stride);
+            }
+            finally
+            {
+                handle.Free();
+            }
+
+            var (red, blue) = format == PixelFormat.Rgba8888 ? (0, 2) : (2, 0);
+            for (var i = 0; i < data.Length; i += 4)
+            {
+                var (r, g, b) = Saturate(data[i + red], data[i + 1], data[i + blue]);
+                data[i + red] = Mix(tint.R, r);
+                data[i + 1] = Mix(tint.G, g);
+                data[i + blue] = Mix(tint.B, b);
+                data[i + 3] = 255;
+            }
+
+            var target = new WriteableBitmap(rect.Size, dpi, format, AlphaFormat.Premul);
+            using (var buffer = target.Lock())
+            {
+                for (var row = 0; row < rect.Height; row++)
+                {
+                    Marshal.Copy(data, row * stride, buffer.Address + row * buffer.RowBytes, stride);
+                }
+            }
+
+            _bitmap?.Dispose();
+            _bitmap = target;
+            return target;
+        }
+
+        private static Rect Place(Visual layer, PixelRect rect, double scale)
+        {
+            var offset = layer.PointToScreen(default) - rect.Position;
+            return new Rect(offset.X / scale, offset.Y / scale, layer.Bounds.Width, layer.Bounds.Height);
         }
     }
 }

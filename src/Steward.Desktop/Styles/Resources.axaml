@@ -237,11 +237,11 @@
     <SolidColorBrush x:Key="InfoBarInformationalSeverityIconBackground" Color="#FF73D0FF" />
     <SolidColorBrush x:Key="InfoBadgeBackground" Color="#FF409FFF" />
 
-    <Color x:Key="FlyoutAcrylicTintColor">#FF232834</Color>
-    <Color x:Key="FlyoutAcrylicFallbackColor">#FF2B3140</Color>
+    <Color x:Key="FlyoutAcrylicTintColor">#FF13161D</Color>
+    <Color x:Key="FlyoutAcrylicFallbackColor">#FF181B23</Color>
     <SolidColorBrush x:Key="FlyoutAcrylicFallbackBrush" Color="#FF2B3140" />
-    <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="#FF232834" />
-    <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#FF232834" />
+    <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="#FF15181F" />
+    <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#FF15181F" />
 
     <x:Double x:Key="ControlContentThemeFontSize">13</x:Double>
     <Thickness x:Key="ButtonPadding">13,4,13,4</Thickness>

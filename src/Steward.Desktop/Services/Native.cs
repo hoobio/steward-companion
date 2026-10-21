@@ -104,20 +104,6 @@ internal static class Native
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int value, int size);
 
-    [DllImport("gdi32.dll")]
-    private static extern nint CreateRoundRectRgn(int left, int top, int right, int bottom, int widthEllipse, int heightEllipse);
-
-    [DllImport("user32.dll")]
-    private static extern int SetWindowRgn(nint hWnd, nint hRgn, bool redraw);
-
-    public static void ClipWindow(nint handle, int left, int top, int right, int bottom, int cornerDiameter)
-    {
-        if (OperatingSystem.IsWindows() && handle != 0)
-        {
-            _ = SetWindowRgn(handle, CreateRoundRectRgn(left, top, right + 1, bottom + 1, cornerDiameter, cornerDiameter), true);
-        }
-    }
-
     public static void TrimWorkingSet()
     {
         if (OperatingSystem.IsWindows())
