@@ -2356,7 +2356,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _isUploadingJourneys = true;
         try
         {
-            while (_pendingJourneyUpload && IsAuthorized && CanPushCharacters)
+            while (_pendingJourneyUpload && IsAuthorized && CanPushCharacters && DateTimeOffset.Now >= ForeverSchedule.Launch.Start)
             {
                 _pendingJourneyUpload = false;
                 var flavourPaths = PresentInstalls
