@@ -615,7 +615,9 @@ public sealed partial class MainWindow : Window
             plan.SavedVariablesFiles.Count > 0 ? Count(plan.SavedVariablesFiles.Count, "file", "files", "newer on the beta") : null);
         var settings = Option(
             "Account settings (keybindings, macros and interface options)",
-            plan.SettingsFiles.Count > 0 ? Count(plan.SettingsFiles.Count, "file", "files", "newer on the beta") : null);
+            plan.SettingsFiles.Count > 0 ? Count(plan.SettingsFiles.Count, "file differs", "files differ", "from the beta") : null,
+            "Same as the beta",
+            plan.SettingsFiles.Count > 0 && plan.SettingsNewer);
         var clientSettings = Option(
             "Graphics, sound and narration",
             plan.ClientSettings.Count > 0 ? Count(plan.ClientSettings.Count, "setting differs", "settings differ", "from the beta") : null,

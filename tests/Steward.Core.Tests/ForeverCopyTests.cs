@@ -81,6 +81,46 @@ public sealed class ForeverCopyTests : IDisposable
 
         Assert.Equal([Path.Combine("1#1", "SavedVariables", "Details.lua")], plan.SavedVariablesFiles);
         Assert.Equal([Path.Combine("1#1", "bindings-cache.wtf")], plan.SettingsFiles);
+        Assert.True(plan.SettingsNewer);
+    }
+
+    [Fact]
+    public void Plan_OffersSettingsThatDifferWhateverTheirDate_SkipsIdenticalAndUnlistedFiles()
+    {
+        var beta = Path.Combine(_beta.FlavourPath, "WTF", "Account", "1#1");
+        var live = Path.Combine(_live.FlavourPath, "WTF", "Account", "1#1");
+        Write(Path.Combine(beta, "edit-mode-cache-account.txt"), Old, "beta layout");
+        Write(Path.Combine(live, "edit-mode-cache-account.txt"), New, "default layout");
+        Write(Path.Combine(beta, "config-cache.wtf"), New, "same");
+        Write(Path.Combine(live, "config-cache.wtf"), Old, "same");
+        Write(Path.Combine(beta, "character-list-order.txt"), New, "beta characters");
+        Write(Path.Combine(beta, "cache.md5"), New, "beta checksums");
+
+        var plan = ForeverCopy.Plan(_beta, _live, []);
+
+        Assert.Equal([Path.Combine("1#1", "edit-mode-cache-account.txt")], plan.SettingsFiles);
+        Assert.False(plan.SettingsNewer);
+    }
+
+    [Fact]
+    public void Sync_StampsCopiedSettingsInCacheMd5_KeepsOtherSlots()
+    {
+        var beta = Path.Combine(_beta.FlavourPath, "WTF", "Account", "1#1");
+        var live = Path.Combine(_live.FlavourPath, "WTF", "Account", "1#1");
+        Write(Path.Combine(beta, "bindings-cache.wtf"), Old, "bind UP TOGGLEAUTORUN");
+        Write(Path.Combine(live, "bindings-cache.wtf"), New, "");
+        var liveSlots = Enumerable.Range(0, 240).Select(i => (byte)i).ToArray();
+        File.WriteAllBytes(Path.Combine(live, "cache.md5"), liveSlots);
+        var before = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        ForeverCopy.Sync(_beta, _live, [], addons: false, savedVariables: false, settings: true, clientSettings: false, (_, ex) => throw ex);
+
+        var slots = File.ReadAllBytes(Path.Combine(live, "cache.md5"));
+        Assert.Equal(Convert.FromHexString("53902DBF37E9DA72E3E62D57F4AED271"), slots[24..40]);
+        Assert.InRange(System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(slots.AsSpan(40)), before, before + 60);
+        Assert.Equal(0u, System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(slots.AsSpan(44)));
+        Assert.Equal(liveSlots[..24], slots[..24]);
+        Assert.Equal(liveSlots[48..], slots[48..]);
     }
 
     [Fact]

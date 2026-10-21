@@ -1,3 +1,7 @@
+using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
+
 namespace Steward.Core;
 
 public sealed record ForeverCopyPlan(
@@ -5,6 +9,7 @@ public sealed record ForeverCopyPlan(
     IReadOnlyList<string> UpdatedFolders,
     IReadOnlyList<string> SavedVariablesFiles,
     IReadOnlyList<string> SettingsFiles,
+    bool SettingsNewer,
     IReadOnlyList<string> ClientSettings,
     bool ClientSettingsNewer,
     bool LiveConfigMissing);
@@ -26,6 +31,16 @@ public static class ForeverCopy
         "useMaxFPSBk", "useTargetFPS", "volumeFogLevel", "vsync", "waterDetail", "weatherDensity", "wmoLodDist", "worldBaseMip",
     ], StringComparer.OrdinalIgnoreCase);
 
+    // Slots in an account's cache.md5 (24 bytes each: MD5, save time, padding); the client downloads the server's copy over a file whose slot time is older than the server's.
+    private static readonly Dictionary<string, int> AccountDataSlots = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["config-cache.wtf"] = 0,
+        ["bindings-cache.wtf"] = 1,
+        ["macros-cache.txt"] = 2,
+        ["tts-cache-account.txt"] = 3,
+        ["edit-mode-cache-account.txt"] = 5,
+    };
+
     public static bool IsGated(WowInstall install, IEnumerable<WowInstall> installs, IEnumerable<string> done)
     {
         ArgumentNullException.ThrowIfNull(install);
@@ -44,13 +59,15 @@ public static class ForeverCopy
             : [];
         var accountFiles = NewerFiles(Account(beta), Account(live)).Where(IsAccountLevel).ToList();
         var liveConfigMissing = !File.Exists(Config(live));
+        var settingsFiles = DifferingSettingsFiles(beta, live).ToList();
         return new ForeverCopyPlan(
             [.. folders.Where(folder => !Directory.Exists(Path.Combine(live.AddOnsPath, folder)))],
             [.. folders.Where(folder => !managed.Contains(folder)
                 && Directory.Exists(Path.Combine(live.AddOnsPath, folder))
                 && NewerFiles(Path.Combine(beta.AddOnsPath, folder), Path.Combine(live.AddOnsPath, folder)).Any())],
             [.. accountFiles.Where(file => IsSavedVariables(file) && !file.EndsWith(".bak", StringComparison.OrdinalIgnoreCase) && !IsStewardCharacters(file))],
-            [.. accountFiles.Where(file => !IsSavedVariables(file) && !IsClientBackup(file))],
+            settingsFiles,
+            settingsFiles.Any(file => IsNewer(Path.Combine(Account(beta), file), Path.Combine(Account(live), file))),
             liveConfigMissing ? [] : [.. DifferingClientSettings(beta, live).Select(setting => setting.Name)],
             IsNewer(Config(beta), Config(live)),
             liveConfigMissing);
@@ -94,15 +111,23 @@ public static class ForeverCopy
             }
         }
 
-        int CopyAccountFiles(IReadOnlyList<string> files)
+        int CopyAccountFiles(IReadOnlyList<string> files, bool accountData)
         {
-            var failedFiles = files.Count(file => !Attempt(Path.Combine(Account(live), file), failed, () => CopyFile(Path.Combine(Account(beta), file), Path.Combine(Account(live), file))));
+            var failedFiles = files.Count(file => !Attempt(Path.Combine(Account(live), file), failed, () =>
+            {
+                var target = Path.Combine(Account(live), file);
+                CopyFile(Path.Combine(Account(beta), file), target);
+                if (accountData)
+                {
+                    StampAccountData(target);
+                }
+            }));
             failures += failedFiles;
             return files.Count - failedFiles;
         }
 
-        var savedVariablesFiles = savedVariables ? CopyAccountFiles(plan.SavedVariablesFiles) : 0;
-        var settingsFiles = settings ? CopyAccountFiles(plan.SettingsFiles) : 0;
+        var savedVariablesFiles = savedVariables ? CopyAccountFiles(plan.SavedVariablesFiles, accountData: false) : 0;
+        var settingsFiles = settings ? CopyAccountFiles(plan.SettingsFiles, accountData: true) : 0;
         var clientSettingsCopied = 0;
         if (clientSettings && plan.ClientSettings.Count > 0 && !Attempt(Config(live), failed, () => clientSettingsCopied = MergeClientSettings(beta, live)))
         {
@@ -249,11 +274,35 @@ public static class ForeverCopy
     private static bool IsStewardCharacters(string relativePath) =>
         string.Equals(Path.GetFileName(relativePath), "Steward.lua", StringComparison.OrdinalIgnoreCase);
 
-    // cache.md5 is the client's checksum of its server-synced settings, so a copied one only describes the beta's.
-    private static bool IsClientBackup(string relativePath) =>
-        relativePath.EndsWith(".old", StringComparison.OrdinalIgnoreCase)
-        || relativePath.EndsWith(".bak", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(Path.GetFileName(relativePath), "cache.md5", StringComparison.OrdinalIgnoreCase);
+    // The client rewrites these files at every login, so their dates say nothing and only a content difference is offered.
+    private static IEnumerable<string> DifferingSettingsFiles(WowInstall beta, WowInstall live) =>
+        Directory.Exists(Account(beta))
+            ? Directory.EnumerateDirectories(Account(beta))
+                .SelectMany(account => AccountDataSlots.Keys.Select(file => Path.Combine(Path.GetFileName(account), file)))
+                .Where(file => File.Exists(Path.Combine(Account(beta), file)) && !SameContents(Path.Combine(Account(beta), file), Path.Combine(Account(live), file)))
+            : [];
+
+    private static bool SameContents(string source, string target) =>
+        File.Exists(target) && File.ReadAllBytes(source).AsSpan().SequenceEqual(File.ReadAllBytes(target));
+
+    [SuppressMessage("Security", "CA5351", Justification = "cache.md5 is the WoW client's own format, which holds MD5 hashes")]
+    private static void StampAccountData(string file)
+    {
+        var path = Path.Combine(Path.GetDirectoryName(file)!, "cache.md5");
+        var slots = File.Exists(path) ? File.ReadAllBytes(path) : [];
+        if (slots.Length < 240)
+        {
+            Array.Resize(ref slots, 240);
+        }
+
+        var offset = AccountDataSlots[Path.GetFileName(file)] * 24;
+        MD5.HashData(File.ReadAllBytes(file)).CopyTo(slots, offset);
+        BinaryPrimitives.WriteUInt32LittleEndian(slots.AsSpan(offset + 16), (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        BinaryPrimitives.WriteUInt32LittleEndian(slots.AsSpan(offset + 20), 0);
+        var temp = path + ".steward-copy";
+        File.WriteAllBytes(temp, slots);
+        File.Move(temp, path, overwrite: true);
+    }
 
     private static IEnumerable<string> NewerFiles(string sourceRoot, string targetRoot) =>
         Directory.Exists(sourceRoot)
