@@ -91,12 +91,12 @@ public sealed partial class MainViewModel
         {
             var name = ForeverCopy.FirstLegacyAccount(accountLive);
             ShowLocalInfoBanner(
-                "Copy your settings to your Forever account",
+                "Choose a beta account for your Forever settings",
                 accountBannerId,
                 "Sync from beta",
                 () => _ = OpenForeverCopyAsync(accountLive, firstRun: false),
                 () => RecordBannerDismissed(accountBannerId!),
-                $"World of Warcraft: Forever keeps your settings under your old World of Warcraft account name ({name}), not the account number the beta used. Settings Steward copied earlier went to a folder Forever does not read. Sync from the beta again to copy them to {name}.");
+                $"Forever uses your classic account name ({name}), which the beta does not. Sync from the beta and choose which beta account to copy to {name}.");
         }
 
         RefreshBanners();
