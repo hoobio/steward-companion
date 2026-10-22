@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.2](https://github.com/hoobio/steward-companion/compare/v0.25.1...v0.25.2) (2026-10-22)
+
+
+### Bug Fixes
+
+* 🐛 the sync wizard offers classic account names found in other game versions before the first Forever login ([e1e9c09](https://github.com/hoobio/steward-companion/commit/e1e9c090f157a5ecdd3daa4b65f3fcd8d946441e))
+
 ## [0.25.1](https://github.com/hoobio/steward-companion/compare/v0.25.0...v0.25.1) (2026-10-22)
 
 
