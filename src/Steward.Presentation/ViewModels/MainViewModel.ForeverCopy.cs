@@ -79,7 +79,38 @@ public sealed partial class MainViewModel
             RefreshBanners();
         }
 
+        var accountLive = _heldLiveInstall is null && BetaInstall is { } accountBeta
+            ? Installs.Select(install => install.Install).FirstOrDefault(install => install.ProductCode == ForeverLaunch.LiveProduct && !install.IsMissing
+                && state.ForeverCopyDone.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase)
+                && ForeverCopy.NeedsAccountMigration(accountBeta.Install, install))
+            : null;
+        var accountBannerId = accountLive is null ? null : AccountNamesBannerId(accountLive.FlavourPath);
+        var accountDismissed = accountBannerId is not null && (state.DismissedBanners ?? []).ContainsKey(accountBannerId);
+        _localBanners.RemoveAll(banner => banner.Id.StartsWith(AccountNamesBannerPrefix, StringComparison.Ordinal) && (accountDismissed || banner.Id != accountBannerId));
+        if (accountLive is not null && !accountDismissed && !_localBanners.Any(banner => banner.Id == accountBannerId))
+        {
+            var name = ForeverCopy.FirstLegacyAccount(accountLive);
+            ShowLocalInfoBanner(
+                "Copy your settings to your Forever account",
+                accountBannerId,
+                "Sync from beta",
+                () => _ = OpenForeverCopyAsync(accountLive, firstRun: false),
+                () => RecordBannerDismissed(accountBannerId!),
+                $"World of Warcraft: Forever keeps your settings under your old World of Warcraft account name ({name}), not the account number the beta used. Settings Steward copied earlier went to a folder Forever does not read. Sync from the beta again to copy them to {name}.");
+        }
+
+        RefreshBanners();
         OnPropertyChanged(nameof(SyncFromBetaVisibility));
+    }
+
+    private const string AccountNamesBannerPrefix = "forever-account-names|";
+
+    private static string AccountNamesBannerId(string livePath) => AccountNamesBannerPrefix + livePath;
+
+    private void RecordBannerDismissed(string id)
+    {
+        var state = _stateStore.Load();
+        _stateStore.Save(state with { DismissedBanners = new Dictionary<string, int>(state.DismissedBanners ?? [], StringComparer.Ordinal) { [id] = 0 } });
     }
 
     private const string ForeverCopyClientRunning = "Close World of Warcraft first. Steward cannot copy from the beta while the game is running.";
@@ -190,6 +221,11 @@ public sealed partial class MainViewModel
             CurseForgeVersionType(live),
             folder => Directory.Exists(Path.Combine(live.AddOnsPath, folder)),
             id => catalogue.FirstOrDefault(addon => string.Equals(addon.Id, id, StringComparison.OrdinalIgnoreCase))?.FolderName));
+        if (accountMap.Values.Any(target => target is not null && ForeverCopy.IsLegacyAccountName(target)) && result.SavedVariablesFiles + result.SettingsFiles > 0)
+        {
+            RecordBannerDismissed(AccountNamesBannerId(live.FlavourPath));
+        }
+
         MarkForeverCopyDone(live.FlavourPath);
 
         if (Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, live.FlavourPath, StringComparison.OrdinalIgnoreCase)) is { } liveInstall)

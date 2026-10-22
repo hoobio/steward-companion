@@ -231,6 +231,54 @@ public sealed class ForeverCopyTests : IDisposable
     }
 
     [Fact]
+    public void DefaultAccountMap_SkipsAStaleNumberedFolderBesideALegacyOne()
+    {
+        Directory.CreateDirectory(BetaAccount("54939295#1"));
+        Directory.CreateDirectory(Path.Combine(LiveAccount("54939295#1"), "SavedVariables"));
+        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+
+        Assert.Equal("JIMMYBOBOZ", ForeverCopy.DefaultAccountMap(_beta, _live)["54939295#1"]);
+        Assert.Contains(ForeverCopy.Plan(_beta, _live, []).LiveAccounts, account => account.Folder == "54939295#1");
+    }
+
+    [Fact]
+    public void NeedsAccountMigration_TrueForAStaleNumberedFolderBesideALegacyOne()
+    {
+        Directory.CreateDirectory(BetaAccount("54939295#1"));
+        Directory.CreateDirectory(LiveAccount("54939295#1"));
+        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+
+        Assert.True(ForeverCopy.NeedsAccountMigration(_beta, _live));
+        Assert.Equal("JIMMYBOBOZ", ForeverCopy.FirstLegacyAccount(_live));
+    }
+
+    [Fact]
+    public void NeedsAccountMigration_FalseWithOnlyNumberedLiveFolders()
+    {
+        Directory.CreateDirectory(BetaAccount("1#1"));
+        Directory.CreateDirectory(LiveAccount("1#1"));
+        Directory.CreateDirectory(Path.Combine(LiveAccount("1#2"), "Realm", "Char"));
+
+        Assert.False(ForeverCopy.NeedsAccountMigration(_beta, _live));
+    }
+
+    [Fact]
+    public void NeedsAccountMigration_FalseWhenTheBetaAccountAlreadyMapsToTheLegacyFolder()
+    {
+        Directory.CreateDirectory(BetaAccount("1#1"));
+        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+
+        Assert.False(ForeverCopy.NeedsAccountMigration(_beta, _live));
+    }
+
+    [Theory]
+    [InlineData("54939295#1", false)]
+    [InlineData("JIMMYBOBOZ", true)]
+    [InlineData("1#a", true)]
+    public void IsLegacyAccountName_IsAnythingButDigitsHashDigits(string folder, bool legacy) =>
+        Assert.Equal(legacy, ForeverCopy.IsLegacyAccountName(folder));
+
+    [Fact]
     public void DefaultAccountMap_LeavesAmbiguousAccountsUnmapped()
     {
         Directory.CreateDirectory(BetaAccount("1#1"));

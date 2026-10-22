@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace Steward.Core;
 
@@ -20,7 +21,7 @@ public sealed record ForeverCopyAccount(string Folder, IReadOnlyList<string> Cha
 
 public sealed record ForeverCopyResult(int Copied, int Updated, int SavedVariablesFiles, int SettingsFiles, int ClientSettings, int Failures);
 
-public static class ForeverCopy
+public static partial class ForeverCopy
 {
     private static readonly string[] ClientSettingPrefixes = ["graphics", "raidGraphics", "RAID", "Sound_", "Gx", "maxFPS", "shadow", "lodObject", "accessibility"];
 
@@ -57,19 +58,49 @@ public static class ForeverCopy
     {
         ArgumentNullException.ThrowIfNull(beta);
         ArgumentNullException.ThrowIfNull(live);
-        return DefaultMap(Accounts(beta), Accounts(live));
+        return DefaultMap(Accounts(beta), Accounts(live), StaleAccounts(live));
     }
 
-    private static Dictionary<string, string?> DefaultMap(List<ForeverCopyAccount> betaAccounts, List<ForeverCopyAccount> liveAccounts)
+    public static bool IsLegacyAccountName(string folder) => !NumberedAccount().IsMatch(folder);
+
+    public static string? FirstLegacyAccount(WowInstall live) =>
+        Accounts(live).Select(account => account.Folder).FirstOrDefault(IsLegacyAccountName);
+
+    public static bool NeedsAccountMigration(WowInstall beta, WowInstall live)
+    {
+        ArgumentNullException.ThrowIfNull(beta);
+        ArgumentNullException.ThrowIfNull(live);
+        var stale = StaleAccounts(live);
+        return stale.Count > 0 && Accounts(beta).Any(account => stale.Contains(account.Folder));
+    }
+
+    // An account-number folder with no realm folder, beside a folder named after the old WoW account, is one an earlier copy created and the live client never reads.
+    private static HashSet<string> StaleAccounts(WowInstall live)
+    {
+        var accounts = Accounts(live);
+        return accounts.Any(account => IsLegacyAccountName(account.Folder))
+            ? accounts.Where(account => !IsLegacyAccountName(account.Folder) && !HasRealmFolder(Path.Combine(Account(live), account.Folder)))
+                .Select(account => account.Folder)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool HasRealmFolder(string account) =>
+        Directory.EnumerateDirectories(account).Any(realm => !string.Equals(Path.GetFileName(realm), "SavedVariables", StringComparison.OrdinalIgnoreCase));
+
+    [GeneratedRegex(@"^\d+#\d+$")]
+    private static partial Regex NumberedAccount();
+
+    private static Dictionary<string, string?> DefaultMap(List<ForeverCopyAccount> betaAccounts, List<ForeverCopyAccount> liveAccounts, HashSet<string> stale)
     {
         var map = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var account in betaAccounts)
         {
-            map[account.Folder] = liveAccounts.Select(live => live.Folder).FirstOrDefault(live => string.Equals(live, account.Folder, StringComparison.OrdinalIgnoreCase));
+            map[account.Folder] = liveAccounts.Select(live => live.Folder).FirstOrDefault(live => !stale.Contains(live) && string.Equals(live, account.Folder, StringComparison.OrdinalIgnoreCase));
         }
 
         var unmapped = map.Where(entry => entry.Value is null).Select(entry => entry.Key).ToList();
-        var free = liveAccounts.Select(live => live.Folder).Where(live => !map.Values.Contains(live, StringComparer.OrdinalIgnoreCase)).ToList();
+        var free = liveAccounts.Select(live => live.Folder).Where(live => !stale.Contains(live) && !map.Values.Contains(live, StringComparer.OrdinalIgnoreCase)).ToList();
         if (unmapped.Count == 1 && free.Count == 1)
         {
             map[unmapped[0]] = free[0];
@@ -88,7 +119,7 @@ public static class ForeverCopy
             : [];
         var betaAccounts = Accounts(beta);
         var liveAccounts = Accounts(live);
-        var requested = accountMap ?? DefaultMap(betaAccounts, liveAccounts);
+        var requested = accountMap ?? DefaultMap(betaAccounts, liveAccounts, StaleAccounts(live));
         var map = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var account in betaAccounts)
         {
