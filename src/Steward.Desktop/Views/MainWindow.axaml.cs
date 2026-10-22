@@ -591,7 +591,8 @@ public sealed partial class MainWindow : Window
                 names.Add($"+{account.Characters.Count - 3}");
             }
 
-            return names.Count == 0 ? account.Folder : $"{account.Folder} ({string.Join(", ", names)})";
+            var label = names.Count == 0 ? account.Folder : $"{account.Folder} ({string.Join(", ", names)})";
+            return account.FoundIn is { } game ? $"{label} (from {game.Trim('_')})" : label;
         }
 
         static void SetOption(CheckBox option, string? detail, string empty, bool? isChecked = null)
@@ -658,8 +659,9 @@ public sealed partial class MainWindow : Window
         int SourceIndex(string live) =>
             plan.BetaAccounts.ToList().FindIndex(beta => string.Equals(beta.Folder, SourceOf(live), StringComparison.OrdinalIgnoreCase)) + 1;
         bool Listed(ForeverCopyAccount live) =>
-            !string.Equals(SourceOf(live.Folder), live.Folder, StringComparison.OrdinalIgnoreCase)
-            && (ForeverCopy.IsLegacyAccountName(live.Folder) || SourceOf(live.Folder) is not null);
+            live.FoundIn is not null
+            || (!string.Equals(SourceOf(live.Folder), live.Folder, StringComparison.OrdinalIgnoreCase)
+                && (ForeverCopy.IsLegacyAccountName(live.Folder) || SourceOf(live.Folder) is not null));
         var accountBlock = new StackPanel { IsVisible = plan.LiveAccounts.Any(Listed), Spacing = 8 };
         accountBlock.Children.Add(new TextBlock { Text = "Forever accounts", Classes = { "FieldHeader" }, Margin = new Thickness(0) });
         var changingCombos = false;

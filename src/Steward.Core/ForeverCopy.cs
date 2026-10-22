@@ -17,7 +17,7 @@ public sealed record ForeverCopyPlan(
     IReadOnlyList<ForeverCopyAccount> LiveAccounts,
     IReadOnlyDictionary<string, string?> AccountMap);
 
-public sealed record ForeverCopyAccount(string Folder, IReadOnlyList<string> Characters);
+public sealed record ForeverCopyAccount(string Folder, IReadOnlyList<string> Characters, string? FoundIn = null);
 
 public sealed record ForeverCopyResult(int Copied, int Updated, int SavedVariablesFiles, int SettingsFiles, int ClientSettings, int Failures);
 
@@ -58,7 +58,7 @@ public static partial class ForeverCopy
     {
         ArgumentNullException.ThrowIfNull(beta);
         ArgumentNullException.ThrowIfNull(live);
-        return DefaultMap(Accounts(beta), Accounts(live), StaleAccounts(live));
+        return DefaultMap(Accounts(beta), LiveAccounts(beta, live), StaleAccounts(live));
     }
 
     public static bool IsLegacyAccountName(string folder) => !NumberedAccount().IsMatch(folder);
@@ -123,7 +123,7 @@ public static partial class ForeverCopy
             ? Directory.GetDirectories(beta.AddOnsPath).Select(Path.GetFileName).OfType<string>().ToList()
             : [];
         var betaAccounts = Accounts(beta);
-        var liveAccounts = Accounts(live);
+        var liveAccounts = LiveAccounts(beta, live);
         var requested = accountMap ?? DefaultMap(betaAccounts, liveAccounts, StaleAccounts(live));
         var map = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var account in betaAccounts)
@@ -382,6 +382,42 @@ public static partial class ForeverCopy
                 .Select(account => new ForeverCopyAccount(Path.GetFileName(account), CharacterNames(account)))
                 .OrderBy(account => account.Folder, StringComparer.OrdinalIgnoreCase)]
             : [];
+
+    private static List<ForeverCopyAccount> LiveAccounts(WowInstall beta, WowInstall live)
+    {
+        var accounts = Accounts(live);
+        return accounts.Any(account => IsLegacyAccountName(account.Folder)) ? accounts : [.. accounts, .. Candidates(beta, live, accounts)];
+    }
+
+    // Forever creates a classic-named account folder only at the first login, but the other game versions in the install root often have it already.
+    private static IEnumerable<ForeverCopyAccount> Candidates(WowInstall beta, WowInstall live, List<ForeverCopyAccount> accounts)
+    {
+        var root = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(live.FlavourPath));
+        if (root is null || !Directory.Exists(root))
+        {
+            yield break;
+        }
+
+        var seen = new HashSet<string>(accounts.Select(account => account.Folder), StringComparer.OrdinalIgnoreCase);
+        foreach (var sibling in Directory.EnumerateDirectories(root).OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+        {
+            if (SamePath(sibling, live.FlavourPath) || SamePath(sibling, beta.FlavourPath) || !Directory.Exists(Path.Combine(sibling, "WTF", "Account")))
+            {
+                continue;
+            }
+
+            foreach (var folder in Directory.EnumerateDirectories(Path.Combine(sibling, "WTF", "Account")).Select(Path.GetFileName).OfType<string>().Order(StringComparer.OrdinalIgnoreCase))
+            {
+                if (IsLegacyAccountName(folder) && !string.Equals(folder, "SavedVariables", StringComparison.OrdinalIgnoreCase) && seen.Add(folder))
+                {
+                    yield return new ForeverCopyAccount(folder, [], Path.GetFileName(sibling));
+                }
+            }
+        }
+    }
+
+    private static bool SamePath(string a, string b) =>
+        string.Equals(Path.TrimEndingDirectorySeparator(a), Path.TrimEndingDirectorySeparator(b), StringComparison.OrdinalIgnoreCase);
 
     private static List<string> CharacterNames(string account) =>
         [.. Directory.EnumerateDirectories(account)
