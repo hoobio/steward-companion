@@ -373,6 +373,7 @@ public static partial class ForeverCopy
     private static List<ForeverCopyAccount> Accounts(WowInstall install) =>
         Directory.Exists(Account(install))
             ? [.. Directory.EnumerateDirectories(Account(install))
+                .Where(account => !string.Equals(Path.GetFileName(account), "SavedVariables", StringComparison.OrdinalIgnoreCase))
                 .Select(account => new ForeverCopyAccount(Path.GetFileName(account), CharacterNames(account)))
                 .OrderBy(account => account.Folder, StringComparer.OrdinalIgnoreCase)]
             : [];

@@ -242,6 +242,18 @@ public sealed class ForeverCopyTests : IDisposable
     }
 
     [Fact]
+    public void DefaultAccountMap_IgnoresTheClientsAccountLevelSavedVariablesFolder()
+    {
+        Directory.CreateDirectory(BetaAccount("54939295#10"));
+        Directory.CreateDirectory(Path.Combine(LiveAccount("54939295#10"), "SavedVariables"));
+        Directory.CreateDirectory(LiveAccount("SavedVariables"));
+
+        Assert.Equal("54939295#10", ForeverCopy.DefaultAccountMap(_beta, _live)["54939295#10"]);
+        Assert.DoesNotContain(ForeverCopy.Plan(_beta, _live, []).LiveAccounts, account => account.Folder == "SavedVariables");
+        Assert.False(ForeverCopy.NeedsAccountMigration(_beta, _live));
+    }
+
+    [Fact]
     public void NeedsAccountMigration_TrueForAStaleNumberedFolderBesideALegacyOne()
     {
         Directory.CreateDirectory(BetaAccount("54939295#1"));

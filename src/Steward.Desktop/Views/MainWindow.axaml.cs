@@ -653,7 +653,8 @@ public sealed partial class MainWindow : Window
         var accountMap = plan.AccountMap.ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
         var accountCombos = new Dictionary<string, ComboBox>(StringComparer.OrdinalIgnoreCase);
         var accountChoices = plan.LiveAccounts.Select(AccountLabel).Prepend("Don't copy").ToList();
-        var accountBlock = new StackPanel { IsVisible = plan.BetaAccounts.Count > 0, Spacing = 8 };
+        bool SameName(ForeverCopyAccount account) => string.Equals(plan.AccountMap[account.Folder], account.Folder, StringComparison.OrdinalIgnoreCase);
+        var accountBlock = new StackPanel { IsVisible = plan.BetaAccounts.Any(account => !SameName(account)), Spacing = 8 };
         accountBlock.Children.Add(new TextBlock { Text = "Accounts", Classes = { "FieldHeader" }, Margin = new Thickness(0) });
         var changingCombos = false;
         foreach (var account in plan.BetaAccounts)
@@ -699,7 +700,7 @@ public sealed partial class MainWindow : Window
                     }
                 }
             };
-            accountBlock.Children.Add(new StackPanel { Spacing = 4, Children = { Wrapped(AccountLabel(account), secondary: true, fontSize: 12), combo } });
+            accountBlock.Children.Add(new StackPanel { Spacing = 4, IsVisible = !SameName(account), Children = { Wrapped(AccountLabel(account), secondary: true, fontSize: 12), combo } });
         }
 
         var clientSettings = Option(
