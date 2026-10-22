@@ -242,6 +242,21 @@ public sealed class ForeverCopyTests : IDisposable
     }
 
     [Fact]
+    public void DefaultAccountMap_GivesALoneClassicAccountNameTheFirstBetaAccount()
+    {
+        Directory.CreateDirectory(BetaAccount("54939295#5"));
+        Directory.CreateDirectory(BetaAccount("54939295#1"));
+        Directory.CreateDirectory(BetaAccount("54939295#10"));
+        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+
+        var map = ForeverCopy.DefaultAccountMap(_beta, _live);
+
+        Assert.Equal("JIMMYBOBOZ", map["54939295#1"]);
+        Assert.Null(map["54939295#5"]);
+        Assert.Null(map["54939295#10"]);
+    }
+
+    [Fact]
     public void DefaultAccountMap_IgnoresTheClientsAccountLevelSavedVariablesFolder()
     {
         Directory.CreateDirectory(BetaAccount("54939295#10"));

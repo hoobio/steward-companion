@@ -105,6 +105,11 @@ public static partial class ForeverCopy
         {
             map[unmapped[0]] = free[0];
         }
+        else if (free.Where(IsLegacyAccountName).ToList() is [var legacy]
+            && unmapped.FirstOrDefault(account => account.EndsWith("#1", StringComparison.Ordinal)) is { } first)
+        {
+            map[first] = legacy;
+        }
 
         return map;
     }
