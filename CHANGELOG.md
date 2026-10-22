@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.25.1](https://github.com/hoobio/steward-companion/compare/v0.25.0...v0.25.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* 🐛 a banner asks players with an old WoW account name on Forever to sync their settings again ([85bc1ae](https://github.com/hoobio/steward-companion/commit/85bc1ae1851ff93e8059f15d71885afb184f3275))
+* 🐛 a lone classic account name on Forever defaults to the first beta account ([1ae69b2](https://github.com/hoobio/steward-companion/commit/1ae69b2468b7090f566cdaecf654cf14430299bd))
+* 🐛 copied account settings keep the save time the client agreed with the server ([5e17332](https://github.com/hoobio/steward-companion/commit/5e1733286f00f86aa809b8332cf8d2e31da2a6b9))
+* 🐛 copied keybindings and edit mode layouts survive the live client's account data download ([431f593](https://github.com/hoobio/steward-companion/commit/431f593e439e723e3897e19bb45851064ce68e4f))
+* 🐛 copying from the beta maps each beta account to the live account that has its old WoW name ([fba79f1](https://github.com/hoobio/steward-companion/commit/fba79f1dae708cfaaeb47c3a4bfbfffbfe52548f))
+* 🐛 journey subzones are counted the way steward-server counts them ([bfc6328](https://github.com/hoobio/steward-companion/commit/bfc6328c34d81d9270b9eaaa84183b9f23788cdb))
+* 🐛 the client's account-level SavedVariables folder is not a live account, and accounts that keep their name are not listed ([a2e478c](https://github.com/hoobio/steward-companion/commit/a2e478c7129ac20e226484161365294c44d66df9))
+* 🐛 the Forever account banner is shorter and asks which beta account to copy ([65244e4](https://github.com/hoobio/steward-companion/commit/65244e4e90a19c39e7252ec5782c62cb4b12893e))
+* 🐛 the sync wizard lists each Forever account and asks which beta account it copies from ([a3cbf3e](https://github.com/hoobio/steward-companion/commit/a3cbf3e8a02b7bb895297c041db4fdff21be061e))
+
 ## [0.25.0](https://github.com/hoobio/steward-companion/compare/v0.24.1...v0.25.0) (2026-10-21)
 
 
