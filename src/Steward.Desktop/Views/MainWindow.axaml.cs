@@ -652,17 +652,23 @@ public sealed partial class MainWindow : Window
         ShowAccountCounts(plan);
         var accountMap = plan.AccountMap.ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
         var accountCombos = new Dictionary<string, ComboBox>(StringComparer.OrdinalIgnoreCase);
-        var accountChoices = plan.LiveAccounts.Select(AccountLabel).Prepend("Don't copy").ToList();
-        bool SameName(ForeverCopyAccount account) => string.Equals(plan.AccountMap[account.Folder], account.Folder, StringComparison.OrdinalIgnoreCase);
-        var accountBlock = new StackPanel { IsVisible = plan.BetaAccounts.Any(account => !SameName(account)), Spacing = 8 };
-        accountBlock.Children.Add(new TextBlock { Text = "Accounts", Classes = { "FieldHeader" }, Margin = new Thickness(0) });
+        var accountChoices = plan.BetaAccounts.Select(AccountLabel).Prepend("Don't copy").ToList();
+        string? SourceOf(string live) =>
+            accountMap.FirstOrDefault(entry => string.Equals(entry.Value, live, StringComparison.OrdinalIgnoreCase)).Key;
+        int SourceIndex(string live) =>
+            plan.BetaAccounts.ToList().FindIndex(beta => string.Equals(beta.Folder, SourceOf(live), StringComparison.OrdinalIgnoreCase)) + 1;
+        bool Listed(ForeverCopyAccount live) =>
+            !string.Equals(SourceOf(live.Folder), live.Folder, StringComparison.OrdinalIgnoreCase)
+            && (ForeverCopy.IsLegacyAccountName(live.Folder) || SourceOf(live.Folder) is not null);
+        var accountBlock = new StackPanel { IsVisible = plan.LiveAccounts.Any(Listed), Spacing = 8 };
+        accountBlock.Children.Add(new TextBlock { Text = "Forever accounts", Classes = { "FieldHeader" }, Margin = new Thickness(0) });
         var changingCombos = false;
-        foreach (var account in plan.BetaAccounts)
+        foreach (var account in plan.LiveAccounts.Where(Listed))
         {
             var combo = new ComboBox
             {
                 ItemsSource = accountChoices,
-                SelectedIndex = plan.LiveAccounts.ToList().FindIndex(live => string.Equals(live.Folder, accountMap[account.Folder], StringComparison.OrdinalIgnoreCase)) + 1,
+                SelectedIndex = SourceIndex(account.Folder),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
             };
             accountCombos[account.Folder] = combo;
@@ -673,13 +679,20 @@ public sealed partial class MainWindow : Window
                     return;
                 }
 
-                var chosen = combo.SelectedIndex > 0 ? plan.LiveAccounts[combo.SelectedIndex - 1].Folder : null;
-                accountMap[account.Folder] = chosen;
-                changingCombos = true;
-                foreach (var other in plan.BetaAccounts.Where(other => chosen is not null && other.Folder != account.Folder && string.Equals(accountMap[other.Folder], chosen, StringComparison.OrdinalIgnoreCase)))
+                foreach (var beta in accountMap.Where(entry => string.Equals(entry.Value, account.Folder, StringComparison.OrdinalIgnoreCase)).Select(entry => entry.Key).ToList())
                 {
-                    accountMap[other.Folder] = null;
-                    accountCombos[other.Folder].SelectedIndex = 0;
+                    accountMap[beta] = null;
+                }
+
+                if (combo.SelectedIndex > 0)
+                {
+                    accountMap[plan.BetaAccounts[combo.SelectedIndex - 1].Folder] = account.Folder;
+                }
+
+                changingCombos = true;
+                foreach (var (live, other) in accountCombos)
+                {
+                    other.SelectedIndex = SourceIndex(live);
                 }
 
                 changingCombos = false;
@@ -700,7 +713,7 @@ public sealed partial class MainWindow : Window
                     }
                 }
             };
-            accountBlock.Children.Add(new StackPanel { Spacing = 4, IsVisible = !SameName(account), Children = { Wrapped(AccountLabel(account), secondary: true, fontSize: 12), combo } });
+            accountBlock.Children.Add(new StackPanel { Spacing = 4, Children = { Wrapped($"{AccountLabel(account)} copies from", secondary: true, fontSize: 12), combo } });
         }
 
         var clientSettings = Option(
