@@ -166,6 +166,20 @@ public sealed class CurseForgeDirectTests : IDisposable
     }
 
     [Fact]
+    public void FilesUri_AsksForAlphaFiles()
+    {
+        Assert.Equal("https://www.curseforge.com/api/v1/mods/2382/files?pageIndex=0&pageSize=50&sort=dateCreated&sortDescending=true&removeAlphas=false", CurseForgeDirect.FilesUri(2382).AbsoluteUri);
+    }
+
+    [Fact]
+    public void ParseFiles_CappedTotalCount_IsNeverComplete()
+    {
+        using var capped = JsonDocument.Parse(Body(Item(1, "1.0", "a.zip", "2026-10-01T00:00:00Z")).Replace("\"totalCount\":1", "\"totalCount\":10000", StringComparison.Ordinal));
+
+        Assert.False(CurseForgeDirect.ParseFiles(capped.RootElement).Complete);
+    }
+
+    [Fact]
     public void ZipUrl_MatchesTheServersEdgePath()
     {
         Assert.Equal("https://edge.forgecdn.net/files/9150/393/Questie-v12.1.0%2Bv1.0.6.zip", CurseForgeDirect.ZipUrl(9150393, "Questie-v12.1.0+v1.0.6.zip"));

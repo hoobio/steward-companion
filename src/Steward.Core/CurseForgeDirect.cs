@@ -27,7 +27,8 @@ public static class CurseForgeDirect
             ? (modId, versionType)
             : null;
 
-    public static Uri FilesUri(int modId) => new($"{ApiBase}{modId}/files?pageIndex=0&pageSize=50&sort=dateCreated&sortDescending=true");
+    // curseforge.com hides alpha files unless removeAlphas=false (checked live 24 Oct 2026); pageSize above 50 is ignored, and totalCount is capped at 10000.
+    public static Uri FilesUri(int modId) => new($"{ApiBase}{modId}/files?pageIndex=0&pageSize=50&sort=dateCreated&sortDescending=true&removeAlphas=false");
 
     public static Uri DependenciesUri(int modId) => new($"{ApiBase}{modId}/dependencies?index=0&pageSize=50");
 
