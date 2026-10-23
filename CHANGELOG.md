@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.26.0](https://github.com/hoobio/steward-companion/compare/v0.25.2...v0.26.0) (2026-10-23)
+
+
+### Features
+
+* ✨ CurseForge update checks and installs read curseforge.com directly and fall back to Steward API when that fails ([14ce5e8](https://github.com/hoobio/steward-companion/commit/14ce5e80c0db5955f429c449820c4abcc6ab978a))
+* ✨ Discord members with a custom avatar get a 32x32 Avatars file and an avatar path on the discord row of StewardSync.lua ([1af3fd2](https://github.com/hoobio/steward-companion/commit/1af3fd295178be74a0edb6c8371e7dca9400419e))
+* ✨ StewardSync.lua carries the officer roster's guild rank targets as rankTargets ([fa28be9](https://github.com/hoobio/steward-companion/commit/fa28be9c32f276f65e4397a22e3010c287e31d18))
+
+
+### Bug Fixes
+
+* 🐛 a CurseForge addon checked directly keeps its required-by guard, and direct checks count only approved or released files ([16b3df3](https://github.com/hoobio/steward-companion/commit/16b3df326c72fd82bd95e36664b42d0249b32b4c))
+* 🐛 a CurseForge channel whose only build was skipped for its status asks Steward API instead of reading as no build ([42fca2e](https://github.com/hoobio/steward-companion/commit/42fca2e726af95cba1520fdfa624040085402989))
+* 🐛 CurseForge direct checks ask Steward API for a channel the newest files miss, read dependencies only at install, and skip direct for every addon only on network-level failures ([a2cb621](https://github.com/hoobio/steward-companion/commit/a2cb62131a371c4dcf48b0fd9a786a24c20cdfd3))
+* 🐛 CurseForge direct checks follow the server's file filters, stop offering a direct file that failed, resolve requirements by mod id and keep catalogue addons on Steward API ([4d0455e](https://github.com/hoobio/steward-companion/commit/4d0455eb35a5d2c216d4b10fe670c316b5e0d3bd))
+* 🐛 CurseForge direct lists alpha files, so the pre-release channel resolves without asking Steward API ([0fa661d](https://github.com/hoobio/steward-companion/commit/0fa661d9d4abc0af1c211f55263a3c5ca0aa974f))
+* 🐛 the event streams reconnect with up to 10 s of random jitter, and reset their backoff only after a stream lived 2 minutes, so a server restart does not bring every client back at once and a stream that dies soon after connecting backs off ([7fd0959](https://github.com/hoobio/steward-companion/commit/7fd0959449a25acb921fd81a5b627965f19da1b3))
+* 🐛 the journey upload starts a character's 30 s wait when the send returns, and waits a minute after a 429 with no Retry-After ([8047f2e](https://github.com/hoobio/steward-companion/commit/8047f2ea5a537acdfb26d6be213db811c72c029c))
+* 🐛 the journey upload waits 30 s per character like steward-sync, so saves close together send one upload of the newest file, and a 429 waits out Retry-After without showing an error or holding back other characters ([ff1fbe5](https://github.com/hoobio/steward-companion/commit/ff1fbe5a3bd9d838ebecbfe79472b1cea58a9180))
+* 🐛 the UI watchdog restarts Steward when Windows reports its window hung, and posting its beat can no longer stall it ([a12a4b4](https://github.com/hoobio/steward-companion/commit/a12a4b49ed242386de6cb342bdf4caa8092c94fb))
+
+
+### Reverts
+
+* ⏪ the UI watchdog's IsHungAppWindow check and thread-pool beat ([22aa62c](https://github.com/hoobio/steward-companion/commit/22aa62ca02f8d5c82858fa84487642cd5a2b4eed))
+
 ## [0.25.2](https://github.com/hoobio/steward-companion/compare/v0.25.1...v0.25.2) (2026-10-22)
 
 
