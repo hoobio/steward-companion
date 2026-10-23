@@ -165,6 +165,20 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Save_InstallRequires_SurvivesARestart()
+    {
+        var store = new AppStateStore(["bugsack"], StatePath);
+        var state = store.Load();
+        state.Installs["flavour|curseforge-6273-88568"] = new InstalledAddonRecord("2", "release", null, Requires: [new AddonRequirement("curseforge:13344", "BugGrabber")]);
+
+        store.Save(state);
+
+        var requirement = Assert.Single(new AppStateStore(["bugsack"], StatePath).Load().Installs["flavour|curseforge-6273-88568"].Requires!);
+        Assert.Equal("curseforge:13344", requirement.Id);
+        Assert.Equal("BugGrabber", requirement.Name);
+    }
+
+    [Fact]
     public void Load_InstallWithLegacySha1_LoadsAndSavesWithoutIt()
     {
         File.WriteAllText(

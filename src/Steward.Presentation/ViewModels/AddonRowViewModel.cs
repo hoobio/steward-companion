@@ -552,7 +552,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public bool UninstallVisibility => IsInstalled && !IsGroupBusy && CanIgnoreOrHide;
 
-    public IReadOnlyList<AddonRequirement> Requirements => AddonRequirements.Of(_addon, _status?.Release);
+    public ManagedAddon Addon => _addon;
+
+    public IReadOnlyList<AddonRequirement> Requirements => AddonRequirements.Of(_addon, _status?.Release, Record);
 
     [ObservableProperty]
     public partial string? RequiredBy { get; set; }
@@ -782,7 +784,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
                 .ConfigureAwait(true);
 
             var state = _stateStore.Load();
-            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, folders);
+            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, folders, release.Requires);
             _stateStore.Save(state);
             await InGameIcon.EnsureAsync(_platform, _updater, _install.AddOnsPath, _addon, _logger).ConfigureAwait(true);
             WriteThemeFile();

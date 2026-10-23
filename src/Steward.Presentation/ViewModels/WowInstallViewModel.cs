@@ -242,8 +242,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         foreach (var row in AddonRows)
         {
             row.RequiredBy = AddonRows
-                .FirstOrDefault(other => other != row && !row.HasChild(other) && other.IsInstalled && other.Requirements.Any(requirement => AddonRequirements.Matches(row.AddonId, requirement.Id)
-                    || string.Equals(requirement.FolderName, row.FolderName, StringComparison.OrdinalIgnoreCase)))
+                .FirstOrDefault(other => other != row && !row.HasChild(other) && other.IsInstalled && AddonRequirements.Requires(other.Requirements, row.Addon))
                 ?.DisplayName;
         }
     }

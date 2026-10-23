@@ -48,7 +48,7 @@ public static class CurseForgeDirect
         }
 
         var total = root.TryGetProperty("pagination", out var pagination) && pagination.ValueKind == JsonValueKind.Object ? Number(pagination, "totalCount") : null;
-        return new CurseForgePublicFiles(items, total is { } count && count <= listed);
+        return new CurseForgePublicFiles(items, items.Count == listed && total is { } count && count <= listed);
     }
 
     public static IReadOnlyList<AddonRequirement> ParseRequires(JsonElement root) =>
@@ -100,7 +100,7 @@ public static class CurseForgeDirect
             created,
             (int)(Number(item, "releaseType") ?? 0),
             [.. versionTypes.EnumerateArray().Where(type => type.ValueKind == JsonValueKind.Number && type.TryGetInt32(out _)).Select(type => type.GetInt32())],
-            Number(item, "status") is not { } status || AvailableStatuses.Contains(status));
+            Number(item, "status") is { } status && AvailableStatuses.Contains(status));
     }
 
     private static string? Text(JsonElement element, string name) =>

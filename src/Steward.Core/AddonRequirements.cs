@@ -101,6 +101,13 @@ public static class AddonRequirements
         && (Matches(addon.Id, requirementId)
             || (addon.IsCurseForge && CurseForgeModId(requirementId) is { } modId && CurseForgeDirect.Ids(addon.ManifestBaseUrl)?.ModId == modId));
 
+    public static bool Requires(IEnumerable<AddonRequirement> requirements, ManagedAddon addon) =>
+        requirements?.Any(requirement => Matches(addon, requirement.Id)
+            || string.Equals(requirement.FolderName, addon?.FolderName, StringComparison.OrdinalIgnoreCase)) == true;
+
+    public static IReadOnlyList<AddonRequirement> Of(ManagedAddon addon, AddonRelease? release, InstalledAddonRecord? installed) =>
+        [.. Of(addon, release).Concat(installed?.Requires ?? []).DistinctBy(requirement => requirement.Id, StringComparer.OrdinalIgnoreCase)];
+
     public static IReadOnlyList<AddonRequirement> Of(ManagedAddon addon, AddonRelease? release) =>
         [.. (release?.Requires ?? []).Concat(addon?.Requires ?? []).OfType<AddonRequirement>().DistinctBy(requirement => requirement.Id, StringComparer.OrdinalIgnoreCase)];
 

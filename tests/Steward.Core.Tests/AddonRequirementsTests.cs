@@ -169,4 +169,16 @@ public sealed class AddonRequirementsTests
         Assert.False(AddonRequirements.Matches(bugGrabber, "curseforge:6273"));
         Assert.False(AddonRequirements.Matches(bugGrabber with { Source = "Steward" }, "curseforge:13344"));
     }
+
+    [Fact]
+    public void Of_DirectCheckedAddon_KeepsTheRequiresItsInstallRecorded()
+    {
+        var bugGrabber = new ManagedAddon("buggrabber", "!BugGrabber", "https://api.hoobi.io/guild/api/addons/curseforge/13344/88568/", Name: "BugGrabber", Source: CurseForgeAddons.Source);
+        var bugSack = new ManagedAddon("curseforge-6273-88568", "BugSack", "https://api.hoobi.io/guild/api/addons/curseforge/6273/88568/", Source: CurseForgeAddons.Source);
+        var direct = new AddonRelease("2", "https://edge.forgecdn.net/files/1/2/BugSack.zip", null, 1, DateTimeOffset.UtcNow) { DirectFileId = 1002 };
+        var installed = new InstalledAddonRecord("1", "release", null, Requires: [new AddonRequirement("curseforge:13344", "BugGrabber")]);
+
+        Assert.False(AddonRequirements.Requires(AddonRequirements.Of(bugSack, direct), bugGrabber));
+        Assert.True(AddonRequirements.Requires(AddonRequirements.Of(bugSack, direct, installed), bugGrabber));
+    }
 }

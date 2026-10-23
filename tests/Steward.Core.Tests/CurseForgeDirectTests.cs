@@ -64,6 +64,27 @@ public sealed class CurseForgeDirectTests : IDisposable
         Assert.Equal("1.1", CurseForgeDirect.Select(files.Where(file => file.Id != 3), "release", VersionType)!.Version);
     }
 
+    [Fact]
+    public void Select_MissingOrUnknownStatus_IsUnavailable()
+    {
+        using var document = JsonDocument.Parse(Body(
+            Item(1, "1.0", "a.zip", "2026-10-01T00:00:00Z"),
+            Item(2, "1.1", "b.zip", "2026-10-02T00:00:00Z", status: 99),
+            Item(3, "1.2", "c.zip", "2026-10-03T00:00:00Z").Replace(",\"status\":4", "", StringComparison.Ordinal)));
+
+        Assert.Equal("1.0", CurseForgeDirect.Select(CurseForgeDirect.ParseFiles(document.RootElement).Items, "release", VersionType)!.Version);
+    }
+
+    [Fact]
+    public void ParseFiles_SkippedItem_LeavesTheListIncomplete()
+    {
+        using var whole = JsonDocument.Parse(Body(Item(1, "1.0", "a.zip", "2026-10-01T00:00:00Z")));
+        using var skipped = JsonDocument.Parse(Body(Item(1, "1.0", "a.zip", "2026-10-01T00:00:00Z"), Item(0, "bad", "b.zip", "2026-10-02T00:00:00Z")));
+
+        Assert.True(CurseForgeDirect.ParseFiles(whole.RootElement).Complete);
+        Assert.False(CurseForgeDirect.ParseFiles(skipped.RootElement).Complete);
+    }
+
     [Theory]
     [InlineData(0, "a.zip")]
     [InlineData(-1, "a.zip")]

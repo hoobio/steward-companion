@@ -73,7 +73,7 @@ public sealed partial class MainViewModel
     {
         var folders = await _addonUpdater.InstallAsync(addon, channel, release, install.AddOnsPath, progress, cancellationToken, ExcludedFoldersForOthers(install, addon.Id)).ConfigureAwait(true);
         var state = _stateStore.Load();
-        state.Installs[AppStateStore.Key(install.FlavourPath, addon.Id)] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, folders);
+        state.Installs[AppStateStore.Key(install.FlavourPath, addon.Id)] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, folders, release.Requires);
         var records = state.ProviderAddons.GetValueOrDefault(install.FlavourPath) ?? [];
         if (CurseForgeEnabled
             && addon.Id.Split('-') is ["curseforge", var mod, var type]
