@@ -34,11 +34,6 @@ internal static class Native
     [DllImport("user32.dll", EntryPoint = "PostMessageW")]
     private static extern bool PostMessage(nint hWnd, uint msg, nint wParam, nint lParam);
 
-    [DllImport("user32.dll", EntryPoint = "IsHungAppWindow")]
-    private static extern bool IsHungAppWindowNative(nint hWnd);
-
-    public static bool IsHungAppWindow(nint handle) => OperatingSystem.IsWindows() && IsHungAppWindowNative(handle);
-
     public static void RepostCaptionButtonMove(nint handle)
     {
         if (!OperatingSystem.IsWindows() || !GetCursorPos(out var point))
