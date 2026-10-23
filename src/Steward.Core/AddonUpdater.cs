@@ -128,12 +128,11 @@ public sealed class AddonUpdater
     {
         ArgumentNullException.ThrowIfNull(addon);
         ArgumentNullException.ThrowIfNull(channels);
-        if (direct && await ProbeDirectAsync(addon, channels, cancellationToken).ConfigureAwait(false) is { } directReleases)
-        {
-            return directReleases;
-        }
-
-        var releases = await Task.WhenAll(channels.Select(channel => ProbeChannelAsync(addon, channel, noCache, cancellationToken)))
+        var listed = direct ? await ProbeDirectAsync(addon, cancellationToken).ConfigureAwait(false) : null;
+        var releases = await Task.WhenAll(channels.Select(channel => listed?.Release(channel) is { } found
+                ? Task.FromResult<AddonRelease?>(found)
+                : listed?.Complete == true ? Task.FromResult<AddonRelease?>(null)
+                : ProbeChannelAsync(addon, channel, noCache, cancellationToken)))
             .ConfigureAwait(false);
 
         var result = new Dictionary<string, AddonRelease?>(channels.Count);
@@ -145,51 +144,88 @@ public sealed class AddonUpdater
         return result;
     }
 
-    private async Task<IReadOnlyDictionary<string, AddonRelease?>?> ProbeDirectAsync(
-        ManagedAddon addon, IReadOnlyList<string> channels, CancellationToken cancellationToken)
+    private sealed record DirectFiles(CurseForgePublicFiles Files, int VersionType, string? Website)
+    {
+        public bool Complete => Files.Complete;
+
+        public AddonRelease? Release(string channel) =>
+            CurseForgeDirect.Select(Files.Items, channel, VersionType) is { } file ? CurseForgeDirect.ToRelease(file, Website) : null;
+    }
+
+    private async Task<DirectFiles?> ProbeDirectAsync(ManagedAddon addon, CancellationToken cancellationToken)
     {
         if (!addon.IsCurseForge || CurseForgeDirect.Ids(addon.ManifestBaseUrl) is not (int modId, int versionType) || _clock.GetUtcNow() < _directSkipUntil)
         {
             return null;
         }
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(DirectTimeout);
         try
         {
-            var filesTask = GetDirectAsync(CurseForgeDirect.FilesUri(modId), CurseForgeDirect.ParseFiles, timeout.Token);
-            var requiresTask = GetDirectAsync(CurseForgeDirect.DependenciesUri(modId), CurseForgeDirect.ParseRequires, timeout.Token);
-            var files = await filesTask.ConfigureAwait(false);
-            var requires = await requiresTask.ConfigureAwait(false);
-            var result = new Dictionary<string, AddonRelease?>(channels.Count);
-            foreach (var channel in channels)
+            var files = await GetDirectAsync(CurseForgeDirect.FilesUri(modId), CurseForgeDirect.ParseFiles, cancellationToken).ConfigureAwait(false);
+            if (files.Items.Count == 0)
             {
-                result[channel] = CurseForgeDirect.Select(files, channel, versionType) is { } file ? CurseForgeDirect.ToRelease(file, addon.Website, requires) : null;
+                _logger.Info($"CurseForge direct for {addon.Id} listed no files; using Steward API for it");
+                return null;
             }
 
-            return result;
+            return new DirectFiles(files, versionType, addon.Website);
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is HttpRequestException or OperationCanceledException or JsonException)
         {
-            SkipDirect(addon, ex);
+            DirectFailed(addon, ex);
             return null;
+        }
+    }
+
+    public async Task<AddonRelease> WithDirectRequiresAsync(ManagedAddon addon, string channel, AddonRelease release, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(addon);
+        ArgumentNullException.ThrowIfNull(release);
+        if (!release.Direct || release.Requires is not null || CurseForgeDirect.Ids(addon.ManifestBaseUrl) is not (int modId, _))
+        {
+            return release;
+        }
+
+        try
+        {
+            return release with { Requires = await GetDirectAsync(CurseForgeDirect.DependenciesUri(modId), CurseForgeDirect.ParseRequires, cancellationToken).ConfigureAwait(false) };
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is HttpRequestException or OperationCanceledException or JsonException)
+        {
+            _logger.Info($"CurseForge direct dependencies for {addon.Id} failed ({FailureReason(ex)}); installing from Steward API");
+            return await GetLatestAsync(addon, channel, cancellationToken, revalidate: false).ConfigureAwait(false)
+                ?? throw new InvalidOperationException($"{addon.Id} has no {channel} build on Steward API", ex);
         }
     }
 
     private async Task<T> GetDirectAsync<T>(Uri uri, Func<JsonElement, T> parse, CancellationToken cancellationToken)
     {
-        using var response = await _httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(DirectTimeout);
+        using var response = await _httpClient.GetAsync(uri, timeout.Token).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: timeout.Token).ConfigureAwait(false);
         return parse(document.RootElement);
     }
 
-    private void SkipDirect(ManagedAddon addon, Exception ex)
+    private static bool IsNetworkLevel(Exception ex) =>
+        ex is OperationCanceledException or JsonException
+        || (ex is HttpRequestException http && (http.StatusCode is null or HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests || (int)http.StatusCode >= 500));
+
+    private static string FailureReason(Exception ex) =>
+        ex is HttpRequestException { StatusCode: { } status } ? $"status {(int)status}" : $"{ex.GetType().Name}: {ex.Message}";
+
+    private void DirectFailed(ManagedAddon addon, Exception ex)
     {
+        if (!IsNetworkLevel(ex))
+        {
+            _logger.Info($"CurseForge direct for {addon.Id} failed ({FailureReason(ex)}); using Steward API for it");
+            return;
+        }
+
         _directSkipUntil = _clock.GetUtcNow() + DirectSkip;
-        var reason = ex is HttpRequestException { StatusCode: { } status } ? $"status {(int)status}" : $"{ex.GetType().Name}: {ex.Message}";
-        _logger.Info($"CurseForge direct for {addon.Id} failed ({reason}); using Steward API for {DirectSkip.TotalMinutes:0} minutes");
+        _logger.Info($"CurseForge direct for {addon.Id} failed ({FailureReason(ex)}); using Steward API for every addon for {DirectSkip.TotalMinutes:0} minutes");
     }
 
     private async Task<AddonRelease?> ProbeChannelAsync(ManagedAddon addon, string channel, bool noCache, CancellationToken cancellationToken)
@@ -219,7 +255,7 @@ public sealed class AddonUpdater
         }
         catch (Exception ex) when (release.Direct && !cancellationToken.IsCancellationRequested)
         {
-            SkipDirect(addon, ex);
+            DirectFailed(addon, ex);
             var proxied = await GetLatestAsync(addon, channel, cancellationToken, revalidate: false).ConfigureAwait(false);
             if (proxied is null)
             {

@@ -5,6 +5,8 @@ namespace Steward.Core;
 
 public sealed record CurseForgePublicFile(long Id, string Version, string FileName, long Size, DateTimeOffset Created, int ReleaseType, IReadOnlyList<int> VersionTypes, bool EarlyAccess);
 
+public sealed record CurseForgePublicFiles(IReadOnlyList<CurseForgePublicFile> Items, bool Complete);
+
 // curseforge.com's website API is unsupported and disallowed in robots.txt, so every parse failure falls back to Steward API.
 public static class CurseForgeDirect
 {
@@ -28,11 +30,15 @@ public static class CurseForgeDirect
 
     public static string ZipUrl(long fileId, string fileName) => $"{CdnFiles}/{fileId / 1000}/{fileId % 1000}/{Uri.EscapeDataString(fileName)}";
 
-    public static IReadOnlyList<CurseForgePublicFile> ParseFiles(JsonElement root) =>
-        [.. Data(root).Select(item => ParseFile(item) ?? throw new JsonException("curseforge.com file item lacks id, fileName, dateCreated or gameVersionTypeIds"))];
+    public static CurseForgePublicFiles ParseFiles(JsonElement root)
+    {
+        IReadOnlyList<CurseForgePublicFile> items = [.. Data(root).Select(item => ParseFile(item) ?? throw new JsonException("curseforge.com file item lacks id, fileName, dateCreated or gameVersionTypeIds"))];
+        var total = root.TryGetProperty("pagination", out var pagination) && pagination.ValueKind == JsonValueKind.Object ? Number(pagination, "totalCount") : null;
+        return new CurseForgePublicFiles(items, total is { } count && count <= items.Count);
+    }
 
     public static IReadOnlyList<AddonRequirement> ParseRequires(JsonElement root) =>
-        [.. Data(root, allowEmpty: true)
+        [.. Data(root)
             .Where(item => item.ValueKind == JsonValueKind.Object && Text(item, "type") == RequiredDependency && Number(item, "id") is > 0)
             .Select(item => new AddonRequirement($"curseforge:{Number(item, "id")}", Text(item, "name")))];
 
@@ -48,16 +54,16 @@ public static class CurseForgeDirect
             .MaxBy(file => file.Created);
     }
 
-    public static AddonRelease ToRelease(CurseForgePublicFile file, string? website, IReadOnlyList<AddonRequirement> requires)
+    public static AddonRelease ToRelease(CurseForgePublicFile file, string? website)
     {
         ArgumentNullException.ThrowIfNull(file);
-        return new AddonRelease(file.Version, ZipUrl(file.Id, file.FileName), null, file.Size, file.Created, Website: website, Requires: requires) { Direct = true };
+        return new AddonRelease(file.Version, ZipUrl(file.Id, file.FileName), null, file.Size, file.Created, Website: website) { Direct = true };
     }
 
-    private static JsonElement.ArrayEnumerator Data(JsonElement root, bool allowEmpty = false) =>
-        root.ValueKind == JsonValueKind.Object && root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array && (allowEmpty || data.GetArrayLength() > 0)
+    private static JsonElement.ArrayEnumerator Data(JsonElement root) =>
+        root.ValueKind == JsonValueKind.Object && root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array
             ? data.EnumerateArray()
-            : throw new JsonException("curseforge.com answered without data[] items");
+            : throw new JsonException("curseforge.com answered without a data[] array");
 
     private static CurseForgePublicFile? ParseFile(JsonElement item)
     {

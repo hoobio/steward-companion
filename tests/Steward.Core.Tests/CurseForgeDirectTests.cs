@@ -36,7 +36,7 @@ public sealed class CurseForgeDirectTests : IDisposable
     private static IReadOnlyList<CurseForgePublicFile> Files(params string[] items)
     {
         using var document = JsonDocument.Parse(Body(items));
-        return CurseForgeDirect.ParseFiles(document.RootElement);
+        return CurseForgeDirect.ParseFiles(document.RootElement).Items;
     }
 
     private static readonly string[] Mixed =
@@ -77,7 +77,6 @@ public sealed class CurseForgeDirectTests : IDisposable
 
     [Theory]
     [InlineData("""{"pagination":{}}""")]
-    [InlineData("""{"data":[]}""")]
     [InlineData("""{"data":[{"id":1,"displayName":"1.0","fileName":"a.zip","dateCreated":"2026-10-01T00:00:00Z"}]}""")]
     [InlineData("""{"data":[{"displayName":"1.0","fileName":"a.zip","dateCreated":"2026-10-01T00:00:00Z","gameVersionTypeIds":[1]}]}""")]
     public void ParseFiles_BodyWithoutUsableItems_Throws(string json)
@@ -133,6 +132,10 @@ public sealed class CurseForgeDirectTests : IDisposable
 
         public int DirectCalls => Requests.Count(uri => uri.Host == "www.curseforge.com" && uri.AbsolutePath.EndsWith("/files", StringComparison.Ordinal));
 
+        public Func<HttpResponseMessage> Dependencies { get; set; } = () => Json("""{"data":[{"id":3358,"name":"DBM","type":"RequiredDependency"}]}""");
+
+        public int DependencyCalls => Requests.Count(uri => uri.AbsolutePath.EndsWith("/dependencies", StringComparison.Ordinal));
+
         public int ProxyCalls => Requests.Count(uri => uri.Host == "api.example.com");
 
         public static HttpResponseMessage Json(string body) => new(HttpStatusCode.OK) { Content = new StringContent(body) };
@@ -148,7 +151,7 @@ public sealed class CurseForgeDirectTests : IDisposable
             return Task.FromResult(uri switch
             {
                 { Host: "www.curseforge.com" } when uri.AbsolutePath.EndsWith("/files", StringComparison.Ordinal) => Files(),
-                { Host: "www.curseforge.com" } => Json("""{"data":[{"id":3358,"name":"DBM","type":"RequiredDependency"}]}"""),
+                { Host: "www.curseforge.com" } => Dependencies(),
                 { Host: "api.example.com" } => Json(ProxyManifest.Replace("%SIZE%", ProxyZip.Length.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal)),
                 { AbsolutePath: "/files/9/9/Proxy.zip" } => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(ProxyZip) },
                 { Host: "edge.forgecdn.net" } => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(DirectZip) },
@@ -179,10 +182,84 @@ public sealed class CurseForgeDirectTests : IDisposable
         Assert.Null(release.Sha256);
         Assert.Null(release.Folders);
         Assert.Equal("https://www.curseforge.com/wow/addons/questie", release.Website);
-        Assert.Equal("curseforge:3358", Assert.Single(release.Requires!).Id);
+        Assert.Null(release.Requires);
         Assert.Equal("1.4-alpha", releases["pre-release"]!.Version);
         Assert.Equal(1, handler.DirectCalls);
+        Assert.Equal(0, handler.DependencyCalls);
         Assert.Equal(0, handler.ProxyCalls);
+    }
+
+    [Fact]
+    public async Task ProbeChannelsAsync_NoEligibleFileInAPartialList_AsksTheProxyForThatChannelOnly()
+    {
+        var (updater, handler, _) = Setup();
+        handler.Files = () => RoutingHandler.Json(Body(Mixed).Replace($"\"totalCount\":{Mixed.Length}", "\"totalCount\":980", StringComparison.Ordinal));
+
+        var releases = await updater.ProbeChannelsAsync(Questie, ["release", "beta"], TestContext.Current.CancellationToken, direct: true);
+        var next = await updater.ProbeChannelsAsync(Questie, ["release"], TestContext.Current.CancellationToken, direct: true);
+
+        Assert.True(releases["release"]!.Direct);
+        Assert.Equal("proxy-2", releases["beta"]!.Version);
+        Assert.Equal(1, handler.ProxyCalls);
+        Assert.True(next["release"]!.Direct);
+    }
+
+    [Fact]
+    public async Task ProbeChannelsAsync_NoEligibleFileInACompleteList_IsNoRelease()
+    {
+        var (updater, handler, _) = Setup();
+
+        var releases = await updater.ProbeChannelsAsync(Questie, ["beta"], TestContext.Current.CancellationToken, direct: true);
+
+        Assert.Null(releases["beta"]);
+        Assert.Equal(0, handler.ProxyCalls);
+    }
+
+    [Theory]
+    [InlineData("empty")]
+    [InlineData("notfound")]
+    public async Task ProbeChannelsAsync_PerModProblem_FallsBackForThatAddonWithoutTheSkip(string kind)
+    {
+        var (updater, handler, _) = Setup();
+        handler.Files = kind == "empty"
+            ? () => RoutingHandler.Json(Body())
+            : () => new HttpResponseMessage(HttpStatusCode.NotFound);
+
+        var releases = await updater.ProbeChannelsAsync(Questie, ["release"], TestContext.Current.CancellationToken, direct: true);
+        handler.Files = () => RoutingHandler.Json(Body(Mixed));
+        var next = await updater.ProbeChannelsAsync(Questie, ["release"], TestContext.Current.CancellationToken, direct: true);
+
+        Assert.Equal("proxy-2", releases["release"]!.Version);
+        Assert.True(next["release"]!.Direct);
+    }
+
+    [Fact]
+    public async Task WithDirectRequiresAsync_FetchesTheRequiredDependencies()
+    {
+        var (updater, handler, _) = Setup();
+        var releases = await updater.ProbeChannelsAsync(Questie, ["release"], TestContext.Current.CancellationToken, direct: true);
+
+        var release = await updater.WithDirectRequiresAsync(Questie, "release", releases["release"]!, TestContext.Current.CancellationToken);
+
+        Assert.True(release.Direct);
+        Assert.Equal("curseforge:3358", Assert.Single(release.Requires!).Id);
+        Assert.Equal(1, handler.DependencyCalls);
+        Assert.Equal(0, handler.ProxyCalls);
+    }
+
+    [Fact]
+    public async Task WithDirectRequiresAsync_DependenciesFail_UsesTheProxyReleaseAndKeepsDirectForOthers()
+    {
+        var (updater, handler, _) = Setup();
+        handler.Dependencies = () => new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        var releases = await updater.ProbeChannelsAsync(Questie, ["release"], TestContext.Current.CancellationToken, direct: true);
+
+        var release = await updater.WithDirectRequiresAsync(Questie, "release", releases["release"]!, TestContext.Current.CancellationToken);
+        var next = await updater.ProbeChannelsAsync(Questie, ["release"], TestContext.Current.CancellationToken, direct: true);
+
+        Assert.Equal("proxy-2", release.Version);
+        Assert.False(release.Direct);
+        Assert.True(next["release"]!.Direct);
     }
 
     [Fact]
@@ -255,7 +332,7 @@ public sealed class CurseForgeDirectTests : IDisposable
     }
 
     [Fact]
-    public async Task InstallRefetchingOn404Async_DirectInstallFails_InstallsTheProxyReleaseAndSkipsDirect()
+    public async Task InstallRefetchingOn404Async_DirectSizeMismatch_InstallsTheProxyReleaseWithoutTheSkip()
     {
         var (updater, handler, _) = Setup();
         handler.DirectZip = Zip("Questie/Questie.toc");
@@ -269,8 +346,8 @@ public sealed class CurseForgeDirectTests : IDisposable
 
         Assert.Equal("proxy-2", installed.Version);
         Assert.True(File.Exists(Path.Combine(addOnsPath, "Questie", "Proxy.lua")));
-        Assert.False(after["release"]!.Direct);
-        Assert.Equal(1, handler.DirectCalls);
+        Assert.True(after["release"]!.Direct);
+        Assert.Equal(2, handler.DirectCalls);
     }
 
     [Fact]

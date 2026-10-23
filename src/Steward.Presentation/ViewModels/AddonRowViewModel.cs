@@ -774,6 +774,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             }
 
             var progress = new Progress<double>(value => UpdateProgress = value);
+            release = await _updater.WithDirectRequiresAsync(_addon, channel, release, CancellationToken.None).ConfigureAwait(true);
             await _installRequirements(_addon, channel, release, text => StatusMessage = text, progress).ConfigureAwait(true);
             StatusMessage = null;
             UpdateProgress = 0;
