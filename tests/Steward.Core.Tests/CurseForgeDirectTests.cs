@@ -474,6 +474,27 @@ public sealed class CurseForgeDirectTests : IDisposable
     }
 
     [Fact]
+    public async Task InstallRefetchingOn404Async_DirectZipFolderWithoutAToc_FallsBackOnceAndDirectIsNotTriedAgain()
+    {
+        var (updater, handler, _) = Setup();
+        handler.DirectZip = Zip("Questie/Questie.toc", "Lib/Lib.lua");
+        handler.ProxyZip = Zip("Questie/Questie.toc", "Lib/Lib.lua");
+        handler.Files = () => RoutingHandler.Json(Body(Item(3, "proxy-2", "Questie-1.2.zip", "2026-10-03T00:00:00Z").Replace("\"fileLength\":123", $"\"fileLength\":{handler.DirectZip.Length}", StringComparison.Ordinal)));
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        Directory.CreateDirectory(addOnsPath);
+        var releases = await updater.ProbeChannelsAsync(Questie, ["release"], TestContext.Current.CancellationToken, direct: true);
+
+        var (folders, installed) = await updater.InstallRefetchingOn404Async(Questie, "release", releases["release"]!, addOnsPath, null, TestContext.Current.CancellationToken);
+        var after = await updater.ProbeChannelsAsync(Questie, ["release"], TestContext.Current.CancellationToken, direct: true);
+
+        Assert.True(releases["release"]!.Direct);
+        Assert.Equal("proxy-2", installed.Version);
+        Assert.Equal(["Questie", "Lib"], folders);
+        Assert.False(after["release"]!.Direct);
+        Assert.Equal(1, handler.Requests.Count(uri => uri.Host == "edge.forgecdn.net" && uri.AbsolutePath != "/files/9/9/Proxy.zip"));
+    }
+
+    [Fact]
     public async Task InstallRefetchingOn404Async_DirectReleaseHeldDuringTheSkip_InstallsFromTheProxyWithoutDownloadingIt()
     {
         var (updater, handler, _) = Setup();

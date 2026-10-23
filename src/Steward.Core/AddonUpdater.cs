@@ -286,7 +286,7 @@ public sealed class AddonUpdater
             }
 
             var installed = await InstallRefetchingOn404Async(addon, channel, proxied, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false);
-            if (!string.Equals(installed.Release.Version, release.Version, StringComparison.Ordinal))
+            if (!IsNetworkLevel(ex) || !string.Equals(installed.Release.Version, release.Version, StringComparison.Ordinal))
             {
                 _badDirectFiles.TryAdd(release.DirectFileId, 0);
             }
