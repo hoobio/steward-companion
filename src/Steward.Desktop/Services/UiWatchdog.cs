@@ -42,21 +42,26 @@ public sealed class UiWatchdog(Window window, ILogger logger)
         }
     }
 
-    public void Start() => new Thread(Run) { IsBackground = true, Name = "UI watchdog" }.Start();
+    public void Start()
+    {
+        var handle = window.TryGetPlatformHandle()?.Handle ?? 0;
+        new Thread(() => Run(handle)) { IsBackground = true, Name = "UI watchdog" }.Start();
+    }
 
-    private void Run()
+    private void Run(nint handle)
     {
         var missed = 0;
         while (true)
         {
             _stage = 0;
-            Dispatcher.UIThread.Post(Beat);
+            // Dispatcher.Post takes the dispatcher's lock, so a UI thread stuck while holding it must not also stall this loop.
+            ThreadPool.UnsafeQueueUserWorkItem(_ => Dispatcher.UIThread.Post(Beat), null);
             Thread.Sleep(Interval);
-            while (_stage < 2)
+            while (_stage < 2 || Native.IsHungAppWindow(handle))
             {
                 if (++missed >= MissedBeatsBeforeRestart && !Debugger.IsAttached)
                 {
-                    Restart(_stage == 0 ? "UI thread" : "render thread");
+                    Restart(_stage switch { 0 => "UI thread", 1 => "render thread", _ => "window message loop" });
                     return;
                 }
 
