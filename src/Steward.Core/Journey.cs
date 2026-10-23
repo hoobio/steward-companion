@@ -312,7 +312,7 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
             return FileResult.Next;
         }
 
-        // steward-sync allows one journey per guid (else folder) per 30 s and spends the slot before it reads the body, whatever the outcome.
+        // steward-sync claims a 30 s slot per guid (else folder) before it reads the body, so every sent request counts.
         _nextSendAt[key] = _now() + MinInterval;
         try
         {
