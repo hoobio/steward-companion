@@ -18,7 +18,7 @@ public sealed class CurseForgeDirectTests : IDisposable
 
     public void Dispose() => Directory.Delete(_tempDir, recursive: true);
 
-    private static string Item(long id, string? displayName, string fileName, string created, int releaseType = 1, int versionType = VersionType, bool earlyAccess = false) =>
+    private static string Item(long id, string? displayName, string fileName, string created, int releaseType = 1, int versionType = VersionType, int status = 4, bool earlyAccess = false) =>
         JsonSerializer.Serialize(new Dictionary<string, object?>
         {
             ["id"] = id,
@@ -28,6 +28,7 @@ public sealed class CurseForgeDirectTests : IDisposable
             ["dateCreated"] = created,
             ["releaseType"] = releaseType,
             ["gameVersionTypeIds"] = new[] { 517, versionType },
+            ["status"] = status,
             ["isEarlyAccessContent"] = earlyAccess,
         });
 
@@ -47,8 +48,36 @@ public sealed class CurseForgeDirectTests : IDisposable
         Item(4, "1.3-beta", "Questie-1.3-beta.zip", "2026-10-04T00:00:00Z", releaseType: 2),
         Item(5, "1.4-alpha", "Questie-1.4-alpha.zip", "2026-10-05T00:00:00Z", releaseType: 3),
         Item(6, "9.9", "Questie-retail.zip", "2026-10-06T00:00:00Z", versionType: 517 + 1),
-        Item(7, "8.8", "Questie-early.zip", "2026-10-07T00:00:00Z", earlyAccess: true),
+        Item(7, "8.8", "Questie-processing.zip", "2026-10-07T00:00:00Z", status: 1),
+        Item(8, "7.7", "Questie-rejected.zip", "2026-10-08T00:00:00Z", status: 5),
     ];
+
+    [Fact]
+    public void Select_KeepsEarlyAccessAndReleasedFiles()
+    {
+        var files = Files(
+            Item(1, "1.0", "a.zip", "2026-10-01T00:00:00Z"),
+            Item(2, "1.1", "b.zip", "2026-10-02T00:00:00Z", earlyAccess: true),
+            Item(3, "1.2", "c.zip", "2026-10-03T00:00:00Z", status: 10));
+
+        Assert.Equal("1.2", CurseForgeDirect.Select(files, "release", VersionType)!.Version);
+        Assert.Equal("1.1", CurseForgeDirect.Select(files.Where(file => file.Id != 3), "release", VersionType)!.Version);
+    }
+
+    [Theory]
+    [InlineData(0, "a.zip")]
+    [InlineData(-1, "a.zip")]
+    [InlineData(1, ".")]
+    [InlineData(1, "..")]
+    [InlineData(1, "a/b.zip")]
+    [InlineData(1, "a\\b.zip")]
+    [InlineData(1, "a\tb.zip")]
+    public void ParseFiles_SkipsItemsWithABadIdOrFileName(long id, string fileName)
+    {
+        var files = Files(Item(id, "1.0", fileName, "2026-10-01T00:00:00Z"), Item(2, "1.1", "ok.zip", "2026-10-02T00:00:00Z"));
+
+        Assert.Equal(2, Assert.Single(files).Id);
+    }
 
     [Fact]
     public void Select_Release_TakesTheNewestReleaseByDateCreatedForTheVersionType()
@@ -77,13 +106,21 @@ public sealed class CurseForgeDirectTests : IDisposable
 
     [Theory]
     [InlineData("""{"pagination":{}}""")]
-    [InlineData("""{"data":[{"id":1,"displayName":"1.0","fileName":"a.zip","dateCreated":"2026-10-01T00:00:00Z"}]}""")]
-    [InlineData("""{"data":[{"displayName":"1.0","fileName":"a.zip","dateCreated":"2026-10-01T00:00:00Z","gameVersionTypeIds":[1]}]}""")]
-    public void ParseFiles_BodyWithoutUsableItems_Throws(string json)
+    [InlineData("""{"data":{}}""")]
+    [InlineData("""[]""")]
+    public void ParseFiles_BodyWithoutADataArray_Throws(string json)
     {
         using var document = JsonDocument.Parse(json);
 
         Assert.Throws<JsonException>(() => CurseForgeDirect.ParseFiles(document.RootElement));
+    }
+
+    [Fact]
+    public void ParseFiles_SkipsItemsMissingRequiredFields()
+    {
+        using var document = JsonDocument.Parse("""{"data":[{"id":1,"displayName":"1.0","fileName":"a.zip","dateCreated":"2026-10-01T00:00:00Z"},{"displayName":"1.0","fileName":"a.zip","dateCreated":"2026-10-01T00:00:00Z","gameVersionTypeIds":[1]}]}""");
+
+        Assert.Empty(CurseForgeDirect.ParseFiles(document.RootElement).Items);
     }
 
     [Fact]
@@ -346,7 +383,7 @@ public sealed class CurseForgeDirectTests : IDisposable
 
         Assert.Equal("proxy-2", installed.Version);
         Assert.True(File.Exists(Path.Combine(addOnsPath, "Questie", "Proxy.lua")));
-        Assert.True(after["release"]!.Direct);
+        Assert.False(after["release"]!.Direct);
         Assert.Equal(2, handler.DirectCalls);
     }
 
@@ -365,5 +402,41 @@ public sealed class CurseForgeDirectTests : IDisposable
         Assert.Equal("1.2", installed.Version);
         Assert.Equal(["Questie"], folders);
         Assert.Equal(0, handler.ProxyCalls);
+    }
+
+    [Fact]
+    public async Task InstallRefetchingOn404Async_ProxyInstallsAnotherVersion_DirectNeverOffersThatFileAgain()
+    {
+        var (updater, handler, _) = Setup();
+        handler.DirectZip = Zip("Questie/Questie.toc");
+        handler.ProxyZip = Zip("Questie/Questie.toc");
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        Directory.CreateDirectory(addOnsPath);
+        var releases = await updater.ProbeChannelsAsync(Questie, ["release", "pre-release"], TestContext.Current.CancellationToken, direct: true);
+
+        await updater.InstallRefetchingOn404Async(Questie, "release", releases["release"]!, addOnsPath, null, TestContext.Current.CancellationToken);
+        var after = await updater.ProbeChannelsAsync(Questie, ["release", "pre-release"], TestContext.Current.CancellationToken, direct: true);
+
+        Assert.Equal("proxy-2", after["release"]!.Version);
+        Assert.False(after["release"]!.Direct);
+        Assert.True(after["pre-release"]!.Direct);
+        Assert.Equal(2, handler.DirectCalls);
+    }
+
+    [Fact]
+    public async Task InstallRefetchingOn404Async_DirectReleaseHeldDuringTheSkip_InstallsFromTheProxyWithoutDownloadingIt()
+    {
+        var (updater, handler, _) = Setup();
+        handler.ProxyZip = Zip("Questie/Questie.toc");
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        Directory.CreateDirectory(addOnsPath);
+        var held = (await updater.ProbeChannelsAsync(Questie, ["release"], TestContext.Current.CancellationToken, direct: true))["release"]!;
+        handler.Files = Failure("status");
+        await updater.ProbeChannelsAsync(Questie, ["release"], TestContext.Current.CancellationToken, direct: true);
+
+        var (_, installed) = await updater.InstallRefetchingOn404Async(Questie, "release", held, addOnsPath, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal("proxy-2", installed.Version);
+        Assert.DoesNotContain(handler.Requests, uri => uri.AbsoluteUri == held.Zip);
     }
 }

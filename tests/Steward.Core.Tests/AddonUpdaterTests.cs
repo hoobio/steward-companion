@@ -572,6 +572,19 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
+    public async Task InstallAsync_DirectReleaseSizeMismatch_ReportsNothing()
+    {
+        var (_, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc");
+        var (updater, reports, signal) = ReportingUpdater(handler);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => updater.InstallAsync(CurseForgeQuestie, "release", QuestieRelease with { DirectFileId = 1 }, addOnsPath, null, TestContext.Current.CancellationToken));
+
+        Assert.False(await signal.WaitAsync(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken));
+        Assert.Empty(reports);
+    }
+
+    [Fact]
     public async Task InstallAsync_CurseForgeWithoutHash_InstallsWhenTheSizeMatches()
     {
         var (updater, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc");
@@ -612,7 +625,7 @@ public sealed class AddonUpdaterTests : IDisposable
     {
         var (updater, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc", "QuestieDB/QuestieDB.toc", "QuestieDB/Data/db.lua");
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, handler.Size, DateTimeOffset.UtcNow) { Direct = true };
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, handler.Size, DateTimeOffset.UtcNow) { DirectFileId = 1 };
 
         var folders = await updater.InstallAsync(CurseForgeQuestie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken);
 
@@ -626,7 +639,7 @@ public sealed class AddonUpdaterTests : IDisposable
     {
         var (updater, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc", "HoobiScripts/HoobiScripts.toc");
         WriteInstalled(addOnsPath, "HoobiScripts", "HoobiScripts.toc");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, handler.Size, DateTimeOffset.UtcNow) { Direct = true };
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, handler.Size, DateTimeOffset.UtcNow) { DirectFileId = 1 };
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => updater.InstallAsync(CurseForgeQuestie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken, ["HoobiScripts"]));

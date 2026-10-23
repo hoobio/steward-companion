@@ -159,4 +159,14 @@ public sealed class AddonRequirementsTests
     [InlineData("hoobiscripts", "curseforge:1", false)]
     public void Matches_rows_to_requirements(string addonId, string requirementId, bool expected) =>
         Assert.Equal(expected, AddonRequirements.Matches(addonId, requirementId));
+
+    [Fact]
+    public void Matches_CatalogueCurseForgeAddonByItsManifestModId()
+    {
+        var bugGrabber = new ManagedAddon("buggrabber", "!BugGrabber", "https://api.hoobi.io/guild/api/addons/curseforge/13344/88568/", Name: "BugGrabber", Source: CurseForgeAddons.Source);
+
+        Assert.True(AddonRequirements.Matches(bugGrabber, "curseforge:13344"));
+        Assert.False(AddonRequirements.Matches(bugGrabber, "curseforge:6273"));
+        Assert.False(AddonRequirements.Matches(bugGrabber with { Source = "Steward" }, "curseforge:13344"));
+    }
 }

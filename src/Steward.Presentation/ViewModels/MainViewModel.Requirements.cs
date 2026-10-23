@@ -19,7 +19,7 @@ public sealed partial class MainViewModel
     private ManagedAddon? ResolveRequirement(WowInstallViewModel install, AddonRequirement requirement)
     {
         var known = AddonsFor(install.FlavourPath);
-        if ((known.FirstOrDefault(addon => AddonRequirements.Matches(addon.Id, requirement.Id))
+        if ((known.FirstOrDefault(addon => AddonRequirements.Matches(addon, requirement.Id))
             ?? known.FirstOrDefault(addon => requirement.FolderName is { Length: > 0 } folder && string.Equals(addon.FolderName, folder, StringComparison.OrdinalIgnoreCase))) is { } existing)
         {
             return existing;

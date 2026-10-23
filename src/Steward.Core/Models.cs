@@ -184,7 +184,10 @@ public sealed record AddonRelease(
     [property: JsonPropertyName("requires")] IReadOnlyList<AddonRequirement>? Requires = null)
 {
     [JsonIgnore]
-    public bool Direct { get; init; }
+    public long DirectFileId { get; init; }
+
+    [JsonIgnore]
+    public bool Direct => DirectFileId > 0;
 }
 
 public sealed record ChangelogBlock(

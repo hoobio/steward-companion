@@ -96,6 +96,11 @@ public static class AddonRequirements
         string.Equals(addonId, requirementId, StringComparison.OrdinalIgnoreCase)
         || (CurseForgeModId(requirementId) is { } modId && addonId?.StartsWith($"curseforge-{modId}-", StringComparison.OrdinalIgnoreCase) == true);
 
+    public static bool Matches(ManagedAddon addon, string requirementId) =>
+        addon is not null
+        && (Matches(addon.Id, requirementId)
+            || (addon.IsCurseForge && CurseForgeModId(requirementId) is { } modId && CurseForgeDirect.Ids(addon.ManifestBaseUrl)?.ModId == modId));
+
     public static IReadOnlyList<AddonRequirement> Of(ManagedAddon addon, AddonRelease? release) =>
         [.. (release?.Requires ?? []).Concat(addon?.Requires ?? []).OfType<AddonRequirement>().DistinctBy(requirement => requirement.Id, StringComparer.OrdinalIgnoreCase)];
 

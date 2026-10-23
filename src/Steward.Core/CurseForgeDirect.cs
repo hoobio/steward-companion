@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Steward.Core;
 
-public sealed record CurseForgePublicFile(long Id, string Version, string FileName, long Size, DateTimeOffset Created, int ReleaseType, IReadOnlyList<int> VersionTypes, bool EarlyAccess);
+public sealed record CurseForgePublicFile(long Id, string Version, string FileName, long Size, DateTimeOffset Created, int ReleaseType, IReadOnlyList<int> VersionTypes, bool Available);
 
 public sealed record CurseForgePublicFiles(IReadOnlyList<CurseForgePublicFile> Items, bool Complete);
 
@@ -15,6 +15,9 @@ public static class CurseForgeDirect
     private const string RequiredDependency = "RequiredDependency";
     private const int ReleaseType = 1;
     private static readonly int[] PreReleaseTypes = [2, 3];
+
+    // FileStatus 4 Approved and 10 Released stand in for the missing isAvailable; only 4 was seen live (23 Oct 2026) and the docs give no status-to-availability mapping.
+    private static readonly long[] AvailableStatuses = [4, 10];
 
     public static (int ModId, int VersionType)? Ids(string? manifestBaseUrl) =>
         Uri.TryCreate(manifestBaseUrl, UriKind.Absolute, out var uri)
@@ -32,9 +35,20 @@ public static class CurseForgeDirect
 
     public static CurseForgePublicFiles ParseFiles(JsonElement root)
     {
-        IReadOnlyList<CurseForgePublicFile> items = [.. Data(root).Select(item => ParseFile(item) ?? throw new JsonException("curseforge.com file item lacks id, fileName, dateCreated or gameVersionTypeIds"))];
+        var data = Data(root);
+        var listed = 0;
+        var items = new List<CurseForgePublicFile>();
+        foreach (var item in data)
+        {
+            listed++;
+            if (ParseFile(item) is { } file)
+            {
+                items.Add(file);
+            }
+        }
+
         var total = root.TryGetProperty("pagination", out var pagination) && pagination.ValueKind == JsonValueKind.Object ? Number(pagination, "totalCount") : null;
-        return new CurseForgePublicFiles(items, total is { } count && count <= items.Count);
+        return new CurseForgePublicFiles(items, total is { } count && count <= listed);
     }
 
     public static IReadOnlyList<AddonRequirement> ParseRequires(JsonElement root) =>
@@ -50,14 +64,14 @@ public static class CurseForgeDirect
             "pre-release" => PreReleaseTypes,
             _ => [],
         };
-        return files.Where(file => releaseTypes.Contains(file.ReleaseType) && !file.EarlyAccess && file.VersionTypes.Contains(versionType))
+        return files.Where(file => releaseTypes.Contains(file.ReleaseType) && file.Available && file.VersionTypes.Contains(versionType))
             .MaxBy(file => file.Created);
     }
 
     public static AddonRelease ToRelease(CurseForgePublicFile file, string? website)
     {
         ArgumentNullException.ThrowIfNull(file);
-        return new AddonRelease(file.Version, ZipUrl(file.Id, file.FileName), null, file.Size, file.Created, Website: website) { Direct = true };
+        return new AddonRelease(file.Version, ZipUrl(file.Id, file.FileName), null, file.Size, file.Created, Website: website) { DirectFileId = file.Id };
     }
 
     private static JsonElement.ArrayEnumerator Data(JsonElement root) =>
@@ -68,8 +82,10 @@ public static class CurseForgeDirect
     private static CurseForgePublicFile? ParseFile(JsonElement item)
     {
         if (item.ValueKind != JsonValueKind.Object
-            || Number(item, "id") is not { } id
+            || Number(item, "id") is not (> 0 and var id)
             || Text(item, "fileName") is not { Length: > 0 } fileName
+            || fileName is "." or ".."
+            || fileName.Any(character => character is '/' or '\\' || char.IsControl(character))
             || !DateTimeOffset.TryParse(Text(item, "dateCreated"), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var created)
             || !item.TryGetProperty("gameVersionTypeIds", out var versionTypes) || versionTypes.ValueKind != JsonValueKind.Array)
         {
@@ -84,7 +100,7 @@ public static class CurseForgeDirect
             created,
             (int)(Number(item, "releaseType") ?? 0),
             [.. versionTypes.EnumerateArray().Where(type => type.ValueKind == JsonValueKind.Number && type.TryGetInt32(out _)).Select(type => type.GetInt32())],
-            item.TryGetProperty("isEarlyAccessContent", out var early) && early.ValueKind == JsonValueKind.True);
+            Number(item, "status") is not { } status || AvailableStatuses.Contains(status));
     }
 
     private static string? Text(JsonElement element, string name) =>

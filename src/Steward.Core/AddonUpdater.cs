@@ -49,7 +49,8 @@ public sealed class AddonUpdater
     private readonly Func<CurseForgeDownloadFailure, CancellationToken, Task>? _reportDownloadFailure;
     private readonly ConcurrentDictionary<string, byte> _reportedFailures = new();
     private readonly TimeProvider _clock;
-    private DateTimeOffset _directSkipUntil;
+    private readonly ConcurrentDictionary<long, byte> _badDirectFiles = new();
+    private long _directSkipUntilTicks;
 
     public AddonUpdater(
         HttpClient httpClient,
@@ -129,9 +130,8 @@ public sealed class AddonUpdater
         ArgumentNullException.ThrowIfNull(addon);
         ArgumentNullException.ThrowIfNull(channels);
         var listed = direct ? await ProbeDirectAsync(addon, cancellationToken).ConfigureAwait(false) : null;
-        var releases = await Task.WhenAll(channels.Select(channel => listed?.Release(channel) is { } found
-                ? Task.FromResult<AddonRelease?>(found)
-                : listed?.Complete == true ? Task.FromResult<AddonRelease?>(null)
+        var releases = await Task.WhenAll(channels.Select(channel => DirectRelease(listed, channel) is var (useDirect, found) && useDirect
+                ? Task.FromResult(found)
                 : ProbeChannelAsync(addon, channel, noCache, cancellationToken)))
             .ConfigureAwait(false);
 
@@ -144,17 +144,26 @@ public sealed class AddonUpdater
         return result;
     }
 
-    private sealed record DirectFiles(CurseForgePublicFiles Files, int VersionType, string? Website)
-    {
-        public bool Complete => Files.Complete;
+    private sealed record DirectFiles(CurseForgePublicFiles Files, int VersionType, string? Website);
 
-        public AddonRelease? Release(string channel) =>
-            CurseForgeDirect.Select(Files.Items, channel, VersionType) is { } file ? CurseForgeDirect.ToRelease(file, Website) : null;
+    private (bool UseDirect, AddonRelease? Release) DirectRelease(DirectFiles? listed, string channel)
+    {
+        if (listed is null)
+        {
+            return (false, null);
+        }
+
+        var file = CurseForgeDirect.Select(listed.Files.Items, channel, listed.VersionType);
+        return file is null ? (listed.Files.Complete, null)
+            : _badDirectFiles.ContainsKey(file.Id) ? (false, null)
+            : (true, CurseForgeDirect.ToRelease(file, listed.Website));
     }
+
+    private bool DirectSkipped => _clock.GetUtcNow().UtcTicks < Volatile.Read(ref _directSkipUntilTicks);
 
     private async Task<DirectFiles?> ProbeDirectAsync(ManagedAddon addon, CancellationToken cancellationToken)
     {
-        if (!addon.IsCurseForge || CurseForgeDirect.Ids(addon.ManifestBaseUrl) is not (int modId, int versionType) || _clock.GetUtcNow() < _directSkipUntil)
+        if (!addon.IsCurseForge || CurseForgeDirect.Ids(addon.ManifestBaseUrl) is not (int modId, int versionType) || DirectSkipped)
         {
             return null;
         }
@@ -164,7 +173,7 @@ public sealed class AddonUpdater
             var files = await GetDirectAsync(CurseForgeDirect.FilesUri(modId), CurseForgeDirect.ParseFiles, cancellationToken).ConfigureAwait(false);
             if (files.Items.Count == 0)
             {
-                _logger.Info($"CurseForge direct for {addon.Id} listed no files; using Steward API for it");
+                _logger.Info($"CurseForge direct for {addon.Id} listed no usable files; using Steward API for it");
                 return null;
             }
 
@@ -186,6 +195,11 @@ public sealed class AddonUpdater
             return release;
         }
 
+        if (DirectSkipped)
+        {
+            return await ProxyReleaseAsync(addon, channel, cancellationToken).ConfigureAwait(false);
+        }
+
         try
         {
             return release with { Requires = await GetDirectAsync(CurseForgeDirect.DependenciesUri(modId), CurseForgeDirect.ParseRequires, cancellationToken).ConfigureAwait(false) };
@@ -193,10 +207,13 @@ public sealed class AddonUpdater
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is HttpRequestException or OperationCanceledException or JsonException)
         {
             _logger.Info($"CurseForge direct dependencies for {addon.Id} failed ({FailureReason(ex)}); installing from Steward API");
-            return await GetLatestAsync(addon, channel, cancellationToken, revalidate: false).ConfigureAwait(false)
-                ?? throw new InvalidOperationException($"{addon.Id} has no {channel} build on Steward API", ex);
+            return await ProxyReleaseAsync(addon, channel, cancellationToken).ConfigureAwait(false);
         }
     }
+
+    private async Task<AddonRelease> ProxyReleaseAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken) =>
+        await GetLatestAsync(addon, channel, cancellationToken, revalidate: false).ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"{addon.Id} has no {channel} build on Steward API");
 
     private async Task<T> GetDirectAsync<T>(Uri uri, Func<JsonElement, T> parse, CancellationToken cancellationToken)
     {
@@ -224,7 +241,7 @@ public sealed class AddonUpdater
             return;
         }
 
-        _directSkipUntil = _clock.GetUtcNow() + DirectSkip;
+        Interlocked.Exchange(ref _directSkipUntilTicks, (_clock.GetUtcNow() + DirectSkip).UtcTicks);
         _logger.Info($"CurseForge direct for {addon.Id} failed ({FailureReason(ex)}); using Steward API for every addon for {DirectSkip.TotalMinutes:0} minutes");
     }
 
@@ -249,6 +266,12 @@ public sealed class AddonUpdater
         CancellationToken cancellationToken,
         IReadOnlyCollection<string>? foreignFolders = null)
     {
+        ArgumentNullException.ThrowIfNull(release);
+        if (release.Direct && DirectSkipped)
+        {
+            return await InstallRefetchingOn404Async(addon, channel, await ProxyReleaseAsync(addon, channel, cancellationToken).ConfigureAwait(false), addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false);
+        }
+
         try
         {
             return (await InstallAsync(addon, channel, release, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false), release);
@@ -262,7 +285,13 @@ public sealed class AddonUpdater
                 throw;
             }
 
-            return (await InstallAsync(addon, channel, proxied, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false), proxied);
+            var installed = await InstallRefetchingOn404Async(addon, channel, proxied, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false);
+            if (!string.Equals(installed.Release.Version, release.Version, StringComparison.Ordinal))
+            {
+                _badDirectFiles.TryAdd(release.DirectFileId, 0);
+            }
+
+            return installed;
         }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
@@ -322,7 +351,7 @@ public sealed class AddonUpdater
                     {
                         VerifyZip(tempZipPath, release.Size);
                     }
-                    catch (Exception ex) when (ex is InvalidOperationException or InvalidDataException)
+                    catch (Exception ex) when (!release.Direct && ex is InvalidOperationException or InvalidDataException)
                     {
                         ReportDownloadFailure(addon, release, zipUri, null, ex.Message);
                         throw;
