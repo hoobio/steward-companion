@@ -174,7 +174,7 @@ public sealed partial class AppUpdater(HttpClient httpClient, Uri msiManifestUri
         await AddonUpdater.DownloadAsync(httpClient, uri, path, release.Size, progress, cancellationToken).ConfigureAwait(false);
         try
         {
-            await AddonUpdater.VerifyChecksumAsync(path, digest, null, cancellationToken).ConfigureAwait(false);
+            await AddonUpdater.VerifyChecksumAsync(path, digest, cancellationToken).ConfigureAwait(false);
         }
         catch (InvalidOperationException ex)
         {

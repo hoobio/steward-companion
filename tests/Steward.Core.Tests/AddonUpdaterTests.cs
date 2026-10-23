@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
@@ -23,9 +22,6 @@ public sealed class AddonUpdaterTests : IDisposable
 
         return zipPath;
     }
-
-    [SuppressMessage("Security", "CA5350", Justification = "CurseForge manifests carry SHA-1 only")]
-    private static string Sha1Hex(byte[] bytes) => Convert.ToHexString(SHA1.HashData(bytes));
 
     private static void WriteEntry(ZipArchive archive, string entryName, string content)
     {
@@ -64,47 +60,10 @@ public sealed class AddonUpdaterTests : IDisposable
         var filePath = Path.Combine(_tempDir, "payload.zip");
         await File.WriteAllTextAsync(filePath, "payload", TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => AddonUpdater.VerifyChecksumAsync(filePath, new string('0', 64), null, TestContext.Current.CancellationToken));
-
-        Assert.False(File.Exists(filePath));
-    }
-
-    [Fact]
-    public async Task VerifyChecksumAsync_UsesSha1_WhenNoSha256()
-    {
-        var filePath = Path.Combine(_tempDir, "payload.zip");
-        await File.WriteAllTextAsync(filePath, "payload", TestContext.Current.CancellationToken);
-        var sha1 = Sha1Hex(File.ReadAllBytes(filePath)).ToLowerInvariant();
-
-        await AddonUpdater.VerifyChecksumAsync(filePath, null, sha1, TestContext.Current.CancellationToken);
-
-        Assert.True(File.Exists(filePath));
-    }
-
-    [Fact]
-    public async Task VerifyChecksumAsync_PrefersSha256_OverSha1()
-    {
-        var filePath = Path.Combine(_tempDir, "payload.zip");
-        await File.WriteAllTextAsync(filePath, "payload", TestContext.Current.CancellationToken);
-        var sha1 = Sha1Hex(File.ReadAllBytes(filePath));
-
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => AddonUpdater.VerifyChecksumAsync(filePath, new string('0', 64), sha1, TestContext.Current.CancellationToken));
+            () => AddonUpdater.VerifyChecksumAsync(filePath, new string('0', 64), TestContext.Current.CancellationToken));
 
         Assert.StartsWith("SHA-256 mismatch", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task VerifyChecksumAsync_Sha1Mismatch_Throws_AndDeletesFile()
-    {
-        var filePath = Path.Combine(_tempDir, "payload.zip");
-        await File.WriteAllTextAsync(filePath, "payload", TestContext.Current.CancellationToken);
-
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => AddonUpdater.VerifyChecksumAsync(filePath, null, new string('0', 40), TestContext.Current.CancellationToken));
-
-        Assert.StartsWith("SHA-1 mismatch", ex.Message, StringComparison.Ordinal);
         Assert.False(File.Exists(filePath));
     }
 
@@ -115,7 +74,7 @@ public sealed class AddonUpdaterTests : IDisposable
         await File.WriteAllTextAsync(filePath, "payload", TestContext.Current.CancellationToken);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => AddonUpdater.VerifyChecksumAsync(filePath, null, null, TestContext.Current.CancellationToken));
+            () => AddonUpdater.VerifyChecksumAsync(filePath, null, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -125,7 +84,7 @@ public sealed class AddonUpdaterTests : IDisposable
         await File.WriteAllTextAsync(filePath, "payload", TestContext.Current.CancellationToken);
         var expectedHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(filePath)));
 
-        await AddonUpdater.VerifyChecksumAsync(filePath, expectedHash, null, TestContext.Current.CancellationToken);
+        await AddonUpdater.VerifyChecksumAsync(filePath, expectedHash, TestContext.Current.CancellationToken);
 
         Assert.True(File.Exists(filePath));
     }
@@ -200,6 +159,8 @@ public sealed class AddonUpdaterTests : IDisposable
     private sealed class ZipBytesStubHandler(Uri expectedUri, byte[] zipBytes) : HttpMessageHandler
     {
         public Uri? RequestedUri { get; private set; }
+
+        public long Size => zipBytes.Length;
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
@@ -300,7 +261,7 @@ public sealed class AddonUpdaterTests : IDisposable
     private static readonly Uri QuestieZip = new("https://edge.forgecdn.net/files/1/2/Questie.zip");
     private static readonly ManagedAddon Questie = new("questie", "Questie", "https://steward.example/api/addons/curseforge/334372/88568/");
 
-    private async Task<(AddonUpdater Updater, ZipBytesStubHandler Handler, string AddOnsPath, string Sha1)> QuestieSetupAsync(params string[] entries)
+    private async Task<(AddonUpdater Updater, ZipBytesStubHandler Handler, string AddOnsPath, string Sha256)> QuestieSetupAsync(params string[] entries)
     {
         var zipPath = CreateZip(a =>
         {
@@ -313,7 +274,7 @@ public sealed class AddonUpdaterTests : IDisposable
         var handler = new ZipBytesStubHandler(QuestieZip, zipBytes);
         var addOnsPath = Path.Combine(_tempDir, "AddOns");
         Directory.CreateDirectory(addOnsPath);
-        return (new AddonUpdater(new HttpClient(handler)), handler, addOnsPath, Sha1Hex(zipBytes));
+        return (new AddonUpdater(new HttpClient(handler)), handler, addOnsPath, Convert.ToHexString(SHA256.HashData(zipBytes)));
     }
 
     private static void WriteInstalled(string addOnsPath, string folder, string tocName)
@@ -326,10 +287,10 @@ public sealed class AddonUpdaterTests : IDisposable
     [Fact]
     public async Task InstallAsync_MultiFolderSha1Manifest_ReplacesEveryFolder()
     {
-        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("QuestieDB/QuestieDB.toc", "Questie/Questie.toc");
+        var (updater, _, addOnsPath, sha256) = await QuestieSetupAsync("QuestieDB/QuestieDB.toc", "Questie/Questie.toc");
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
         WriteInstalled(addOnsPath, "QuestieDB", "QuestieDB.toc");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["QuestieDB", "Questie"]);
+        var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Folders: ["QuestieDB", "Questie"]);
 
         await updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken);
 
@@ -342,9 +303,9 @@ public sealed class AddonUpdaterTests : IDisposable
     [Fact]
     public async Task InstallAsync_WaitsForAddOnsWriteLock_BeforeTouchingFolders()
     {
-        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("QuestieDB/QuestieDB.toc", "Questie/Questie.toc");
+        var (updater, _, addOnsPath, sha256) = await QuestieSetupAsync("QuestieDB/QuestieDB.toc", "Questie/Questie.toc");
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["QuestieDB", "Questie"]);
+        var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Folders: ["QuestieDB", "Questie"]);
         using var held = new ManualResetEventSlim();
         using var releaseHolder = new ManualResetEventSlim();
         var holder = new Thread(() =>
@@ -372,9 +333,9 @@ public sealed class AddonUpdaterTests : IDisposable
     [Fact]
     public async Task InstallAsync_ZipWithFolderOutsideFolders_IsRefused_AndNothingDeleted()
     {
-        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", "Intruder/Intruder.toc");
+        var (updater, _, addOnsPath, sha256) = await QuestieSetupAsync("Questie/Questie.toc", "Intruder/Intruder.toc");
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["Questie"]);
+        var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Folders: ["Questie"]);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken));
@@ -386,9 +347,9 @@ public sealed class AddonUpdaterTests : IDisposable
     [Fact]
     public async Task InstallAsync_CurseForgeZipWithUnlistedFolder_InstallsAndReportsIt()
     {
-        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", "QuestieExtra/QuestieExtra.toc");
+        var (updater, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc", "QuestieExtra/QuestieExtra.toc");
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["Questie"]);
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, handler.Size, DateTimeOffset.UtcNow, Folders: ["Questie"]);
 
         var folders = await updater.InstallAsync(CurseForgeQuestie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken);
 
@@ -406,10 +367,10 @@ public sealed class AddonUpdaterTests : IDisposable
     [InlineData("/WeakAuras/WeakAuras.lua")]
     public async Task InstallAsync_ZipEntryWithUnsafePath_IsRefused_AndNothingWritten(string entry)
     {
-        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", entry);
+        var (updater, _, addOnsPath, sha256) = await QuestieSetupAsync("Questie/Questie.toc", entry);
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
         WriteInstalled(addOnsPath, "WeakAuras", "WeakAuras.toc");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["Questie"]);
+        var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Folders: ["Questie"]);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken));
@@ -433,10 +394,10 @@ public sealed class AddonUpdaterTests : IDisposable
     [Fact]
     public async Task InstallAsync_CurseForgeZipWithForeignFolder_IsRefused_AndNothingWritten()
     {
-        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", "HoobiScripts/HoobiScripts.toc");
+        var (updater, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc", "HoobiScripts/HoobiScripts.toc");
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
         WriteInstalled(addOnsPath, "HoobiScripts", "HoobiScripts.toc");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["Questie"]);
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, handler.Size, DateTimeOffset.UtcNow, Folders: ["Questie"]);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => updater.InstallAsync(CurseForgeQuestie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken, ["hoobiscripts"]));
@@ -450,8 +411,8 @@ public sealed class AddonUpdaterTests : IDisposable
     [Fact]
     public async Task InstallAsync_ZipWithRootFile_IsRefused()
     {
-        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc", "readme.txt");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["Questie"]);
+        var (updater, _, addOnsPath, sha256) = await QuestieSetupAsync("Questie/Questie.toc", "readme.txt");
+        var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Folders: ["Questie"]);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken));
@@ -462,10 +423,10 @@ public sealed class AddonUpdaterTests : IDisposable
     [Fact]
     public async Task InstallAsync_OneFolderFailsTocGuard_DeletesNone()
     {
-        var (updater, _, addOnsPath, sha1) = await QuestieSetupAsync("QuestieDB/QuestieDB.toc", "Questie/Questie.toc");
+        var (updater, _, addOnsPath, sha256) = await QuestieSetupAsync("QuestieDB/QuestieDB.toc", "Questie/Questie.toc");
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
         WriteInstalled(addOnsPath, "QuestieDB", "notes.txt");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Folders: ["Questie", "QuestieDB"]);
+        var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Folders: ["Questie", "QuestieDB"]);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken));
@@ -477,8 +438,8 @@ public sealed class AddonUpdaterTests : IDisposable
     [Fact]
     public async Task InstallAsync_NonDistributable_IsRefused_WithoutDownloading()
     {
-        var (updater, handler, addOnsPath, sha1) = await QuestieSetupAsync("Questie/Questie.toc");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: sha1, Website: "https://www.curseforge.com/wow/addons/dbm", Distributable: false);
+        var (updater, handler, addOnsPath, sha256) = await QuestieSetupAsync("Questie/Questie.toc");
+        var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Website: "https://www.curseforge.com/wow/addons/dbm", Distributable: false);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken));
@@ -553,7 +514,7 @@ public sealed class AddonUpdaterTests : IDisposable
     private static readonly ManagedAddon CurseForgeQuestie = new(
         "curseforge-334372-88568", "Questie", "https://steward.example/api/addons/curseforge/334372/88568/", Source: CurseForgeAddons.Source);
 
-    private static readonly AddonRelease QuestieRelease = new("v2", QuestieZip.ToString(), null, 0, DateTimeOffset.UtcNow, Sha1: "00");
+    private static readonly AddonRelease QuestieRelease = new("v2", QuestieZip.ToString(), new string('0', 64), 1, DateTimeOffset.UtcNow);
 
     private static (AddonUpdater Updater, List<CurseForgeDownloadFailure> Reports, SemaphoreSlim Signal) ReportingUpdater(
         HttpMessageHandler handler, Func<CurseForgeDownloadFailure, Task>? report = null)
@@ -595,7 +556,7 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
-    public async Task InstallAsync_ChecksumMismatch_ReportsWithNullStatus()
+    public async Task InstallAsync_CurseForgeSizeMismatch_ReportsWithNullStatus()
     {
         var (setupUpdater, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc");
         _ = setupUpdater;
@@ -607,7 +568,70 @@ public sealed class AddonUpdaterTests : IDisposable
 
         var report = Assert.Single(reports);
         Assert.Null(report.Status);
-        Assert.Equal("checksum mismatch", report.Error);
+        Assert.StartsWith("Size mismatch", report.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task InstallAsync_CurseForgeWithoutHash_InstallsWhenTheSizeMatches()
+    {
+        var (updater, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc");
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, handler.Size, DateTimeOffset.UtcNow, Folders: ["Questie"]);
+
+        var folders = await updater.InstallAsync(CurseForgeQuestie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["Questie"], folders);
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "Questie", "Questie.toc")));
+    }
+
+    [Fact]
+    public async Task InstallAsync_CurseForgeZipFailingItsCrc_IsRefused_AndNothingDeleted()
+    {
+        var zipPath = CreateZip(a =>
+        {
+            var entry = a.CreateEntry("Questie/Questie.toc", CompressionLevel.NoCompression);
+            using var writer = new StreamWriter(entry.Open());
+            writer.Write("## Version: 2 ORIGINAL");
+        });
+        var zipBytes = await File.ReadAllBytesAsync(zipPath, TestContext.Current.CancellationToken);
+        var payload = System.Text.Encoding.ASCII.GetBytes("ORIGINAL");
+        var at = zipBytes.AsSpan().IndexOf(payload);
+        System.Text.Encoding.ASCII.GetBytes("TAMPERED").CopyTo(zipBytes, at);
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        WriteInstalled(addOnsPath, "Questie", "Questie.toc");
+        var updater = new AddonUpdater(new HttpClient(new ZipBytesStubHandler(QuestieZip, zipBytes)));
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, zipBytes.Length, DateTimeOffset.UtcNow, Folders: ["Questie"]);
+
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => updater.InstallAsync(CurseForgeQuestie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken));
+
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "Questie", "stale.lua")));
+    }
+
+    [Fact]
+    public async Task InstallAsync_DirectRelease_TakesTheZipFoldersThatHoldAToc()
+    {
+        var (updater, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc", "QuestieDB/QuestieDB.toc", "QuestieDB/Data/db.lua");
+        WriteInstalled(addOnsPath, "Questie", "Questie.toc");
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, handler.Size, DateTimeOffset.UtcNow) { Direct = true };
+
+        var folders = await updater.InstallAsync(CurseForgeQuestie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["Questie", "QuestieDB"], folders);
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "QuestieDB", "Data", "db.lua")));
+        Assert.False(File.Exists(Path.Combine(addOnsPath, "Questie", "stale.lua")));
+    }
+
+    [Fact]
+    public async Task InstallAsync_DirectReleaseShippingAForeignFolder_IsRefused()
+    {
+        var (updater, handler, addOnsPath, _) = await QuestieSetupAsync("Questie/Questie.toc", "HoobiScripts/HoobiScripts.toc");
+        WriteInstalled(addOnsPath, "HoobiScripts", "HoobiScripts.toc");
+        var release = new AddonRelease("v2", QuestieZip.ToString(), null, handler.Size, DateTimeOffset.UtcNow) { Direct = true };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => updater.InstallAsync(CurseForgeQuestie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken, ["HoobiScripts"]));
+
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "HoobiScripts", "stale.lua")));
     }
 
     [Fact]

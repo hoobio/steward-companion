@@ -5,7 +5,7 @@ public sealed class CurseForgeLinksTests
     private static readonly DateTimeOffset Released = new(2026, 9, 20, 0, 0, 0, TimeSpan.Zero);
 
     private static AddonRelease Release(string version = "1.2.0", bool distributable = true) =>
-        new(version, distributable ? "https://edge.forgecdn.net/a.zip" : null, null, 1, Released, Sha1: distributable ? "ab" : null, Distributable: distributable);
+        new(version, distributable ? "https://edge.forgecdn.net/a.zip" : null, null, 1, Released, Distributable: distributable);
 
     private static CurseForgeModFile File(IReadOnlyList<int>? versionTypes = null, bool allow = true, int? releaseType = 1) =>
         new(1, "AtlasLoot Forever", null, "https://www.curseforge.com/wow/addons/atlasloot-forever", allow, Release(distributable: allow), releaseType, versionTypes ?? [88568]);

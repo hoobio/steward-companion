@@ -162,22 +162,24 @@ public sealed class AppStateStoreTests : IDisposable
 
         Assert.Null(state.Installs["flavour|hoobiscripts"].InstalledAt);
         Assert.Equal("aa", state.Installs["flavour|hoobiscripts"].Sha256);
-        Assert.Null(state.Installs["flavour|hoobiscripts"].Sha1);
     }
 
     [Fact]
-    public void Save_Sha1Record_WritesSha1AndNoSha256()
+    public void Load_InstallWithLegacySha1_LoadsAndSavesWithoutIt()
     {
+        File.WriteAllText(
+            StatePath,
+            """{"channels":{},"installs":{"flavour|questie":{"version":"11.0","channel":"release","sha1":"ab12","folders":["Questie"]}}}""");
         var store = new AppStateStore(["questie"], StatePath);
-        var state = store.Load();
-        state.Installs["flavour|questie"] = new InstalledAddonRecord("11.0", "release", null, null, "ab12");
 
+        var state = store.Load();
         store.Save(state);
 
+        Assert.Equal("11.0", state.Installs["flavour|questie"].Version);
+        Assert.Equal(["Questie"], state.Installs["flavour|questie"].Folders);
         var json = File.ReadAllText(StatePath);
-        Assert.Contains("\"sha1\":\"ab12\"", json.Replace(" ", "", StringComparison.Ordinal), StringComparison.Ordinal);
+        Assert.DoesNotContain("sha1", json, StringComparison.Ordinal);
         Assert.DoesNotContain("sha256", json, StringComparison.Ordinal);
-        Assert.Equal("ab12", store.Load().Installs["flavour|questie"].Sha1);
     }
 
     [Fact]

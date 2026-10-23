@@ -177,12 +177,15 @@ public sealed record AddonRelease(
     [property: JsonPropertyName("size")] long Size,
     [property: JsonPropertyName("released")] DateTimeOffset Released,
     [property: JsonPropertyName("notes")] IReadOnlyList<string>? Notes = null,
-    [property: JsonPropertyName("sha1")] string? Sha1 = null,
     [property: JsonPropertyName("folders")] IReadOnlyList<string>? Folders = null,
     [property: JsonPropertyName("website")] string? Website = null,
     [property: JsonPropertyName("distributable")] bool Distributable = true,
     [property: JsonPropertyName("changelog")] IReadOnlyList<ChangelogBlock>? Changelog = null,
-    [property: JsonPropertyName("requires")] IReadOnlyList<AddonRequirement>? Requires = null);
+    [property: JsonPropertyName("requires")] IReadOnlyList<AddonRequirement>? Requires = null)
+{
+    [JsonIgnore]
+    public bool Direct { get; init; }
+}
 
 public sealed record ChangelogBlock(
     [property: JsonPropertyName("kind")] string Kind,
@@ -312,7 +315,6 @@ public sealed record InstalledAddonRecord(
     [property: JsonPropertyName("channel")] string Channel,
     [property: JsonPropertyName("sha256"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Sha256,
     [property: JsonPropertyName("installed_at")] DateTimeOffset? InstalledAt = null,
-    [property: JsonPropertyName("sha1"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Sha1 = null,
     [property: JsonPropertyName("folders"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? Folders = null);
 
 public sealed record AppState(

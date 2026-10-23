@@ -302,7 +302,7 @@ public sealed partial class MainViewModel
             var state = _stateStore.Load();
             foreach (var addon in addons)
             {
-                var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, CancellationToken.None, noCache).ConfigureAwait(true);
+                var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, CancellationToken.None, noCache, direct: true).ConfigureAwait(true);
                 _releases[addon.Id] = releases;
                 _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases, addon.Channels, addon.DefaultPreference);
             }

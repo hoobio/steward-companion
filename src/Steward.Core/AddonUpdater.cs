@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using System.Text.Json;
 
 using Steward.Core.Diagnostics;
 
@@ -48,18 +48,26 @@ public sealed class AddonUpdater
     private readonly ILogger _logger;
     private readonly Func<CurseForgeDownloadFailure, CancellationToken, Task>? _reportDownloadFailure;
     private readonly ConcurrentDictionary<string, byte> _reportedFailures = new();
+    private readonly TimeProvider _clock;
+    private DateTimeOffset _directSkipUntil;
 
     public AddonUpdater(
         HttpClient httpClient,
         ILogger<AddonUpdater>? logger = null,
         HttpClient? sessionClient = null,
-        Func<CurseForgeDownloadFailure, CancellationToken, Task>? reportDownloadFailure = null)
+        Func<CurseForgeDownloadFailure, CancellationToken, Task>? reportDownloadFailure = null,
+        TimeProvider? clock = null)
     {
         _httpClient = httpClient;
         _sessionClient = sessionClient;
         _reportDownloadFailure = reportDownloadFailure;
         _logger = logger ?? NullLogger<AddonUpdater>.Instance;
+        _clock = clock ?? TimeProvider.System;
     }
+
+    internal static readonly TimeSpan DirectTimeout = TimeSpan.FromSeconds(10);
+
+    internal static readonly TimeSpan DirectSkip = TimeSpan.FromHours(1);
 
     public ManifestCache ManifestCache { get; } = new();
 
@@ -116,8 +124,15 @@ public sealed class AddonUpdater
     }
 
     public async Task<IReadOnlyDictionary<string, AddonRelease?>> ProbeChannelsAsync(
-        ManagedAddon addon, IReadOnlyList<string> channels, CancellationToken cancellationToken, bool noCache = false)
+        ManagedAddon addon, IReadOnlyList<string> channels, CancellationToken cancellationToken, bool noCache = false, bool direct = false)
     {
+        ArgumentNullException.ThrowIfNull(addon);
+        ArgumentNullException.ThrowIfNull(channels);
+        if (direct && await ProbeDirectAsync(addon, channels, cancellationToken).ConfigureAwait(false) is { } directReleases)
+        {
+            return directReleases;
+        }
+
         var releases = await Task.WhenAll(channels.Select(channel => ProbeChannelAsync(addon, channel, noCache, cancellationToken)))
             .ConfigureAwait(false);
 
@@ -128,6 +143,53 @@ public sealed class AddonUpdater
         }
 
         return result;
+    }
+
+    private async Task<IReadOnlyDictionary<string, AddonRelease?>?> ProbeDirectAsync(
+        ManagedAddon addon, IReadOnlyList<string> channels, CancellationToken cancellationToken)
+    {
+        if (!addon.IsCurseForge || CurseForgeDirect.Ids(addon.ManifestBaseUrl) is not (int modId, int versionType) || _clock.GetUtcNow() < _directSkipUntil)
+        {
+            return null;
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(DirectTimeout);
+        try
+        {
+            var filesTask = GetDirectAsync(CurseForgeDirect.FilesUri(modId), CurseForgeDirect.ParseFiles, timeout.Token);
+            var requiresTask = GetDirectAsync(CurseForgeDirect.DependenciesUri(modId), CurseForgeDirect.ParseRequires, timeout.Token);
+            var files = await filesTask.ConfigureAwait(false);
+            var requires = await requiresTask.ConfigureAwait(false);
+            var result = new Dictionary<string, AddonRelease?>(channels.Count);
+            foreach (var channel in channels)
+            {
+                result[channel] = CurseForgeDirect.Select(files, channel, versionType) is { } file ? CurseForgeDirect.ToRelease(file, addon.Website, requires) : null;
+            }
+
+            return result;
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is HttpRequestException or OperationCanceledException or JsonException)
+        {
+            SkipDirect(addon, ex);
+            return null;
+        }
+    }
+
+    private async Task<T> GetDirectAsync<T>(Uri uri, Func<JsonElement, T> parse, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        return parse(document.RootElement);
+    }
+
+    private void SkipDirect(ManagedAddon addon, Exception ex)
+    {
+        _directSkipUntil = _clock.GetUtcNow() + DirectSkip;
+        var reason = ex is HttpRequestException { StatusCode: { } status } ? $"status {(int)status}" : $"{ex.GetType().Name}: {ex.Message}";
+        _logger.Info($"CurseForge direct for {addon.Id} failed ({reason}); using Steward API for {DirectSkip.TotalMinutes:0} minutes");
     }
 
     private async Task<AddonRelease?> ProbeChannelAsync(ManagedAddon addon, string channel, bool noCache, CancellationToken cancellationToken)
@@ -154,6 +216,17 @@ public sealed class AddonUpdater
         try
         {
             return (await InstallAsync(addon, channel, release, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false), release);
+        }
+        catch (Exception ex) when (release.Direct && !cancellationToken.IsCancellationRequested)
+        {
+            SkipDirect(addon, ex);
+            var proxied = await GetLatestAsync(addon, channel, cancellationToken, revalidate: false).ConfigureAwait(false);
+            if (proxied is null)
+            {
+                throw;
+            }
+
+            return (await InstallAsync(addon, channel, proxied, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false), proxied);
         }
         catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
@@ -190,9 +263,9 @@ public sealed class AddonUpdater
                     throw new InvalidOperationException($"{addon.Id} {release.Version} is not distributable; get it from {release.Website ?? "its website"}");
                 }
 
-                if (release.Zip is null || (release.Sha256 is null && release.Sha1 is null))
+                if (release.Zip is null || (!addon.IsCurseForge && release.Sha256 is null))
                 {
-                    throw new InvalidOperationException($"{addon.Id} {release.Version} manifest has no zip or no sha256/sha1; refusing to install");
+                    throw new InvalidOperationException($"{addon.Id} {release.Version} manifest has no zip or no sha256; refusing to install");
                 }
 
                 folders = InstallFolders(addon, release);
@@ -207,20 +280,27 @@ public sealed class AddonUpdater
                     throw;
                 }
 
-                try
+                if (addon.IsCurseForge)
                 {
-                    await VerifyChecksumAsync(tempZipPath, release.Sha256, release.Sha1, cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        VerifyZip(tempZipPath, release.Size);
+                    }
+                    catch (Exception ex) when (ex is InvalidOperationException or InvalidDataException)
+                    {
+                        ReportDownloadFailure(addon, release, zipUri, null, ex.Message);
+                        throw;
+                    }
                 }
-                catch (InvalidOperationException)
+                else
                 {
-                    ReportDownloadFailure(addon, release, zipUri, null, "checksum mismatch");
-                    throw;
+                    await VerifyChecksumAsync(tempZipPath, release.Sha256, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (addon.IsCurseForge)
                 {
                     // CurseForge's module list can omit a folder its own zip ships (EllesmereUIForeverEssentials, 29 Sep 2026).
-                    folders = [.. folders.Union(ZipFolders(tempZipPath, addon.Id), StringComparer.OrdinalIgnoreCase)];
+                    folders = release.Direct ? ZipTocFolders(tempZipPath, addon.Id) : [.. folders.Union(ZipFolders(tempZipPath, addon.Id), StringComparer.OrdinalIgnoreCase)];
                     if (foreignFolders is not null && folders.FirstOrDefault(folder => foreignFolders.Contains(folder, StringComparer.OrdinalIgnoreCase)) is { } taken)
                     {
                         throw new InvalidOperationException($"{addon.Id} ships {taken}, which belongs to another addon; refusing to install");
@@ -316,31 +396,71 @@ public sealed class AddonUpdater
         }
     }
 
-    [SuppressMessage("Security", "CA5350", Justification = "CurseForge publishes only SHA-1 and MD5 file hashes; SHA-256 is used whenever the manifest has it")]
-    internal static async Task VerifyChecksumAsync(
-        string filePath,
-        string? expectedSha256,
-        string? expectedSha1,
-        CancellationToken cancellationToken)
+    internal static async Task VerifyChecksumAsync(string filePath, string? expectedSha256, CancellationToken cancellationToken)
     {
-        var (name, expected) = expectedSha256 is not null ? ("SHA-256", expectedSha256)
-            : expectedSha1 is not null ? ("SHA-1", expectedSha1)
-            : throw new InvalidOperationException("The manifest has neither sha256 nor sha1; refusing to install an unverified zip");
+        if (expectedSha256 is null)
+        {
+            throw new InvalidOperationException("The manifest has no sha256; refusing to install an unverified zip");
+        }
 
         string actualHash;
         await using (var stream = File.OpenRead(filePath))
         {
-            actualHash = Convert.ToHexString(expectedSha256 is not null
-                ? await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)
-                : await SHA1.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
+            actualHash = Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
         }
 
-        if (!string.Equals(actualHash, expected, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(actualHash, expectedSha256, StringComparison.OrdinalIgnoreCase))
         {
             File.Delete(filePath);
-            throw new InvalidOperationException(
-                $"{name} mismatch: expected {expected}, got {actualHash}");
+            throw new InvalidOperationException($"SHA-256 mismatch: expected {expectedSha256}, got {actualHash}");
         }
+    }
+
+    internal static void VerifyZip(string filePath, long expectedSize)
+    {
+        var actualSize = new FileInfo(filePath).Length;
+        if (actualSize != expectedSize)
+        {
+            throw new InvalidOperationException($"Size mismatch: expected {expectedSize} bytes, got {actualSize}");
+        }
+
+        using var archive = ZipFile.OpenRead(filePath);
+        foreach (var entry in archive.Entries)
+        {
+            // ZipArchiveEntry.Open does not check the entry's CRC on read (.NET 10, verified 23 Oct 2026).
+            using var stream = entry.Open();
+            if (Crc32(stream) != entry.Crc32)
+            {
+                throw new InvalidDataException($"Zip entry {entry.FullName} fails its CRC check");
+            }
+        }
+    }
+
+    private static readonly uint[] CrcTable = [.. Enumerable.Range(0, 256).Select(n =>
+    {
+        var crc = (uint)n;
+        for (var bit = 0; bit < 8; bit++)
+        {
+            crc = (crc & 1) != 0 ? 0xEDB88320 ^ (crc >> 1) : crc >> 1;
+        }
+
+        return crc;
+    })];
+
+    private static uint Crc32(Stream stream)
+    {
+        var crc = 0xFFFFFFFFu;
+        var buffer = new byte[81920];
+        int read;
+        while ((read = stream.Read(buffer)) > 0)
+        {
+            foreach (var value in buffer.AsSpan(0, read))
+            {
+                crc = CrcTable[(crc ^ value) & 0xFF] ^ (crc >> 8);
+            }
+        }
+
+        return ~crc;
     }
 
     public static IReadOnlyList<string> InstallFolders(ManagedAddon addon, AddonRelease? release)
@@ -358,6 +478,16 @@ public sealed class AddonUpdater
         return ValidFolders(
             [.. archive.Entries.Select(entry => entry.FullName.Split('/', '\\')).Where(parts => parts.Length > 1).Select(parts => parts[0]).Distinct(StringComparer.OrdinalIgnoreCase)],
             addonId);
+    }
+
+    internal static IReadOnlyList<string> ZipTocFolders(string zipPath, string addonId)
+    {
+        using var archive = ZipFile.OpenRead(zipPath);
+        IReadOnlyList<string> folders = [.. archive.Entries.Select(entry => entry.FullName.Split('/', '\\'))
+            .Where(parts => parts.Length == 2 && parts[1].EndsWith(".toc", StringComparison.OrdinalIgnoreCase))
+            .Select(parts => parts[0])
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
+        return folders.Count > 0 ? ValidFolders(folders, addonId) : throw new InvalidOperationException($"{addonId} zip has no folder with a .toc");
     }
 
     private static IReadOnlyList<string> ValidFolders(IReadOnlyList<string> folders, string addonId)

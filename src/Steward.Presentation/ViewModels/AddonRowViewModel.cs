@@ -781,7 +781,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
                 .ConfigureAwait(true);
 
             var state = _stateStore.Load();
-            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, release.Sha1, folders);
+            state.Installs[Key] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, folders);
             _stateStore.Save(state);
             await InGameIcon.EnsureAsync(_platform, _updater, _install.AddOnsPath, _addon, _logger).ConfigureAwait(true);
             WriteThemeFile();
