@@ -312,8 +312,8 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
             return FileResult.Next;
         }
 
-        // steward-sync claims a 30 s slot per guid (else folder) before it reads the body, so every sent request counts.
-        _nextSendAt[key] = _now() + MinInterval;
+        // The server claims a 30 s slot per guid (else folder) before it reads the body.
+        var spacing = MinInterval;
         try
         {
             var response = await client.PutJourneyAsync(
@@ -334,7 +334,7 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
         }
         catch (StewardThrottledException ex)
         {
-            _nextSendAt[key] = _now() + (ex.RetryAfter is { } wait && wait > TimeSpan.Zero ? wait : DefaultRetryAfter);
+            spacing = ex.RetryAfter is { } wait && wait > TimeSpan.Zero ? wait : DefaultRetryAfter;
             return FileResult.Next;
         }
         catch (StewardRequestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
@@ -361,6 +361,10 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
         {
             Save(file.Path, record => record with { Error = "Steward unreachable, retrying", ErrorAt = _now() });
             return FileResult.Halt;
+        }
+        finally
+        {
+            _nextSendAt[key] = _now() + spacing;
         }
     }
 

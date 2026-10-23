@@ -382,4 +382,21 @@ public sealed class JourneyTests : IDisposable
         await uploader.UploadAsync([_root], CancellationToken.None);
         Assert.Equal(4, handler.Requests.Count);
     }
+
+    [Fact]
+    public async Task Upload_ThrottledWithoutRetryAfter_WaitsAMinute()
+    {
+        WriteFile(Fixture());
+        var now = DateTimeOffset.UnixEpoch;
+        var (uploader, handler, _) = UploaderFor(HttpStatusCode.TooManyRequests, "", clock: () => now);
+
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        now += TimeSpan.FromSeconds(59);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.Single(handler.Requests);
+
+        now += TimeSpan.FromSeconds(2);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+    }
 }
