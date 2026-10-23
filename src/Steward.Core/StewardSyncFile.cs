@@ -246,6 +246,13 @@ public static class StewardSyncFile
             entries.Add(new(LuaValue.FromString("links"), LinksToLua(linkedCharacters)));
         }
 
+        if (payload.RankTargets is { } rankTargets)
+        {
+            entries.Add(new(LuaValue.FromString("rankTargets"), LuaValue.FromTable(
+                [.. rankTargets.OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                    .Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.FromNumber(kv.Value)))])));
+        }
+
         return LuaValue.FromTable(entries);
     }
 

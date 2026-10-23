@@ -190,6 +190,22 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
+    public void Render_WritesRankTargetsSortedByGuid_AndOmitsTheKeyWhenTheServerSentNone()
+    {
+        var payload = SamplePayload() with
+        {
+            RankTargets = new Dictionary<string, int> { ["Player-4619-019A5263"] = 6, ["Player-4619-019A5262"] = 4 },
+        };
+
+        var rendered = StewardSyncFile.Render(payload);
+
+        Assert.Contains("\t[\"rankTargets\"] = {\n\t\t[\"Player-4619-019A5262\"] = 4,\n\t\t[\"Player-4619-019A5263\"] = 6,\n\t},", rendered, StringComparison.Ordinal);
+        Assert.Contains("\t[\"rankTargets\"] = {\n\t},", StewardSyncFile.Render(SamplePayload() with { RankTargets = new Dictionary<string, int>() }), StringComparison.Ordinal);
+        Assert.DoesNotContain("rankTargets", StewardSyncFile.Render(SamplePayload()), StringComparison.Ordinal);
+        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
+    }
+
+    [Fact]
     public void Render_ProducesAnEmptyOriginsTable_WhenThePayloadCarriesNone()
     {
         var rendered = StewardSyncFile.Render(SamplePayload());

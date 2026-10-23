@@ -44,7 +44,8 @@ public sealed class StewardClientTests
         "primary":{"class":"WARRIOR","spec":"Fury","role":"Melee"},"secondary":null}],
         "statuses":[{"name":"Officer","color":"#ff0000","role_id":"9","position":0},
         {"name":"Raider","color":"#00ff00","role_id":null,"position":1}],
-        "origins":[{"name":"EU","color":"#1d7fd6","position":0}]}
+        "origins":[{"name":"EU","color":"#1d7fd6","position":0}],
+        "rank_targets":{"Player-4395-0A1B2C3D":4}}
         """;
 
     private const string MembersBody =
@@ -55,7 +56,7 @@ public sealed class StewardClientTests
     {
         var (client, handler) = ClientFor(HttpStatusCode.OK, RosterBody);
 
-        var (members, statuses, origins) = await client.GetGuildRosterAsync("1", CancellationToken.None);
+        var (members, statuses, origins, rankTargets) = await client.GetGuildRosterAsync("1", CancellationToken.None);
 
         Assert.Equal("https://api.example.com/guild/api/admin/1/roster", handler.RequestUrl);
         var member = Assert.Single(members);
@@ -68,6 +69,7 @@ public sealed class StewardClientTests
         var origin = Assert.Single(origins);
         Assert.Equal("EU", origin.Name);
         Assert.Equal("#1d7fd6", origin.Color);
+        Assert.Equal(4, Assert.Contains("Player-4395-0A1B2C3D", rankTargets!));
     }
 
     [Fact]
@@ -83,7 +85,7 @@ public sealed class StewardClientTests
             """;
         var (client, _) = ClientFor(HttpStatusCode.OK, body);
 
-        var (members, _, _) = await client.GetGuildRosterAsync("1", CancellationToken.None);
+        var (members, _, _, _) = await client.GetGuildRosterAsync("1", CancellationToken.None);
 
         var main = Assert.Single(members).Main;
         Assert.Equal("Player-4619-00B33CCD", main?.CharacterGuid);
@@ -97,10 +99,11 @@ public sealed class StewardClientTests
     {
         var (client, _) = ClientFor(HttpStatusCode.OK, """{"members":[]}""");
 
-        var (_, statuses, origins) = await client.GetGuildRosterAsync("1", CancellationToken.None);
+        var (_, statuses, origins, rankTargets) = await client.GetGuildRosterAsync("1", CancellationToken.None);
 
         Assert.Empty(statuses);
         Assert.Empty(origins);
+        Assert.Null(rankTargets);
     }
 
     [Fact]
