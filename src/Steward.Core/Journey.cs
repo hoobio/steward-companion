@@ -201,10 +201,12 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
 {
     public const string TooShort = "too_short";
 
+    private static readonly TimeSpan MinInterval = TimeSpan.FromSeconds(30);
+
     private static readonly TimeSpan DefaultRetryAfter = TimeSpan.FromMinutes(1);
 
     private readonly Func<DateTimeOffset> _now = clock ?? (() => DateTimeOffset.Now);
-    private DateTimeOffset _retryAt;
+    private readonly Dictionary<string, DateTimeOffset> _nextSendAt = [];
 
     public bool IsBlocked { get; private set; }
 
@@ -221,7 +223,7 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
     {
         foreach (var file in flavourPaths.SelectMany(JourneyFile.Find))
         {
-            if (IsBlocked || _now() < _retryAt)
+            if (IsBlocked)
             {
                 return JourneyPassResult.Done;
             }
@@ -304,6 +306,14 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
             return FileResult.Next;
         }
 
+        var key = summary.CharacterGuid is { } guid ? $"guid:{guid}" : $"folder:{file.Account}/{file.Realm}/{file.Character}";
+        if (_now() < _nextSendAt.GetValueOrDefault(key))
+        {
+            return FileResult.Next;
+        }
+
+        // steward-sync allows one journey per guid (else folder) per 30 s and spends the slot before it reads the body, whatever the outcome.
+        _nextSendAt[key] = _now() + MinInterval;
         try
         {
             var response = await client.PutJourneyAsync(
@@ -324,9 +334,8 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
         }
         catch (StewardThrottledException ex)
         {
-            _retryAt = _now() + (ex.RetryAfter ?? DefaultRetryAfter);
-            Save(file.Path, record => record with { Error = "Sent too recently, trying again shortly", ErrorAt = _now() });
-            return FileResult.Halt;
+            _nextSendAt[key] = _now() + (ex.RetryAfter is { } wait && wait > TimeSpan.Zero ? wait : DefaultRetryAfter);
+            return FileResult.Next;
         }
         catch (StewardRequestException ex) when (ex.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {

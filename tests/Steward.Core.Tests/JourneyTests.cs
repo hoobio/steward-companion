@@ -317,4 +317,69 @@ public sealed class JourneyTests : IDisposable
         Assert.Single(handler.Requests);
         Assert.Equal("The journey file is too large to upload.", Assert.Single(store.Load().JourneyUploads.Values).Error);
     }
+
+    [Fact]
+    public async Task Upload_SavesWithin30Seconds_CoalesceIntoOneUploadOfTheLatestFile()
+    {
+        var path = WriteFile(Fixture());
+        var now = DateTimeOffset.UnixEpoch;
+        var (uploader, handler, _) = UploaderFor(HttpStatusCode.OK, clock: () => now);
+        byte[] latest = [.. Fixture(), (byte)'\n', (byte)'\n'];
+
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        now += TimeSpan.FromSeconds(10);
+        File.WriteAllBytes(path, [.. Fixture(), (byte)'\n']);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        now += TimeSpan.FromSeconds(10);
+        File.WriteAllBytes(path, latest);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.Single(handler.Requests);
+
+        now += TimeSpan.FromSeconds(11);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+
+        Assert.Equal(2, handler.Requests.Count);
+        using var gunzip = new GZipStream(new MemoryStream(handler.Requests[1].Body), CompressionMode.Decompress);
+        using var decompressed = new MemoryStream();
+        gunzip.CopyTo(decompressed);
+        Assert.Equal(latest, decompressed.ToArray());
+    }
+
+    [Fact]
+    public async Task Upload_TwoFoldersWithOneGuid_AreSpacedLikeTheServerLimiter()
+    {
+        WriteFile(Fixture());
+        WriteFile(Fixture(), "Hoobi-Renamed");
+        var now = DateTimeOffset.UnixEpoch;
+        var (uploader, handler, _) = UploaderFor(HttpStatusCode.OK, clock: () => now);
+
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.Single(handler.Requests);
+
+        now += TimeSpan.FromSeconds(31);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Upload_Throttled_IsNoErrorWaitsOutRetryAfterAndLetsOtherCharactersThrough()
+    {
+        WriteFile(Fixture());
+        WriteFile(Fixture(routeGuid: false), "Hoobi-Furry");
+        var now = DateTimeOffset.UnixEpoch;
+        var (uploader, handler, store) = UploaderFor(HttpStatusCode.TooManyRequests, "", TimeSpan.FromSeconds(45), () => now);
+
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.All(store.Load().JourneyUploads.Values, record => Assert.Null(record.Error));
+
+        now += TimeSpan.FromSeconds(31);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+
+        now += TimeSpan.FromSeconds(15);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.Equal(4, handler.Requests.Count);
+    }
 }
