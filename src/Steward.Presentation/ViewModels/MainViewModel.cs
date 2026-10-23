@@ -1768,7 +1768,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         ResolveApiRetry("roster");
-        payload = payload with { Directory = _lastDirectory };
+        payload = payload with
+        {
+            Directory = _lastDirectory,
+            DiscordAvatars = await _guildSyncApi.LoadDiscordAvatarsAsync(payload.Discord, _lastDirectory?.People, [.. Installs.Select(install => install.Install)], _lastOfficerPayload?.DiscordAvatars, CancellationToken.None).ConfigureAwait(true),
+        };
         _lastOfficerPayload = payload;
         _lastOfficerPayloadGuild = guildId;
         foreach (var install in Installs)
@@ -1794,7 +1798,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             };
         }
 
-        GuildRosterSync.WriteIfChanged(install, payload with { Directory = _lastDirectory }, _stateStore, force: false, _logger);
+        var discordAvatars = await _guildSyncApi.LoadDiscordAvatarsAsync(payload.Discord, _lastDirectory?.People, [install], payload.DiscordAvatars, CancellationToken.None).ConfigureAwait(true);
+        GuildRosterSync.WriteIfChanged(install, payload with { Directory = _lastDirectory, DiscordAvatars = discordAvatars }, _stateStore, force: false, _logger);
         return null;
     }
 

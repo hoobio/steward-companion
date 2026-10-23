@@ -326,4 +326,97 @@ public sealed class GuildRosterSyncTests : IDisposable
         Assert.Equal(1, downloads);
         Assert.Contains("111", images.Keys);
     }
+
+    private static string DiscordUrl(string id) => $"https://cdn.discordapp.com/avatars/{id}/hash.png";
+
+    private static AvatarImage DiscordImage(string id) => new(DiscordUrl(id) + "?size=32", 32, 32, new byte[32 * 32 * 4]);
+
+    private static SyncPayload DiscordPayload() => SamplePayload() with
+    {
+        Discord =
+        [
+            new DiscordMember("111", "Hoobi", null, DiscordUrl("111")),
+            new DiscordMember("222", "Grug", null, DiscordUrl("222")),
+            new DiscordMember("333", "Plain", null, "https://cdn.discordapp.com/embed/avatars/1.png"),
+        ],
+        DiscordAvatars = new Dictionary<string, AvatarImage> { ["111"] = DiscordImage("111"), ["222"] = DiscordImage("222") },
+        Directory = new SyncDirectory([new DirectoryPerson("111", "Hoobi", null, PersonUrl("111"))], [], null)
+        {
+            Avatars = new Dictionary<string, AvatarImage> { ["111"] = PersonImage("111") },
+        },
+    };
+
+    private static LuaValue RenderedDiscord(WowInstall install)
+    {
+        var text = File.ReadAllText(Path.Combine(install.AddOnsPath, "Steward", "StewardSync.lua"));
+        text = text.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        text = text[..text.LastIndexOf(')')];
+        return LuaSavedVariables.Parse(text)["X"].GetTable("discord")!;
+    }
+
+    [Fact]
+    public void WriteIfChanged_WritesA32PixelFileForDiscordMembers_AndThe64PixelPersonImageWinsASharedId()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+
+        GuildRosterSync.WriteIfChanged(install, DiscordPayload(), stateStore);
+
+        var rows = RenderedDiscord(install).Items.ToDictionary(row => row.GetString("id")!);
+        Assert.Equal(@"Interface\AddOns\Steward\Avatars\222.tga", rows["222"].GetString("avatar"));
+        Assert.Equal(@"Interface\AddOns\Steward\Avatars\111.tga", rows["111"].GetString("avatar"));
+        Assert.Null(rows["333"].GetString("avatar"));
+        Assert.Equal(18 + (32 * 32 * 4), new FileInfo(PersonAvatars.PathFor(install.AddOnsPath, "222")).Length);
+        Assert.Equal(18 + (64 * 64 * 4), new FileInfo(PersonAvatars.PathFor(install.AddOnsPath, "111")).Length);
+        Assert.False(File.Exists(PersonAvatars.PathFor(install.AddOnsPath, "333")));
+        Assert.Equal(2, Directory.GetFiles(PersonAvatars.FolderFor(install.AddOnsPath)).Length);
+    }
+
+    [Fact]
+    public void WriteIfChanged_DoesNotRewriteADiscordFile_WhenItsUrlIsUnchanged()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        GuildRosterSync.WriteIfChanged(install, DiscordPayload(), stateStore);
+        File.SetLastWriteTimeUtc(PersonAvatars.PathFor(install.AddOnsPath, "222"), new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+
+        var state = stateStore.Load();
+        Assert.False(PersonAvatars.HasPendingWrite(install.AddOnsPath, DiscordPayload(), state.PersonAvatars[install.FlavourPath]));
+        GuildRosterSync.WriteIfChanged(install, DiscordPayload() with { Discord = [.. DiscordPayload().Discord, new DiscordMember("444", "New", null)] }, stateStore);
+
+        Assert.Equal(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), File.GetLastWriteTimeUtc(PersonAvatars.PathFor(install.AddOnsPath, "222")));
+    }
+
+    [Fact]
+    public void WriteIfChanged_DeletesTheDiscordFile_WhenTheMemberIsGone()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        GuildRosterSync.WriteIfChanged(install, DiscordPayload(), stateStore);
+
+        GuildRosterSync.WriteIfChanged(install, DiscordPayload() with { Discord = [], DiscordAvatars = null }, stateStore);
+
+        Assert.False(File.Exists(PersonAvatars.PathFor(install.AddOnsPath, "222")));
+        Assert.True(File.Exists(PersonAvatars.PathFor(install.AddOnsPath, "111")));
+    }
+
+    [Fact]
+    public async Task LoadDiscordAsync_RequestsThirtyTwoPixels_AndSkipsPeopleAndDefaultAvatars()
+    {
+        var install = InstallAddon();
+        var stateStore = new AppStateStore(["steward"], StatePath);
+        var requests = new List<(string Url, int Size)>();
+        Task<AvatarImage?> Download(string url, int size, CancellationToken token)
+        {
+            requests.Add((url, size));
+            return Task.FromResult<AvatarImage?>(DiscordImage("222"));
+        }
+
+        var payload = DiscordPayload();
+        var images = await PersonAvatars.LoadDiscordAsync(payload.Discord, payload.Directory!.People, [install], stateStore, null, Download, CancellationToken.None);
+
+        Assert.Equal([(DiscordUrl("222"), 32)], requests);
+        Assert.Equal(["222"], images.Keys);
+        Assert.Equal(DiscordUrl("222") + "?size=32", PersonAvatars.RequestUri(new Uri(DiscordUrl("222")), PersonAvatars.DiscordSize));
+    }
 }

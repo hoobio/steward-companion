@@ -50,6 +50,24 @@ public sealed class StewardGuildSyncApi(StewardClient client, AppStateStore stat
         }
     }
 
+    public async Task<IReadOnlyDictionary<string, AvatarImage>> LoadDiscordAvatarsAsync(
+        IReadOnlyList<DiscordMember> members,
+        IReadOnlyList<DirectoryPerson>? people,
+        IReadOnlyCollection<WowInstall> installs,
+        IReadOnlyDictionary<string, AvatarImage>? previous,
+        CancellationToken ct)
+    {
+        try
+        {
+            return await PersonAvatars.LoadDiscordAsync(members, people, installs, stateStore, previous, images.DownloadAsync, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.Warn(ex, "Discord avatar download failed, keeping the avatars already loaded");
+            return previous ?? new Dictionary<string, AvatarImage>();
+        }
+    }
+
     private async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> TryGetCatalogueAsync(AdminMe me, string guildId, CancellationToken ct)
     {
         if (!StewardClient.EffectiveFeatures(me).Contains(StewardClient.SyncFeature))

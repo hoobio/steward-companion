@@ -36,7 +36,8 @@ public sealed record GuildRosterMember(
 public sealed record DiscordMember(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("nick")] string? Nick);
+    [property: JsonPropertyName("nick")] string? Nick,
+    [property: JsonPropertyName("avatar_url")] string? AvatarUrl = null);
 
 public sealed record RosterStatusDef(
     [property: JsonPropertyName("name")] string Name);
@@ -716,6 +717,8 @@ public sealed record SyncPayload(
     IReadOnlyList<string> Statuses)
 {
     public AvatarImage? Avatar { get; init; }
+
+    public IReadOnlyDictionary<string, AvatarImage>? DiscordAvatars { get; init; }
 
     public IReadOnlyList<OriginDef> Origins { get; init; } = [];
 

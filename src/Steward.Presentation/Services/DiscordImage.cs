@@ -31,8 +31,11 @@ public sealed class DiscordImage(HttpClient httpClient, IUiPlatform platform)
     }
 
     public Task<AvatarImage?> DownloadAsync(string avatarUrl, CancellationToken cancellationToken) =>
+        DownloadAsync(avatarUrl, PersonAvatars.PersonSize, cancellationToken);
+
+    public Task<AvatarImage?> DownloadAsync(string avatarUrl, int size, CancellationToken cancellationToken) =>
         Uri.TryCreate(avatarUrl, UriKind.Absolute, out var source)
-            ? FetchAsync(PersonAvatars.RequestUri(source), cancellationToken)
+            ? FetchAsync(PersonAvatars.RequestUri(source, size), cancellationToken)
             : Task.FromResult<AvatarImage?>(null);
 
     private async Task<AvatarImage?> FetchAsync(string requestUri, CancellationToken cancellationToken)

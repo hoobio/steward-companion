@@ -25,12 +25,17 @@ public static class StewardSyncFile
         "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload, withAvatar, fingerprint, avatarIds)) + ")" + Environment.NewLine;
 
     public static string Fingerprint(SyncPayload payload) =>
-        HashUtf8(Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }), payload.Avatar?.SourceUrl, PersonAvatarUrls(payload));
+        HashUtf8(Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }), payload.Avatar?.SourceUrl, PersonAvatarUrls(payload), DiscordAvatarUrls(payload));
 
     private static string PersonAvatarUrls(SyncPayload payload) => string.Concat(
         (payload.Directory?.People ?? []).Where(PersonAvatars.IsEligible)
             .OrderBy(person => person.Id, StringComparer.Ordinal)
             .Select(person => $"{person.Id}={person.AvatarUrl}\n"));
+
+    private static string DiscordAvatarUrls(SyncPayload payload) => string.Concat(
+        payload.Discord.Where(PersonAvatars.IsEligible)
+            .OrderBy(member => member.Id, StringComparer.Ordinal)
+            .Select(member => $"{member.Id}={member.AvatarUrl}\n"));
 
     private static string HashUtf8(params string?[] parts)
     {
@@ -100,15 +105,15 @@ public static class StewardSyncFile
             }
 
             var wroteAvatar = TryWriteAvatar(addOnsPath, payload.Avatar);
-            var avatarIds = SyncPersonAvatars(addOnsPath, payload.Directory, avatarIndex);
+            var avatarIds = SyncPersonAvatars(addOnsPath, payload, avatarIndex);
             WriteGuarded(addOnsPath, FileName, Encoding.UTF8.GetBytes(Render(payload, wroteAvatar, fingerprint ?? Fingerprint(payload), avatarIds)));
         }
     }
 
-    private static HashSet<string> SyncPersonAvatars(string addOnsPath, SyncDirectory? directory, IReadOnlyDictionary<string, string>? index)
+    private static HashSet<string> SyncPersonAvatars(string addOnsPath, SyncPayload payload, IReadOnlyDictionary<string, string>? index)
     {
-        var wanted = (directory?.People ?? []).Where(PersonAvatars.IsEligible).Select(person => person.Id).ToHashSet(StringComparer.Ordinal);
-        foreach (var (userId, image) in directory?.Avatars ?? new Dictionary<string, AvatarImage>())
+        var wanted = PersonAvatars.Wanted(payload);
+        foreach (var (userId, image) in PersonAvatars.Images(payload))
         {
             if (!wanted.Contains(userId) || !PersonAvatars.NeedsWrite(addOnsPath, userId, image, index))
             {
@@ -216,7 +221,7 @@ public static class StewardSyncFile
         entries.Add(new(LuaValue.FromString("loot"), LuaValue.Array(payload.Loot.Select(LootToLua))));
         entries.Add(new(LuaValue.FromString("attendance"), LuaValue.Array(payload.Attendance.Select(AttendanceToLua))));
         entries.Add(new(LuaValue.FromString("members"), LuaValue.Array(payload.Members.Select(MemberToLua))));
-        entries.Add(new(LuaValue.FromString("discord"), LuaValue.Array(payload.Discord.Select(DiscordToLua))));
+        entries.Add(new(LuaValue.FromString("discord"), LuaValue.Array(payload.Discord.Select(member => DiscordToLua(member, avatarIds)))));
         entries.Add(new(LuaValue.FromString("statuses"), LuaValue.Array(payload.Statuses.Select(LuaValue.FromString))));
         entries.Add(new(LuaValue.FromString("origins"), LuaValue.Array(payload.Origins.Select(OriginToLua))));
 
@@ -391,10 +396,22 @@ public static class StewardSyncFile
         new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(origin.Name)),
         new LuaEntry(LuaValue.FromString("color"), LuaValue.FromString(origin.Color)));
 
-    private static LuaValue DiscordToLua(DiscordMember member) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("id"), LuaValue.FromString(member.Id)),
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(member.Name)),
-        new LuaEntry(LuaValue.FromString("nick"), OrNil(member.Nick)));
+    private static LuaValue DiscordToLua(DiscordMember member, IReadOnlySet<string>? avatarIds)
+    {
+        var entries = new List<LuaEntry>
+        {
+            new(LuaValue.FromString("id"), LuaValue.FromString(member.Id)),
+            new(LuaValue.FromString("name"), LuaValue.FromString(member.Name)),
+            new(LuaValue.FromString("nick"), OrNil(member.Nick)),
+        };
+
+        if (avatarIds?.Contains(member.Id) == true)
+        {
+            entries.Add(new(LuaValue.FromString("avatar"), LuaValue.FromString(PersonAvatars.TexturePathFor(member.Id))));
+        }
+
+        return LuaValue.FromTable(entries);
+    }
 
     private static LuaValue CatalogueRecipeToLua(CatalogueRecipe recipe) => LuaValue.FromTable(
         new LuaEntry(LuaValue.FromString("recipeId"), OrNilNumber(recipe.RecipeId)),
