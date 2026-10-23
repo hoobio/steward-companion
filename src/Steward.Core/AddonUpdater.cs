@@ -154,7 +154,7 @@ public sealed class AddonUpdater
         }
 
         var file = CurseForgeDirect.Select(listed.Files.Items, channel, listed.VersionType);
-        return file is null ? (listed.Files.Complete, null)
+        return file is null ? (listed.Files.Complete && !CurseForgeDirect.HasUnavailable(listed.Files.Items, channel, listed.VersionType), null)
             : _badDirectFiles.ContainsKey(file.Id) ? (false, null)
             : (true, CurseForgeDirect.ToRelease(file, listed.Website));
     }

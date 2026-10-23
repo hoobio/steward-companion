@@ -263,6 +263,21 @@ public sealed class CurseForgeDirectTests : IDisposable
     }
 
     [Fact]
+    public async Task ProbeChannelsAsync_OnlyFileDroppedForItsStatus_AsksTheProxyForThatChannel()
+    {
+        var (updater, handler, _) = Setup();
+        handler.Files = () => RoutingHandler.Json(Body(
+            Item(1, "1.0", "a.zip", "2026-10-01T00:00:00Z"),
+            Item(2, "1.1-beta", "b.zip", "2026-10-02T00:00:00Z", releaseType: 2, status: 1)));
+
+        var releases = await updater.ProbeChannelsAsync(Questie, ["release", "pre-release"], TestContext.Current.CancellationToken, direct: true);
+
+        Assert.True(releases["release"]!.Direct);
+        Assert.Equal("proxy-2", releases["pre-release"]!.Version);
+        Assert.Equal(1, handler.ProxyCalls);
+    }
+
+    [Fact]
     public async Task ProbeChannelsAsync_NoEligibleFileInACompleteList_IsNoRelease()
     {
         var (updater, handler, _) = Setup();

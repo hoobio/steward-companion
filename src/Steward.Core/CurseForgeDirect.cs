@@ -56,7 +56,13 @@ public static class CurseForgeDirect
             .Where(item => item.ValueKind == JsonValueKind.Object && Text(item, "type") == RequiredDependency && Number(item, "id") is > 0)
             .Select(item => new AddonRequirement($"curseforge:{Number(item, "id")}", Text(item, "name")))];
 
-    public static CurseForgePublicFile? Select(IEnumerable<CurseForgePublicFile> files, string channel, int versionType)
+    public static CurseForgePublicFile? Select(IEnumerable<CurseForgePublicFile> files, string channel, int versionType) =>
+        Candidates(files, channel, versionType).Where(file => file.Available).MaxBy(file => file.Created);
+
+    public static bool HasUnavailable(IEnumerable<CurseForgePublicFile> files, string channel, int versionType) =>
+        Candidates(files, channel, versionType).Any(file => !file.Available);
+
+    private static IEnumerable<CurseForgePublicFile> Candidates(IEnumerable<CurseForgePublicFile> files, string channel, int versionType)
     {
         int[] releaseTypes = channel switch
         {
@@ -64,8 +70,7 @@ public static class CurseForgeDirect
             "pre-release" => PreReleaseTypes,
             _ => [],
         };
-        return files.Where(file => releaseTypes.Contains(file.ReleaseType) && file.Available && file.VersionTypes.Contains(versionType))
-            .MaxBy(file => file.Created);
+        return files.Where(file => releaseTypes.Contains(file.ReleaseType) && file.VersionTypes.Contains(versionType));
     }
 
     public static AddonRelease ToRelease(CurseForgePublicFile file, string? website)
