@@ -9,7 +9,11 @@ public static class TransientHttp
 
     public static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(30);
 
+    public static readonly TimeSpan StreamJitter = TimeSpan.FromSeconds(10);
+
     public static TimeSpan Backoff(int attempt) => attempt < Schedule.Length ? Schedule[Math.Max(attempt, 0)] : MaxBackoff;
+
+    public static TimeSpan StreamBackoff(int attempt) => Backoff(attempt) + StreamJitter * Random.Shared.NextDouble();
 
     public static bool IsTransient(HttpStatusCode? status) =>
         status is HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;

@@ -12,6 +12,14 @@ public sealed class TransientHttpTests
         Assert.Equal(expected, Enumerable.Range(0, expected.Length).Select(attempt => (int)TransientHttp.Backoff(attempt).TotalSeconds));
     }
 
+    [Fact]
+    public void StreamBackoff_AddsUpToTheJitterToTheSchedule()
+    {
+        var delays = Enumerable.Range(0, 200).Select(_ => TransientHttp.StreamBackoff(0)).ToList();
+        Assert.All(delays, delay => Assert.InRange(delay, TransientHttp.Backoff(0), TransientHttp.Backoff(0) + TransientHttp.StreamJitter));
+        Assert.True(delays.Distinct().Count() > 1);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.BadGateway, true)]
     [InlineData(HttpStatusCode.ServiceUnavailable, true)]

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -47,6 +48,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan GuildEventDebounce = TimeSpan.FromSeconds(2);
 
     private static readonly TimeSpan AccessEventDebounce = TimeSpan.FromSeconds(1);
+
+    private static readonly TimeSpan HealthyStreamLifetime = TimeSpan.FromMinutes(2);
 
     private static readonly string[] SummaryNames =
     [
@@ -2046,6 +2049,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _logger.Info($"Guild event stream connecting for {guildId}");
         while (!cancellationToken.IsCancellationRequested)
         {
+            var connectedAt = Stopwatch.GetTimestamp();
+            var delay = TimeSpan.Zero;
             try
             {
                 await foreach (var eventType in _stewardClient.StreamGuildEventsAsync(guildId, cancellationToken).ConfigureAwait(true))
@@ -2054,7 +2059,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                     {
                         _logger.Info($"Guild event stream ready for {guildId}");
                         _isEventStreamLive = true;
-                        attempt = 0;
                         RecomputeLiveUpdatesState();
                         RetryApiNow();
                     }
@@ -2094,14 +2098,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or TimeoutException or IOException or OperationCanceledException)
             {
-                _logger.Warn(ex, $"Guild event stream dropped for {guildId}, retrying in {TransientHttp.Backoff(attempt)}");
+                delay = StreamRetryDelay(ref attempt, connectedAt);
+                _logger.Warn(ex, $"Guild event stream dropped for {guildId}, retrying in {delay}");
+            }
+
+            if (delay == TimeSpan.Zero)
+            {
+                delay = StreamRetryDelay(ref attempt, connectedAt);
+                _logger.Info($"Guild event stream ended for {guildId}, retrying in {delay}");
             }
 
             _isEventStreamLive = false;
             RecomputeLiveUpdatesState();
             try
             {
-                await Task.Delay(TransientHttp.Backoff(attempt++), cancellationToken).ConfigureAwait(true);
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(true);
             }
             catch (OperationCanceledException)
             {
@@ -2141,17 +2152,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _logger.Info("Access event stream connecting");
         while (!cancellationToken.IsCancellationRequested)
         {
+            var connectedAt = Stopwatch.GetTimestamp();
+            var delay = TimeSpan.Zero;
             try
             {
                 await foreach (var eventType in _stewardClient.StreamAccessEventsAsync(cancellationToken).ConfigureAwait(true))
                 {
-                    if (attempt != 0 || !_isAccessEventStreamLive)
+                    if (!_isAccessEventStreamLive)
                     {
                         _logger.Info("Access event stream ready");
                         RetryApiNow();
                     }
 
-                    attempt = 0;
                     _isAccessEventStreamLive = true;
                     RecomputeLiveUpdatesState();
                     if (eventType == "accessChanged")
@@ -2194,20 +2206,37 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or TimeoutException or IOException or OperationCanceledException)
             {
-                _logger.Warn(ex, $"Access event stream dropped, retrying in {TransientHttp.Backoff(attempt)}");
+                delay = StreamRetryDelay(ref attempt, connectedAt);
+                _logger.Warn(ex, $"Access event stream dropped, retrying in {delay}");
+            }
+
+            if (delay == TimeSpan.Zero)
+            {
+                delay = StreamRetryDelay(ref attempt, connectedAt);
+                _logger.Info($"Access event stream ended, retrying in {delay}");
             }
 
             _isAccessEventStreamLive = false;
             RecomputeLiveUpdatesState();
             try
             {
-                await Task.Delay(TransientHttp.Backoff(attempt++), cancellationToken).ConfigureAwait(true);
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(true);
             }
             catch (OperationCanceledException)
             {
                 return;
             }
         }
+    }
+
+    private static TimeSpan StreamRetryDelay(ref int attempt, long connectedAt)
+    {
+        if (Stopwatch.GetElapsedTime(connectedAt) >= HealthyStreamLifetime)
+        {
+            attempt = 0;
+        }
+
+        return TransientHttp.StreamBackoff(attempt++);
     }
 
     private void RecomputeLiveUpdatesState()
