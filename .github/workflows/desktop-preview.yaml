@@ -27,7 +27,7 @@ jobs:
       next: ${{ steps.version.outputs.next }}
       display: ${{ steps.version.outputs.display }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - id: version
         shell: bash
@@ -70,9 +70,9 @@ jobs:
       cert-result: ${{ steps.wack.outputs.result }}
       cert-detail: ${{ steps.wack.outputs.detail }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
@@ -85,7 +85,7 @@ jobs:
           New-Item -ItemType Directory -Path staging -Force | Out-Null
           Copy-Item $package.Msix, $package.MsixUpload staging
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: msix-test-x64
           path: staging/*
@@ -180,7 +180,7 @@ jobs:
           }
           if (Get-AppxPackage -Name Hoobi.Steward) { throw 'Hoobi.Steward is still installed after Remove-AppxPackage' }
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: smoke-windows-msix
@@ -196,7 +196,7 @@ jobs:
           ./.github/scripts/Invoke-AppCert.ps1 -MsixPath (Get-ChildItem staging\*.msix).FullName -ReportPath report\certification-report.html `
             -XmlPath report\appcert.xml -RunUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: certification-report
@@ -212,9 +212,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       RELEASE_VERSION: ${{ needs.version.outputs.release }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
@@ -233,7 +233,7 @@ jobs:
           if (-not (Test-Path publish\x64\Steward.App.exe)) { throw 'Expected Steward.App.exe in publish output' }
 
       - name: Build MSI
-        uses: hoobio/pipeline-tools/pipeline/github/step/build-msi-wix@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/build-msi-wix@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           wix-source-path: installer/Steward.wxs
           version: ${{ needs.version.outputs.release }}
@@ -246,7 +246,7 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/Test-MsiUpgrade.ps1 -Msi (Get-ChildItem staging\msi-x64\*.msi).FullName -OutDir smoke
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: smoke-windows-msi
@@ -274,9 +274,9 @@ jobs:
             runner: ubuntu-latest
             frameworks: net10.0
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
@@ -325,14 +325,14 @@ jobs:
           done
           exit "$failed"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: ui-tests-${{ matrix.name }}
           path: ui-tests
           if-no-files-found: ignore
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: uipaths-${{ matrix.name }}
@@ -348,9 +348,9 @@ jobs:
     outputs:
       summary: ${{ steps.scan.outputs.summary }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: desktop-*
           path: scan
@@ -371,7 +371,7 @@ jobs:
           ./.github/scripts/Invoke-VirusScan.ps1 -ScanDirectory scan -ReportPath report/virus-scan-report.html `
             -RunUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: virus-scan-report
@@ -390,20 +390,20 @@ jobs:
       TAG: desktop-preview-${{ github.run_number }}
       DISPLAY_VERSION: ${{ needs.version.outputs.display }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: desktop-*
           path: release
           merge-multiple: true
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: virus-scan-report
           path: release
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: certification-report
           path: certification
