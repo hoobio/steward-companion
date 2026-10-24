@@ -37,7 +37,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - id: rp
-        uses: hoobio/pipeline-tools/pipeline/github/step/release-please@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/release-please@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
           app-private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
@@ -63,9 +63,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
@@ -105,9 +105,9 @@ jobs:
     env:
       HAS_SIGNING_CERT: ${{ secrets.SIGNING_CERTIFICATE != '' && vars.SIGNING_CERT_THUMBPRINT != '' }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
@@ -144,7 +144,7 @@ jobs:
           if (-not (Test-Path "$env:PUBLISH_DIR\Steward.App.exe")) { throw "Expected Steward.App.exe in publish output" }
 
       - name: Build MSI
-        uses: hoobio/pipeline-tools/pipeline/github/step/build-msi-wix@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/build-msi-wix@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           wix-source-path: ${{ env.WIX_SOURCE_PATH }}
           version: ${{ steps.version.outputs.version }}
@@ -155,7 +155,7 @@ jobs:
 
       - name: Sign MSI
         if: env.HAS_SIGNING_CERT == 'true'
-        uses: hoobio/pipeline-tools/pipeline/github/step/sign-msi@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/sign-msi@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           pfx-base64: ${{ secrets.SIGNING_CERTIFICATE }}
           pfx-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
@@ -168,7 +168,7 @@ jobs:
         run: echo "::warning::SIGNING_CERTIFICATE / SIGNING_CERT_THUMBPRINT not set; MSI produced unsigned."
 
       - name: Upload MSI artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: msi-x64
           path: ${{ github.workspace }}\staging\msi-x64\Steward-${{ steps.version.outputs.version }}-x64.msi
@@ -189,9 +189,9 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: ${{ env.DOTNET_SDK_VERSION }}
 
@@ -234,14 +234,14 @@ jobs:
           Get-ChildItem $env:STAGE_DIR | Format-Table Name, Length | Out-String | Write-Host
 
       - name: Upload msixupload artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: msixupload-x64
           path: ${{ github.workspace }}\staging\msix-x64\Steward-${{ steps.version.outputs.version }}-Store-x64.msixupload
           if-no-files-found: error
 
       - name: Upload msix artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: msix-x64
           path: ${{ github.workspace }}\staging\msix-x64\Steward-${{ steps.version.outputs.version }}-x64.msix
@@ -272,10 +272,10 @@ jobs:
       result: ${{ steps.wack.outputs.result }}
       detail: ${{ steps.wack.outputs.detail }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download MSIX
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: msix-x64
           path: package
@@ -288,7 +288,7 @@ jobs:
           ./.github/scripts/Invoke-AppCert.ps1 -MsixPath (Get-ChildItem package\*.msix).FullName -ReportPath report\certification-report.html `
             -XmlPath report\appcert.xml -RunUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: certification-report
           path: report
@@ -304,31 +304,31 @@ jobs:
     outputs:
       summary: ${{ steps.scan.outputs.summary }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download the Windows zip, Linux packages and dmgs
         if: needs.desktop.result == 'success'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: desktop-*
           path: scan
           merge-multiple: true
 
       - name: Download MSIX
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: msix-x64
           path: scan
 
       - name: Download msixupload
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: msixupload-x64
           path: scan
 
       - name: Download MSI
         if: needs.build-msi.result == 'success'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: msi-x64
           path: scan
@@ -348,7 +348,7 @@ jobs:
           ./.github/scripts/Invoke-VirusScan.ps1 -ScanDirectory scan -ReportPath report/virus-scan-report.html `
             -RunUrl "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: virus-scan-report
@@ -368,18 +368,18 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download MSIX
         if: needs.build-msix.result == 'success'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: msix-x64
           path: release
 
       - name: Attach MSIX to the draft release
         if: needs.build-msix.result == 'success'
-        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           file-path: release/Steward-${{ needs.build-msix.outputs.version }}-x64.msix
@@ -387,14 +387,14 @@ jobs:
 
       - name: Download msixupload
         if: needs.build-msix.result == 'success'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: msixupload-x64
           path: release
 
       - name: Attach msixupload to the draft release
         if: needs.build-msix.result == 'success'
-        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           file-path: release/Steward-${{ needs.build-msix.outputs.version }}-Store-x64.msixupload
@@ -402,7 +402,7 @@ jobs:
 
       - name: Download MSI
         if: needs.build-msi.result == 'success'
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: msi-x64
           path: release
@@ -410,14 +410,14 @@ jobs:
       # An immutable release accepts no asset once published, so the MSI joins the draft here rather than after the publish.
       - name: Attach MSI to the draft release
         if: needs.build-msi.result == 'success'
-        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           file-path: release/Steward-${{ needs.build-msi.outputs.version }}-x64.msi
           github-token: ${{ github.token }}
 
       - name: Download the Windows zip, Linux packages and dmgs
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: desktop-*
           path: desktop
@@ -433,7 +433,7 @@ jobs:
           gh release upload "$TAG" desktop/* --clobber
 
       - name: Download the reports
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: "*-report"
           path: reports
@@ -485,7 +485,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "gh release edit failed (exit $LASTEXITCODE)" }
 
       - name: Publish the release
-        uses: hoobio/pipeline-tools/pipeline/github/step/publish-github-release@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/publish-github-release@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           github-token: ${{ github.token }}
@@ -522,22 +522,22 @@ jobs:
       STORE_PRODUCT_ID: 9PBKMZFKZHKX
       KEY_VAULT: hbicfgkvtaus01
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download msixupload
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: msixupload-x64
           path: package
 
-      - uses: azure/login@v3
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
 
       - name: Setup Microsoft Store CLI
-        uses: microsoft/microsoft-store-apppublisher@v1.4
+        uses: microsoft/microsoft-store-apppublisher@cc9910a8d59f2eb55cbb83df0a3800cf3b5300e0 # v1.4
 
       - name: Find previous published release
         id: previous-release
@@ -640,22 +640,22 @@ jobs:
       STORE_PRODUCT_ID: 9PBKMZFKZHKX
       KEY_VAULT: hbicfgkvtaus01
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download msixupload
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: msixupload-x64
           path: package
 
-      - uses: azure/login@v3
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
 
       - name: Setup Microsoft Store CLI
-        uses: microsoft/microsoft-store-apppublisher@v1.4
+        uses: microsoft/microsoft-store-apppublisher@cc9910a8d59f2eb55cbb83df0a3800cf3b5300e0 # v1.4
 
       - name: Configure Store credentials from Key Vault
         shell: pwsh
