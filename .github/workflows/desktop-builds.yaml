@@ -414,7 +414,7 @@ jobs:
   linux-arm64-smoke:
     name: Linux arm64 launch smoke
     needs: [linux-packages]
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
