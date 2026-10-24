@@ -126,12 +126,12 @@ public static class CurseForgeAddons
             && !kept.Contains(KeptLocalKey(flavourPath, record)))];
     }
 
-    public static ProviderAddonRecord? MatchFor(IReadOnlyList<ProviderAddonRecord> identified, LocalAddon addon)
+    public static IReadOnlyList<ProviderAddonRecord> MatchesFor(IReadOnlyList<ProviderAddonRecord> identified, LocalAddon addon)
     {
         ArgumentNullException.ThrowIfNull(identified);
         ArgumentNullException.ThrowIfNull(addon);
 
         var folders = addon.FoldedFolders.Prepend(addon.FolderName).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return identified.FirstOrDefault(record => Folders(record).Any(folders.Contains));
+        return [.. identified.Where(record => Folders(record).Any(folders.Contains))];
     }
 }

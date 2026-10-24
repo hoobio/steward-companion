@@ -381,7 +381,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         }
 
         var scanned = LocalAddons.Scan(AddOnsPath, _excludedFolders(this, ""), _logger, TocFile.InterfaceNumber(ClientVersion));
-        ApplyLocalScan(Interlocked.Increment(ref _scanGeneration), scanned, [.. LocalRows.Select(row => row.Match).OfType<ProviderAddonRecord>(), record]);
+        ApplyLocalScan(Interlocked.Increment(ref _scanGeneration), scanned, [.. LocalRows.SelectMany(row => row.Matches), record]);
     }
 
     private Task OnUiThreadAsync(Action action)
@@ -439,8 +439,9 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             : [];
         var wanted = scanned.Select(addon =>
         {
-            var match = CurseForgeAddons.MatchFor(unrecorded, addon);
-            return LocalRows.FirstOrDefault(row => row.Matches(addon, match))
+            var matches = CurseForgeAddons.MatchesFor(unrecorded, addon);
+            var match = matches.Count > 0 ? matches[0] : null;
+            return LocalRows.FirstOrDefault(row => row.IsSameRow(addon, matches))
                 ?? new LocalAddonRowViewModel(
                     Install,
                     addon,
@@ -448,9 +449,9 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
                     OutOfDateTip(addon.Interface),
                     ConfirmUninstallAsync,
                     OnLocalRemoved,
-                    match,
+                    matches,
                     match is not null && kept.Contains(CurseForgeAddons.KeptLocalKey(FlavourPath, match)),
-                    row => _ = AdoptAsync([row.Match!]),
+                    row => _ = AdoptAsync(row.Matches),
                     _platform,
                     _logger);
         }).ToList();
@@ -480,7 +481,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public IReadOnlyList<LocalAddonRowViewModel> AdoptableRows => [.. LocalRows.Where(row => row.CanAdopt && !row.IsHidden)];
 
-    public void AdoptAll() => _ = AdoptAsync([.. AdoptableRows.Select(row => row.Match!)]);
+    public void AdoptAll() => _ = AdoptAsync([.. AdoptableRows.SelectMany(row => row.Matches)]);
 
     public void KeepAllLocal()
     {
@@ -522,7 +523,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         }
 
         _logger.Info($"Adopting {string.Join(", ", records.Select(record => record.Id))} on {FlavourPath}");
-        foreach (var row in LocalRows.Where(row => records.Any(record => record.Id == row.Match?.Id)).ToList())
+        foreach (var row in LocalRows.Where(row => row.Matches.Any(match => records.Any(record => record.Id == match.Id))).ToList())
         {
             row.PropertyChanged -= OnLocalRowPropertyChanged;
             LocalRows.Remove(row);

@@ -98,14 +98,16 @@ public sealed class CurseForgeAddonsTests
             CurseForgeAddons.KeptLocalKey(@"C:\wow", new ProviderAddonRecord("id", "Questie", "Q", "CurseForge", 1, 2, ["Questie", "QuestieDB"])));
 
     [Fact]
-    public void MatchFor_FindsTheRecordHoldingAnyOfTheRowsFolders()
+    public void MatchesFor_FindsEveryRecordHoldingAnyOfTheRowsFolders()
     {
         var questie = new ProviderAddonRecord("q", "Questie", "Questie", "CurseForge", 1, 2, ["Questie", "QuestieDB"]);
         var dbm = new ProviderAddonRecord("d", "DBM-Core", "DBM", "CurseForge", 2, 2, ["DBM-Core"]);
+        var vanilla = new ProviderAddonRecord("v", "DBM-Raids-Vanilla", "DBM - SoD and Vanilla", "CurseForge", 3, 2, ["DBM-Raids-Vanilla"]);
 
-        Assert.Same(questie, CurseForgeAddons.MatchFor([dbm, questie], new LocalAddon("QuestieDB", "QuestieDB", null, null, [])));
-        Assert.Same(dbm, CurseForgeAddons.MatchFor([dbm, questie], new LocalAddon("DBM-GUI", "DBM", null, null, ["dbm-core"])));
-        Assert.Null(CurseForgeAddons.MatchFor([dbm, questie], new LocalAddon("Details", "Details", null, null, [])));
+        Assert.Equal([questie], CurseForgeAddons.MatchesFor([dbm, questie], new LocalAddon("QuestieDB", "QuestieDB", null, null, [])));
+        Assert.Equal([dbm], CurseForgeAddons.MatchesFor([dbm, questie], new LocalAddon("DBM-GUI", "DBM", null, null, ["dbm-core"])));
+        Assert.Equal([dbm, vanilla], CurseForgeAddons.MatchesFor([dbm, questie, vanilla], new LocalAddon("DBM-Core", "DBM", null, null, ["DBM-Raids-Vanilla"])));
+        Assert.Empty(CurseForgeAddons.MatchesFor([dbm, questie], new LocalAddon("Details", "Details", null, null, [])));
     }
 
     [Fact]

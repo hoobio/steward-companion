@@ -26,7 +26,7 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
         string? outOfDateTip,
         Func<string, string, Task<bool>> confirmUninstall,
         Action<LocalAddonRowViewModel> removed,
-        ProviderAddonRecord? match,
+        IReadOnlyList<ProviderAddonRecord> matches,
         bool isKeptLocal,
         Action<LocalAddonRowViewModel> adopt,
         IUiPlatform platform,
@@ -40,7 +40,7 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
         _confirmUninstall = confirmUninstall;
         _removed = removed;
         _adopt = adopt;
-        Match = match;
+        Matches = matches;
         IsKeptLocal = isKeptLocal;
         OutOfDateTip = outOfDateTip;
         InitialsColor = InitialsTile.Color(addon.FolderName);
@@ -66,7 +66,9 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     public bool StatusDashVisibility => !IsHidden && !CanAdopt;
 
-    public ProviderAddonRecord? Match { get; }
+    public IReadOnlyList<ProviderAddonRecord> Matches { get; }
+
+    public ProviderAddonRecord? Match => Matches.Count > 0 ? Matches[0] : null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanAdopt), nameof(AdoptVisibility), nameof(AdoptFromMenuVisibility), nameof(StatusDashVisibility))]
@@ -136,8 +138,8 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     private string FolderPath => Path.Combine(_install.AddOnsPath, _addon.FolderName);
 
-    public bool Matches(LocalAddon addon, ProviderAddonRecord? match) =>
-        match?.Id == Match?.Id
+    public bool IsSameRow(LocalAddon addon, IReadOnlyList<ProviderAddonRecord> matches) =>
+        matches.Select(match => match.Id).SequenceEqual(Matches.Select(match => match.Id))
         && string.Equals(addon.FolderName, _addon.FolderName, StringComparison.OrdinalIgnoreCase)
         && addon.Name == _addon.Name
         && addon.Version == _addon.Version
