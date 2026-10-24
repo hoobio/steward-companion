@@ -105,6 +105,35 @@ public sealed class SettingsPageTests(AvaloniaSession session)
     });
 
     [Fact]
+    public void Group_corners_follow_the_visible_cards() => session.Run(() =>
+    {
+        using var host = session.NewHost();
+        var page = host.Services.GetRequiredService<SettingsPage>();
+        var window = Host(page);
+        var group = (StackPanel)page.FindControl<SettingsCard>("MinimizeToTrayCard")!.Parent!;
+        var cards = group.Children.OfType<SettingsCard>().ToList();
+        cards[0].IsVisible = false;
+        cards[^1].IsVisible = false;
+        window.CaptureRenderedFrame();
+
+        var visible = cards.Where(card => card.IsVisible).ToList();
+        Assert.True(visible.Count >= 2);
+        Assert.Equal(new CornerRadius(8, 8, 0, 0), visible[0].CornerRadius);
+        Assert.Equal(new CornerRadius(0, 0, 8, 8), visible[^1].CornerRadius);
+        Assert.All(visible.Skip(1).SkipLast(1), card => Assert.Equal(new CornerRadius(0), card.CornerRadius));
+        for (var i = 1; i < visible.Count; i++)
+        {
+            Assert.Equal(1, visible[i].Bounds.Top - visible[i - 1].Bounds.Bottom, 3);
+        }
+
+        cards[0].IsVisible = true;
+        window.CaptureRenderedFrame();
+        Assert.Equal(new CornerRadius(8, 8, 0, 0), cards[0].CornerRadius);
+        Assert.Equal(new CornerRadius(0), visible[0].CornerRadius);
+        Release(window);
+    });
+
+    [Fact]
     public void Manage_installs_brings_the_installs_card_into_view() => session.Run(() =>
     {
         using var host = session.NewHost();
