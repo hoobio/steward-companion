@@ -224,10 +224,17 @@ public sealed class RestedXpService : IDisposable
     {
         ArgumentNullException.ThrowIfNull(install);
 
-        return install.ProductCode is { } code
-            && _productPrefixes.TryGetValue(code, out var prefixes)
-            && prefixes.Any(prefix => productName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        return Allows(_productPrefixes, install.ProductCode, productName);
     }
+
+    internal static bool Allows(IReadOnlyDictionary<string, string[]> productPrefixes, string? productCode, string productName) =>
+        productCode is { } code
+        && productPrefixes.TryGetValue(code, out var prefixes)
+        && prefixes.Any(prefix => prefix.Length == 0 ? !IsClaimed(productPrefixes, productName) : productName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+    // RestedXP names retail guides with no client prefix, so an empty prefix takes every product no other client's prefix claims.
+    private static bool IsClaimed(IReadOnlyDictionary<string, string[]> productPrefixes, string productName) => productPrefixes.Values.Any(prefixes =>
+        prefixes.Any(prefix => prefix.Length > 0 && productName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)));
 
     public IReadOnlyList<string> GuideChoices(WowInstall install)
     {
@@ -266,11 +273,6 @@ public sealed class RestedXpService : IDisposable
         WowInstall install, IReadOnlyList<string> products, bool force, CancellationToken cancellationToken)
     {
         var results = new Dictionary<string, GuideSyncResult>(StringComparer.Ordinal);
-        if (!ForeverLaunch.IsForever(install.ProductCode))
-        {
-            return results;
-        }
-
         var strings = new List<(string Name, string Text, string? Tag, long UpdatedAt)>();
         var serverTimestamps = new Dictionary<string, long>(StringComparer.Ordinal);
 

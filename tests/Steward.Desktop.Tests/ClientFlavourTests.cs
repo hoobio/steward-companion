@@ -18,7 +18,7 @@ public sealed class ClientFlavourTests(AvaloniaSession session)
     private static readonly BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance;
 
     [Fact]
-    public void A_non_Forever_install_gets_only_RestedXP_and_local_rows_and_hides_Sync_and_Guides() => session.Run(() =>
+    public void A_non_Forever_install_gets_only_RestedXP_and_local_rows_and_hides_Sync() => session.Run(() =>
     {
         var temp = session.NewFolder();
         var platform = new AvaloniaPlatform();
@@ -58,13 +58,36 @@ public sealed class ClientFlavourTests(AvaloniaSession session)
         main.SelectedInstall = era;
         Dispatcher.UIThread.RunJobs();
         Assert.False(main.SyncVisibility);
-        Assert.False(main.GuidesVisibility);
         Assert.IsType<HomePage>(window.CurrentPage);
 
         window.Hide();
         main.Installs.Remove(forever);
         main.Installs.Remove(era);
     });
+
+    [Theory]
+    [InlineData("wowf", "Forever Leveling Guide - Both Factions", true)]
+    [InlineData("wow", "Forever Leveling Guide - Both Factions", false)]
+    [InlineData("wow_classic", "Mists of Pandaria Leveling Guide", true)]
+    [InlineData("wow", "Mists of Pandaria Leveling Guide", false)]
+    [InlineData("wow", "The War Within Leveling Guide", true)]
+    [InlineData("wow_classic_era", "The War Within Leveling Guide", false)]
+    [InlineData("wow_anniversary", "The Burning Crusade Leveling Guide", true)]
+    [InlineData("wow_classic_era", "Hardcore Leveling Guide", true)]
+    [InlineData("wow_classic_ptr", "Mists of Pandaria Leveling Guide", false)]
+    public void A_guide_goes_to_the_client_its_name_prefix_names_and_retail_takes_the_rest(string product, string guide, bool allowed)
+    {
+        var prefixes = new Dictionary<string, string[]>
+        {
+            ["wowf"] = ["Forever"],
+            ["wow_classic"] = ["Mists of Pandaria"],
+            ["wow_classic_era"] = ["Classic Era", "Season of Mastery", "Hardcore"],
+            ["wow_anniversary"] = ["The Burning Crusade"],
+            ["wow"] = [""],
+        };
+
+        Assert.Equal(allowed, Steward.App.Services.RestedXpService.Allows(prefixes, product, guide));
+    }
 
     private static WowInstallViewModel AddInstall(MainViewModel main, string temp, string flavour, string product, string client, string name, params string[] folders)
     {

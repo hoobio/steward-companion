@@ -544,7 +544,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool SyncBadgeVisibility => Sync.HasWaiting;
 
     public bool GuidesVisibility => IsGuidesPreview
-        || (IsForeverSelected && HasGuidesFeature && RestedXp.IsSignedIn && Installs.Any(HasRestedXp));
+        || (HasGuidesFeature && RestedXp.IsSignedIn && Installs.Any(HasRestedXp));
 
     public bool IsForeverSelected => SelectedInstall is null || ForeverLaunch.IsForever(SelectedInstall.Install.ProductCode);
 

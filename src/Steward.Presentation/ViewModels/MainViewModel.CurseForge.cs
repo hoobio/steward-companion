@@ -595,7 +595,7 @@ public sealed partial class MainViewModel
         return
         [
             .. _addons.Concat(_addonCatalogue ?? []).Where(addon => (CurseForgeEnabled || !addon.IsCurseForge) && addon.RunsOn(install.Install.ProductCode) && !string.Equals(addon.Id, id, StringComparison.OrdinalIgnoreCase)).Select(addon => addon.FolderName),
-            .. new[] { StewardGuidesAddon.FolderName }.Where(_ => ForeverLaunch.IsForever(install.Install.ProductCode) && !string.Equals(id, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase)),
+            .. new[] { StewardGuidesAddon.FolderName }.Where(_ => !string.Equals(id, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase)),
             .. ProviderRecords(install.FlavourPath).Where(record => CurseForgeEnabled && record.Id != id).SelectMany(record =>
                 CurseForgeAddons.Folders(record).Concat(installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, record.Id))?.Folders ?? [])),
         ];
