@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.26.1](https://github.com/hoobio/steward-companion/compare/v0.26.0...v0.26.1) (2026-10-24)
+
+
+### Features
+
+* 🎨 deepen the dark layers to the hoobi-design Mirage scale (ground [#181](https://github.com/hoobio/steward-companion/issues/181)C26, surface [#1](https://github.com/hoobio/steward-companion/issues/1)F2430, raised [#242936](https://github.com/hoobio/steward-companion/issues/242936), chip [#15181](https://github.com/hoobio/steward-companion/issues/15181)F) ([8642cf8](https://github.com/hoobio/steward-companion/commit/8642cf84cf3e9836836e91c546ff1911d0f3e2c5))
+
+
+### Bug Fixes
+
+* 🐛 a direct CurseForge zip refused for a folder without a .toc is remembered as bad, so the next update goes straight to Steward API ([8b0fa7b](https://github.com/hoobio/steward-companion/commit/8b0fa7b6f29b7cd203597ae92ba578687979ce8e))
+
+
+### Miscellaneous Chores
+
+* 🔧 release 0.26.1 ([96bf4bd](https://github.com/hoobio/steward-companion/commit/96bf4bd3d48189f95dc49bcfd530f2dd91ecfdc2))
+
 ## [0.26.0](https://github.com/hoobio/steward-companion/compare/v0.25.2...v0.26.0) (2026-10-23)
 
 
