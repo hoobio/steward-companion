@@ -13,13 +13,13 @@ namespace Steward.Desktop.Tests;
 
 public sealed class AcrylicTests(AvaloniaSession session)
 {
-    private static readonly Color Tint = Color.Parse("#FF13161D");
-    private static readonly Color Fallback = Color.Parse("#FF181B23");
-    private static readonly Color Ground = Color.Parse("#FF1F2430");
+    private static readonly Color Tint = Color.Parse("#FF0C0E13");
+    private static readonly Color Fallback = Color.Parse("#FF111319");
+    private static readonly Color Ground = Color.Parse("#FF181C26");
 
     [Fact]
     public void The_tint_is_the_dark_tint_at_57_percent() =>
-        Assert.Equal(Color.Parse("#9313161D"), Acrylic.Composite(Tint, null));
+        Assert.Equal(Color.Parse("#930C0E13"), Acrylic.Composite(Tint, null));
 
     [Fact]
     public void Saturation_follows_the_css_matrix() =>

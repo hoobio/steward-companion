@@ -36,7 +36,7 @@ public sealed class DialogTests(AvaloniaSession session)
 
         Assert.Equal(440, bounds.Width);
         Assert.Equal(new CornerRadius(8), corners);
-        Assert.Equal(Color.Parse("#FF2B3140"), raised.Color);
+        Assert.Equal(Color.Parse("#FF242936"), raised.Color);
         Assert.Same((ControlTheme)accent!, primary.Theme);
     });
 

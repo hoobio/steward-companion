@@ -20,7 +20,7 @@ namespace Steward.Desktop.Tests;
 
 public sealed class FlyoutTests(AvaloniaSession session)
 {
-    private static readonly Color Ground = Color.Parse("#FF1F2430");
+    private static readonly Color Ground = Color.Parse("#FF181C26");
     private static readonly string[] Pages = ["sync", "guides", "settings", "addons"];
     private static readonly string[] Items = ["One", "Two"];
 
