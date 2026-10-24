@@ -172,6 +172,7 @@ public sealed partial class MainViewModel
         RecomputeSummary();
         OnPropertyChanged(nameof(SyncVisibility));
         OnPropertyChanged(nameof(GuidesVisibility));
+        OnPropertyChanged(nameof(CountdownVisibility));
     }
 
     partial void OnFilterTextChanged(string value) => Resort();

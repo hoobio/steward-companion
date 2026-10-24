@@ -59,6 +59,10 @@ public sealed class ClientFlavourTests(AvaloniaSession session)
         Dispatcher.UIThread.RunJobs();
         Assert.False(main.SyncVisibility);
         Assert.IsType<HomePage>(window.CurrentPage);
+        main.LaunchCountdown = "11 days 14 hours";
+        Assert.False(main.CountdownVisibility);
+        main.SelectedInstall = forever;
+        Assert.True(main.CountdownVisibility);
 
         window.Hide();
         main.Installs.Remove(forever);

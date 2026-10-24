@@ -15,7 +15,7 @@ public sealed partial class MainViewModel
     [NotifyPropertyChangedFor(nameof(CountdownVisibility))]
     public partial string? LaunchCountdown { get; internal set; }
 
-    public bool CountdownVisibility => LaunchCountdown is not null;
+    public bool CountdownVisibility => LaunchCountdown is not null && IsForeverSelected;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ScheduleVisibility))]
