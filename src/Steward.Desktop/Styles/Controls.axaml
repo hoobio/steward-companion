@@ -271,6 +271,7 @@
 
     <Style Selector="ScrollViewer">
         <Setter Property="styles:SmoothScroll.IsEnabled" Value="True" />
+        <Setter Property="styles:AutoScroll.IsEnabled" Value="True" />
     </Style>
     <Style Selector="ScrollViewer /template/ ScrollBar">
         <Setter Property="Opacity" Value="0" />
