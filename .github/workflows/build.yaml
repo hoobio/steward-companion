@@ -37,7 +37,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - id: rp
-        uses: hoobio/pipeline-tools/pipeline/github/step/release-please@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/release-please@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
           app-private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
@@ -144,7 +144,7 @@ jobs:
           if (-not (Test-Path "$env:PUBLISH_DIR\Steward.App.exe")) { throw "Expected Steward.App.exe in publish output" }
 
       - name: Build MSI
-        uses: hoobio/pipeline-tools/pipeline/github/step/build-msi-wix@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/build-msi-wix@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           wix-source-path: ${{ env.WIX_SOURCE_PATH }}
           version: ${{ steps.version.outputs.version }}
@@ -155,7 +155,7 @@ jobs:
 
       - name: Sign MSI
         if: env.HAS_SIGNING_CERT == 'true'
-        uses: hoobio/pipeline-tools/pipeline/github/step/sign-msi@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/sign-msi@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           pfx-base64: ${{ secrets.SIGNING_CERTIFICATE }}
           pfx-password: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
@@ -379,7 +379,7 @@ jobs:
 
       - name: Attach MSIX to the draft release
         if: needs.build-msix.result == 'success'
-        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           file-path: release/Steward-${{ needs.build-msix.outputs.version }}-x64.msix
@@ -394,7 +394,7 @@ jobs:
 
       - name: Attach msixupload to the draft release
         if: needs.build-msix.result == 'success'
-        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           file-path: release/Steward-${{ needs.build-msix.outputs.version }}-Store-x64.msixupload
@@ -410,7 +410,7 @@ jobs:
       # An immutable release accepts no asset once published, so the MSI joins the draft here rather than after the publish.
       - name: Attach MSI to the draft release
         if: needs.build-msi.result == 'success'
-        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/upload-to-github-release@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           file-path: release/Steward-${{ needs.build-msi.outputs.version }}-x64.msi
@@ -485,7 +485,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "gh release edit failed (exit $LASTEXITCODE)" }
 
       - name: Publish the release
-        uses: hoobio/pipeline-tools/pipeline/github/step/publish-github-release@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/publish-github-release@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           tag: ${{ needs.release-please.outputs.tag_name }}
           github-token: ${{ github.token }}

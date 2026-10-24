@@ -233,7 +233,7 @@ jobs:
           if (-not (Test-Path publish\x64\Steward.App.exe)) { throw 'Expected Steward.App.exe in publish output' }
 
       - name: Build MSI
-        uses: hoobio/pipeline-tools/pipeline/github/step/build-msi-wix@v2.3.2
+        uses: hoobio/pipeline-tools/pipeline/github/step/build-msi-wix@353f3a7d09d9e63ae303631a4a4bb1ac83f97635 # v2.4.0
         with:
           wix-source-path: installer/Steward.wxs
           version: ${{ needs.version.outputs.release }}
