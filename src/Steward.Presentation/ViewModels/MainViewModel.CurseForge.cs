@@ -307,11 +307,13 @@ public sealed partial class MainViewModel
 
     private async Task<bool> ProbeProviderAddonsAsync(IReadOnlyList<ManagedAddon> addons, bool noCache = false)
     {
+        var source = CurseForgeAddons.Source;
         try
         {
             var state = _stateStore.Load();
             foreach (var addon in addons)
             {
+                source = addon.DisplaySource;
                 var releases = await _addonUpdater.ProbeChannelsAsync(addon, VisibleChannels, CancellationToken.None, noCache, direct: CurseForgeAddons.IsRecorded(addon)).ConfigureAwait(true);
                 _releases[addon.Id] = releases;
                 _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases, addon.Channels, addon.DefaultPreference);
@@ -321,13 +323,13 @@ public sealed partial class MainViewModel
         }
         catch (SessionExpiredException)
         {
-            _logger.Info("CurseForge manifest check: 401, session expired");
+            _logger.Info($"{source} manifest check: 401, session expired");
             SignOutTo(GateFailure.SessionExpired);
             return false;
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException or OperationCanceledException)
         {
-            _logger.Warn(ex, "CurseForge manifest check failed");
+            _logger.Warn(ex, $"{source} manifest check failed");
             ReportFailure(ex, "curseforge", async () =>
             {
                 await ProbeProviderAddonsAsync(addons).ConfigureAwait(true);
@@ -335,7 +337,7 @@ public sealed partial class MainViewModel
             });
             if (!TransientHttp.IsRetryable(ex))
             {
-                StatusMessage = $"CurseForge check failed: {ex.Message}";
+                StatusMessage = $"{source} check failed: {ex.Message}";
             }
         }
 
