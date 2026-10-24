@@ -35,6 +35,13 @@ public sealed record ManagedAddon(string Id, string FolderName, string? Manifest
 
     public AddonNotice? Notice { get; init; }
 
+    public IReadOnlyList<string>? Products { get; init; }
+
+    // A row from an older server or the cached catalogue has no products, and Steward rows auto-install, so it stays on Forever.
+    public bool RunsOn(string? productCode) => Products is null
+        ? ForeverLaunch.IsForever(productCode)
+        : Products.Any(product => product == "*" || string.Equals(product, productCode, StringComparison.OrdinalIgnoreCase));
+
     public bool ManifestNeedsSession => ManifestAuth is { } auth
         ? string.Equals(auth, "session", StringComparison.OrdinalIgnoreCase)
         : Source is CurseForgeAddons.Source or AddonCatalogue.ProtectedSource;
@@ -72,7 +79,8 @@ public sealed record CatalogueAddon(
     [property: JsonPropertyName("updates_while_unreachable"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? UpdatesWhileUnreachable = null,
     [property: JsonPropertyName("source_label"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? SourceLabel = null,
     [property: JsonPropertyName("curseforge"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? CurseForge = null,
-    [property: JsonPropertyName("notice"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] AddonNotice? Notice = null)
+    [property: JsonPropertyName("notice"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] AddonNotice? Notice = null,
+    [property: JsonPropertyName("products"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? Products = null)
 {
     public ManagedAddon ToManagedAddon() =>
         new(Id, FolderName, ManifestBaseUrl, AutoInstall ?? false, Name, Features, Source ?? AddonCatalogue.StewardSource)
@@ -86,6 +94,7 @@ public sealed record CatalogueAddon(
             SourceLabel = SourceLabel,
             CurseForge = CurseForge,
             Notice = Notice,
+            Products = Products,
         };
 }
 

@@ -242,7 +242,7 @@ public sealed partial class MainWindow : Window
         if (e.PropertyName is not nameof(MainViewModel.GuidesVisibility)
             || ViewModel.GuidesVisibility
             || PageHost.Content is not GuidesPage
-            || (ViewModel.RestedXp.IsSessionExpired && ViewModel.HasGuidesFeature))
+            || (ViewModel.RestedXp.IsSessionExpired && ViewModel.HasGuidesFeature && ViewModel.IsForeverSelected))
         {
             return;
         }

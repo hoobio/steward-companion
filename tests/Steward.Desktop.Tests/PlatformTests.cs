@@ -8,6 +8,8 @@ using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Threading;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using Steward.Desktop.Services;
 
 namespace Steward.Desktop.Tests;
@@ -69,8 +71,11 @@ public sealed class PlatformTests(AvaloniaSession session)
     public void Product_icons_load_from_the_bundled_assets() => session.Run(() =>
     {
         var platform = new AvaloniaPlatform();
+        using var host = session.NewHost();
+        var products = host.Services.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>().GetSection("SupportedProducts").GetChildren().Select(product => product.Key).ToList();
 
-        Assert.IsAssignableFrom<IImage>(Steward.App.Services.ProductIcon.For(platform, "wowf"));
+        Assert.Contains("wow_classic_era", products);
+        Assert.All(products, product => Assert.IsAssignableFrom<IImage>(Steward.App.Services.ProductIcon.For(platform, product)));
         Assert.Null(Steward.App.Services.ProductIcon.For(platform, "no_such_product"));
     });
 

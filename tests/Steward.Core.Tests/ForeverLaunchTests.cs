@@ -26,6 +26,26 @@ public sealed class ForeverLaunchTests
         Assert.False(ForeverLaunch.HasNoCharacters(ForeverLaunch.BetaProduct, launch.AddDays(-1)));
     }
 
+    [Theory]
+    [InlineData("wowf", true)]
+    [InlineData("wow_classic_beta", true)]
+    [InlineData("wow", false)]
+    [InlineData("wow_classic_era", false)]
+    [InlineData(null, false)]
+    public void IsForever_OnlyForTheLiveAndBetaClients(string? product, bool expected) =>
+        Assert.Equal(expected, ForeverLaunch.IsForever(product));
+
+    [Fact]
+    public void ReadsCharacters_OnlyOnForeverAndNotOnLiveBeforeLaunch()
+    {
+        var launch = ForeverSchedule.Launch.Start;
+        Assert.True(ForeverLaunch.ReadsCharacters(ForeverLaunch.BetaProduct, launch.AddDays(-1)));
+        Assert.False(ForeverLaunch.ReadsCharacters(ForeverLaunch.LiveProduct, launch.AddMinutes(-1)));
+        Assert.True(ForeverLaunch.ReadsCharacters(ForeverLaunch.LiveProduct, launch));
+        Assert.False(ForeverLaunch.ReadsCharacters("wow_classic_era", launch));
+        Assert.False(ForeverLaunch.ReadsCharacters(null, launch));
+    }
+
     [Fact]
     public void MovesOnlyOnce() =>
         Assert.Null(ForeverLaunch.MoveFromBeta([Beta, Live], Beta, Launch, alreadyMoved: true));

@@ -266,6 +266,11 @@ public sealed class RestedXpService : IDisposable
         WowInstall install, IReadOnlyList<string> products, bool force, CancellationToken cancellationToken)
     {
         var results = new Dictionary<string, GuideSyncResult>(StringComparer.Ordinal);
+        if (!ForeverLaunch.IsForever(install.ProductCode))
+        {
+            return results;
+        }
+
         var strings = new List<(string Name, string Text, string? Tag, long UpdatedAt)>();
         var serverTimestamps = new Dictionary<string, long>(StringComparer.Ordinal);
 

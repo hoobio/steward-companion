@@ -14,7 +14,7 @@ public static class GuildRosterSync
         ArgumentNullException.ThrowIfNull(stateStore);
         logger ??= NullLogger.Instance;
 
-        if (install.IsMissing)
+        if (install.IsMissing || !ForeverLaunch.IsForever(install.ProductCode))
         {
             return false;
         }

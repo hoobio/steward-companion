@@ -544,7 +544,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool SyncBadgeVisibility => Sync.HasWaiting;
 
     public bool GuidesVisibility => IsGuidesPreview
-        || (HasGuidesFeature && RestedXp.IsSignedIn && Installs.Any(HasRestedXp));
+        || (IsForeverSelected && HasGuidesFeature && RestedXp.IsSignedIn && Installs.Any(HasRestedXp));
+
+    public bool IsForeverSelected => SelectedInstall is null || ForeverLaunch.IsForever(SelectedInstall.Install.ProductCode);
 
     private static bool HasRestedXp(WowInstallViewModel install) => install.AddonRows.Any(row =>
         string.Equals(row.AddonId, RestedXpViewModel.AddonId, StringComparison.OrdinalIgnoreCase)
@@ -564,7 +566,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool TitleBarPickerVisibility => SelectedInstall is not null;
 
-    public bool SyncVisibility => HasStewardFeature || CanPushCharacters;
+    public bool SyncVisibility => IsForeverSelected && (HasStewardFeature || CanPushCharacters);
 
     public bool CanPushCharacters => CharacterPushTargets().Count > 0;
 
@@ -2394,7 +2396,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 _pendingJourneyUpload = false;
                 var flavourPaths = PresentInstalls
-                    .Where(install => !ForeverLaunch.HasNoCharacters(install.Install.ProductCode, DateTimeOffset.Now))
+                    .Where(install => ForeverLaunch.ReadsCharacters(install.Install.ProductCode, DateTimeOffset.Now))
                     .Select(install => install.FlavourPath)
                     .ToList();
                 var result = await Task.Run(() => _journeyUploader.UploadAsync(flavourPaths, CancellationToken.None)).ConfigureAwait(true);
@@ -2702,7 +2704,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     internal static SavedVariablesSnapshot? ReadStewardSavedVariables(string flavourPath, string? productCode) =>
-        ForeverLaunch.HasNoCharacters(productCode, DateTimeOffset.Now) ? null : StewardSavedVariables.Read(flavourPath);
+        ForeverLaunch.ReadsCharacters(productCode, DateTimeOffset.Now) ? StewardSavedVariables.Read(flavourPath) : null;
 
     private IReadOnlyList<string> RoutedGuildIds(WowInstallViewModel install)
     {
@@ -2814,7 +2816,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         foreach (var install in Installs)
         {
-            install.SyncAddons(AddonsFor(install.FlavourPath));
+            install.SyncAddons(AddonsFor(install.Install));
         }
 
         RebuildAddonChannels();
@@ -3008,7 +3010,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             install,
             install.ProductCode is { } product && _supportedProducts.TryGetValue(product, out var productName) ? productName : null,
             _stateStore.Load().InstallLabels.GetValueOrDefault(install.FlavourPath),
-            AddonsFor(install.FlavourPath),
+            AddonsFor(install),
             ExcludedFoldersForOthers,
             IdentifyCurseForgeAsync,
             ReconcileProviderAddons,
@@ -3198,7 +3200,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         var result = await RecheckForActionAsync(cancellationToken).ConfigureAwait(true);
         return Failure != GateFailure.ClientOutdated
-            && AddonsFor(flavourPath).Any(visible => string.Equals(visible.Id, addon.Id, StringComparison.OrdinalIgnoreCase))
+            && Installs.FirstOrDefault(install => install.FlavourPath == flavourPath) is { } install
+            && AddonsFor(install.Install).Any(visible => string.Equals(visible.Id, addon.Id, StringComparison.OrdinalIgnoreCase))
             && (result == AuthCheckResult.Authorized
                 || (result == AuthCheckResult.Unreachable && AddonCatalogue.UpdatesWhileUnreachable(_addonCatalogue, addon.Id)));
     }

@@ -129,7 +129,8 @@ public sealed partial class MainViewModel
             .Select(record => CurseForgeAddons.ToManagedAddon(record, _stewardClient.CurseForgeManifestBaseUrl(record.ModId, record.VersionType)))]
         : [];
 
-    private IReadOnlyList<ManagedAddon> AddonsFor(string flavourPath) => [.. VisibleAddons(), .. ProviderAddons(flavourPath)];
+    private IReadOnlyList<ManagedAddon> AddonsFor(WowInstall install) =>
+        [.. VisibleAddons().Where(addon => addon.RunsOn(install.ProductCode)), .. ProviderAddons(install.FlavourPath)];
 
     private IReadOnlyList<ManagedAddon> AllProviderAddons() =>
         [.. Installs.SelectMany(install => ProviderAddons(install.FlavourPath)).DistinctBy(addon => addon.Id, StringComparer.OrdinalIgnoreCase)];
@@ -279,7 +280,7 @@ public sealed partial class MainViewModel
 
     private void SyncProviderRows(WowInstallViewModel install)
     {
-        install.SyncAddons(AddonsFor(install.FlavourPath));
+        install.SyncAddons(AddonsFor(install.Install));
         install.SetIsAdmin(IsAdminFor);
         install.ApplyStatus(_status, background: false);
         RebuildAddonChannels();
@@ -593,8 +594,8 @@ public sealed partial class MainViewModel
         var installs = _stateStore.Load().Installs;
         return
         [
-            .. _addons.Concat(_addonCatalogue ?? []).Where(addon => (CurseForgeEnabled || !addon.IsCurseForge) && !string.Equals(addon.Id, id, StringComparison.OrdinalIgnoreCase)).Select(addon => addon.FolderName),
-            .. new[] { StewardGuidesAddon.FolderName }.Where(_ => !string.Equals(id, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase)),
+            .. _addons.Concat(_addonCatalogue ?? []).Where(addon => (CurseForgeEnabled || !addon.IsCurseForge) && addon.RunsOn(install.Install.ProductCode) && !string.Equals(addon.Id, id, StringComparison.OrdinalIgnoreCase)).Select(addon => addon.FolderName),
+            .. new[] { StewardGuidesAddon.FolderName }.Where(_ => ForeverLaunch.IsForever(install.Install.ProductCode) && !string.Equals(id, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase)),
             .. ProviderRecords(install.FlavourPath).Where(record => CurseForgeEnabled && record.Id != id).SelectMany(record =>
                 CurseForgeAddons.Folders(record).Concat(installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, record.Id))?.Folders ?? [])),
         ];

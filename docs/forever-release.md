@@ -22,13 +22,14 @@ Battle.net copied the beta's `WTF` into `_forever_` on install; `Interface\AddOn
 1. `appsettings.json`: `wowf` in `SupportedProducts` ("World of Warcraft: Forever"), `RestedXp:ProductPrefixes` and `CurseForge:GameVersionTypes`. BugSack and BugGrabber keep their baked-in `88568`, since both clients share it.
 2. `Assets/Products/wowf.png`, the picker icon, a copy of the beta's.
 3. `ForeverLaunch.MoveFromBeta`: from 21 Oct 2026 a selection still on the beta moves to the live install once.
-4. `ForeverCopy` and `MainViewModel.ForeverCopy.cs`: while a beta install is present, the live install is held out of `Installs` until the user copies from the beta or chooses "I'll do it myself" (`forever_copy_done`), and the Addons page header offers "Sync from beta" on the live install after that. The sync is newer-wins and never deletes: AddOns folders, account-level saved variables and settings under `WTF\Account`, and the video and sound CVars of `WTF\Config.wtf`, merged into the live file with every other line kept.
+4. The other clients (`wow`, `wow_classic`, `wow_classic_era`, `wow_anniversary`) are in `SupportedProducts` and `CurseForge:GameVersionTypes` with their own icons. Their installs get CurseForge management and the catalogue rows whose `products` name them (the RestedXP row), and no Steward addons, sync, `StewardSync.lua` or `Guides.lua`; the Sync and Guides pages hide while one is selected.
+5. `ForeverCopy` and `MainViewModel.ForeverCopy.cs`: while a beta install is present, the live install is held out of `Installs` until the user copies from the beta or chooses "I'll do it myself" (`forever_copy_done`), and the Addons page header offers "Sync from beta" on the live install after that. The sync is newer-wins and never deletes: AddOns folders, account-level saved variables and settings under `WTF\Account`, and the video and sound CVars of `WTF\Config.wtf`, merged into the live file with every other line kept.
 
 ## This repo, when the beta is retired
 
 1. Remove `wow_classic_beta` from the three `appsettings.json` maps; a beta install then drops out of discovery and the selection falls back to the live one.
 2. `GuidesPreview` and `HomePage.xaml` copy, `docs/design/home-and-settings.md` and the mockups: replace `_classic_beta_` and "Forever - Beta".
-3. Remove `ForeverLaunch` and `forever_selection_moved`.
+3. Remove `ForeverLaunch.MoveFromBeta`, `BetaProduct` and `forever_selection_moved`. Keep `ForeverLaunch.IsForever` (with `wowf` only) and `ReadsCharacters`, which keep Steward addons and sync off the other clients.
 4. Remove the gate, the copy wizard and Sync from beta (`ForeverCopy`, `MainViewModel.ForeverCopy.cs`, the dialog in `MainWindow.xaml.cs`, the header button in `HomePage.xaml`) and `forever_copy_done`.
 
 ## Neighbouring repos

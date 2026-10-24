@@ -10,6 +10,11 @@ public static class ForeverLaunch
     public static bool HasNoCharacters(string? productCode, DateTimeOffset now) =>
         productCode == LiveProduct && now < ForeverSchedule.Launch.Start;
 
+    public static bool IsForever(string? productCode) => productCode is LiveProduct or BetaProduct;
+
+    public static bool ReadsCharacters(string? productCode, DateTimeOffset now) =>
+        IsForever(productCode) && !HasNoCharacters(productCode, now);
+
     public static WowInstall? MoveFromBeta(IEnumerable<WowInstall> installs, WowInstall? selected, DateOnly today, bool alreadyMoved) =>
         alreadyMoved || today < Date || selected?.ProductCode is not BetaProduct
             ? null

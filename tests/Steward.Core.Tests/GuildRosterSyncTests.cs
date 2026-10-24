@@ -24,7 +24,7 @@ public sealed class GuildRosterSyncTests : IDisposable
     private static AvatarImage SampleAvatar(string hash) =>
         new($"https://cdn.discordapp.com/avatars/1/{hash}.png?size=64", 64, 64, new byte[64 * 64 * 4]);
 
-    private WowInstall InstallAddon(bool withToc = true)
+    private WowInstall InstallAddon(bool withToc = true, string product = ForeverLaunch.LiveProduct)
     {
         var addOnsPath = Path.Combine(_root, "AddOns");
         var addonPath = Path.Combine(addOnsPath, "Steward");
@@ -34,7 +34,18 @@ public sealed class GuildRosterSyncTests : IDisposable
             File.WriteAllText(Path.Combine(addonPath, "Steward.toc"), "## Interface: 11507\n");
         }
 
-        return new WowInstall(_root, "_retail_", _root, addOnsPath, null, null, "Retail");
+        return new WowInstall(_root, "_forever_", _root, addOnsPath, product, null, "Forever");
+    }
+
+    [Fact]
+    public void WriteIfChanged_WritesNothing_OnAClientOtherThanForever()
+    {
+        var install = InstallAddon(product: "wow_classic_era");
+        var stateStore = new AppStateStore(["steward"], StatePath);
+
+        Assert.False(GuildRosterSync.WriteIfChanged(install, SamplePayload() with { Avatar = SampleAvatar("hash-a") }, stateStore, force: true));
+        Assert.False(File.Exists(StewardSyncFile.PathFor(install.AddOnsPath)));
+        Assert.False(File.Exists(StewardSyncFile.AvatarPathFor(install.AddOnsPath)));
     }
 
     [Fact]

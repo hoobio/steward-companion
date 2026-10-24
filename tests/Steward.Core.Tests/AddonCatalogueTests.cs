@@ -212,6 +212,34 @@ public sealed class AddonCatalogueTests : IDisposable
     }
 
     [Fact]
+    public void RunsOn_WithoutProductsIsForeverOnly_StarIsEvery_AndAListMatchesIgnoringCase()
+    {
+        var forever = new ManagedAddon("x", "X");
+        Assert.True(forever.RunsOn("wowf"));
+        Assert.True(forever.RunsOn("wow_classic_beta"));
+        Assert.False(forever.RunsOn("wow"));
+        Assert.False(forever.RunsOn(null));
+
+        Assert.True((forever with { Products = ["*"] }).RunsOn("wow_classic_era"));
+
+        var listed = forever with { Products = ["WOW_Classic_Era"] };
+        Assert.True(listed.RunsOn("wow_classic_era"));
+        Assert.False(listed.RunsOn("wowf"));
+    }
+
+    [Fact]
+    public void Products_ParsesOntoTheManagedAddon_AndIsOmittedWhenNull()
+    {
+        Assert.Equal(["*"], Parse("""[{"id":"x","folder_name":"X","manifest_base_url":"https://example.test/x/","products":["*"]}]""").Products);
+        Assert.Null(Parse("""[{"id":"x","folder_name":"X","manifest_base_url":"https://example.test/x/"}]""").Products);
+        Assert.DoesNotContain("products", System.Text.Json.JsonSerializer.Serialize([ActionBars], CompanionJsonContext.Default.IReadOnlyListCatalogueAddon), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Same_TreatsAProductsChangeAsAChange() =>
+        Assert.False(AddonCatalogue.Same([ActionBars], [ActionBars with { Products = ["wow"] }]));
+
+    [Fact]
     public void AddonCatalogue_AbsentFromStateJson_LoadsAsUnknown()
     {
         var path = Path.Combine(_root, "state.json");

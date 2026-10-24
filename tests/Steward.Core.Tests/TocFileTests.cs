@@ -73,6 +73,10 @@ public sealed class TocFileTests : IDisposable
     [InlineData("1.60.1.70009", 16001)]
     [InlineData("5.5.1.63538", 50501)]
     [InlineData("1.60.1", 16001)]
+    [InlineData("12.1.5", 120105)]
+    [InlineData("5.5.4", 50504)]
+    [InlineData("2.5.6", 20506)]
+    [InlineData("1.15.9", 11509)]
     [InlineData(null, null)]
     [InlineData("garbage", null)]
     public void InterfaceNumber_ParsesMajorMinorPatch(string? clientVersion, int? expected)

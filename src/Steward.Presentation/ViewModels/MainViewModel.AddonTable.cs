@@ -170,6 +170,8 @@ public sealed partial class MainViewModel
 
         _sortSnapshot.Clear();
         RecomputeSummary();
+        OnPropertyChanged(nameof(SyncVisibility));
+        OnPropertyChanged(nameof(GuidesVisibility));
     }
 
     partial void OnFilterTextChanged(string value) => Resort();
