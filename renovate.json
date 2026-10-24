@@ -1,4 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"]
+  "extends": ["config:recommended"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": ["DOTNET_SDK_VERSION: \"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "dotnet-sdk",
+      "datasourceTemplate": "dotnet-version",
+      "versioningTemplate": "semver"
+    }
+  ]
 }
