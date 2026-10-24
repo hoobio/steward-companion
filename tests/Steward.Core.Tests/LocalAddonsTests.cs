@@ -133,6 +133,17 @@ public sealed class LocalAddonsTests : IDisposable
     }
 
     [Fact]
+    public void ReadDeclaredIds_ReadsTukUiProjectIdAndFolders()
+    {
+        WriteAddon("ElvUI", "## Interface: 11509, 16001\n## X-Tukui-ProjectID: -2\n## X-Tukui-ProjectFolders: ElvUI, ElvUI_Libraries, ElvUI_Options\n");
+
+        var ids = LocalAddons.ReadDeclaredIds(_addOnsPath, "ElvUI", 16001)!;
+
+        Assert.Equal(-2, ids.TukUiProjectId);
+        Assert.Equal(["ElvUI", "ElvUI_Libraries", "ElvUI_Options"], ids.TukUiProjectFolders!);
+    }
+
+    [Fact]
     public void ReadDeclaredIds_NoTopLevelToc_ReturnsNull()
     {
         var library = Path.Combine(_addOnsPath, "Loose", "libs", "Lib");

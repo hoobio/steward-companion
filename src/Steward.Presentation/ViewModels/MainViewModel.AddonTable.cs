@@ -118,7 +118,7 @@ public sealed partial class MainViewModel
 
     public bool AdoptAllVisibility => SelectedAdoptableCount > 0 && TableVisibility;
 
-    public string AdoptAllAccessibleName => $"Adopt all, {SelectedAdoptableCount} CurseForge match{(SelectedAdoptableCount == 1 ? "" : "es")}";
+    public string AdoptAllAccessibleName => $"Adopt all, {SelectedAdoptableCount} match{(SelectedAdoptableCount == 1 ? "" : "es")}";
 
     [RelayCommand]
     private void AdoptAll() => SelectedInstall?.AdoptAll();

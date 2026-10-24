@@ -207,7 +207,7 @@ public sealed class DialogsATests(AvaloniaSession session)
             (_, _) => Task.FromResult<IReadOnlyList<ProviderAddonRecord>>([]),
             (_, _) => false,
             (_, _) => { },
-            () => Task.FromResult(true),
+            _ => Task.FromResult(true),
             services.GetRequiredService<AddonUpdater>(),
             services.GetRequiredService<AppStateStore>(),
             (_, _) => Task.FromResult(true),

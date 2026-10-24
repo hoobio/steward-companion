@@ -80,7 +80,9 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
 
     public bool AdoptFromMenuVisibility => Match is not null && IsKeptLocal;
 
-    public string AdoptAccessibleName => $"Adopt {DisplayName} from CurseForge";
+    public string AdoptAccessibleName => $"Adopt {DisplayName} from {Match?.Source ?? CurseForgeAddons.Source}";
+
+    public string AdoptMenuHeader => $"Adopt from {Match?.Source ?? CurseForgeAddons.Source}";
 
     private async Task LoadLastUpdatedAsync()
     {

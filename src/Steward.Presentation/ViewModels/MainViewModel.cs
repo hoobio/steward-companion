@@ -2928,7 +2928,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ = EvaluateCurseForgeDefaultHandlerAsync();
         if (value && IsCurseForgeEnabled)
         {
-            _ = ProbeAddedProviderAddonsAsync([.. AllVisibleAddons().Where(addon => addon.IsCurseForge)]);
+            _ = ProbeAddedProviderAddonsAsync([.. VisibleAddons().Where(addon => addon.IsCurseForge), .. AllProviderAddons()]);
         }
     }
 
@@ -3012,7 +3012,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _stateStore.Load().InstallLabels.GetValueOrDefault(install.FlavourPath),
             AddonsFor(install),
             ExcludedFoldersForOthers,
-            IdentifyCurseForgeAsync,
+            IdentifyProviderAddonsAsync,
             ReconcileProviderAddons,
             UnmanageProviderAddon,
             ConfirmAdoptAsync,

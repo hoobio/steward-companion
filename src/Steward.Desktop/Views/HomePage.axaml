@@ -772,7 +772,7 @@
                                         DataContextChanged="OnRowDataContextChanged">
                                         <Border.Resources>
                                             <MenuFlyout x:Key="RowMenu" Placement="BottomEdgeAlignedRight">
-                                                <MenuItem Header="Adopt from CurseForge" Command="{Binding AdoptCommand}" IsVisible="{Binding AdoptFromMenuVisibility}" />
+                                                <MenuItem Header="{Binding AdoptMenuHeader}" Command="{Binding AdoptCommand}" IsVisible="{Binding AdoptFromMenuVisibility}" />
                                                 <MenuItem Header="{Binding HideLabel}" Command="{Binding ToggleHiddenCommand}" />
                                                 <MenuItem Header="Open folder" Command="{Binding OpenFolderCommand}" />
                                                 <Separator />

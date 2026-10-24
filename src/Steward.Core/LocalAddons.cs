@@ -8,7 +8,7 @@ namespace Steward.Core;
 
 public sealed record LocalAddon(string FolderName, string Name, string? Version, string? Interface, IReadOnlyList<string> FoldedFolders);
 
-public sealed record DeclaredAddonIds(int? CurseProjectId, string? WagoId, string? WowInterfaceId);
+public sealed record DeclaredAddonIds(int? CurseProjectId, string? WagoId, string? WowInterfaceId, int? TukUiProjectId = null, IReadOnlyList<string>? TukUiProjectFolders = null);
 
 public static class LocalAddons
 {
@@ -130,7 +130,9 @@ public static class LocalAddons
         return new DeclaredAddonIds(
             int.TryParse(TocFile.ReadDirective(tocPath, "X-Curse-Project-ID"), out var curseId) ? curseId : null,
             TocFile.ReadDirective(tocPath, "X-Wago-ID"),
-            TocFile.ReadDirective(tocPath, "X-WoWI-ID"));
+            TocFile.ReadDirective(tocPath, "X-WoWI-ID"),
+            int.TryParse(TocFile.ReadDirective(tocPath, "X-Tukui-ProjectID"), out var tukUiId) ? tukUiId : null,
+            TocFile.ReadDirective(tocPath, "X-Tukui-ProjectFolders") is { } tukUiFolders ? [.. SplitDeps(tukUiFolders)] : null);
     }
 
     private static Candidate? ReadCandidate(string folderPath, string folderName, int? clientInterface)

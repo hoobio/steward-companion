@@ -37,7 +37,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> _identifyProviderAddons;
     private readonly Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> _reconcileProviderAddons;
     private readonly Action<WowInstallViewModel, string> _unmanageProviderAddon;
-    private readonly Func<Task<bool>> _confirmAdopt;
+    private readonly Func<string, Task<bool>> _confirmAdopt;
     private readonly Func<ManagedAddon, CancellationToken, Task<bool>> _ensureAuthorized;
     private readonly Func<bool> _isCurseForgeEnabled;
     private readonly Action<string> _changeChannelRequested;
@@ -62,7 +62,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         Func<WowInstallViewModel, IReadOnlyList<LocalAddon>, Task<IReadOnlyList<ProviderAddonRecord>>> identifyProviderAddons,
         Func<WowInstallViewModel, IReadOnlyList<ProviderAddonRecord>, bool> reconcileProviderAddons,
         Action<WowInstallViewModel, string> unmanageProviderAddon,
-        Func<Task<bool>> confirmAdopt,
+        Func<string, Task<bool>> confirmAdopt,
         AddonUpdater updater,
         AppStateStore stateStore,
         Func<ManagedAddon, CancellationToken, Task<bool>> ensureAuthorized,
@@ -510,7 +510,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private async Task AdoptAsync(IReadOnlyList<ProviderAddonRecord> matches)
     {
         var records = matches.DistinctBy(record => record.Id, StringComparer.OrdinalIgnoreCase).ToList();
-        if (records.Count == 0 || !_isCurseForgeEnabled() || !await _confirmAdopt().ConfigureAwait(true))
+        if (records.Count == 0 || !_isCurseForgeEnabled() || !await _confirmAdopt(string.Join(" and ", records.Select(record => record.Source).Distinct())).ConfigureAwait(true))
         {
             return;
         }
@@ -554,7 +554,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             ConfirmUninstallAsync,
             OutOfDateTipForToc,
             _afterStewardInstalled,
-            CurseForgeAddons.IsRecorded(addon) ? () => _unmanageProviderAddon(this, addon.Id) : null,
+            CurseForgeAddons.IsRecorded(addon) || TukUiAddons.IsRecorded(addon) ? () => _unmanageProviderAddon(this, addon.Id) : null,
             (dependant, channel, release, status, progress) => _installRequirements(this, dependant, channel, release, status, progress),
             _themeId,
             () => _excludedFolders(this, addon.Id),

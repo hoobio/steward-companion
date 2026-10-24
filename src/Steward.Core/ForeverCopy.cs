@@ -291,7 +291,7 @@ public static partial class ForeverCopy
         var providers = new Dictionary<string, List<ProviderAddonRecord>>(state.ProviderAddons ?? [], StringComparer.OrdinalIgnoreCase);
         var liveRecords = (providers.GetValueOrDefault(livePath) ?? []).ToList();
         liveRecords.AddRange((providers.GetValueOrDefault(betaPath) ?? []).Where(record =>
-            record.VersionType == liveVersionType
+            (record.Source != CurseForgeAddons.Source || record.VersionType == liveVersionType)
             && isOnLive(record.FolderName)
             && !liveRecords.Any(existing => string.Equals(existing.Id, record.Id, StringComparison.OrdinalIgnoreCase))));
         if (liveRecords.Count > 0)

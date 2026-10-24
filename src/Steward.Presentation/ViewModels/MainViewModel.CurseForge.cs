@@ -124,9 +124,11 @@ public sealed partial class MainViewModel
 
     private IReadOnlyList<ManagedAddon> ProviderAddons(string flavourPath) => IsCurseForgeEnabled
         ? [.. ProviderRecords(flavourPath)
-            .Where(record => record.Source == CurseForgeAddons.Source)
+            .Where(record => record.Source is CurseForgeAddons.Source or TukUiAddons.Source)
             .OrderBy(record => record.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(record => CurseForgeAddons.ToManagedAddon(record, _stewardClient.CurseForgeManifestBaseUrl(record.ModId, record.VersionType)))]
+            .Select(record => record.Source == TukUiAddons.Source
+                ? TukUiAddons.ToManagedAddon(record, _stewardClient.TukUiManifestBaseUrl(record.ModId))
+                : CurseForgeAddons.ToManagedAddon(record, _stewardClient.CurseForgeManifestBaseUrl(record.ModId, record.VersionType)))]
         : [];
 
     private IReadOnlyList<ManagedAddon> AddonsFor(WowInstall install) =>
@@ -137,16 +139,23 @@ public sealed partial class MainViewModel
 
     private IReadOnlyList<ManagedAddon> AllVisibleAddons() => [.. VisibleAddons(), .. AllProviderAddons()];
 
-    private async Task<IReadOnlyList<ProviderAddonRecord>> IdentifyCurseForgeAsync(WowInstallViewModel install, IReadOnlyList<LocalAddon> scanned)
+    private async Task<IReadOnlyList<ProviderAddonRecord>> IdentifyProviderAddonsAsync(WowInstallViewModel install, IReadOnlyList<LocalAddon> scanned)
     {
-        if (CurseForgeVersionType(install.Install) is not { } versionType || scanned.Count == 0)
+        var folders = scanned.SelectMany(addon => addon.FoldedFolders.Prepend(addon.FolderName)).ToList();
+        var tukUi = await Task.Run(() => TukUiAddons.Identify(install.AddOnsPath, folders, TocFile.InterfaceNumber(install.ClientVersion), _stewardClient.TukUiManifestBaseUrl)).ConfigureAwait(false);
+        var claimed = tukUi.SelectMany(CurseForgeAddons.Folders).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return [.. tukUi, .. await IdentifyCurseForgeAsync(install, scanned, [.. folders.Where(folder => !claimed.Contains(folder))]).ConfigureAwait(false)];
+    }
+
+    private async Task<IReadOnlyList<ProviderAddonRecord>> IdentifyCurseForgeAsync(WowInstallViewModel install, IReadOnlyList<LocalAddon> scanned, List<string> folders)
+    {
+        if (CurseForgeVersionType(install.Install) is not { } versionType || folders.Count == 0)
         {
             return [];
         }
 
         try
         {
-            var folders = scanned.SelectMany(addon => addon.FoldedFolders.Prepend(addon.FolderName)).ToList();
             var request = await Task.Run(() => CurseForgeAddons.MatchRequest(install.AddOnsPath, folders, TocFile.InterfaceNumber(install.ClientVersion))).ConfigureAwait(false);
             var matches = await _stewardClient.MatchCurseForgeAsync(versionType, request, CancellationToken.None).ConfigureAwait(false);
             var titles = scanned.ToDictionary(addon => addon.FolderName, addon => addon.Name, StringComparer.OrdinalIgnoreCase);
@@ -186,7 +195,7 @@ public sealed partial class MainViewModel
         foreach (var gone in records.Except(kept))
         {
             state.Installs.Remove(AppStateStore.Key(install.FlavourPath, gone.Id));
-            _logger.Info($"CurseForge addon {gone.Id} dropped from {install.FlavourPath}: {gone.FolderName} is gone");
+            _logger.Info($"{gone.Source} addon {gone.Id} dropped from {install.FlavourPath}: {gone.FolderName} is gone");
         }
 
         SaveProviderRecords(state, install.FlavourPath, [.. kept, .. added]);
@@ -213,7 +222,7 @@ public sealed partial class MainViewModel
         _stateStore.Save(state);
     }
 
-    private async Task<bool> ConfirmAdoptAsync()
+    private async Task<bool> ConfirmAdoptAsync(string source)
     {
         IReadOnlyList<AddonManagerApp> apps;
         try
@@ -248,7 +257,7 @@ public sealed partial class MainViewModel
             apps.Any(app => app.StartsWithWindows) ? $"turn off {its} startup in {startupSettings}" : null,
         }.OfType<string>());
         return await show(
-            "Adopt from CurseForge?",
+            $"Adopt from {source}?",
             $"{facts} {it} will update the same addons as Steward and overwrite each other's changes, so {steps}.",
             "Adopt anyway").ConfigureAwait(true);
     }
@@ -271,7 +280,7 @@ public sealed partial class MainViewModel
             state.KeptLocalAddons.Add(keptLocal);
         }
 
-        _logger.Info($"CurseForge addon {record.Id} unmanaged on {install.FlavourPath}");
+        _logger.Info($"{record.Source} addon {record.Id} unmanaged on {install.FlavourPath}");
         SaveProviderRecords(state, install.FlavourPath, [.. records.Where(existing => existing != record)]);
         install.ShowAsLocal(record);
         SyncProviderRows(install);

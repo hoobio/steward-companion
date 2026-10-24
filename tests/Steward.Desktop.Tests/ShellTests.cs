@@ -106,7 +106,7 @@ public sealed class ShellTests(AvaloniaSession session)
         var install = new WowInstall(Path.GetDirectoryName(path)!, "_forever_", path, Path.Combine(path, "Interface", "AddOns"), "wowf", "1.0.0.1", "World of Warcraft: Forever");
         return new WowInstallViewModel(
             install, "Forever", label, [], (_, _) => [], (_, _) => Task.FromResult<IReadOnlyList<ProviderAddonRecord>>([]), (_, _) => false, (_, _) => { },
-            () => Task.FromResult(true), services.GetRequiredService<AddonUpdater>(), services.GetRequiredService<AppStateStore>(), (_, _) => Task.FromResult(true),
+            _ => Task.FromResult(true), services.GetRequiredService<AddonUpdater>(), services.GetRequiredService<AppStateStore>(), (_, _) => Task.FromResult(true),
             () => false, _ => { }, (_, _, _) => Task.FromResult(true), _ => { }, _ => { }, (_, _) => Task.CompletedTask, (_, _, _, _, _, _) => Task.CompletedTask,
             () => null, services.GetRequiredService<AvaloniaPlatform>(), NullLogger.Instance);
     }
