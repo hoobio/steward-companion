@@ -100,8 +100,9 @@
                                 <Border
                                     BorderThickness="0,0,0,1"
                                     BorderBrush="{DynamicResource RowHairlineBrush}">
+                                    <!-- The right margin clears the scroll bar's 22px hit band (Styles/ScrollBarHitArea.axaml), which would take the Install button's clicks. -->
                                     <Grid
-                                        Margin="12,10"
+                                        Margin="12,10,22,10"
                                         ColumnDefinitions="Auto,*,Auto"
                                         ColumnSpacing="12">
                                         <Border
