@@ -16,6 +16,7 @@
     <Application.Styles>
         <sty:FluentAvaloniaTheme PreferSystemTheme="False" PreferUserAccentColor="False" CustomAccentColor="#FF409FFF" UseSystemFontOnWindows="False" />
         <StyleInclude Source="avares://Steward.Desktop/Styles/Controls.axaml" />
+        <StyleInclude Source="avares://Steward.Desktop/Styles/ScrollBarHitArea.axaml" />
         <StyleInclude Source="avares://Steward.Desktop/Styles/Dialogs.axaml" />
     </Application.Styles>
 </Application>
