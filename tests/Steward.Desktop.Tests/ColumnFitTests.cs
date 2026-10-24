@@ -1,7 +1,11 @@
 using System.ComponentModel;
+using System.Reflection;
 
+using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -64,6 +68,81 @@ public sealed class ColumnFitTests(AvaloniaSession session)
         {
             row.PropertyChanged -= CountModeChange;
         }
+
+        window.Hide();
+        main.Installs.Remove(install);
+    });
+
+    [Fact]
+    public void Addons_table_columns_do_not_change_while_the_table_scrolls() => session.Run(() =>
+    {
+        var temp = session.NewFolder();
+        var platform = new AvaloniaPlatform();
+        using var host = session.NewHost(platform);
+        platform.Http = null;
+        var main = host.Services.GetRequiredService<MainViewModel>();
+        var window = host.Services.GetRequiredService<MainWindow>();
+        window.Width = 1000;
+        window.Height = 820;
+        window.Show();
+        main.UserName = "Hoobi";
+        main.IsSignedIn = true;
+        main.IsAuthorized = true;
+
+        const string clientVersion = "1.16.1.70000";
+        var flavour = Path.Combine(temp, "_forever_");
+        var addOns = Path.Combine(flavour, "Interface", "AddOns");
+        var current = TocFile.InterfaceNumber(clientVersion)!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var catalogue = new List<CatalogueAddon>();
+        var statuses = new Dictionary<string, AddonChannelStatus>();
+        for (var index = 0; index < 40; index++)
+        {
+            var folder = $"Addon{index:D2}";
+            var version = index == 39 ? "DBM-Vanilla_SoD-r833.20261015.15339.172-a-much-wider-build-label" : $"1.0.{index}";
+            Directory.CreateDirectory(Path.Combine(addOns, folder));
+            File.WriteAllText(Path.Combine(addOns, folder, $"{folder}.toc"), $"## Interface: {current}\n## Title: {folder}\n## Version: {version}\n");
+            catalogue.Add(new CatalogueAddon(folder.ToLowerInvariant(), folder, $"https://example.invalid/{folder}/", index == 0 ? "DBM - SoD and Vanilla (Requires Deadly Boss Mods) - DBM" : folder));
+            statuses[folder.ToLowerInvariant()] = Status("release", Release("release", version, 2), null);
+        }
+
+        typeof(MainViewModel).GetMethod("SetAddonCatalogue", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(main, [catalogue]);
+        var wow = new WowInstall(temp, "_forever_", flavour, addOns, "wowf", clientVersion, "World of Warcraft: Forever");
+        var install = (WowInstallViewModel)typeof(MainViewModel).GetMethod("AddInstall", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(main, [wow, false])!;
+        install.ApplyStatus(statuses, background: false);
+        main.SelectedInstall = install;
+        Settle(ticks: 4);
+
+        var page = (HomePage)window.CurrentPage!;
+        var body = page.GetVisualDescendants().OfType<StackPanel>().First(panel => panel.Name == "TableBody");
+        var scroller = body.FindAncestorOfType<ScrollViewer>()!;
+        var header = (Grid)page.GetVisualDescendants().OfType<Border>().First(border => border.Name == "TableHeader").Child!;
+        var first = main.TableRows.OfType<AddonRowViewModel>().First();
+        Assert.True(scroller.Extent.Height > scroller.Viewport.Height * 2);
+
+        string Columns() => string.Join(",", header.ColumnDefinitions.Select(column => column.Width.Value));
+        double? FirstNameWidth() => page.GetVisualDescendants().OfType<Border>()
+            .FirstOrDefault(border => border.Classes.Contains("TableRow") && border.DataContext == first) is { } row
+            ? ((Grid)row.Child!).ColumnDefinitions[1].Width.Value
+            : null;
+
+        var expected = Columns();
+        var expectedName = FirstNameWidth();
+        Assert.NotNull(expectedName);
+        for (var offset = 0.0; offset <= scroller.Extent.Height - scroller.Viewport.Height + 100; offset += 100)
+        {
+            scroller.Offset = new Vector(0, offset);
+            Settle(ticks: 4);
+            Assert.Equal(expected, Columns());
+            if (FirstNameWidth() is { } name)
+            {
+                Assert.Equal(expectedName, name);
+            }
+        }
+
+        scroller.Offset = default;
+        Settle(ticks: 4);
+        Assert.Equal(expected, Columns());
+        Assert.Equal(expectedName, FirstNameWidth());
 
         window.Hide();
         main.Installs.Remove(install);

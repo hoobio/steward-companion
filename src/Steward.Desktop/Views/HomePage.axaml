@@ -386,7 +386,8 @@
                         <ItemsControl ItemsSource="{Binding TableRows}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <VirtualizingStackPanel />
+                                    <!-- Column widths are measured from realised rows, so a virtualising panel made them change on scroll. -->
+                                    <StackPanel />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.DataTemplates>
