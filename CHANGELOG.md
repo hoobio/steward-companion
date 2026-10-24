@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.27.0](https://github.com/hoobio/steward-companion/compare/v0.26.1...v0.27.0) (2026-10-24)
+
+
+### Features
+
+* ✨ a middle-click starts autoscroll in every scrollable list, as in Firefox ([0da9973](https://github.com/hoobio/steward-companion/commit/0da9973a040df781e1fd81f3b7d97bd69edeeca0))
+* ✨ RestedXP guides import on every World of Warcraft client, each guide going to the client its product name names ([1ce86d2](https://github.com/hoobio/steward-companion/commit/1ce86d24626a4ed0b1a7682604777efd6b3a84d1))
+* ✨ Steward detects an installed ElvUI or Tukui and offers to adopt it, then updates it from TukUI on every client ([d389b5f](https://github.com/hoobio/steward-companion/commit/d389b5f21111a6d775df9a3145ee16696f3a9402))
+* ✨ Steward manages addons on every World of Warcraft client, with Steward addons and sync on Forever only ([494012d](https://github.com/hoobio/steward-companion/commit/494012d3b729f3e6ea3e710bdd91617b4d41e859))
+
+
+### Bug Fixes
+
+* 🐛 a failed recorded-addon check names the source that failed, TukUI or CurseForge ([a18eb19](https://github.com/hoobio/steward-companion/commit/a18eb19165d7dc2bcda0724cc91f4757e8619c08))
+* 🐛 Addons table column widths no longer change while the table scrolls ([ed1311f](https://github.com/hoobio/steward-companion/commit/ed1311f666fff4924e98504a27ed70d22d8f9644))
+* 🐛 Adopt and Adopt all adopt every CurseForge addon whose folders share a local row, not only the first ([30b660c](https://github.com/hoobio/steward-companion/commit/30b660cd6fe77af05f270e9b1dec83b47416e6c2))
+* 🐛 Get addons rows keep their Install button clear of the scroll bar's hit band ([d87eb8e](https://github.com/hoobio/steward-companion/commit/d87eb8ec5a87059b4f7126fbbaa7ecf80ad6f2b8))
+* 🐛 scroll bars take clicks across a 22px band, so the thin collapsed thumb can be grabbed and dragged ([e48072c](https://github.com/hoobio/steward-companion/commit/e48072c5a6b5271ef7076dc321c3007bc2dc5ca5))
+* 🐛 Settings stacks the cards of each section into one group with rounded outer corners ([f88a846](https://github.com/hoobio/steward-companion/commit/f88a846657c4860292cb8fffc56fba01ee6a4184))
+* 🐛 the Forever launch countdown shows under the install picker only while a Forever install is selected ([8fa2fd5](https://github.com/hoobio/steward-companion/commit/8fa2fd50299f5466fad1c6fd982abd61e0f12412))
+* 🐛 the MoP Classic install reads "Mists of Pandaria" in the install picker ([75626ec](https://github.com/hoobio/steward-companion/commit/75626ecdc3364b027deba4be2145ee0eb7fa8c70))
+
 ## [0.26.1](https://github.com/hoobio/steward-companion/compare/v0.26.0...v0.26.1) (2026-10-24)
 
 
