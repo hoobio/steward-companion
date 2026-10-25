@@ -206,6 +206,19 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
+    public void Render_WritesRankLockedAscending_AndOmitsTheKeyWhenTheServerSentNone()
+    {
+        var payload = SamplePayload() with { RankLocked = [7, 5] };
+
+        var rendered = StewardSyncFile.Render(payload);
+
+        Assert.Contains("\t[\"rankLocked\"] = {\n\t\t5,\n\t\t7,\n\t},", rendered, StringComparison.Ordinal);
+        Assert.Contains("\t[\"rankLocked\"] = {\n\t},", StewardSyncFile.Render(SamplePayload() with { RankLocked = [] }), StringComparison.Ordinal);
+        Assert.DoesNotContain("rankLocked", StewardSyncFile.Render(SamplePayload()), StringComparison.Ordinal);
+        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
+    }
+
+    [Fact]
     public void Render_ProducesAnEmptyOriginsTable_WhenThePayloadCarriesNone()
     {
         var rendered = StewardSyncFile.Render(SamplePayload());

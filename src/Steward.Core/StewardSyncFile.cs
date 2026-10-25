@@ -253,6 +253,11 @@ public static class StewardSyncFile
                     .Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.FromNumber(kv.Value)))])));
         }
 
+        if (payload.RankLocked is { } rankLocked)
+        {
+            entries.Add(new(LuaValue.FromString("rankLocked"), LuaValue.Array(rankLocked.Order().Select(order => LuaValue.FromNumber(order)))));
+        }
+
         return LuaValue.FromTable(entries);
     }
 

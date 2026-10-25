@@ -22,7 +22,7 @@ public sealed class StewardGuildSyncApi(StewardClient client, AppStateStore stat
         guildId ??= guild?.Id
             ?? throw new InvalidOperationException("The signed-in user has no guild to sync from.");
 
-        var (members, statuses, origins, rankTargets) = await client.GetGuildRosterAsync(guildId, ct).ConfigureAwait(false);
+        var (members, statuses, origins, rankTargets, rankLocked) = await client.GetGuildRosterAsync(guildId, ct).ConfigureAwait(false);
         var discord = await client.GetDiscordMembersAsync(guildId, ct).ConfigureAwait(false);
         var icon = await images.LoadAsync(guild?.IconUrl, ct).ConfigureAwait(false);
         var catalogue = await TryGetCatalogueAsync(me, guildId, ct).ConfigureAwait(false);
@@ -30,7 +30,7 @@ public sealed class StewardGuildSyncApi(StewardClient client, AppStateStore stat
             $"Guild roster pulled for {guildId}: {members.Count} members, {discord.Count} Discord members, {catalogue.Count} catalogue recipe(s)");
 
         var syncMe = new SyncMe(me.User.Id, me.User.Role, [.. StewardClient.EffectiveFeatures(me)]);
-        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue, Me = syncMe, RankTargets = rankTargets };
+        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue, Me = syncMe, RankTargets = rankTargets, RankLocked = rankLocked };
     }
 
     public async Task<IReadOnlyDictionary<string, AvatarImage>> LoadPersonAvatarsAsync(

@@ -50,7 +50,8 @@ public sealed record GuildRosterResponse(
     [property: JsonPropertyName("members")] IReadOnlyList<GuildRosterMember> Members,
     [property: JsonPropertyName("statuses")] IReadOnlyList<RosterStatusDef>? Statuses,
     [property: JsonPropertyName("origins")] IReadOnlyList<OriginDef>? Origins,
-    [property: JsonPropertyName("rank_targets")] IReadOnlyDictionary<string, int>? RankTargets = null);
+    [property: JsonPropertyName("rank_targets")] IReadOnlyDictionary<string, int>? RankTargets = null,
+    [property: JsonPropertyName("rank_locked")] IReadOnlyList<int>? RankLocked = null);
 
 public sealed record DiscordMembersResponse(
     [property: JsonPropertyName("members")] IReadOnlyList<DiscordMember> Members);
@@ -730,5 +731,7 @@ public sealed record SyncPayload(
     public SyncDirectory? Directory { get; init; }
 
     public IReadOnlyDictionary<string, int>? RankTargets { get; init; }
+
+    public IReadOnlyList<int>? RankLocked { get; init; }
 }
 

@@ -153,7 +153,7 @@ public sealed class StewardClient
         return catalogue?.Catalogue ?? throw new HttpRequestException($"GET /api/guild/{guildId}/recipes/catalogue returned an empty body");
     }
 
-    public async Task<(IReadOnlyList<GuildRosterMember> Members, IReadOnlyList<string> Statuses, IReadOnlyList<OriginDef> Origins, IReadOnlyDictionary<string, int>? RankTargets)> GetGuildRosterAsync(string guildId, CancellationToken cancellationToken)
+    public async Task<(IReadOnlyList<GuildRosterMember> Members, IReadOnlyList<string> Statuses, IReadOnlyList<OriginDef> Origins, IReadOnlyDictionary<string, int>? RankTargets, IReadOnlyList<int>? RankLocked)> GetGuildRosterAsync(string guildId, CancellationToken cancellationToken)
     {
         using var response = await _httpClient
             .GetAsync($"{_baseUrl}/api/admin/{guildId}/roster", cancellationToken)
@@ -183,7 +183,7 @@ public sealed class StewardClient
             [.. roster.Members.Select(member => member with { Notes = RosterNotes.Trim(member.Notes) })];
         IReadOnlyList<string> statuses = roster.Statuses is null ? [] : [.. roster.Statuses.Select(status => status.Name)];
         IReadOnlyList<OriginDef> origins = roster.Origins ?? [];
-        return (members, statuses, origins, roster.RankTargets);
+        return (members, statuses, origins, roster.RankTargets, roster.RankLocked);
     }
 
     public async Task<IReadOnlyList<DiscordMember>> GetDiscordMembersAsync(string guildId, CancellationToken cancellationToken)
