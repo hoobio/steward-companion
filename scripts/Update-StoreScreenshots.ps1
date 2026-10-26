@@ -28,7 +28,7 @@ $headers = @{ Authorization = "Bearer $($token.access_token)" }
 $app = Invoke-RestMethod -Uri $api -Headers $headers
 if ($app.pendingApplicationSubmission) { throw "Submission $($app.pendingApplicationSubmission.id) is already pending; publish or delete it first" }
 
-$submission = Invoke-RestMethod -Method Post -Uri "$api/submissions" -Headers $headers
+$submission = Invoke-RestMethod -Method Post -Uri "$api/submissions" -Headers $headers -ContentType 'application/json'
 Write-Output "Created submission $($submission.id)"
 
 $entries = foreach ($image in $images) {
@@ -57,7 +57,7 @@ Compress-Archive -Path (Join-Path $staging 'screenshots') -DestinationPath $zip 
 $null = Invoke-RestMethod -Method Put -Uri $submission.fileUploadUrl -Headers @{ 'x-ms-blob-type' = 'BlockBlob' } -InFile $zip
 Remove-Item -Recurse -Force $staging, $zip
 
-$null = Invoke-RestMethod -Method Post -Uri "$api/submissions/$($submission.id)/commit" -Headers $headers
+$null = Invoke-RestMethod -Method Post -Uri "$api/submissions/$($submission.id)/commit" -Headers $headers -ContentType 'application/json'
 do {
     Start-Sleep 30
     $status = Invoke-RestMethod -Uri "$api/submissions/$($submission.id)/status" -Headers $headers
