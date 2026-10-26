@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.28.0](https://github.com/hoobio/steward-companion/compare/v0.27.0...v0.28.0) (2026-10-26)
+
+
+### Features
+
+* ✨ ElvUI and Tukui install and update straight from TukUI and lead Get addons ([3754c44](https://github.com/hoobio/steward-companion/commit/3754c4480dc1f2e3dc999b84752bdd5e8e8ce0bb))
+* ✨ sync file carries the ranks Steward never changes ([a77d7bf](https://github.com/hoobio/steward-companion/commit/a77d7bf5938c26e890aad6465f6088652a445cdf))
+
+
+### Bug Fixes
+
+* 🐛 Sync page centres its empty state and keeps the guild data card at the bottom ([489b1fd](https://github.com/hoobio/steward-companion/commit/489b1fd7e0fd077f62ffd0472b7fa3e8df16d4b1))
+
 ## [0.27.0](https://github.com/hoobio/steward-companion/compare/v0.26.1...v0.27.0) (2026-10-24)
 
 
