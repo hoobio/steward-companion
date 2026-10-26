@@ -6,6 +6,18 @@ It manages a set of addons rather than one, so the other addons published alongs
 
 Steward checks each managed addon's release channel when it starts and every minute while it runs. By default Steward applies the updates it finds while the game client is not running; the Auto-update addons setting changes that to always or never. An update applied while the client is running takes effect after `/reload` in game, and the row says so until the client stops.
 
+## Screenshots
+
+![Addons page listing managed addons, their versions, sources and update status](docs/screenshots/1-addons.png)
+
+![Get addons dialog with ElvUI and Tukui from TukUI above popular CurseForge addons](docs/screenshots/2-get-addons.png)
+
+![Sync page before World of Warcraft: Forever is out](docs/screenshots/3-sync.png)
+
+![RestedXP Guides page with the guides kept in game](docs/screenshots/4-guides.png)
+
+![Settings page with the account and the World of Warcraft installs Steward found](docs/screenshots/5-settings.png)
+
 ## Install
 
 On Windows, install Steward from the [Microsoft Store](https://apps.microsoft.com/detail/9PBKMZFKZHKX), or from the MSI attached to each [GitHub release](https://github.com/hoobio/steward-companion/releases/latest). An MSI install updates itself. Each release also attaches a zip that holds a portable `Steward.exe`. The portable exe does not update itself: when a newer release exists, it opens the release page.
