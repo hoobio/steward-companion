@@ -91,6 +91,9 @@ public sealed class GetAddonsPaths(AvaloniaSession session)
 
         world.Step("X6", "a search for elv puts TukUI's ElvUI first", () =>
         {
+            Click(world.Find<ComboBox>(combo => AutomationProperties.GetName(combo) == "Source"));
+            Click(world.Find<ComboBoxItem>(item => item.Content as string == "All sources"));
+            Click(world.Find<TextBox>(box => AutomationProperties.GetName(box) == "Search addons"));
             for (var i = 0; i < "map".Length; i++)
             {
                 world.Press(Key.Back);

@@ -31,7 +31,7 @@ public sealed class TukUiAdoptTests(AvaloniaSession session)
 
         var path = Path.Combine(temp, "_forever_");
         var addOns = Path.Combine(path, "Interface", "AddOns");
-        WriteToc(addOns, "ElvUI", "## Interface: 11509, 16001, 120100\n## Title: |cff1784d1ElvUI|r\n## Version: v16.00\n## RequiredDeps: ElvUI_Libraries\n## X-Tukui-ProjectID: -2\n## X-Tukui-ProjectFolders: ElvUI, ElvUI_Libraries, ElvUI_Options\n");
+        WriteToc(addOns, "ElvUI", "## Interface: 11509, 16001, 120100\n## Title: |cff1784d1ElvUI|r\n## Version: v16.00\n## RequiredDeps: ElvUI_Libraries\n## X-Curse-Project-ID: 231166\n## X-Tukui-ProjectID: -2\n## X-Tukui-ProjectFolders: ElvUI, ElvUI_Libraries, ElvUI_Options\n");
         WriteToc(addOns, "ElvUI_Libraries", "## Interface: 16001\n## Title: ElvUI Libraries\n## Version: v16.00\n");
         WriteToc(addOns, "ElvUI_Options", "## Interface: 16001\n## Title: ElvUI Options\n## Version: v16.00\n## RequiredDeps: ElvUI\n");
         session.Requests.Clear();
