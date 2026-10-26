@@ -35,7 +35,7 @@ internal sealed class UiPathWorld : IDisposable
     private readonly Func<Key, bool> _keyHeld = AppDialogs.IsKeyHeld;
     private int _shot;
 
-    public UiPathWorld(AvaloniaSession session, string area, bool signedIn = true, bool withLive = true, UiPathWorld? restartOf = null, bool apiDown = false)
+    public UiPathWorld(AvaloniaSession session, string area, bool signedIn = true, bool withLive = true, UiPathWorld? restartOf = null, bool apiDown = false, bool screenshot = false)
     {
         _area = area;
         Api.Down = apiDown;
@@ -62,7 +62,13 @@ internal sealed class UiPathWorld : IDisposable
         {
             SeedState();
         }
+        Store.IsReadOnly = screenshot;
         Main = _host.Services.GetRequiredService<MainViewModel>();
+        if (screenshot)
+        {
+            ScreenshotPreview.Apply(Main);
+        }
+
         Main.DiscoverWowInstalls = (products, overrides) => [.. new[] { Beta, Live }.OfType<string>().Select(path => WowInstalls.FromFlavourPath(path, products, overrides)!)];
         Main.ScansStore = false;
         ShellOpen.Launch = Opened.Add;

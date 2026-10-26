@@ -281,11 +281,20 @@ public sealed class AppStateStore
         string.Equals(channel, "develop", StringComparison.OrdinalIgnoreCase)
         || string.Equals(channel, "development", StringComparison.OrdinalIgnoreCase);
 
+    public bool IsReadOnly { get; set; }
+
     public void Save(AppState state)
     {
         ArgumentNullException.ThrowIfNull(state);
         lock (_cacheLock)
         {
+            if (IsReadOnly)
+            {
+                _cached = state;
+                _cachedStamp = (Stamp(_path), Stamp(CharacterSyncPath), Stamp(ProviderAddonsPath), Stamp(JourneyUploadsPath));
+                return;
+            }
+
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(_path)!);

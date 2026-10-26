@@ -89,6 +89,7 @@ public sealed partial class App : Application
         TaskScheduler.UnobservedTaskException += (_, e) =>
             logger.Crit(e.Exception, "Unobserved task exception");
         Avalonia.Logging.Logger.Sink = new AvaloniaLogSink(_host.Services.GetRequiredService<ILogger<AvaloniaLogSink>>());
+        _host.Services.GetRequiredService<AppStateStore>().IsReadOnly = AppInfo.IsScreenshot;
 
         var window = _host.Services.GetRequiredService<MainWindow>();
         var viewModel = window.ViewModel;
@@ -175,6 +176,11 @@ public sealed partial class App : Application
             LiveUpdatesPreview.Apply(viewModel);
             window.ShowFromTray();
             return;
+        }
+
+        if (AppInfo.IsScreenshot)
+        {
+            ScreenshotPreview.Apply(viewModel);
         }
 
         var tray = arguments.Contains(StartupRegistration.TrayArgument);

@@ -90,7 +90,7 @@ The account page renders "Updated 1 day ago" from this. It lists every guide Res
 
 ```
 GET https://rxpgcr.restedxp.com/addon?guideName=Forever%20Leveling%20Guide%20-%20Both%20Factions&bundleIndex=0[&lang=xx]
-200 {"encryptedGuides":[{"guideName":"...","guide":"<string>","bnetTag":"Hoobi#11438"}]}
+200 {"encryptedGuides":[{"guideName":"...","guide":"<string>","bnetTag":"Adventurer#1234"}]}
 ```
 
 `guide` is the full import string, 692 KB for the Forever guide. It is encrypted to the BattleTag on the RestedXP account and the addon checks the tag against the logged-in Battle.net account before importing, so a string is only good for that one BattleTag. The account page saves it verbatim as `<productName>!<bnetTag>.txt`. The page's own guard on failure reads "Try again in 10 seconds", so rate-limit retries to that.

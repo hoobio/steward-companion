@@ -13,7 +13,7 @@ public static class LiveUpdatesPreview
     {
         ArgumentNullException.ThrowIfNull(main);
 
-        main.UserName = "Hoobi";
+        main.UserName = ScreenshotPreview.UserName;
         main.IsAuthorized = true;
         main.IsSignedIn = true;
         main.LiveUpdatesState = LiveUpdatesState.Reconnecting;

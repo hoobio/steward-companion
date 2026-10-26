@@ -46,7 +46,11 @@ public static class AppInfo
     public static string BuildSuffix => IsGitHubRelease ? (IsPreRelease ? " (Pre-release)" : "")
         : BuildName == "debug" ? " (Debug)" : " (Development)";
 
-    public static string WindowTitle => $"Steward{BuildSuffix}{(IsLinux ? " (Linux)" : "")}";
+    public static readonly bool IsScreenshot = Services.ScreenshotPreview.IsRequested(Environment.GetCommandLineArgs());
+
+    public static string WindowTitle => TitleFor(IsScreenshot);
+
+    public static string TitleFor(bool screenshot) => screenshot ? "Steward" : $"Steward{BuildSuffix}{(IsLinux ? " (Linux)" : "")}";
 
     // The Store release and a Store flight are the same package on a machine, so they contend for the same instance.
     public static readonly string Train = BuildName == "prerelease" ? "store" : BuildName;

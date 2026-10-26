@@ -16,7 +16,7 @@ public static class UpdateProgressPreview
     {
         ArgumentNullException.ThrowIfNull(main);
 
-        main.UserName = "Hoobi";
+        main.UserName = ScreenshotPreview.UserName;
         main.IsAuthorized = true;
         main.IsSignedIn = true;
         main.AppUpdate = new AddonRelease(string.Empty, string.Empty, string.Empty, 0, DateTimeOffset.Now);

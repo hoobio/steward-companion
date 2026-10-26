@@ -272,6 +272,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(GuidesVisibility))]
     public partial bool IsGuidesPreview { get; set; }
 
+    public bool IsScreenshot { get; set; }
+
     public Action? QuitRequested { get; set; }
 
     public Func<Task>? SavedVariablesChanged { get; set; }
@@ -510,7 +512,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsProfessionsOnlySync => HasSyncFeature && !HasStewardFeature;
 
     private IReadOnlyList<ManagedAddon> VisibleAddons() =>
-        [.. AddonCatalogue.Visible(_addonCatalogue, _addons, _features).Where(addon => IsCurseForgeEnabled || !addon.IsCurseForge)];
+        [.. AddonCatalogue.Visible(_addonCatalogue, _addons, _features).Where(addon => (IsCurseForgeEnabled || !addon.IsCurseForge) && !(IsScreenshot && IsScreenshotHidden(addon)))];
+
+    private static bool IsScreenshotHidden(ManagedAddon addon) =>
+        string.Equals(addon.Id, ScreenshotPreview.HiddenAddonId, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(addon.Parent, ScreenshotPreview.HiddenAddonId, StringComparison.OrdinalIgnoreCase);
 
     private bool IsAdminFor(string addonId) =>
         Failure != GateFailure.ClientOutdated
@@ -1579,7 +1585,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Guilds.Clear();
             foreach (var guild in guilds)
             {
-                Guilds.Add(new GuildOptionViewModel(guild, GuildRoleLabel(guild), _platform));
+                Guilds.Add(new GuildOptionViewModel(IsScreenshot ? guild with { Name = ScreenshotPreview.GuildName, IconUrl = null } : guild, GuildRoleLabel(guild), _platform));
             }
         }
 
@@ -2580,7 +2586,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return false;
     }
 
-    private string GuildName(string guildId) => _meGuilds.FirstOrDefault(g => g.Id == guildId)?.Name ?? guildId;
+    private string GuildName(string guildId) => IsScreenshot ? ScreenshotPreview.GuildName : _meGuilds.FirstOrDefault(g => g.Id == guildId)?.Name ?? guildId;
 
     private async Task<(bool Attempted, bool Posted, bool SignedOut, string? Error)> PushCharacterRouteAsync(
         WowInstallViewModel install,
@@ -3254,8 +3260,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
             }
 
-            UserName = me.User.Name;
-            UserHandle = me.User.Username is { Length: > 0 } u ? $"@{u}" : null;
+            UserName = IsScreenshot ? ScreenshotPreview.UserName : me.User.Name;
+            UserHandle = !IsScreenshot && me.User.Username is { Length: > 0 } u ? $"@{u}" : null;
             Role = me.User.Role;
             _userId = me.User.Id;
             if (previousUserId != _userId)
@@ -3267,7 +3273,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
             }
 
-            AvatarUri = Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
+            AvatarUri = !IsScreenshot && Uri.TryCreate(me.User.AvatarUrl, UriKind.Absolute, out var avatar) ? avatar : null;
             IsAuthorized = true;
             _ = EvaluateCurseForgeDefaultHandlerAsync();
             SetGuilds(me.Guilds, guild);

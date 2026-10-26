@@ -7,8 +7,8 @@ public static class GuidesPreview
 {
     public const string Argument = "--guides-preview=";
 
-    private const string Email = "ayian@outlook.com";
-    private const string BattleTag = "Hoobi#11438";
+    private const string Email = "adventurer@example.com";
+    private const string BattleTag = "Adventurer#1234";
     private const string Forever = "Forever Leveling Guide - Both Factions";
     private const string Mists = "Mists of Pandaria Guide - Bundle";
     private const string WarWithin = "The War Within Both Faction Leveling Guide";
@@ -41,12 +41,18 @@ public static class GuidesPreview
     {
         ArgumentNullException.ThrowIfNull(main);
 
-        main.IsGuidesPreview = true;
-        main.UserName = "Hoobi";
+        main.UserName = ScreenshotPreview.UserName;
         main.Role = "global";
         main.IsAuthorized = true;
         main.IsSignedIn = true;
+        ApplyGuides(main, scenario);
+    }
 
+    public static void ApplyGuides(MainViewModel main, string scenario)
+    {
+        ArgumentNullException.ThrowIfNull(main);
+
+        main.IsGuidesPreview = true;
         var products = scenario is "none" or "loading" ? [] : Catalogue;
         var timestamps = products.ToDictionary(
             entry => entry.Product,

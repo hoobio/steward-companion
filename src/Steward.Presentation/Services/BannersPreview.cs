@@ -14,7 +14,7 @@ public static class BannersPreview
     {
         ArgumentNullException.ThrowIfNull(main);
 
-        main.UserName = "Hoobi";
+        main.UserName = ScreenshotPreview.UserName;
         main.Role = "global";
         main.IsAuthorized = true;
         main.IsSignedIn = true;

@@ -13,7 +13,7 @@ public static class ClientOutdatedPreview
     {
         ArgumentNullException.ThrowIfNull(main);
 
-        main.UserName = "Hoobi";
+        main.UserName = ScreenshotPreview.UserName;
         main.IsAuthorized = true;
         main.IsSignedIn = true;
         main.ReportClientOutdated("This version of Steward no longer works with the guild API. Update to 0.13.0 or newer.");

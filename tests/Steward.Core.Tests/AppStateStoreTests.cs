@@ -67,6 +67,19 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void Save_WhenReadOnly_KeepsTheStateInMemoryAndWritesNoFile()
+    {
+        File.WriteAllText(StatePath, """{"guild_id":"1","installs":{}}""");
+        var store = new AppStateStore(["steward"], StatePath) { IsReadOnly = true };
+
+        store.Save(store.Load() with { GuildId = "2" });
+
+        Assert.Equal("2", store.Load().GuildId);
+        Assert.Equal("""{"guild_id":"1","installs":{}}""", File.ReadAllText(StatePath));
+        Assert.Equal(["state.json"], Directory.GetFiles(_root).Select(Path.GetFileName));
+    }
+
+    [Fact]
     public void CharacterPushRecord_SurvivesAnOlderBuildRewritingStateJson()
     {
         var store = new AppStateStore(["steward"], StatePath);
