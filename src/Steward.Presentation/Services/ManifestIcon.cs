@@ -29,7 +29,10 @@ public static class ManifestIcon
         ArgumentNullException.ThrowIfNull(source);
 
         var path = Path.Combine(CacheFolder, string.Join('_', cacheKey.Split(Path.GetInvalidFileNameChars())) + ".png");
-        Refreshes.GetOrAdd(cacheKey, _ => Task.Run(() => RefreshAsync(source, path)));
+        if (!source.IsFile)
+        {
+            Refreshes.GetOrAdd(cacheKey, _ => Task.Run(() => RefreshAsync(source, path)));
+        }
 
         try
         {

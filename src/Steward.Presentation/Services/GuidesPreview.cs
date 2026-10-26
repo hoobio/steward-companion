@@ -67,11 +67,12 @@ public static class GuidesPreview
             LoadingVisibility = scenario == "loading",
         };
         string[] selected = scenario == "current" ? [Forever, Mists] : [Forever];
+        card.AddonIcon = ManifestIcon.For(main.Platform, "restedxp", Cached("restedxp"));
         card.SetProducts(
             [.. products.Select(entry => entry.Product)],
             selected,
             timestamps,
-            new Dictionary<string, Uri>(),
+            products.ToDictionary(entry => entry.Product, entry => Cached($"restedxp-{entry.Product}"), StringComparer.Ordinal),
             product => !string.Equals(product, WarWithin, StringComparison.Ordinal));
 
         var signedIn = !OpensDialog(scenario) && scenario != "expired";
@@ -86,6 +87,8 @@ public static class GuidesPreview
             SeedDialog(main.RestedXp, scenario);
         }
     }
+
+    private static Uri Cached(string key) => new(Path.Combine(ManifestIcon.CacheFolder, key + ".png"));
 
     private static void SeedDialog(RestedXpViewModel restedXp, string scenario)
     {
