@@ -36,7 +36,10 @@ public sealed class GetAddonsPaths(AvaloniaSession session)
 
         world.Step(37, "popular results load", () =>
         {
-            WaitFor(() => !model!.IsLoading && model.Results.Count == 12);
+            WaitFor(() => !model!.IsLoading && model.Results.Count == 14);
+            Assert.Equal(["ElvUI", "Tukui", "Popular addon 1"], model!.Results.Take(3).Select(result => result.Name));
+            Assert.Equal(["TukUI", "TukUI", "CurseForge"], model.Results.Take(3).Select(result => result.Source));
+            Assert.Contains("TukUI · ", Text(world.OpenDialog()), StringComparison.Ordinal);
             Assert.Contains("Popular addon 1", Text(world.OpenDialog()), StringComparison.Ordinal);
         });
 
@@ -84,6 +87,21 @@ public sealed class GetAddonsPaths(AvaloniaSession session)
             world.Type("map");
             WaitFor(() => !model!.IsLoading && model.Results.Count == 30 && model.Results[0].Name == "map addon 1");
             WaitFor(() => scroller.Offset.Y == 0);
+        });
+
+        world.Step("X6", "a search for elv puts TukUI's ElvUI first", () =>
+        {
+            for (var i = 0; i < "map".Length; i++)
+            {
+                world.Press(Key.Back);
+            }
+
+            world.Type("elv");
+            WaitFor(() => !model!.IsLoading && model.Results.Count == 31 && model.Results[0].Name == "ElvUI");
+            Assert.Equal("TukUI", model!.Results[0].Source);
+            Assert.Equal("elv addon 1", model.Results[1].Name);
+            Assert.DoesNotContain(model.Results, result => result.Name == "Tukui");
+            Assert.Equal("31 results for “elv”", model.Heading);
         });
 
         world.Step(41, "Escape closes Get addons", () =>

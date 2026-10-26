@@ -64,7 +64,10 @@ public sealed class AddonUpdater
         _reportDownloadFailure = reportDownloadFailure;
         _logger = logger ?? NullLogger<AddonUpdater>.Instance;
         _clock = clock ?? TimeProvider.System;
+        TukUi = new TukUiSource(httpClient, _clock, _logger);
     }
+
+    public TukUiSource TukUi { get; }
 
     internal static readonly TimeSpan DirectTimeout = TimeSpan.FromSeconds(10);
 
@@ -75,6 +78,11 @@ public sealed class AddonUpdater
     public async Task<AddonRelease?> GetLatestAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken, bool noCache = false, bool revalidate = true)
     {
         ArgumentNullException.ThrowIfNull(addon);
+        if (TukUiAddons.ProjectId(addon) is { } projectId)
+        {
+            return channel == "release" ? await TukUi.ReleaseAsync(projectId, noCache, cancellationToken).ConfigureAwait(false) : null;
+        }
+
         var client = addon.ManifestNeedsSession ? _sessionClient ?? _httpClient : _httpClient;
         return await FetchManifestAsync(client, ManifestUri(addon, channel), cancellationToken, noCache, revalidate ? ManifestCache : null).ConfigureAwait(false);
     }
@@ -328,13 +336,15 @@ public sealed class AddonUpdater
                     throw new InvalidOperationException($"{addon.Id} {release.Version} is not distributable; get it from {release.Website ?? "its website"}");
                 }
 
-                if (release.Zip is null || (!addon.IsCurseForge && release.Sha256 is null))
+                if (release.Zip is null || (!addon.IsCurseForge && release.TukUiProjectId is null && release.Sha256 is null))
                 {
                     throw new InvalidOperationException($"{addon.Id} {release.Version} manifest has no zip or no sha256; refusing to install");
                 }
 
                 folders = InstallFolders(addon, release);
-                var zipUri = ZipUri(addon, channel, release.Zip);
+                var zipUri = release.TukUiProjectId is { } projectId
+                    ? await TukUi.ZipUriAsync(projectId, release.Version, cancellationToken).ConfigureAwait(false)
+                    : ZipUri(addon, channel, release.Zip);
                 try
                 {
                     await DownloadAsync(_httpClient, zipUri, tempZipPath, release.Size, progress, cancellationToken).ConfigureAwait(false);
@@ -357,7 +367,7 @@ public sealed class AddonUpdater
                         throw;
                     }
                 }
-                else
+                else if (release.TukUiProjectId is null)
                 {
                     await VerifyChecksumAsync(tempZipPath, release.Sha256, cancellationToken).ConfigureAwait(false);
                 }
@@ -443,6 +453,7 @@ public sealed class AddonUpdater
             .GetAsync(zipUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
+        expectedSize = expectedSize > 0 ? expectedSize : response.Content.Headers.ContentLength ?? 0;
 
         await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         await using var destination = File.Create(destinationPath);

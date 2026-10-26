@@ -127,7 +127,7 @@ public sealed partial class MainViewModel
             .Where(record => record.Source is CurseForgeAddons.Source or TukUiAddons.Source)
             .OrderBy(record => record.Name, StringComparer.OrdinalIgnoreCase)
             .Select(record => record.Source == TukUiAddons.Source
-                ? TukUiAddons.ToManagedAddon(record, _stewardClient.TukUiManifestBaseUrl(record.ModId))
+                ? TukUiAddons.ToManagedAddon(record)
                 : CurseForgeAddons.ToManagedAddon(record, _stewardClient.CurseForgeManifestBaseUrl(record.ModId, record.VersionType)))]
         : [];
 
@@ -142,7 +142,7 @@ public sealed partial class MainViewModel
     private async Task<IReadOnlyList<ProviderAddonRecord>> IdentifyProviderAddonsAsync(WowInstallViewModel install, IReadOnlyList<LocalAddon> scanned)
     {
         var folders = scanned.SelectMany(addon => addon.FoldedFolders.Prepend(addon.FolderName)).ToList();
-        var tukUi = await Task.Run(() => TukUiAddons.Identify(install.AddOnsPath, folders, TocFile.InterfaceNumber(install.ClientVersion), _stewardClient.TukUiManifestBaseUrl)).ConfigureAwait(false);
+        var tukUi = await Task.Run(() => TukUiAddons.Identify(install.AddOnsPath, folders, TocFile.InterfaceNumber(install.ClientVersion), _addonUpdater.TukUi.Cached)).ConfigureAwait(false);
         var claimed = tukUi.SelectMany(CurseForgeAddons.Folders).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return [.. tukUi, .. await IdentifyCurseForgeAsync(install, scanned, [.. folders.Where(folder => !claimed.Contains(folder))]).ConfigureAwait(false)];
     }
@@ -319,6 +319,11 @@ public sealed partial class MainViewModel
                 _status[addon.Id] = AddonChannelStatus.Resolve(state.Channels.GetValueOrDefault(addon.Id), releases, addon.Channels, addon.DefaultPreference);
             }
 
+            if (addons.Any(TukUiAddons.IsRecorded))
+            {
+                RefreshTukUiListings();
+            }
+
             ResolveApiRetry("curseforge");
         }
         catch (SessionExpiredException)
@@ -344,16 +349,42 @@ public sealed partial class MainViewModel
         return true;
     }
 
+    private void RefreshTukUiListings()
+    {
+        var state = _stateStore.Load();
+        var changed = false;
+        foreach (var records in state.ProviderAddons.Values)
+        {
+            for (var i = 0; i < records.Count; i++)
+            {
+                if (records[i].Source == TukUiAddons.Source && TukUiAddons.WithListing(records[i], _addonUpdater.TukUi.Cached(records[i].ModId)) is var listed && listed != records[i])
+                {
+                    _logger.Info($"TukUI addon {listed.Id} now takes its icon and website from TukUI");
+                    records[i] = listed;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed)
+        {
+            _stateStore.Save(state);
+        }
+    }
+
     public bool GetAddonsVisibility =>
         IsCurseForgeEnabled && SelectedInstall is { IsMissing: false } install && CurseForgeVersionType(install.Install) is not null;
 
     public GetAddonsViewModel? CreateGetAddons() =>
         SelectedInstall is { } install && CurseForgeVersionType(install.Install) is { } versionType
-            ? new GetAddonsViewModel(this, install, versionType, _stewardClient, _logger)
+            ? new GetAddonsViewModel(this, install, versionType, _stewardClient, _addonUpdater.TukUi, _logger)
             : null;
 
     public static bool IsCurseForgeInstalled(WowInstallViewModel install, int modId, int versionType) =>
-        install.AddonRows.Any(row => string.Equals(row.AddonId, CurseForgeAddons.Id(modId, versionType), StringComparison.OrdinalIgnoreCase) && row.IsInstalled);
+        IsInstalled(install, CurseForgeAddons.Id(modId, versionType));
+
+    public static bool IsInstalled(WowInstallViewModel install, string addonId) =>
+        install.AddonRows.Any(row => string.Equals(row.AddonId, addonId, StringComparison.OrdinalIgnoreCase) && row.IsInstalled);
 
     public Func<string, string, string?, string, Task<bool>>? ShowLinkDialog { get; set; }
 
@@ -529,13 +560,26 @@ public sealed partial class MainViewModel
     public Task<string?> InstallCurseForgeAsync(WowInstallViewModel install, CurseForgeResult result, int versionType) =>
         InstallCurseForgeAsync(install, result, versionType, null);
 
-    private async Task<string?> InstallCurseForgeAsync(WowInstallViewModel install, CurseForgeResult result, int versionType, (string Channel, AddonRelease File)? pinned)
+    private Task<string?> InstallCurseForgeAsync(WowInstallViewModel install, CurseForgeResult result, int versionType, (string Channel, AddonRelease File)? pinned)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        var draft = new ProviderAddonRecord(CurseForgeAddons.Id(result.Id, versionType), result.Name, result.Name, CurseForgeAddons.Source, result.Id, versionType, [], result.IconUrl, result.WebsiteUrl);
+        return InstallProviderAsync(install, draft, CurseForgeAddons.ToManagedAddon(draft, _stewardClient.CurseForgeManifestBaseUrl(result.Id, versionType)), pinned);
+    }
+
+    public Task<string?> InstallTukUiAsync(WowInstallViewModel install, TukUiAddon addon)
+    {
+        var draft = TukUiAddons.Record(addon);
+        return InstallProviderAsync(install, draft, TukUiAddons.ToManagedAddon(draft), null);
+    }
+
+    private async Task<string?> InstallProviderAsync(WowInstallViewModel install, ProviderAddonRecord draft, ManagedAddon probe, (string Channel, AddonRelease File)? pinned)
     {
         ArgumentNullException.ThrowIfNull(install);
-        ArgumentNullException.ThrowIfNull(result);
+        var source = draft.Source;
         if (!HasAddonsFeature)
         {
-            return "CurseForge is not enabled for your account.";
+            return $"{source} is not enabled for your account.";
         }
 
         if (!CurseForgeEnabled)
@@ -543,9 +587,7 @@ public sealed partial class MainViewModel
             return "CurseForge addon management is turned off in Settings.";
         }
 
-        var id = CurseForgeAddons.Id(result.Id, versionType);
-        var draft = new ProviderAddonRecord(id, result.Name, result.Name, CurseForgeAddons.Source, result.Id, versionType, [], result.IconUrl, result.WebsiteUrl);
-        var probe = CurseForgeAddons.ToManagedAddon(draft, _stewardClient.CurseForgeManifestBaseUrl(result.Id, versionType));
+        var id = draft.Id;
         IReadOnlyDictionary<string, AddonRelease?> releases;
         try
         {
@@ -558,8 +600,8 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or OperationCanceledException)
         {
-            _logger.Warn(ex, $"CurseForge manifest for {id} failed");
-            return $"Could not reach CurseForge: {ex.Message}";
+            _logger.Warn(ex, $"{source} manifest for {id} failed");
+            return $"Could not reach {source}: {ex.Message}";
         }
 
         if (pinned is var (pinnedChannel, pinnedFile))
@@ -570,7 +612,7 @@ public sealed partial class MainViewModel
         var status = AddonChannelStatus.Resolve(pinned?.Channel ?? _stateStore.Load().Channels.GetValueOrDefault(id), releases, probe.Channels, probe.DefaultPreference);
         if (status.Release is not { Folders: { Count: > 0 } folders })
         {
-            return $"No {install.GameVersionName} build of {result.Name} is on CurseForge.";
+            return $"No {install.GameVersionName} build of {draft.Name} is on {source}.";
         }
 
         if (folders.FirstOrDefault(folder => ExcludedFoldersForOthers(install, id).Contains(folder, StringComparer.OrdinalIgnoreCase)) is { } taken)

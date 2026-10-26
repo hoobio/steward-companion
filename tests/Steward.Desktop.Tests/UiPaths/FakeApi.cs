@@ -42,6 +42,13 @@ public sealed class FakeApi
         ["13344"] = ("v11.0.3", null),
     };
 
+    public const string TukUiList = """
+        [
+          {"id":-2,"slug":"elvui","author":"Elv","name":"ElvUI","url":"https://api.tukui.org/v1/download/elvui/token","version":"16.00","changelog_url":null,"patch":["12.1.0","5.5.4","1.15.9","2.5.6"],"last_update":"2026-10-13","web_url":"https://tukui.org/elvui","small_desc":"A user interface designed around user-friendliness with extra features that are not included in the standard UI.","logo_square_url":null,"directories":["ElvUI","ElvUI_Libraries","ElvUI_Options"]},
+          {"id":-1,"slug":"tukui","author":"Tukz","name":"Tukui","url":"https://api.tukui.org/v1/download/tukui/token","version":"20.463","changelog_url":null,"patch":["11.1.7","5.5.0","1.15.7"],"last_update":"2025-12-05","web_url":"https://tukui.org/tukui","small_desc":"Minimalistic and lightweight World of Warcraft user interface.","logo_square_url":null,"directories":["Tukui"]}
+        ]
+        """;
+
     public string MeBody { get; set; } = Me("steward", "sync", "roster", "addons", "guides");
 
     public HttpMessageHandler Handler() => new Routed(this);
@@ -52,6 +59,11 @@ public sealed class FakeApi
         if (Down && request.RequestUri.Host == "api.hoobi.io")
         {
             return (HttpStatusCode.BadGateway, "");
+        }
+
+        if (request.RequestUri.Host == "api.tukui.org")
+        {
+            return path == "/v1/addons" ? (HttpStatusCode.OK, TukUiList) : (HttpStatusCode.NotFound, "");
         }
 
         if (path.EndsWith("/api/me", StringComparison.Ordinal))
@@ -136,7 +148,7 @@ public sealed class FakeApi
         {
             var uri = request.RequestUri!;
             api.Requests.Enqueue($"{request.Method} {uri}");
-            if (uri.Host is not ("api.hoobi.io" or "addon.test"))
+            if (uri.Host is not ("api.hoobi.io" or "addon.test" or "api.tukui.org"))
             {
                 throw new HttpRequestException($"Network access to {uri.Host} is disabled in the UI path suite.");
             }

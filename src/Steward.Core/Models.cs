@@ -197,6 +197,9 @@ public sealed record AddonRelease(
 
     [JsonIgnore]
     public bool Direct => DirectFileId > 0;
+
+    [JsonIgnore]
+    public int? TukUiProjectId { get; init; }
 }
 
 public sealed record ChangelogBlock(
@@ -453,4 +456,5 @@ public sealed record ProviderAddonsState(
 [JsonSerializable(typeof(RestedXpTimestamps))]
 [JsonSerializable(typeof(RecipeCatalogueResponse))]
 [JsonSerializable(typeof(SelectedGuildRequest))]
+[JsonSerializable(typeof(TukUiAddon[]))]
 public sealed partial class CompanionJsonContext : JsonSerializerContext;

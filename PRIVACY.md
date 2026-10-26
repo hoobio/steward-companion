@@ -34,6 +34,7 @@ The Steward API answers with your guild's roster, members, professions and banne
 ## Other services
 
 - **`addon.hoobi.io`:** addon manifests and zip files. These requests carry no account data.
+- **TukUI** (`api.tukui.org`, `storage.tukui.org`): only while CurseForge management is on in Settings. Steward reads TukUI's addon list, changelogs, ElvUI and Tukui downloads and their logos directly. These requests carry no account data.
 - **RestedXP** (`sso.restedxp.com`, `rxpbck.restedxp.com`, `rxpgcr.restedxp.com`): only if you sign in to RestedXP for levelling guides.
   - Your RestedXP username and password, and a two-factor code if asked, go to RestedXP only.
   - Steward does not store your password. It keeps the RestedXP session tokens encrypted with DPAPI.
@@ -64,7 +65,7 @@ All in `%LocalAppData%\Steward`:
 | File | What it holds |
 |------|---------------|
 | `state.json` | Settings, WoW install paths, addon install records, the selected guild, and the encrypted Steward and RestedXP sessions |
-| `provider_addons.json` | CurseForge addons you manage |
+| `provider_addons.json` | CurseForge and TukUI addons you manage |
 | `character_sync.json`, `journey_uploads.json` | What was last sent, so unchanged data is not sent again |
 | `guides\` | Cached RestedXP guides and the BattleTag that bought them |
 | `icons\` | Cached addon icons |

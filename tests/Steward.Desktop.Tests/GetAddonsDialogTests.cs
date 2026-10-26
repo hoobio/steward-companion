@@ -37,7 +37,7 @@ public sealed class GetAddonsDialogTests(AvaloniaSession session)
         var added = (WowInstallViewModel)typeof(MainViewModel)
             .GetMethod("AddInstall", BindingFlags.NonPublic | BindingFlags.Instance)!
             .Invoke(main, [install, false])!;
-        var viewModel = new GetAddonsViewModel(main, added, 88568, services.GetRequiredService<StewardClient>(), NullLogger.Instance);
+        var viewModel = new GetAddonsViewModel(main, added, 88568, services.GetRequiredService<StewardClient>(), services.GetRequiredService<AddonUpdater>().TukUi, NullLogger.Instance);
         var dialog = new GetAddonsDialog(viewModel);
 
         var window = new Window { Width = 1280, Height = 820, Background = (IBrush)Application.Current!.FindResource("WindowGroundBrush")! };
@@ -104,7 +104,7 @@ public sealed class GetAddonsDialogTests(AvaloniaSession session)
         var added = (WowInstallViewModel)typeof(MainViewModel)
             .GetMethod("AddInstall", BindingFlags.NonPublic | BindingFlags.Instance)!
             .Invoke(main, [install, false])!;
-        var viewModel = new GetAddonsViewModel(main, added, 88568, services.GetRequiredService<StewardClient>(), NullLogger.Instance);
+        var viewModel = new GetAddonsViewModel(main, added, 88568, services.GetRequiredService<StewardClient>(), services.GetRequiredService<AddonUpdater>().TukUi, NullLogger.Instance);
         var dialog = new GetAddonsDialog(viewModel);
         var window = new Window { Width = 1280, Height = 820 };
         window.Show();

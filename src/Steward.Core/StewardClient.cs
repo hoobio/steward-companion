@@ -406,9 +406,6 @@ public sealed class StewardClient
     public string CurseForgeManifestBaseUrl(int modId, int versionType) =>
         $"{_baseUrl}/api/addons/curseforge/{modId}/{versionType}/";
 
-    public string TukUiManifestBaseUrl(int projectId) =>
-        $"{_baseUrl}/api/addons/tukui/{projectId}/";
-
     public async Task<IReadOnlyList<CurseForgeResult>> GetCurseForgeDiscoverAsync(int versionType, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUrl}/api/addons/curseforge/discover?versionType={versionType}");

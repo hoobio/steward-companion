@@ -20,16 +20,18 @@ public sealed partial class GetAddonsViewModel : ObservableObject
     private readonly WowInstallViewModel _install;
     private readonly int _versionType;
     private readonly StewardClient _client;
+    private readonly TukUiSource _tukUi;
     private readonly ILogger _logger;
     private IReadOnlyList<CurseForgeResult>? _discover;
     private CancellationTokenSource? _searchCts;
 
-    public GetAddonsViewModel(MainViewModel main, WowInstallViewModel install, int versionType, StewardClient client, ILogger logger)
+    public GetAddonsViewModel(MainViewModel main, WowInstallViewModel install, int versionType, StewardClient client, TukUiSource tukUi, ILogger logger)
     {
         _main = main;
         _install = install;
         _versionType = versionType;
         _client = client;
+        _tukUi = tukUi;
         _logger = logger;
         GameVersion = install.GameVersionName ?? install.Label;
     }
@@ -100,41 +102,74 @@ public sealed partial class GetAddonsViewModel : ObservableObject
         Error = null;
         try
         {
-            IReadOnlyList<CurseForgeResult>? results = null;
-            if (query.Length > 0 && !IsSearchUnavailable)
+            var (tukUi, tukUiError) = await TukUiAsync(query, cancellationToken).ConfigureAwait(true);
+            var (results, searched, curseForgeError) = await CurseForgeAsync(query, cancellationToken).ConfigureAwait(true);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var count = tukUi.Count + results.Count;
+            Heading = searched ? $"{count} result{(count == 1 ? "" : "s")} for “{query}”" : $"Popular for {GameVersion}";
+            Results.Clear();
+            foreach (var addon in tukUi)
             {
-                results = await _client.SearchCurseForgeAsync(_versionType, query, cancellationToken).ConfigureAwait(true);
-                IsSearchUnavailable = results is null;
+                Results.Add(new CurseForgeResultViewModel(TukUiResult(addon), MainViewModel.IsInstalled(_install, TukUiAddons.Id(addon.Id)), _ => _main.InstallTukUiAsync(_install, addon), _main.Platform, TukUiAddons.Source));
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
-            var searched = results is not null;
-            results ??= _discover ??= await _client.GetCurseForgeDiscoverAsync(_versionType, cancellationToken).ConfigureAwait(true);
-            cancellationToken.ThrowIfCancellationRequested();
-
-            Heading = searched ? $"{results.Count} result{(results.Count == 1 ? "" : "s")} for “{query}”" : $"Popular for {GameVersion}";
-            Results.Clear();
             foreach (var result in results)
             {
                 Results.Add(new CurseForgeResultViewModel(result, MainViewModel.IsCurseForgeInstalled(_install, result.Id, _versionType), InstallAsync, _main.Platform));
             }
 
             HasNoResults = Results.Count == 0;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or StewardRequestException or SessionExpiredException or TaskCanceledException or JsonException)
-        {
-            _logger.Warn(ex, "CurseForge discover or search failed");
-            Error = ex is SessionExpiredException ? "Your session has expired. Sign in again to get addons." : $"Could not reach CurseForge: {ex.Message}";
+            Error = string.Join(" ", new[] { tukUiError, curseForgeError }.OfType<string>()) is { Length: > 0 } error ? error : null;
         }
         finally
         {
             IsLoading = false;
         }
     }
+
+    private async Task<(IReadOnlyList<TukUiAddon> Addons, string? Error)> TukUiAsync(string query, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var listed = await _tukUi.ListAsync(TukUiSource.ListTtl, cancellationToken).ConfigureAwait(true);
+            return ([.. listed.Where(addon => addon.Name is { Length: > 0 } name
+                && TukUiSource.RunsOn(addon, _install.ClientVersion)
+                && (query.Length == 0 || name.Contains(query, StringComparison.OrdinalIgnoreCase) || addon.Slug?.Contains(query, StringComparison.OrdinalIgnoreCase) == true))], null);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            _logger.Warn(ex, "TukUI addon list failed");
+            return ([], $"Could not reach TukUI: {ex.Message}");
+        }
+    }
+
+    private async Task<(IReadOnlyList<CurseForgeResult> Results, bool Searched, string? Error)> CurseForgeAsync(string query, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (query.Length > 0 && !IsSearchUnavailable)
+            {
+                var found = await _client.SearchCurseForgeAsync(_versionType, query, cancellationToken).ConfigureAwait(true);
+                IsSearchUnavailable = found is null;
+                if (found is not null)
+                {
+                    return (found, true, null);
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return (_discover ??= await _client.GetCurseForgeDiscoverAsync(_versionType, cancellationToken).ConfigureAwait(true), false, null);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested && ex is HttpRequestException or StewardRequestException or SessionExpiredException or TaskCanceledException or JsonException)
+        {
+            _logger.Warn(ex, "CurseForge discover or search failed");
+            return ([], query.Length > 0, ex is SessionExpiredException ? "Your session has expired. Sign in again to get addons." : $"Could not reach CurseForge: {ex.Message}");
+        }
+    }
+
+    private static CurseForgeResult TukUiResult(TukUiAddon addon) =>
+        new(addon.Id, addon.Name!, addon.SmallDesc, addon.Author, TukUiSource.Https(addon.LogoSquareUrl), TukUiSource.Https(addon.WebUrl), TukUiSource.DisplayVersion(addon));
 
     private Task<string?> InstallAsync(CurseForgeResult result) => _main.InstallCurseForgeAsync(_install, result, _versionType);
 }
@@ -143,11 +178,12 @@ public sealed partial class CurseForgeResultViewModel : ObservableObject
 {
     private readonly Func<CurseForgeResult, Task<string?>> _install;
 
-    public CurseForgeResultViewModel(CurseForgeResult result, bool isInstalled, Func<CurseForgeResult, Task<string?>> install, IUiPlatform platform)
+    public CurseForgeResultViewModel(CurseForgeResult result, bool isInstalled, Func<CurseForgeResult, Task<string?>> install, IUiPlatform platform, string source = CurseForgeAddons.Source)
     {
         ArgumentNullException.ThrowIfNull(platform);
 
         Result = result;
+        Source = source;
         IsInstalled = isInstalled;
         _install = install;
         Icon = Uri.TryCreate(result.IconUrl, UriKind.Absolute, out var icon) ? platform.ImageFromUri(icon, 30) : null;
@@ -156,6 +192,10 @@ public sealed partial class CurseForgeResultViewModel : ObservableObject
     }
 
     public CurseForgeResult Result { get; }
+
+    public string Source { get; }
+
+    public string SourcePrefix => $"{Source} · ";
 
     public string Name => Result.Name;
 

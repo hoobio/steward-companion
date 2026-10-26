@@ -136,7 +136,7 @@
                                                 ToolTip.Tip="{Binding Summary}"
                                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                             <TextBlock FontSize="11.5" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorTertiaryBrush}">
-                                                <Run Text="CurseForge · " /><Run Text="{Binding LatestVersion}" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                <Run Text="{Binding SourcePrefix}" /><Run Text="{Binding LatestVersion}" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                             </TextBlock>
                                             <TextBlock
                                                 Text="{Binding Failure}"

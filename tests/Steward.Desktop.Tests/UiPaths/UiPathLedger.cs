@@ -181,6 +181,7 @@ public static class UiPathLedger
         ("X3", "Get addons search scroll resets", null),
         ("X4", "tooltip-then-click three times in the table", null),
         ("X5", "launch countdown under the install picker and its timers in the picker menu", null),
+        ("X6", "a search for elv puts TukUI's ElvUI first", null),
     ];
 
     private static readonly string? ResultsFile = Environment.GetEnvironmentVariable("STEWARD_UIPATHS_PNG_DIR") is { Length: > 0 } directory

@@ -53,8 +53,9 @@ public sealed class TukUiAdoptTests(AvaloniaSession session)
         Assert.Equal(["ElvUI", "ElvUI_Libraries", "ElvUI_Options"], record.Folders);
         var row = install.AddonRows.Single(row => row.AddonId == "tukui--2");
         Assert.Equal("TukUI", row.Source);
-        Assert.Equal("https://api.hoobi.io/guild/api/addons/tukui/-2/", row.Addon.ManifestBaseUrl);
+        Assert.Equal(-2, TukUiAddons.ProjectId(row.Addon));
         Assert.DoesNotContain(session.Requests, uri => uri.AbsolutePath.Contains("/api/addons/curseforge/", StringComparison.Ordinal));
+        Assert.DoesNotContain(session.Requests, uri => uri.AbsolutePath.Contains("/api/addons/tukui/", StringComparison.Ordinal));
 
         main.Installs.Remove(install);
     });
