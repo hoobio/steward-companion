@@ -243,281 +243,299 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <ScrollViewer>
-        <StackPanel Margin="{StaticResource PageGutter}" Spacing="10">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <StackPanel Spacing="4">
-                    <TextBlock
-                        Text="Sync"
-                        FontFamily="{StaticResource DisplayFontFamily}"
-                        FontSize="26"
-                        FontWeight="SemiBold"
-                        Margin="{StaticResource PageTitleMargin}" />
-                    <TextBlock Classes="Body" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                        <Run Text="{Binding SubtitleGuild}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" /><Run Text="{Binding SubtitleSynced}" />
-                    </TextBlock>
-                    <TextBlock
-                        Classes="Body"
-                        Text="WoW is running, /reload to load new data"
-                        TextTrimming="CharacterEllipsis"
-                        Foreground="{DynamicResource SystemFillColorCautionBrush}"
-                        IsVisible="{Binding SubtitleRunningVisibility}" />
+    <UserControl.Styles>
+        <Style Selector="Border.card">
+            <Setter Property="Grid.Row" Value="1" />
+        </Style>
+        <Style Selector="Border.card.pinned">
+            <Setter Property="Grid.Row" Value="2" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer Name="Scroller">
+        <Border Padding="{StaticResource PageGutter}" MinHeight="{Binding #Scroller.Bounds.Height}">
+            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <StackPanel Spacing="4">
+                            <TextBlock
+                                Text="Sync"
+                                FontFamily="{StaticResource DisplayFontFamily}"
+                                FontSize="26"
+                                FontWeight="SemiBold"
+                                Margin="{StaticResource PageTitleMargin}" />
+                            <TextBlock Classes="Body" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                <Run Text="{Binding SubtitleGuild}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" /><Run Text="{Binding SubtitleSynced}" />
+                            </TextBlock>
+                            <TextBlock
+                                Classes="Body"
+                                Text="WoW is running, /reload to load new data"
+                                TextTrimming="CharacterEllipsis"
+                                Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                IsVisible="{Binding SubtitleRunningVisibility}" />
+                        </StackPanel>
+
+                        <StackPanel
+                            Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                            <Button
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                Theme="{StaticResource DefaultButtonStyle}"
+                                Command="{Binding RefreshCommand}"
+                                AutomationProperties.Name="Refresh"
+                                ToolTip.Tip="Read the local files again">
+                                <TextBlock
+                                    Classes="Glyph"
+                                    Text="{StaticResource Glyph.Refresh}"
+                                    FontSize="14"
+                                    views:Spinner.IsSpinning="{Binding RefreshCommand.IsRunning}" />
+                            </Button>
+                            <Button
+                                Height="32"
+                                Content="Sync now"
+                                Theme="{StaticResource AccentButtonStyle}"
+                                Command="{Binding SyncNowCommand}"
+                                IsVisible="{Binding SyncNowVisibility}"
+                                ToolTip.Tip="Push characters to the guild now" />
+                        </StackPanel>
+                    </Grid>
+
+                    <views:BannerList Banners="{Binding Main.Banners}" />
+
+                    <ui:FAInfoBar
+                        Severity="Error"
+                        IsClosable="False"
+                        IsOpen="{Binding UnreachableIsOpen}"
+                        Message="Could not reach api.hoobi.io. Check your connection." />
                 </StackPanel>
 
-                <StackPanel
-                    Grid.Column="1"
-                    Orientation="Horizontal"
-                    Spacing="8"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Center">
-                    <Button
-                        Width="32"
-                        Height="32"
-                        Padding="0"
-                        Theme="{StaticResource DefaultButtonStyle}"
-                        Command="{Binding RefreshCommand}"
-                        AutomationProperties.Name="Refresh"
-                        ToolTip.Tip="Read the local files again">
+                <StackPanel Grid.RowSpan="3" Spacing="10" VerticalAlignment="Center">
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        MaxWidth="460"
+                        Spacing="12"
+                        Margin="0,24"
+                        IsVisible="{Binding NoInstallVisibility}">
                         <TextBlock
                             Classes="Glyph"
-                            Text="{StaticResource Glyph.Refresh}"
-                            FontSize="14"
-                            views:Spinner.IsSpinning="{Binding RefreshCommand.IsRunning}" />
-                    </Button>
-                    <Button
-                        Height="32"
-                        Content="Sync now"
-                        Theme="{StaticResource AccentButtonStyle}"
-                        Command="{Binding SyncNowCommand}"
-                        IsVisible="{Binding SyncNowVisibility}"
-                        ToolTip.Tip="Push characters to the guild now" />
+                            Text="{StaticResource Glyph.Oem}"
+                            FontSize="44"
+                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock
+                            Text="No World of Warcraft install found"
+                            FontFamily="{StaticResource DisplayFontFamily}"
+                            FontSize="20"
+                            FontWeight="SemiBold"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center" />
+                        <TextBlock
+                            Classes="Body"
+                            TextWrapping="Wrap"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="Steward could not find a World of Warcraft: Forever install on this machine." />
+                    </StackPanel>
+
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        MaxWidth="460"
+                        Spacing="12"
+                        Margin="0,24"
+                        IsVisible="{Binding AddonMissingVisibility}">
+                        <TextBlock
+                            Classes="Glyph"
+                            Text="{StaticResource Glyph.Game}"
+                            FontSize="44"
+                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock
+                            Text="The Steward addon is not installed"
+                            FontFamily="{StaticResource DisplayFontFamily}"
+                            FontSize="20"
+                            FontWeight="SemiBold"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center" />
+                        <TextBlock
+                            Classes="Body"
+                            TextWrapping="Wrap"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="Sync reads roster, loot and attendance from the Steward addon's saved variables. The addon has no releases yet." />
+                        <HyperlinkButton
+                            Content="Open guild panel"
+                            HorizontalAlignment="Center"
+                            NavigateUri="https://guild.hoobi.io" />
+                    </StackPanel>
+
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        MaxWidth="460"
+                        Spacing="12"
+                        Margin="0,24"
+                        IsVisible="{Binding NeverExportedVisibility}">
+                        <TextBlock
+                            Classes="Glyph"
+                            Text="{StaticResource Glyph.Page}"
+                            FontSize="44"
+                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock
+                            Text="Steward has not exported anything yet"
+                            FontFamily="{StaticResource DisplayFontFamily}"
+                            FontSize="20"
+                            FontWeight="SemiBold"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center" />
+                        <TextBlock
+                            Classes="Body"
+                            TextWrapping="Wrap"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="Log in to a character. The addon writes its data when you log out, exit, or type /reload." />
+                    </StackPanel>
+
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        MaxWidth="460"
+                        Spacing="12"
+                        Margin="0,24"
+                        IsVisible="{Binding NotReleasedVisibility}">
+                        <TextBlock
+                            Classes="Glyph"
+                            Text="{StaticResource Glyph.Game}"
+                            FontSize="44"
+                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock
+                            Text="World of Warcraft: Forever is not out yet"
+                            FontFamily="{StaticResource DisplayFontFamily}"
+                            FontSize="20"
+                            FontWeight="SemiBold"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center" />
+                        <TextBlock
+                            Classes="Body"
+                            TextWrapping="Wrap"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="{x:Static vm:SyncViewModel.NotReleasedText}" />
+                    </StackPanel>
                 </StackPanel>
-            </Grid>
 
-            <views:BannerList Banners="{Binding Main.Banners}" />
+                <Border
+                    Classes="card"
+                    VerticalAlignment="Top"
+                    CornerRadius="8"
+                    ClipToBounds="True"
+                    Background="{DynamicResource LayerFillColorDefaultBrush}"
+                    IsVisible="{Binding CardVisibility}"
+                    Classes.pinned="{Binding !CardsVisibility}">
+                    <StackPanel>
+                        <ItemsControl
+                            ItemsSource="{Binding Installs}"
+                            ItemTemplate="{StaticResource InstallTemplate}"
+                            IsVisible="{Binding CardsVisibility}" />
 
-            <ui:FAInfoBar
-                Severity="Error"
-                IsClosable="False"
-                IsOpen="{Binding UnreachableIsOpen}"
-                Message="Could not reach api.hoobi.io. Check your connection." />
-
-            <StackPanel
-                HorizontalAlignment="Center"
-                MaxWidth="460"
-                Spacing="12"
-                Margin="0,24"
-                IsVisible="{Binding NoInstallVisibility}">
-                <TextBlock
-                    Classes="Glyph"
-                    Text="{StaticResource Glyph.Oem}"
-                    FontSize="44"
-                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                <TextBlock
-                    Text="No World of Warcraft install found"
-                    FontFamily="{StaticResource DisplayFontFamily}"
-                    FontSize="20"
-                    FontWeight="SemiBold"
-                    HorizontalAlignment="Center"
-                    TextAlignment="Center" />
-                <TextBlock
-                    Classes="Body"
-                    TextWrapping="Wrap"
-                    HorizontalAlignment="Center"
-                    TextAlignment="Center"
-                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                    Text="Steward could not find a World of Warcraft: Forever install on this machine." />
-            </StackPanel>
-
-            <StackPanel
-                HorizontalAlignment="Center"
-                MaxWidth="460"
-                Spacing="12"
-                Margin="0,24"
-                IsVisible="{Binding AddonMissingVisibility}">
-                <TextBlock
-                    Classes="Glyph"
-                    Text="{StaticResource Glyph.Game}"
-                    FontSize="44"
-                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                <TextBlock
-                    Text="The Steward addon is not installed"
-                    FontFamily="{StaticResource DisplayFontFamily}"
-                    FontSize="20"
-                    FontWeight="SemiBold"
-                    HorizontalAlignment="Center"
-                    TextAlignment="Center" />
-                <TextBlock
-                    Classes="Body"
-                    TextWrapping="Wrap"
-                    HorizontalAlignment="Center"
-                    TextAlignment="Center"
-                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                    Text="Sync reads roster, loot and attendance from the Steward addon's saved variables. The addon has no releases yet." />
-                <HyperlinkButton
-                    Content="Open guild panel"
-                    HorizontalAlignment="Center"
-                    NavigateUri="https://guild.hoobi.io" />
-            </StackPanel>
-
-            <StackPanel
-                HorizontalAlignment="Center"
-                MaxWidth="460"
-                Spacing="12"
-                Margin="0,24"
-                IsVisible="{Binding NeverExportedVisibility}">
-                <TextBlock
-                    Classes="Glyph"
-                    Text="{StaticResource Glyph.Page}"
-                    FontSize="44"
-                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                <TextBlock
-                    Text="Steward has not exported anything yet"
-                    FontFamily="{StaticResource DisplayFontFamily}"
-                    FontSize="20"
-                    FontWeight="SemiBold"
-                    HorizontalAlignment="Center"
-                    TextAlignment="Center" />
-                <TextBlock
-                    Classes="Body"
-                    TextWrapping="Wrap"
-                    HorizontalAlignment="Center"
-                    TextAlignment="Center"
-                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                    Text="Log in to a character. The addon writes its data when you log out, exit, or type /reload." />
-            </StackPanel>
-
-            <StackPanel
-                HorizontalAlignment="Center"
-                MaxWidth="460"
-                Spacing="12"
-                Margin="0,24"
-                IsVisible="{Binding NotReleasedVisibility}">
-                <TextBlock
-                    Classes="Glyph"
-                    Text="{StaticResource Glyph.Game}"
-                    FontSize="44"
-                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                <TextBlock
-                    Text="World of Warcraft: Forever is not out yet"
-                    FontFamily="{StaticResource DisplayFontFamily}"
-                    FontSize="20"
-                    FontWeight="SemiBold"
-                    HorizontalAlignment="Center"
-                    TextAlignment="Center" />
-                <TextBlock
-                    Classes="Body"
-                    TextWrapping="Wrap"
-                    HorizontalAlignment="Center"
-                    TextAlignment="Center"
-                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                    Text="{x:Static vm:SyncViewModel.NotReleasedText}" />
-            </StackPanel>
-
-            <Border
-                CornerRadius="8"
-                ClipToBounds="True"
-                Background="{DynamicResource LayerFillColorDefaultBrush}"
-                IsVisible="{Binding CardVisibility}">
-                <StackPanel>
-                    <ItemsControl
-                        ItemsSource="{Binding Installs}"
-                        ItemTemplate="{StaticResource InstallTemplate}"
-                        IsVisible="{Binding CardsVisibility}" />
-
-                    <Border
-                        BorderThickness="{Binding ShowsJourneyHairline, Converter={x:Static views:BindConvert.TopHairline}}"
-                        BorderBrush="{DynamicResource RowHairlineBrush}"
-                        Padding="{StaticResource CardRowPadding}"
-                        MinHeight="{StaticResource CardRowMinHeight}"
-                        IsVisible="{Binding JourneyVisibility}">
-                        <Grid ColumnDefinitions="30,*,Auto" ColumnSpacing="12">
-                            <Border
-                                Width="30"
-                                Height="30"
-                                VerticalAlignment="Center"
-                                CornerRadius="6"
-                                ClipToBounds="True"
-                                Background="{DynamicResource ChipBrush}">
-                                <Image Source="avares://Steward.Desktop/Assets/Journeys.png" Stretch="UniformToFill" />
-                            </Border>
-
-                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                <TextBlock Text="Character journeys" FontSize="13.5" FontWeight="SemiBold" />
-                                <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Main.JourneyOkVisibility}">
-                                    <TextBlock
-                                        Classes="Glyph"
-                                        Text="{StaticResource Glyph.CheckMark}"
-                                        FontSize="12"
-                                        Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
-                                    <TextBlock
-                                        Text="Uploaded after you log out"
-                                        FontSize="12"
-                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
-                                <TextBlock
-                                    Text="{Binding Main.JourneyError}"
-                                    TextWrapping="Wrap"
-                                    FontSize="12"
-                                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
-                                    IsVisible="{Binding Main.JourneyErrorVisibility}" />
-                            </StackPanel>
-
-                            <TextBlock
-                                Grid.Column="2"
-                                VerticalAlignment="Center"
-                                Text="{Binding Main.JourneyCount}"
-                                FontSize="12.5"
-                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        </Grid>
-                    </Border>
-
-                    <Border
-                        BorderThickness="{Binding ShowsGeneratedFileHairline, Converter={x:Static views:BindConvert.TopHairline}}"
-                        BorderBrush="{DynamicResource RowHairlineBrush}"
-                        Padding="{StaticResource CardRowPadding}"
-                        MinHeight="{StaticResource CardRowMinHeight}">
-                        <Grid ColumnDefinitions="30,*,Auto" ColumnSpacing="12">
-                            <TextBlock
-                                Classes="Glyph"
-                                Text="{StaticResource Glyph.Document}"
-                                FontSize="16"
-                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-
-                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                <TextBlock Text="Guild data in game" FontSize="13.5" FontWeight="SemiBold" />
-                                <TextBlock
-                                    FontSize="12"
-                                    TextTrimming="CharacterEllipsis"
-                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                    ToolTip.Tip="{Binding GeneratedFilePath}">
-                                    <Run Text="StewardSync.lua" FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5" /><Run Text="{Binding GeneratedFileStatus}" />
-                                </TextBlock>
-                                <TextBlock
-                                    Text="{Binding GeneratedFileError}"
-                                    TextWrapping="Wrap"
-                                    FontSize="12"
-                                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
-                                    IsVisible="{Binding GeneratedFileErrorVisibility}" />
-                            </StackPanel>
-
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <views:ProgressRing
-                                    Width="16"
-                                    Height="16"
+                        <Border
+                            BorderThickness="{Binding ShowsJourneyHairline, Converter={x:Static views:BindConvert.TopHairline}}"
+                            BorderBrush="{DynamicResource RowHairlineBrush}"
+                            Padding="{StaticResource CardRowPadding}"
+                            MinHeight="{StaticResource CardRowMinHeight}"
+                            IsVisible="{Binding JourneyVisibility}">
+                            <Grid ColumnDefinitions="30,*,Auto" ColumnSpacing="12">
+                                <Border
+                                    Width="30"
+                                    Height="30"
                                     VerticalAlignment="Center"
-                                    IsActive="{Binding WriteAgainCommand.IsRunning}"
-                                    IsVisible="{Binding WriteAgainCommand.IsRunning}" />
-                                <Button
-                                    Height="32"
-                                    Content="Write again"
-                                    Theme="{StaticResource DefaultButtonStyle}"
-                                    Command="{Binding WriteAgainCommand}" />
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-                </StackPanel>
-            </Border>
-        </StackPanel>
+                                    CornerRadius="6"
+                                    ClipToBounds="True"
+                                    Background="{DynamicResource ChipBrush}">
+                                    <Image Source="avares://Steward.Desktop/Assets/Journeys.png" Stretch="UniformToFill" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Character journeys" FontSize="13.5" FontWeight="SemiBold" />
+                                    <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Main.JourneyOkVisibility}">
+                                        <TextBlock
+                                            Classes="Glyph"
+                                            Text="{StaticResource Glyph.CheckMark}"
+                                            FontSize="12"
+                                            Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
+                                        <TextBlock
+                                            Text="Uploaded after you log out"
+                                            FontSize="12"
+                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <TextBlock
+                                        Text="{Binding Main.JourneyError}"
+                                        TextWrapping="Wrap"
+                                        FontSize="12"
+                                        Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                        IsVisible="{Binding Main.JourneyErrorVisibility}" />
+                                </StackPanel>
+
+                                <TextBlock
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    Text="{Binding Main.JourneyCount}"
+                                    FontSize="12.5"
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </Grid>
+                        </Border>
+
+                        <Border
+                            BorderThickness="{Binding ShowsGeneratedFileHairline, Converter={x:Static views:BindConvert.TopHairline}}"
+                            BorderBrush="{DynamicResource RowHairlineBrush}"
+                            Padding="{StaticResource CardRowPadding}"
+                            MinHeight="{StaticResource CardRowMinHeight}">
+                            <Grid ColumnDefinitions="30,*,Auto" ColumnSpacing="12">
+                                <TextBlock
+                                    Classes="Glyph"
+                                    Text="{StaticResource Glyph.Document}"
+                                    FontSize="16"
+                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Guild data in game" FontSize="13.5" FontWeight="SemiBold" />
+                                    <TextBlock
+                                        FontSize="12"
+                                        TextTrimming="CharacterEllipsis"
+                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                        ToolTip.Tip="{Binding GeneratedFilePath}">
+                                        <Run Text="StewardSync.lua" FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5" /><Run Text="{Binding GeneratedFileStatus}" />
+                                    </TextBlock>
+                                    <TextBlock
+                                        Text="{Binding GeneratedFileError}"
+                                        TextWrapping="Wrap"
+                                        FontSize="12"
+                                        Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                        IsVisible="{Binding GeneratedFileErrorVisibility}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <views:ProgressRing
+                                        Width="16"
+                                        Height="16"
+                                        VerticalAlignment="Center"
+                                        IsActive="{Binding WriteAgainCommand.IsRunning}"
+                                        IsVisible="{Binding WriteAgainCommand.IsRunning}" />
+                                    <Button
+                                        Height="32"
+                                        Content="Write again"
+                                        Theme="{StaticResource DefaultButtonStyle}"
+                                        Command="{Binding WriteAgainCommand}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
     </ScrollViewer>
 </UserControl>
