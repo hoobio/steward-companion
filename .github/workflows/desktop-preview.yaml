@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DOTNET_SDK_VERSION: "10.0.402"
+  DOTNET_SDK_VERSION: "10.0.403"
   PROJECT_PATH: src/Steward.Desktop/Steward.Desktop.csproj
   AVALONIA_TELEMETRY_OPTOUT: "1"
 
