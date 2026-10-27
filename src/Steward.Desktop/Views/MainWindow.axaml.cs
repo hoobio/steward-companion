@@ -115,7 +115,11 @@ public sealed partial class MainWindow : Window
                 _logger.Info("Window pressed before activation after a start without focus");
             }
         }, RoutingStrategies.Tunnel, handledEventsToo: true);
-        Deactivated += (_, _) => UpdateCaptionButtons();
+        Deactivated += (_, _) =>
+        {
+            UpdateCaptionButtons();
+            ScheduleTrim();
+        };
         ViewModel.BackgroundPassCompleted = TrimIfIdle;
         Opened += (_, _) => UpdateCaptionButtons();
         Closing += OnWindowClosing;
@@ -898,12 +902,17 @@ public sealed partial class MainWindow : Window
 
         Hide();
         Native.SetEfficiencyMode(true);
+        ScheduleTrim();
+    }
+
+    private void ScheduleTrim()
+    {
         _trimTimer?.Stop();
         _trimTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _trimTimer.Tick += (_, _) =>
         {
             _trimTimer.Stop();
-            TrimIfHidden();
+            TrimIfIdle();
         };
         _trimTimer.Start();
     }
