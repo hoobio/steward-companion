@@ -55,7 +55,8 @@ Row fields:
 - `optionsByClass`: class token to an options list, in place of `options`, for lists that differ by class (spec, stat, role).
 - `dynamicOptions`: true when the addon builds the options from the player's own game data (edit mode layouts, attack spells, sounds). Steward shows the stored value read-only.
 - `visibleWhenLoaded`: addon folder names. The row shows only while one of them is installed on the install.
-- `path`: the saved-variable global followed by the table keys that hold `key`.
+- `hiddenWhenLoaded`: addon folder names. The row is hidden while any of them is installed on the install (core's fallback Auto enabled Action Bars row, which the Action Bars page holds when that addon is installed).
+- `path`: the saved-variable global followed by the table keys that hold `key`. The global can belong to another addon (the Action Bars page's `actionBars` row is in `HoobiScriptsDB.settings`).
 - `default`: the value the addon uses when the key is absent. `defaultByClass` (class token to value) replaces it for a class-seeded key (`vendorPlainWater`, `vendorPlainFood`); with no class known the key is always written explicitly.
 - `parent`: the key of a checkbox row. The row is indented, and disabled while that checkbox is off.
 - `lockedWhenLoaded`: addon folder names. The row reads off and is disabled while any of them is installed on the install. A name ending in `*` matches by prefix, ignoring case (`Ellesmere*`, since the addon locks on any folder starting with "ellesmere").
@@ -64,6 +65,8 @@ Row fields:
 - `keepDefault`: true when the key is never removed at its default, because a load-time migration reads the absent key (`questMobSparkles`, which `Adopt` sets to false while `worldSparkles` is false).
 
 A schema with a `schemaVersion` higher than Steward knows, or a row type it does not know, shows that page or row read-only with "Update Steward to change this setting".
+
+Steward refuses a whole schema, shows "Settings are not available for this version" and logs a Warning with the reason, unless `folder` equals the catalogue row's `folder_name` (case-insensitive), every row's `path[0]` matches `^[A-Za-z_][A-Za-z0-9_]*$` and every later path element is a non-empty string. No schema value is part of a file path.
 
 ## Publish and serve
 
@@ -75,14 +78,25 @@ The schema is stored per addon version, because the installed version can be beh
 
 ## Reading values
 
-The value of a row is, in order: the value in the saved-variable file at `path`/`key`, else `defaultByClass` for the character's class, else `default`. The account file is `WTF\Account\<account>\SavedVariables\<Folder>.lua` under the flavour folder. A missing file reads as all defaults.
+The value of a row is, in order: the value in the saved-variable file at `path`/`key`, else `defaultByClass` for the character's class, else `default`.
+
+The file of a row comes from `path[0]`, not from the schema's `folder`. Steward reads the top-level TOC (`LocalAddons.TopLevelToc`) of each installed HoobiScripts-built addon on the install. The folder whose `## SavedVariables` lists the global owns it for `account`, `character` and `class` rows, and the file is `WTF\Account\<account>\SavedVariables\<Folder>.lua` under the flavour folder. The folder whose `## SavedVariablesPerCharacter` lists it owns it for `characterFile` rows. A row whose global no installed folder declares in the matching directive, or that two folders declare, is read-only with "No installed addon keeps this setting".
+
+Steward never creates a SavedVariables file. A row whose file does not exist yet is read-only with "Log in once with <addon title> enabled before changing these settings", so the addon's own first-run setup (HoobiScripts' import offer) still runs.
+
+On a `wowf` install, `HoobiScriptsDB.chars` keys on the beta realm (`ForeverLaunch.BetaRealm`, "Classic Beta PvP", case-insensitive), which the Forever copy wizard brings over, are left out of the character picker and of realm pairing. They stay in the file.
 
 ## Writing values
 
 - Steward never writes while the install's WoW client is running (`WowClient.IsRunning`), checked when the page opens, when Save is pressed and again just before the move. The client rewrites the whole file at logout and `/reload`, so a write while it runs is lost.
 - The file is parsed with `LuaSavedVariables.Parse`, the schema keys are changed in the parsed tree, and the tree is written back with `LuaWriter.Serialize`, temp file then move. Every key the schema does not name is kept exactly as parsed. A round-trip test over a real `HoobiScripts.lua` (numbers, escapes, empty tables, integer keys) guards this.
-- A value equal to its default is removed from the table, as the addon does at logout, unless the row has `keepDefault`. A table left empty by a removal is kept.
-- A `text` value goes through its `rule` first; a value the rule refuses is not saved and the row shows why.
+- Each file with a changed row is written once. A value equal to its default is removed from the table, as the addon does at logout, unless the row has `keepDefault`. A table left empty by a removal is kept.
+- When Steward writes a file, it also writes every `keepDefault` row of that file whose key is absent, with its effective value, so a load-time migration (`Adopt` and `questMobSparkles`) cannot change it.
+- A `text` value goes through its `rule` first; a value the rule refuses is not saved and the row shows why. The `string` rule trims the value, then refuses an empty one when `empty` is false, then lowercases it when `lower` is set. A `money` value is at most 9,999,999 gold.
+
+## Unsaved changes
+
+While the page has unsaved changes, a change of account, character or install, and New character, first ask "Save your changes?" (Save, Discard, Cancel). Cancel keeps the old selection. Leaving the page and coming back keeps the changed rows. When the install's WoW client stops, Steward reads the files again: with unsaved changes it asks first, with "Reload from the game" and "Keep my edits", since the game wrote newer values when it closed.
 
 ## Accounts and characters
 
@@ -90,5 +104,5 @@ The page has an account picker (the `WTF\Account` folders of the selected instal
 
 - The characters are the keys of `HoobiScriptsDB.chars` in that account's file, shown as `First Last (Realm)`.
 - A realm is known when Steward can pair its folder id with its name: a character folder `<id>\First-Last` under the account whose name, with the hyphen read as a space, matches a `chars` key `First Last-<Realm>` gives `<id>` for `<Realm>`. The realm folder id (`91`) cannot be derived any other way; the realm ids in character guids (`4613`) differ from it.
-- "New character" is enabled only while the account has at least one known realm, and otherwise disabled with "Log in to a character on this account once first". It asks for a first name, a last name, a class and one of the known realms (the class picks `defaultByClass`, `optionsByClass` and `class` rows, and is written as the entry's `class`, which `CarryOverSettings` also reads), creates the folder `<id>\First-Last` (the game's own name form) and writes `HoobiScriptsDB.chars["First Last-<Realm>"]` in the account file with the values the user changed.
+- "New character" is enabled only while the account has at least one known realm, and otherwise disabled with "Log in to a character on this account once first". It asks for a first name, a last name, a class and one of the known realms (the class picks `defaultByClass`, `optionsByClass` and `class` rows, and is written as the entry's `class`, which `CarryOverSettings` also reads), creates the folder `<id>\First-Last` (the first letter of each name is capitalised and the rest kept as typed, since a name can carry inner capitals; letters, apostrophes and hyphens only) and writes `HoobiScriptsDB.chars["First Last-<Realm>"]` in the account file with the values the user changed.
 - A pre-written entry stops HoobiScripts' `CarryOverSettings` for that character, which copies a same-named character's settings from another realm. The New character dialog says so.

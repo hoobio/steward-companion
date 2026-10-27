@@ -10,6 +10,9 @@
 
     <UserControl.Styles>
         <StyleInclude Source="avares://Steward.Desktop/Styles/SettingsCards.axaml" />
+        <Style Selector="views|SettingsCard.NoIcon /template/ Panel#PART_Icon">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
     </UserControl.Styles>
 
     <Grid RowDefinitions="*,Auto">

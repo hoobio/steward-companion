@@ -32,7 +32,7 @@
                             Background="{TemplateBinding Background}"
                             Padding="{TemplateBinding Padding}">
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                <Panel Grid.Column="0" Width="20" Height="20" Margin="2,0,20,0" VerticalAlignment="Center">
+                                <Panel x:Name="PART_Icon" Grid.Column="0" Width="20" Height="20" Margin="2,0,20,0" VerticalAlignment="Center">
                                     <ContentPresenter Content="{TemplateBinding HeaderIcon}" />
                                     <TextBlock
                                         Classes="Glyph"

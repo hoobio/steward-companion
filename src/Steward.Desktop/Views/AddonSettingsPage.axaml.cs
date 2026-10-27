@@ -24,6 +24,7 @@ public sealed partial class AddonSettingsPage : UserControl
         DataContext = viewModel;
         InitializeComponent();
         viewModel.AddonSettings.PagesChanged += (_, _) => BuildPages();
+        viewModel.AddonSettings.AskAboutChanges = AskAboutChangesAsync;
         Loaded += (_, _) => _ = viewModel.AddonSettings.ActivateAsync();
         Unloaded += (_, _) => viewModel.AddonSettings.Deactivate();
     }
@@ -84,6 +85,7 @@ public sealed partial class AddonSettingsPage : UserControl
         }
         else
         {
+            card.Classes.Add("NoIcon");
             card.Header = row.Label;
             card.Bind(SettingsCard.DescriptionProperty, Bind(row, nameof(SettingRowViewModel.Description)));
             card.Bind(IsEnabledProperty, Bind(row, nameof(SettingRowViewModel.IsEnabled)));
@@ -146,9 +148,39 @@ public sealed partial class AddonSettingsPage : UserControl
         }
     }
 
-    private async void OnNewCharacterClick(object? sender, RoutedEventArgs e)
+    private async Task<UnsavedChoice> AskAboutChangesAsync(bool fromGame)
     {
         if (TopLevel.GetTopLevel(this) is not { } owner)
+        {
+            return UnsavedChoice.Cancel;
+        }
+
+        var dialog = new FAContentDialog
+        {
+            Title = new TextBlock { Text = fromGame ? "Reload from the game?" : "Save your changes?", TextWrapping = TextWrapping.Wrap },
+            Content = new TextBlock
+            {
+                Text = fromGame
+                    ? "World of Warcraft saved its own values for these settings when it closed. Reload them, or keep your unsaved changes and save them over the game's values."
+                    : "You changed addon settings that are not saved yet.",
+                TextWrapping = TextWrapping.Wrap,
+            },
+            PrimaryButtonText = fromGame ? "Reload from the game" : "Save",
+            SecondaryButtonText = fromGame ? "" : "Discard",
+            CloseButtonText = fromGame ? "Keep my edits" : "Cancel",
+            DefaultButton = fromGame ? FAContentDialogButton.Close : FAContentDialogButton.Primary,
+        };
+        return await AppDialogs.ShowAsync(dialog, owner) switch
+        {
+            FAContentDialogResult.Primary => fromGame ? UnsavedChoice.Discard : UnsavedChoice.Save,
+            FAContentDialogResult.Secondary => UnsavedChoice.Discard,
+            _ => UnsavedChoice.Cancel,
+        };
+    }
+
+    private async void OnNewCharacterClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is not { } owner || !await Settings.SettleChangesAsync())
         {
             return;
         }

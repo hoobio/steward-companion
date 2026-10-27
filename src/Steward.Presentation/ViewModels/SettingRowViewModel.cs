@@ -26,6 +26,8 @@ public abstract partial class SettingRowViewModel : ObservableObject
 
     public string Addon { get; internal set; } = "";
 
+    public string? Character { get; internal set; }
+
     internal bool IsLoadedShown { get; set; } = true;
 
     public LuaValue Original { get; }

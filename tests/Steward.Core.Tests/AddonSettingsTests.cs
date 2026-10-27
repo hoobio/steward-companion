@@ -118,6 +118,16 @@ public sealed class AddonSettingsTests : IDisposable
     }
 
     [Fact]
+    public void CharactersOn_LeavesOutTheBetaRealmOnTheLiveClientOnly()
+    {
+        IReadOnlyList<string> characters = ["Grug Aa-classic beta pvp", Character, "Hoobi Drood-Nightslayer", "NoRealm"];
+
+        Assert.Equal(["Hoobi Drood-Nightslayer", "NoRealm"], AddonSettings.CharactersOn(characters, ForeverLaunch.LiveProduct));
+        Assert.Equal(characters, AddonSettings.CharactersOn(characters, ForeverLaunch.BetaProduct));
+        Assert.Equal(characters, AddonSettings.CharactersOn(characters, null));
+    }
+
+    [Fact]
     public void Apply_ChangesOnlyTheSchemaKeyAndKeepsEverythingElse()
     {
         var before = Globals();
@@ -274,6 +284,7 @@ public sealed class AddonSettingsTests : IDisposable
         Assert.True(journey.IsCharacterFile);
         Assert.Contains(core, row => row.DynamicOptions);
         Assert.Contains(core, row => row.VisibleWhenLoaded is { Count: > 0 });
+        Assert.Equal(["HoobiScripts_ActionBars"], core.Single(row => row.Key == "actionBars").HiddenWhenLoaded);
         var byClass = core.First(row => row.OptionsByClass is not null);
         Assert.NotEqual(byClass.OptionsFor(null), byClass.OptionsFor("DRUID"));
     }
@@ -324,7 +335,10 @@ public sealed class AddonSettingsTests : IDisposable
 
     [Theory]
     [InlineData("MiXeD", true, null, "mixed", null)]
+    [InlineData("  MiXeD  ", true, null, "mixed", null)]
+    [InlineData(" Keep ", null, null, "Keep", null)]
     [InlineData("", null, false, null, "Enter a value")]
+    [InlineData("   ", null, false, null, "Enter a value")]
     [InlineData("", null, true, "", null)]
     [InlineData("", null, null, "", null)]
     public void Check_AppliesTheStringRule(string input, bool? lower, bool? empty, string? stored, string? error)
@@ -358,13 +372,13 @@ public sealed class AddonSettingsTests : IDisposable
     }
 
     [Fact]
-    public void Write_CreatesTheSavedVariablesFolder()
+    public void Write_NeverCreatesAMissingFile()
     {
         var file = AddonSettings.FilePath(_temp, "1#1", "HoobiScripts");
 
-        AddonSettings.Write(file, Globals(), () => false);
+        Assert.Throws<InvalidOperationException>(() => AddonSettings.Write(file, Globals(), () => false));
 
-        AssertSameGlobals(Globals(), AddonSettings.Load(file));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(file)));
     }
 
     [Theory]
@@ -412,6 +426,11 @@ public sealed class AddonSettingsTests : IDisposable
     [InlineData("1g 100s", null)]
     [InlineData("1x", null)]
     [InlineData("", null)]
+    [InlineData("-5g", null)]
+    [InlineData("9999999g 99s 99c", 99_999_999_999L)]
+    [InlineData("10000000g", null)]
+    [InlineData("1000000000000000g", null)]
+    [InlineData("922337203685477g", null)]
     public void ParseMoney_ReadsGoldSilverAndCopper(string text, long? copper) => Assert.Equal(copper, AddonSettings.ParseMoney(text));
 
     private string Account(params string[] characterFolders)
@@ -478,13 +497,107 @@ public sealed class AddonSettingsTests : IDisposable
     {
         var account = Account();
 
-        var folder = AddonSettings.CreateCharacterFolder(account, "91", " grug", "AA ");
+        var folder = AddonSettings.CreateCharacterFolder(account, "91", " grug", "aa ");
 
         Assert.Equal(Path.Combine(account, "91", "Grug-Aa"), folder);
         Assert.True(Directory.Exists(folder));
         Assert.Equal("Grug Aa-Classic Beta PvP", AddonSettings.CharacterKey("grug", "aa", "Classic Beta PvP"));
-        Assert.Null(AddonSettings.CheckNamePart("Gr\u00fcg"));
-        Assert.NotNull(AddonSettings.CheckNamePart("Grug Aa"));
+    }
+
+    [Theory]
+    [InlineData("mcDonald", "McDonald")]
+    [InlineData(" vanDer ", "VanDer")]
+    [InlineData("AA", "AA")]
+    [InlineData("o'neil", "O'neil")]
+    public void NamePart_CapitalisesOnlyTheFirstLetter(string typed, string expected) => Assert.Equal(expected, AddonSettings.NamePart(typed));
+
+    [Theory]
+    [InlineData("Gr\u00fcg", null)]
+    [InlineData(" O'Neil ", null)]
+    [InlineData("Jean-Luc", null)]
+    [InlineData("", "Enter a name")]
+    [InlineData("   ", "Enter a name")]
+    [InlineData("Grug Aa", "Use letters, apostrophes and hyphens only")]
+    [InlineData("Grug2", "Use letters, apostrophes and hyphens only")]
+    [InlineData("Abcdefghijklm", "Use 12 letters or fewer")]
+    public void CheckNamePart_AllowsLettersApostrophesAndHyphens(string typed, string? error) => Assert.Equal(error, AddonSettings.CheckNamePart(typed));
+
+    private string AddOn(string folder, string toc)
+    {
+        var path = Directory.CreateDirectory(Path.Combine(_temp, "AddOns", folder)).FullName;
+        File.WriteAllText(Path.Combine(path, folder + ".toc"), toc);
+        return Path.Combine(_temp, "AddOns");
+    }
+
+    [Fact]
+    public void SavedVariableOwners_MapsEachGlobalToTheFolderWhoseTocDeclaresIt()
+    {
+        AddOn("HoobiScripts", "## Title: |cff33ff99Hoobi|r Scripts\n## SavedVariablesPerCharacter: HoobiScriptsCharDB, HoobiScriptsRouteDB\n## SavedVariables: HoobiScriptsDB\n");
+        AddOn("HoobiScripts_ActionBars", "## SavedVariables: HoobiScripts_ActionBarsDB\n");
+        AddOn("StewardJourney", "## SavedVariablesPerCharacter: StewardJourneyDB\n");
+        var addOns = AddOn("Copycat", "## SavedVariables: SharedDB\n");
+        AddOn("Copycat2", "## SavedVariables: SharedDB\n");
+
+        var owners = AddonSettings.SavedVariableOwners(addOns, ["HoobiScripts", "HoobiScripts_ActionBars", "StewardJourney", "Copycat", "Copycat2", "Missing"]);
+        var rows = RealSchema("HoobiScripts_ActionBars").Pages!.SelectMany(p => p.Sections!).SelectMany(s => s.Rows!).ToList();
+        var journey = RealSchema("StewardJourney").Pages![0].Sections![0].Rows![0];
+
+        Assert.Equal(new SavedVariableOwner("HoobiScripts", "Hoobi Scripts", false), AddonSettings.OwnerOf(owners, rows.Single(row => row.Key == "actionBars")));
+        Assert.Equal("HoobiScripts_ActionBars", AddonSettings.OwnerOf(owners, rows.Single(row => row.Key == "applyAccount"))!.Folder);
+        Assert.Equal("HoobiScripts_ActionBars", AddonSettings.OwnerOf(owners, rows.Single(row => row.IsClass))!.Folder);
+        Assert.Equal(new SavedVariableOwner("StewardJourney", "StewardJourney", true), AddonSettings.OwnerOf(owners, journey));
+        Assert.True(owners["HoobiScriptsCharDB"]!.PerCharacter);
+        Assert.Null(owners["SharedDB"]);
+        Assert.Null(AddonSettings.OwnerOf(owners, journey with { Path = ["HoobiScriptsDB"] }));
+        Assert.Null(AddonSettings.OwnerOf(owners, rows[0] with { Path = ["HoobiScriptsCharDB"] }));
+        Assert.Null(AddonSettings.OwnerOf(owners, rows[0] with { Path = ["SharedDB"] }));
+        Assert.Null(AddonSettings.OwnerOf(owners, rows[0] with { Path = ["UnknownDB"] }));
+    }
+
+    [Theory]
+    [InlineData("HoobiScripts", null)]
+    [InlineData("hoobiscripts", null)]
+    [InlineData("HoobiScripts_ActionBars", "its folder HoobiScripts is not HoobiScripts_ActionBars")]
+    public void Refusal_RequiresTheCatalogueFolder(string folderName, string? reason) =>
+        Assert.Equal(reason, RealSchema("HoobiScripts").Refusal(folderName));
+
+    [Theory]
+    [InlineData("""["..\\..\\evil"]""")]
+    [InlineData("""["HoobiScriptsDB\n"]""")]
+    [InlineData("""["Hoobi ScriptsDB"]""")]
+    [InlineData("""["1DB"]""")]
+    [InlineData("""["{character}"]""")]
+    [InlineData("""[null]""")]
+    [InlineData("""["HoobiScriptsDB", ""]""")]
+    [InlineData("""["HoobiScriptsDB", null]""")]
+    public void Refusal_RejectsAPathThatIsNotAGlobalAndTableKeys(string path)
+    {
+        var schema = SettingsSchema.Parse($$"""{"schemaVersion":1,"folder":"HoobiScripts","pages":[{"title":"P","sections":[{"column":1,"rows":[{"type":"checkbox","key":"k","path":{{path}}}]}]}]}""");
+
+        Assert.NotNull(schema.Refusal("HoobiScripts"));
+    }
+
+    [Fact]
+    public void Refusal_AcceptsEveryRealSchema()
+    {
+        foreach (var folder in new[] { "HoobiScripts", "HoobiScripts_ActionBars", "HoobiScripts_GamerGuides", "HoobiScripts_Sniper", "StewardAuctioning", "StewardBuffManager", "StewardJourney" })
+        {
+            Assert.Null(RealSchema(folder).Refusal(folder));
+        }
+    }
+
+    [Fact]
+    public void AbsentKeptDefaults_PicksAKeepDefaultRowWhoseKeyIsAbsent()
+    {
+        var rows = RealSchema("HoobiScripts").Pages!.SelectMany(p => p.Sections!).SelectMany(s => s.Rows!).ToList();
+        var sparkles = rows.Single(row => row.Key == "questMobSparkles");
+        var candidates = new[] { new SettingChange(sparkles, null, LuaValue.FromBoolean(true)), new SettingChange(rows.Single(row => row.Key == "hideErrors"), null, LuaValue.FromBoolean(false)) };
+
+        var absent = Assert.Single(AddonSettings.AbsentKeptDefaults(Globals(), candidates, NoClass));
+        var stored = AddonSettings.Apply(Globals(), [absent], NoClass);
+
+        Assert.True(Settings(stored).Get("questMobSparkles")!.Boolean);
+        Assert.Empty(AddonSettings.AbsentKeptDefaults(stored, candidates, NoClass));
     }
 
     [Fact]

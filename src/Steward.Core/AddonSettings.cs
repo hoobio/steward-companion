@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace Steward.Core;
 
@@ -18,7 +19,37 @@ public sealed record SettingsSchema(
 
     public static SettingsSchema Parse(string json) =>
         JsonSerializer.Deserialize(json, CompanionJsonContext.Default.SettingsSchema) ?? throw new JsonException("The settings schema is empty");
+
+    public string? Refusal(string folderName)
+    {
+        if (!string.Equals(Folder, folderName, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"its folder {Folder ?? "(none)"} is not {folderName}";
+        }
+
+        foreach (var row in (Pages ?? []).SelectMany(page => page.Sections ?? []).SelectMany(section => section.Rows ?? []))
+        {
+            if (row.Path is not { Count: > 0 } path)
+            {
+                continue;
+            }
+
+            if (path[0] is not { } global || !AddonSettings.GlobalName().IsMatch(global))
+            {
+                return $"row {row.Key} names the global {path[0] ?? "(none)"}";
+            }
+
+            if (path.Skip(1).Any(string.IsNullOrEmpty))
+            {
+                return $"row {row.Key} has an empty table key in its path";
+            }
+        }
+
+        return null;
+    }
 }
+
+public sealed record SavedVariableOwner(string Folder, string Title, bool PerCharacter);
 
 public sealed record SettingsSchemaPage(
     [property: JsonPropertyName("title")] string Title,
@@ -65,7 +96,8 @@ public sealed record SettingsRow(
     [property: JsonPropertyName("keepDefault")] bool KeepDefault,
     [property: JsonPropertyName("optionsByClass")] IReadOnlyDictionary<string, IReadOnlyList<SettingsOption>>? OptionsByClass = null,
     [property: JsonPropertyName("dynamicOptions")] bool DynamicOptions = false,
-    [property: JsonPropertyName("visibleWhenLoaded")] IReadOnlyList<string>? VisibleWhenLoaded = null)
+    [property: JsonPropertyName("visibleWhenLoaded")] IReadOnlyList<string>? VisibleWhenLoaded = null,
+    [property: JsonPropertyName("hiddenWhenLoaded")] IReadOnlyList<string>? HiddenWhenLoaded = null)
 {
     private static readonly HashSet<string> KnownTypes = new(["checkbox", "dropdown", "bitmask", "text", "money", "mailTarget", "note"], StringComparer.Ordinal);
 
@@ -87,8 +119,52 @@ public sealed record SettingsRow(
 
 public sealed record SettingChange(SettingsRow Row, string? Character, LuaValue Value);
 
-public static class AddonSettings
+public static partial class AddonSettings
 {
+    [GeneratedRegex(@"\A[A-Za-z_][A-Za-z0-9_]*\z")]
+    internal static partial Regex GlobalName();
+
+    // A global two folders declare has no single owner, so its rows stay read-only.
+    public static IReadOnlyDictionary<string, SavedVariableOwner?> SavedVariableOwners(string addOnsPath, IEnumerable<string> folders, int? clientInterface = null)
+    {
+        ArgumentNullException.ThrowIfNull(folders);
+        var owners = new Dictionary<string, SavedVariableOwner?>(StringComparer.Ordinal);
+        foreach (var folder in folders.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var path = Path.Combine(addOnsPath, folder);
+            if (!Directory.Exists(path) || LocalAddons.TopLevelToc(path, folder, clientInterface) is not { } toc)
+            {
+                continue;
+            }
+
+            var title = LocalAddons.Read(addOnsPath, folder, clientInterface)?.Name ?? folder;
+            foreach (var (directive, perCharacter) in new[] { ("SavedVariables", false), ("SavedVariablesPerCharacter", true) })
+            {
+                foreach (var global in (TocFile.ReadDirective(toc, directive) ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    owners[global] = owners.ContainsKey(global) ? null : new SavedVariableOwner(folder, title, perCharacter);
+                }
+            }
+        }
+
+        return owners;
+    }
+
+    public static SavedVariableOwner? OwnerOf(IReadOnlyDictionary<string, SavedVariableOwner?> owners, SettingsRow row)
+    {
+        ArgumentNullException.ThrowIfNull(owners);
+        ArgumentNullException.ThrowIfNull(row);
+        return row.IsSetting && owners.GetValueOrDefault(row.Path![0]) is { } owner && owner.PerCharacter == row.IsCharacterFile ? owner : null;
+    }
+
+    public static string NotLoggedInNotice(string title) => $"Log in once with {title} enabled before changing these settings";
+
+    public static IEnumerable<SettingChange> AbsentKeptDefaults(IReadOnlyDictionary<string, LuaValue> globals, IEnumerable<SettingChange> candidates, Func<string?, string?> classOf) =>
+        candidates.Where(change => change.Row.KeepDefault
+            && (!change.Row.IsCharacter || change.Character is not null)
+            && (!change.Row.IsClass || classOf(change.Character) is not null)
+            && Stored(globals, change.Row, change.Character, classOf(change.Character)) is null);
+
     public const string CharacterToken = "{character}";
 
     public const string ClassToken = "{class}";
@@ -114,7 +190,12 @@ public static class AddonSettings
             throw new InvalidOperationException(RunningMessage);
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        // A file the game has not written yet is left for the game to create, so the addon's own first-run setup still runs.
+        if (!File.Exists(file))
+        {
+            throw new InvalidOperationException($"{Path.GetFileName(file)} does not exist yet. Log in once with that addon enabled before changing these settings.");
+        }
+
         var temp = file + ".steward-settings";
         File.WriteAllBytes(temp, Encoding.Latin1.GetBytes(LuaWriter.SerializeGlobals(globals)));
         if (clientRunning())
@@ -155,6 +236,13 @@ public static class AddonSettings
                 .Select(entry => FromFile(entry.Key!.Text!))
                 .Order(StringComparer.OrdinalIgnoreCase)]
             : [];
+
+    // The live client's file can carry entries the Forever copy wizard brought over from the beta realm.
+    public static IReadOnlyList<string> CharactersOn(IReadOnlyList<string> characters, string? productCode) =>
+        productCode == ForeverLaunch.LiveProduct
+            ? [.. characters.Where(key => !(key.IndexOf('-', StringComparison.Ordinal) is var split and > 0
+                && string.Equals(key[(split + 1)..], ForeverLaunch.BetaRealm, StringComparison.OrdinalIgnoreCase)))]
+            : characters;
 
     public static string? ClassOf(IReadOnlyDictionary<string, LuaValue> globals, string? character, string global = "HoobiScriptsDB") =>
         character is null ? null : globals.GetValueOrDefault(global)?.GetTable("chars")?.GetTable(ToFile(character))?.GetString("class");
@@ -372,13 +460,13 @@ public static class AddonSettings
 
                 return null;
             case "string":
-                if (input.Length == 0 && rule.Empty == false)
+                if (text.Length == 0 && rule.Empty == false)
                 {
                     value = null;
                     return "Enter a value";
                 }
 
-                value = LuaValue.FromString(rule.Lower ? input.ToLowerInvariant() : input);
+                value = LuaValue.FromString(rule.Lower ? text.ToLowerInvariant() : text);
                 return null;
             default:
                 value = LuaValue.FromString(input);
@@ -408,6 +496,8 @@ public static class AddonSettings
         return string.Join(" ", parts);
     }
 
+    public const long MaxGold = 9_999_999;
+
     public static long? ParseMoney(string input)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -426,12 +516,12 @@ public static class AddonSettings
             unit = char.IsAsciiDigit(unit) ? 'g' : unit;
             if (unit is not ('g' or 's' or 'c') || !seen.Add(unit)
                 || !long.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var amount)
-                || (unit != 'g' && amount > 99))
+                || amount > (unit == 'g' ? MaxGold : 99))
             {
                 return null;
             }
 
-            total += unit switch { 'g' => amount * 10000, 's' => amount * 100, _ => amount };
+            total = checked(total + (unit switch { 'g' => amount * 10000, 's' => amount * 100, _ => amount }));
         }
 
         return total;
@@ -472,11 +562,22 @@ public static class AddonSettings
         return ids.Where(entry => entry.Value is not null).ToDictionary(entry => entry.Key, entry => entry.Value!, StringComparer.OrdinalIgnoreCase);
     }
 
-    public static string? CheckNamePart(string part) =>
-        part.Length is > 0 and <= 12 && part.All(char.IsLetter) ? null : "Use letters only";
+    public static string? CheckNamePart(string part)
+    {
+        ArgumentNullException.ThrowIfNull(part);
+        var name = part.Trim();
+        return name.Length == 0 ? "Enter a name"
+            : name.Length > 12 ? "Use 12 letters or fewer"
+            : name.All(c => char.IsLetter(c) || c is '\'' or '-') ? null
+            : "Use letters, apostrophes and hyphens only";
+    }
 
-    public static string NamePart(string part) =>
-        part.Length == 0 ? part : char.ToUpper(part[0], CultureInfo.InvariantCulture) + part[1..].ToLower(CultureInfo.InvariantCulture);
+    public static string NamePart(string part)
+    {
+        ArgumentNullException.ThrowIfNull(part);
+        var name = part.Trim();
+        return name.Length == 0 ? name : char.ToUpper(name[0], CultureInfo.InvariantCulture) + name[1..];
+    }
 
     public static string CharacterKey(string first, string last, string realm) => $"{NamePart(first.Trim())} {NamePart(last.Trim())}-{realm}";
 

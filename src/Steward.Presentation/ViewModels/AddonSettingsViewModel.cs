@@ -15,6 +15,13 @@ public sealed record AddonSettingsGroupViewModel(string? Title, IReadOnlyList<Se
 
 public sealed record AddonSettingsPageViewModel(string Title, string? Message, IReadOnlyList<AddonSettingsGroupViewModel> Groups);
 
+public enum UnsavedChoice
+{
+    Save,
+    Discard,
+    Cancel,
+}
+
 public sealed partial class AddonSettingsViewModel : ObservableObject
 {
     public const string AddonId = "hoobiscripts";
@@ -25,13 +32,23 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
 
     public const string NotAvailableMessage = "Settings are not available for this version";
 
+    public const string NoOwnerNotice = "No installed addon keeps this setting";
+
+    public const string SavedMessage = "Saved. The game reads these settings at the next login.";
+
+    private static readonly IReadOnlyDictionary<string, LuaValue> NoGlobals = new Dictionary<string, LuaValue>();
+
     private readonly MainViewModel _main;
     private readonly List<(AddonRowViewModel Row, SettingsSchema? Schema, string? Message)> _schemas = [];
     private readonly List<SettingRowViewModel> _rows = [];
     private IReadOnlyDictionary<string, LuaValue> _core = new Dictionary<string, LuaValue>();
+    private IReadOnlyDictionary<string, SavedVariableOwner?> _owners = new Dictionary<string, SavedVariableOwner?>();
+    private string? _coreFile;
     private WowInstallViewModel? _install;
     private bool _isActive;
     private bool _rebuilding;
+    private bool _restoringInstall;
+    private bool _reloadPending;
     private int _generation;
 
     internal AddonSettingsViewModel(MainViewModel main, AddonUpdater updater)
@@ -40,16 +57,32 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         FetchSchema = updater.GetSettingsSchemaAsync;
         main.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(MainViewModel.SelectedInstall) && _isActive)
+            // A rescan swaps in a new view model for the same folder (through null), which keeps unsaved rows rather than asking.
+            if (e.PropertyName is not nameof(MainViewModel.SelectedInstall) || !_isActive || _restoringInstall || main.SelectedInstall is not { } selected)
             {
-                _ = LoadAsync();
+                return;
+            }
+
+            if (HasChanges && IsSameFolder(selected))
+            {
+                SetInstall(selected);
+                IsClientRunning = selected.IsClientRunning;
+            }
+            else
+            {
+                _ = ChangeInstallAsync();
             }
         };
     }
 
+    private bool IsSameFolder(WowInstallViewModel? install) =>
+        string.Equals(install?.FlavourPath, _install?.FlavourPath, StringComparison.OrdinalIgnoreCase);
+
     internal Func<ManagedAddon, string, CancellationToken, Task<SettingsSchema?>> FetchSchema { get; set; }
 
     internal Func<WowInstall, bool> IsRunning { get; set; } = WowClient.IsRunning;
+
+    public Func<bool, Task<UnsavedChoice>> AskAboutChanges { get; set; } = _ => Task.FromResult(UnsavedChoice.Cancel);
 
     public ObservableCollection<ForeverCopyAccount> Accounts { get; } = [];
 
@@ -99,13 +132,105 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
 
     public event EventHandler? PagesChanged;
 
-    public Task ActivateAsync()
+    public async Task ActivateAsync()
     {
         _isActive = true;
-        return LoadAsync();
+        if (!HasChanges)
+        {
+            _reloadPending = false;
+            await LoadAsync().ConfigureAwait(true);
+        }
+        else if (!IsSameFolder(_main.SelectedInstall))
+        {
+            await ChangeInstallAsync().ConfigureAwait(true);
+        }
+        else
+        {
+            if (_main.SelectedInstall != _install)
+            {
+                SetInstall(_main.SelectedInstall);
+            }
+
+            if (_reloadPending)
+            {
+                _reloadPending = false;
+                await ReloadFromGameAsync().ConfigureAwait(true);
+            }
+        }
     }
 
     public void Deactivate() => _isActive = false;
+
+    public async Task<bool> ResolveChangesAsync()
+    {
+        if (!HasChanges)
+        {
+            return true;
+        }
+
+        switch (await AskAboutChanges(false).ConfigureAwait(true))
+        {
+            case UnsavedChoice.Discard:
+                return true;
+            case UnsavedChoice.Save when await WriteChangesAsync().ConfigureAwait(true):
+                Status = SavedMessage;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public async Task<bool> SettleChangesAsync()
+    {
+        if (!HasChanges)
+        {
+            return true;
+        }
+
+        if (!await ResolveChangesAsync().ConfigureAwait(true))
+        {
+            return false;
+        }
+
+        Rebuild();
+        return true;
+    }
+
+    private async Task ChangeInstallAsync()
+    {
+        if (await ResolveChangesAsync().ConfigureAwait(true))
+        {
+            await LoadAsync().ConfigureAwait(true);
+            return;
+        }
+
+        _restoringInstall = true;
+        _main.SelectedInstall = _install;
+        _restoringInstall = false;
+    }
+
+    private async Task ChangeSelectionAsync(Action restore)
+    {
+        if (await ResolveChangesAsync().ConfigureAwait(true))
+        {
+            Rebuild();
+            return;
+        }
+
+        _rebuilding = true;
+        restore();
+        _rebuilding = false;
+    }
+
+    private async Task ReloadFromGameAsync()
+    {
+        if (HasChanges && await AskAboutChanges(true).ConfigureAwait(true) != UnsavedChoice.Discard)
+        {
+            return;
+        }
+
+        Rebuild();
+    }
 
     public async Task LoadAsync()
     {
@@ -146,6 +271,16 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
                     _schemas.Add((row, schema, message));
                 }
             }
+
+            var folders = install.AddonRows.Where(IsSettingsAddon).Select(row => row.Addon.FolderName).ToList();
+            var clientInterface = TocFile.InterfaceNumber(install.ClientVersion);
+            var owners = await Task.Run(() => AddonSettings.SavedVariableOwners(install.Install.AddOnsPath, folders, clientInterface)).ConfigureAwait(true);
+            if (generation != _generation || _main.IsDisposed)
+            {
+                return;
+            }
+
+            _owners = owners;
         }
         finally
         {
@@ -173,9 +308,18 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
     {
         try
         {
-            return await FetchSchema(row.Addon, row.InstalledVersion!, CancellationToken.None).ConfigureAwait(true) is { } schema
-                ? (schema, null)
-                : (null, NotAvailableMessage);
+            if (await FetchSchema(row.Addon, row.InstalledVersion!, CancellationToken.None).ConfigureAwait(true) is not { } schema)
+            {
+                return (null, NotAvailableMessage);
+            }
+
+            if (schema.Refusal(row.Addon.FolderName) is { } reason)
+            {
+                _main.WarnUi($"Settings schema for {row.AddonId} {row.InstalledVersion} refused: {reason}");
+                return (null, NotAvailableMessage);
+            }
+
+            return (schema, null);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or SessionExpiredException or InvalidOperationException)
         {
@@ -200,27 +344,38 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
 
     private void OnInstallPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(WowInstallViewModel.IsClientRunning) && _install is { } install)
+        if (e.PropertyName is not nameof(WowInstallViewModel.IsClientRunning) || _install is not { } install)
         {
-            IsClientRunning = install.IsClientRunning;
+            return;
+        }
+
+        var exited = IsClientRunning && !install.IsClientRunning;
+        IsClientRunning = install.IsClientRunning;
+        if (exited && _isActive)
+        {
+            _ = ReloadFromGameAsync();
+        }
+        else if (exited)
+        {
+            _reloadPending = true;
         }
     }
 
     partial void OnIsClientRunningChanged(bool value) => RefreshStates();
 
-    partial void OnSelectedAccountChanged(ForeverCopyAccount? value)
+    partial void OnSelectedAccountChanged(ForeverCopyAccount? oldValue, ForeverCopyAccount? newValue)
     {
         if (!_rebuilding)
         {
-            Rebuild();
+            _ = ChangeSelectionAsync(() => SelectedAccount = oldValue);
         }
     }
 
-    partial void OnSelectedCharacterChanged(SettingsCharacterOption? value)
+    partial void OnSelectedCharacterChanged(SettingsCharacterOption? oldValue, SettingsCharacterOption? newValue)
     {
         if (!_rebuilding)
         {
-            Rebuild();
+            _ = ChangeSelectionAsync(() => SelectedCharacter = oldValue);
         }
     }
 
@@ -236,6 +391,7 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         Pages.Clear();
         Message = null;
         _core = new Dictionary<string, LuaValue>();
+        _coreFile = null;
         if (_install is null || SelectedAccount is null)
         {
             Message = _install is null ? null : "Log in to World of Warcraft once to create an account folder";
@@ -244,16 +400,17 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         }
 
         var coreMessage = (string?)null;
+        _coreFile = FileFor(CoreFolder);
         try
         {
-            _core = AddonSettings.Load(FileFor(CoreFolder));
+            _core = AddonSettings.Load(_coreFile);
         }
         catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
         {
             coreMessage = $"Steward could not read {CoreFolder}.lua: {ex.Message}";
         }
 
-        var characters = AddonSettings.Characters(_core);
+        var characters = AddonSettings.CharactersOn(AddonSettings.Characters(_core), _install.Install.ProductCode);
         KnownRealms = AddonSettings.KnownRealms(AccountFolder!, characters);
         var selected = SelectedCharacter?.Key;
         _rebuilding = true;
@@ -266,6 +423,10 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         SelectedCharacter = Characters.FirstOrDefault(option => string.Equals(option.Key, selected, StringComparison.Ordinal)) ?? Characters.FirstOrDefault();
         _rebuilding = false;
 
+        var files = new Dictionary<string, (IReadOnlyDictionary<string, LuaValue> Globals, string? Message)>(StringComparer.OrdinalIgnoreCase)
+        {
+            [_coreFile] = (_core, coreMessage),
+        };
         var pages = new List<AddonSettingsPageViewModel>();
         foreach (var (row, schema, message) in _schemas)
         {
@@ -275,17 +436,13 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
                 continue;
             }
 
-            var accountFile = FileFor(schema.Folder);
-            var files = new Dictionary<string, (IReadOnlyDictionary<string, LuaValue> Globals, string? Message)>(StringComparer.OrdinalIgnoreCase)
-            {
-                [FileFor(CoreFolder)] = (_core, coreMessage),
-            };
-            var fileMessage = Read(files, accountFile).Message;
             foreach (var page in schema.Pages ?? [])
             {
+                var first = _rows.Count;
                 var groups = (page.Sections ?? [])
-                    .Select(section => new AddonSettingsGroupViewModel(section.Title, [.. (section.Rows ?? []).Select(settingsRow => BuildRow(schema, settingsRow, accountFile, files))]))
+                    .Select(section => new AddonSettingsGroupViewModel(section.Title, [.. (section.Rows ?? []).Select(settingsRow => BuildRow(schema, settingsRow, files))]))
                     .ToList();
+                var fileMessage = _rows.Skip(first).Select(row => files.GetValueOrDefault(row.File).Message).FirstOrDefault(message => message is not null);
                 pages.Add(new AddonSettingsPageViewModel(page.Title, fileMessage ?? (schema.IsReadOnly ? SettingRowViewModel.UpdateStewardNotice : null), groups));
             }
         }
@@ -328,25 +485,33 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
     }
 
     private SettingRowViewModel BuildRow(
-        SettingsSchema schema, SettingsRow row, string accountFile, Dictionary<string, (IReadOnlyDictionary<string, LuaValue> Globals, string? Message)> files)
+        SettingsSchema schema, SettingsRow row, Dictionary<string, (IReadOnlyDictionary<string, LuaValue> Globals, string? Message)> files)
     {
         var character = row.IsCharacter ? SelectedCharacter?.Key : null;
         var classToken = AddonSettings.ClassOf(_core, character);
-        var file = accountFile;
-        string? notice = null;
-        if (row.IsCharacterFile)
+        var owner = AddonSettings.OwnerOf(_owners, row);
+        string? file = null;
+        string? notice = row.IsSetting && owner is null ? NoOwnerNotice : null;
+        if (owner is not null && row.IsCharacterFile)
         {
             var folder = character is null ? null : AddonSettings.CharacterFolder(AccountFolder!, character, KnownRealms);
-            file = folder is null ? accountFile : AddonSettings.CharacterFilePath(folder, schema.Folder);
+            file = folder is null ? null : AddonSettings.CharacterFilePath(folder, owner.Folder);
             notice = folder is null && character is not null ? "Log in to this character once first" : null;
         }
-        else if (row.IsClass && character is not null && classToken is null)
+        else if (owner is not null)
         {
-            notice = "Steward does not know this character's class yet";
+            file = FileFor(owner.Folder);
+            notice = row.IsClass && character is not null && classToken is null ? "Steward does not know this character's class yet" : null;
         }
 
-        var (globals, unreadable) = Read(files, file);
+        if (owner is not null && file is not null && !File.Exists(file))
+        {
+            notice ??= AddonSettings.NotLoggedInNotice(owner.Title);
+        }
+
+        var (globals, unreadable) = file is null ? (NoGlobals, (string?)null) : Read(files, file);
         notice ??= unreadable;
+        file ??= "";
         var locked = AddonSettings.AnyInstalled(_install!.Install.AddOnsPath, row.LockedWhenLoaded);
         var value = locked ? LuaValue.FromBoolean(false) : AddonSettings.Resolve(globals, row, character, classToken);
         var readOnly = schema.IsReadOnly || notice is not null;
@@ -363,7 +528,9 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
             _ => new NoteSettingViewModel(row, file),
         };
         model.Addon = schema.Folder;
-        model.IsLoadedShown = row.VisibleWhenLoaded is null || AddonSettings.AnyInstalled(_install.Install.AddOnsPath, row.VisibleWhenLoaded);
+        model.Character = character;
+        model.IsLoadedShown = (row.VisibleWhenLoaded is null || AddonSettings.AnyInstalled(_install.Install.AddOnsPath, row.VisibleWhenLoaded))
+            && !AddonSettings.AnyInstalled(_install.Install.AddOnsPath, row.HiddenWhenLoaded);
         model.Changed = () =>
         {
             RefreshStates();
@@ -407,34 +574,43 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
-        if (_install is not { } install || SelectedAccount is null)
+        if (await WriteChangesAsync().ConfigureAwait(true))
         {
-            return;
+            Rebuild();
+            Status = SavedMessage;
+        }
+    }
+
+    private async Task<bool> WriteChangesAsync()
+    {
+        if (_install is not { } install || _coreFile is not { } coreFile)
+        {
+            return false;
         }
 
         if (IsRunning(install.Install))
         {
             IsClientRunning = true;
             Status = AddonSettings.RunningMessage;
-            return;
+            return false;
         }
 
-        var character = SelectedCharacter?.Key;
-        var changes = _rows.Where(row => row.IsDirty && row.IsEnabled).GroupBy(row => row.File, StringComparer.OrdinalIgnoreCase).ToList();
-        var coreFile = FileFor(CoreFolder);
+        var dirty = _rows.Where(row => row.IsDirty && row.IsEnabled).ToList();
+        var kept = _rows.Where(row => row.Row.KeepDefault && row.IsSetting && !dirty.Contains(row)).ToList();
         try
         {
             await Task.Run(() =>
             {
                 var core = AddonSettings.Load(coreFile);
-                foreach (var group in changes)
+                string? ClassOf(string? key) => AddonSettings.ClassOf(core, key);
+                foreach (var file in dirty.Select(row => row.File).Distinct(StringComparer.OrdinalIgnoreCase))
                 {
-                    var file = group.Key;
-                    var globals = AddonSettings.Apply(
-                        AddonSettings.Load(file),
-                        group.Select(row => new SettingChange(row.Row, row.Row.IsCharacter ? character : null, row.Value)),
-                        key => AddonSettings.ClassOf(core, key));
-                    AddonSettings.Write(file, globals, () => IsRunning(install.Install));
+                    bool InFile(SettingRowViewModel row) => string.Equals(row.File, file, StringComparison.OrdinalIgnoreCase);
+                    var globals = AddonSettings.Load(file);
+                    var changes = dirty.Where(InFile).Select(row => new SettingChange(row.Row, row.Character, row.Value))
+                        .Concat(AddonSettings.AbsentKeptDefaults(globals, kept.Where(InFile).Select(row => new SettingChange(row.Row, row.Character, row.Original)), ClassOf))
+                        .ToList();
+                    AddonSettings.Write(file, AddonSettings.Apply(globals, changes, ClassOf), () => IsRunning(install.Install));
                 }
             }).ConfigureAwait(true);
         }
@@ -442,11 +618,10 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         {
             _main.WarnUi($"Addon settings save failed: {ex.Message}");
             Status = ex.Message;
-            return;
+            return false;
         }
 
-        Rebuild();
-        Status = "Saved. The game reads these settings at the next login.";
+        return true;
     }
 
     public string? CreateCharacter(string first, string last, string? classToken, string realm)

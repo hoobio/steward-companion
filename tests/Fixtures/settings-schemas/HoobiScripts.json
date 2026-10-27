@@ -83,6 +83,9 @@
           "rows": [
             {
               "default": 15,
+              "hiddenWhenLoaded": [
+                "HoobiScripts_ActionBars"
+              ],
               "key": "actionBars",
               "label": "Auto enabled Action Bars",
               "options": [

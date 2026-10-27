@@ -35,7 +35,7 @@ internal sealed class UiPathWorld : IDisposable
     private readonly Func<Key, bool> _keyHeld = AppDialogs.IsKeyHeld;
     private int _shot;
 
-    public UiPathWorld(AvaloniaSession session, string area, bool signedIn = true, bool withLive = true, UiPathWorld? restartOf = null, bool apiDown = false, bool screenshot = false)
+    public UiPathWorld(AvaloniaSession session, string area, bool signedIn = true, bool withLive = true, UiPathWorld? restartOf = null, bool apiDown = false, bool screenshot = false, string betaProduct = ForeverLaunch.BetaProduct)
     {
         _area = area;
         Api.Down = apiDown;
@@ -45,7 +45,7 @@ internal sealed class UiPathWorld : IDisposable
         BetaAddOns = Path.Combine(Beta, "Interface", "AddOns");
         if (restartOf is null)
         {
-            Flavour(Beta, "wow_classic_beta");
+            Flavour(Beta, betaProduct);
             if (Live is not null)
             {
                 Flavour(Live, "wowf");
@@ -361,8 +361,8 @@ internal sealed class UiPathWorld : IDisposable
         Toc("Steward", "Steward", "0.0.0-d3f1d44", current);
         Toc("StewardGuides", "Steward: Guides", "0.0.0-5e1a2b3", current);
         Toc("StewardAuctioning", "Steward: Auctioning", "0.0.0-a7c9e01", current);
-        Toc("StewardJourney", "Steward: Journey", "0.0.0-b2d4f68", current);
-        Toc("HoobiScripts", "Hoobi Scripts", "0.0.0-ec7e7a3", current);
+        Toc("StewardJourney", "Steward: Journey", "0.0.0-b2d4f68", current, "## SavedVariablesPerCharacter: StewardJourneyDB\n");
+        Toc("HoobiScripts", "Hoobi Scripts", "0.0.0-ec7e7a3", current, "## SavedVariables: HoobiScriptsDB\n## SavedVariablesPerCharacter: HoobiScriptsCharDB, HoobiScriptsRouteDB\n");
         Toc("RXPGuides", "RestedXP Guides", "v4.11.22", current);
         Toc("BugSack", "BugSack", "v11.2.0", current);
         Toc("!BugGrabber", "BugGrabber", "v11.0.3", current);
@@ -389,10 +389,10 @@ internal sealed class UiPathWorld : IDisposable
             """);
     }
 
-    private void Toc(string folder, string title, string version, string interfaceNumber)
+    public void Toc(string folder, string title, string version, string interfaceNumber, string extra = "")
     {
         var path = Directory.CreateDirectory(Path.Combine(BetaAddOns, folder)).FullName;
-        File.WriteAllText(Path.Combine(path, $"{folder}.toc"), $"## Interface: {interfaceNumber}\n## Title: {title}\n## Version: {version}\n## IconTexture: Interface\\Icons\\INV_Misc_QuestionMark\n");
+        File.WriteAllText(Path.Combine(path, $"{folder}.toc"), $"## Interface: {interfaceNumber}\n## Title: {title}\n## Version: {version}\n## IconTexture: Interface\\Icons\\INV_Misc_QuestionMark\n{extra}");
     }
 
     private void SeedState()
