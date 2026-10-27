@@ -6,5 +6,5 @@ Exec=/usr/bin/steward %u
 Icon=steward
 Terminal=false
 Categories=Game;
-MimeType=x-scheme-handler/curseforge;
+MimeType=x-scheme-handler/curseforge;x-scheme-handler/steward;
 StartupWMClass=Steward

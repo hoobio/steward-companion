@@ -219,7 +219,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             StateChanged = () => OnPropertyChanged(nameof(SyncBadgeVisibility)),
         };
-        AddonSettings = new AddonSettingsViewModel(this, addonUpdater);
+        AddonSettings = new AddonSettingsViewModel(this, addonUpdater, platform, logger);
         SavedVariablesChanged = Sync.ReloadAsync;
         AfterStewardInstalled = install => HasStewardFeature ? Sync.WriteGeneratedFileAsync(install) : WriteMeAfterInstallAsync();
         ShellOpen.Failed += OnShellOpenFailed;
@@ -1991,7 +1991,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         "settings" => true,
         "sync" => SyncVisibility,
         "guides" => GuidesVisibility,
-        "addonsettings" => AddonSettingsVisibility,
         _ => false,
     };
 

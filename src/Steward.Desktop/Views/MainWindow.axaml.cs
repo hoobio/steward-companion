@@ -74,7 +74,6 @@ public sealed partial class MainWindow : Window
         {
             "sync" => SyncItem,
             "guides" => GuidesItem,
-            "addonsettings" => AddonSettingsItem,
             "settings" => SettingsItem,
             _ => AddonsItem,
         });
@@ -84,6 +83,7 @@ public sealed partial class MainWindow : Window
         ViewModel.ShowLinkDialog = ShowMessageAsync;
         ViewModel.ChooseLinkFile = ChooseLinkFileAsync;
         ViewModel.ShowForeverCopyDialog = ShowForeverCopyAsync;
+        ViewModel.AddonSettings.ShowImport = ShowSettingsImportAsync;
         ViewModel.ChooseGuild = ChooseGuildAsync;
         ViewModel.QuitRequested = QuitCompletely;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -183,7 +183,6 @@ public sealed partial class MainWindow : Window
         {
             "sync" => typeof(SyncPage),
             "guides" => typeof(GuidesPage),
-            "addonsettings" => typeof(AddonSettingsPage),
             "settings" => typeof(SettingsPage),
             _ => typeof(HomePage),
         });
@@ -246,8 +245,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if ((e.PropertyName is nameof(MainViewModel.SyncVisibility) && !ViewModel.SyncVisibility && PageHost.Content is SyncPage)
-            || (e.PropertyName is nameof(MainViewModel.AddonSettingsVisibility) && !ViewModel.AddonSettingsVisibility && PageHost.Content is AddonSettingsPage))
+        if (e.PropertyName is nameof(MainViewModel.SyncVisibility) && !ViewModel.SyncVisibility && PageHost.Content is SyncPage)
         {
             Navigate(AddonsItem);
             return;
@@ -573,6 +571,64 @@ public sealed partial class MainWindow : Window
             DefaultButton = primary is null ? FAContentDialogButton.Close : FAContentDialogButton.None,
         };
         return await AppDialogs.ShowAsync(dialog, this) == FAContentDialogResult.Primary;
+    }
+
+    private async Task<IReadOnlyList<SettingsImportItem>?> ShowSettingsImportAsync(SettingsImport import, string target)
+    {
+        var ticks = new Dictionary<SettingsImportItem, CheckBox>();
+        var rows = new StackPanel { Spacing = 16 };
+        foreach (var item in import.Items)
+        {
+            var row = new StackPanel { Spacing = 2 };
+            row.Children.Add(Wrapped(string.Join(" · ", new[] { item.Addon, item.Page }.Where(part => part.Length > 0)), secondary: true, fontSize: 12));
+            row.Children.Add(Wrapped(item.Label));
+            if (item.Old is not null || item.New is not null)
+            {
+                row.Children.Add(Wrapped(item.Old is null ? item.New! : $"{item.Old} → {item.New ?? ""}", secondary: true, fontSize: 12));
+            }
+
+            if (item.Status == SettingsImportStatus.Refused)
+            {
+                var refused = Wrapped($"Not applied: {item.Reason}", fontSize: 12);
+                refused.Bind(TextBlock.ForegroundProperty, refused.GetResourceObservable("SystemFillColorCriticalBrush"));
+                row.Children.Add(refused);
+            }
+            else if (item.Status == SettingsImportStatus.Conflict)
+            {
+                var tick = new CheckBox { Content = $"{item.Reason}. Apply anyway", IsChecked = false, Margin = new Thickness(0, 4, 0, 0) };
+                ticks[item] = tick;
+                row.Children.Add(tick);
+            }
+
+            rows.Children.Add(row);
+        }
+
+        var dialog = new FAContentDialog
+        {
+            Title = Wrapped("Apply changes from the website?"),
+            Content = new StackPanel
+            {
+                Spacing = 12,
+                Children =
+                {
+                    Wrapped(import.Items.Count == 0 ? $"{target}: the website sent no changes." : target, secondary: true, fontSize: 12),
+                    new ScrollViewer { MaxHeight = 360, Content = rows },
+                },
+            },
+            PrimaryButtonText = "Apply",
+            CloseButtonText = "Cancel",
+            DefaultButton = FAContentDialogButton.None,
+        };
+        void UpdateApply() => dialog.IsPrimaryButtonEnabled = import.Items.Any(item => item.Status == SettingsImportStatus.Ready) || ticks.Values.Any(tick => tick.IsChecked == true);
+        foreach (var tick in ticks.Values)
+        {
+            tick.IsCheckedChanged += (_, _) => UpdateApply();
+        }
+
+        UpdateApply();
+        return await AppDialogs.ShowAsync(dialog, this) == FAContentDialogResult.Primary
+            ? [.. import.Items.Where(item => item.Status == SettingsImportStatus.Ready || (ticks.TryGetValue(item, out var tick) && tick.IsChecked == true))]
+            : null;
     }
 
     private async Task<int?> ChooseLinkFileAsync(string title, IReadOnlyList<string> options, int selected, string hint)

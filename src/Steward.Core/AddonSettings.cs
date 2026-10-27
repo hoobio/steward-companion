@@ -568,8 +568,8 @@ public static partial class AddonSettings
         var name = part.Trim();
         return name.Length == 0 ? "Enter a name"
             : name.Length > 12 ? "Use 12 letters or fewer"
-            : name.All(c => char.IsLetter(c) || c is '\'' or '-') ? null
-            : "Use letters, apostrophes and hyphens only";
+            : name.All(c => char.IsLetter(c) || c is '\'') ? null
+            : "Use letters and apostrophes only";
     }
 
     public static string NamePart(string part)

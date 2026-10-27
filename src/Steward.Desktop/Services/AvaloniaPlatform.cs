@@ -134,6 +134,8 @@ public sealed class AvaloniaPlatform : IUiPlatform
 
     public void SetClipboardText(string text) => _ = Owner?.Clipboard?.SetTextAsync(text);
 
+    public async Task<string?> GetClipboardTextAsync() => Owner?.Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null;
+
     public async Task<string?> PickFolderAsync()
     {
         if (Owner?.StorageProvider is not { CanPickFolder: true } storage)

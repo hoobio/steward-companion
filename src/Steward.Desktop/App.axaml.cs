@@ -62,7 +62,6 @@ public sealed partial class App : Application
         builder.Services.AddSingleton<HomePage>();
         builder.Services.AddSingleton<SyncPage>();
         builder.Services.AddSingleton<GuidesPage>();
-        builder.Services.AddSingleton<AddonSettingsPage>();
         builder.Services.AddSingleton<SettingsPage>();
         var host = builder.Build();
         platform.Http = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient("Addon");
@@ -109,14 +108,15 @@ public sealed partial class App : Application
                 window.ShowFromTray();
             },
             window.QuitFromAnotherBuildAsync,
-            viewModel.ReceiveCurseForgeLinkAsync);
+            viewModel.ReceiveLinkAsync);
         if (OperatingSystem.IsMacOS() && this.TryGetFeature<IActivatableLifetime>() is { } activatable)
         {
             activatable.Activated += (_, e) =>
             {
-                if (e is ProtocolActivatedEventArgs { Uri: { } uri } && string.Equals(uri.Scheme, CurseForgeLinks.Scheme, StringComparison.OrdinalIgnoreCase))
+                if (e is ProtocolActivatedEventArgs { Uri: { } uri }
+                    && (string.Equals(uri.Scheme, CurseForgeLinks.Scheme, StringComparison.OrdinalIgnoreCase) || string.Equals(uri.Scheme, AddonSettingsPayload.Scheme, StringComparison.OrdinalIgnoreCase)))
                 {
-                    Dispatcher.UIThread.Post(() => _ = viewModel.ReceiveCurseForgeLinkAsync(uri.OriginalString));
+                    Dispatcher.UIThread.Post(() => _ = viewModel.ReceiveLinkAsync(uri.OriginalString));
                 }
             };
         }
@@ -213,7 +213,7 @@ public sealed partial class App : Application
 
         if (coordination.Link is { } link)
         {
-            _ = viewModel.ReceiveCurseForgeLinkAsync(link);
+            _ = viewModel.ReceiveLinkAsync(link);
         }
     }
 }

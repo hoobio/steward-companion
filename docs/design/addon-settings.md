@@ -109,6 +109,9 @@ There is no server-side copy of anyone's game files. Everything travels in the U
 ```
 
 - One export covers one WoW account folder of one install.
+- `values[<folder>]` has `account` (key to value), `character` (character key to key to value), `characterFile` (character key to key to value) and `class` (class token to `{ "{class}": value }`).
+- `addons[]` carries `unavailable: true` for an addon whose schema the app refused or could not load; the website shows it read-only.
+- A character whose class is unknown is exported with `class: ""`.
 - `values` holds only keys the schema names and only keys present in the file. An absent key is left out, so "absent" (the addon's default) and "set to the default" stay different.
 - `installed` is every folder on the install (for `visibleWhenLoaded`, `hiddenWhenLoaded`, `lockedWhenLoaded`).
 - `realms` are the known realms (realm pairing below), and `characters` the `HoobiScriptsDB.chars` keys with their class, both with the beta-realm filter applied before export on a `wowf` install.
@@ -132,6 +135,8 @@ There is no server-side copy of anyone's game files. Everything travels in the U
 
 - A change names a schema row by addon folder, scope, key and (for `character` and `characterFile` rows) the character key, never by path. `to: null` means remove the key (back to the addon's default).
 - `from` is the value the website saw in the export, `null` for absent.
+- A `class` change carries the `character` it was edited through; the app takes the class from that character.
+- A change back to the exported value is never sent, and `to: null` is sent only when the export held the key ("Reset to default").
 
 ### Applying an import
 

@@ -32,6 +32,14 @@
         <string>curseforge</string>
       </array>
     </dict>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>io.hoobi.steward.import</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>steward</string>
+      </array>
+    </dict>
   </array>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.utilities</string>

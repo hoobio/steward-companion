@@ -26,6 +26,8 @@ public interface IUiPlatform
 
     void SetClipboardText(string text);
 
+    Task<string?> GetClipboardTextAsync();
+
     Task<string?> PickFolderAsync();
 }
 

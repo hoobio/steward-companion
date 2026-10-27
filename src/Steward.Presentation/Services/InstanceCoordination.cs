@@ -5,7 +5,7 @@ namespace Steward.App.Services;
 
 public sealed partial class InstanceCoordination
 {
-    private const int MaxLinkLength = 2048;
+    private const int MaxLinkLength = AddonSettingsPayload.MaxLinkLength;
 
     public string? Link { get; private init; }
 

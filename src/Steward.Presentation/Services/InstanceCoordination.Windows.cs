@@ -137,7 +137,7 @@ public sealed partial class InstanceCoordination : IDisposable
             }
             catch (IOException ex)
             {
-                Log(AppInfo.Train, ex, "CurseForge link pipe failed; listening again");
+                Log(AppInfo.Train, ex, "Link pipe failed; listening again");
             }
         }
     }
@@ -153,7 +153,7 @@ public sealed partial class InstanceCoordination : IDisposable
         }
         catch (Exception ex) when (ex is TimeoutException or IOException or UnauthorizedAccessException)
         {
-            Log(train, ex, "Could not hand a CurseForge link to the running instance");
+            Log(train, ex, "Could not hand a link to the running instance");
         }
     }
 

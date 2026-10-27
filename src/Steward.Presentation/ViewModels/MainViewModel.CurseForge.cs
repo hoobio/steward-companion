@@ -390,6 +390,9 @@ public sealed partial class MainViewModel
 
     public Func<string, IReadOnlyList<string>, int, string, Task<int?>>? ChooseLinkFile { get; set; }
 
+    public Task ReceiveLinkAsync(string uri) =>
+        AddonSettingsPayload.IsImportLink(uri) ? AddonSettings.ReceiveLinkAsync(uri) : ReceiveCurseForgeLinkAsync(uri);
+
     public async Task ReceiveCurseForgeLinkAsync(string uri)
     {
         if (CurseForgeLinks.Parse(uri) is not { } link)

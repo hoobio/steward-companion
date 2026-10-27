@@ -55,6 +55,6 @@ public static partial class Program
 
     private static string? ActivationLink(string[] args) =>
         args.Select(arg => arg.StartsWith(LinkSwitch, StringComparison.Ordinal) ? arg[LinkSwitch.Length..] : arg)
-            .FirstOrDefault(arg => arg.StartsWith($"{CurseForgeLinks.Scheme}:", StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault(arg => arg.StartsWith($"{CurseForgeLinks.Scheme}:", StringComparison.OrdinalIgnoreCase) || AddonSettingsPayload.IsImportLink(arg))
         ?? WindowsShell.ProtocolActivationUri();
 }

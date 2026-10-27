@@ -514,13 +514,13 @@ public sealed class AddonSettingsTests : IDisposable
     [Theory]
     [InlineData("Gr\u00fcg", null)]
     [InlineData(" O'Neil ", null)]
-    [InlineData("Jean-Luc", null)]
+    [InlineData("Jean-Luc", "Use letters and apostrophes only")]
     [InlineData("", "Enter a name")]
     [InlineData("   ", "Enter a name")]
-    [InlineData("Grug Aa", "Use letters, apostrophes and hyphens only")]
-    [InlineData("Grug2", "Use letters, apostrophes and hyphens only")]
+    [InlineData("Grug Aa", "Use letters and apostrophes only")]
+    [InlineData("Grug2", "Use letters and apostrophes only")]
     [InlineData("Abcdefghijklm", "Use 12 letters or fewer")]
-    public void CheckNamePart_AllowsLettersApostrophesAndHyphens(string typed, string? error) => Assert.Equal(error, AddonSettings.CheckNamePart(typed));
+    public void CheckNamePart_AllowsLettersAndApostrophesOnly(string typed, string? error) => Assert.Equal(error, AddonSettings.CheckNamePart(typed));
 
     private string AddOn(string folder, string toc)
     {

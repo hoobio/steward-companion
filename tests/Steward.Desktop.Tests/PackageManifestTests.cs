@@ -41,10 +41,21 @@ public sealed class PackageManifestTests
     }
 
     [Fact]
-    public void Protocol_is_the_curseforge_scheme()
+    public void Protocols_are_the_curseforge_and_steward_schemes()
     {
-        var protocol = Manifest.Descendants(Uap + "Protocol").Single();
-        Assert.Equal(CurseForgeLinks.Scheme, (string?)protocol.Attribute("Name"));
+        var protocols = Manifest.Descendants(Uap + "Protocol").Select(protocol => (string?)protocol.Attribute("Name"));
+        Assert.Equal([CurseForgeLinks.Scheme, AddonSettingsPayload.Scheme], protocols);
+        Assert.All(Manifest.Descendants(Uap + "Extension").Where(e => (string?)e.Attribute("Category") == "windows.protocol"), e => Assert.Single(e.Elements(Uap + "Protocol")));
+    }
+
+    [Fact]
+    public void Linux_and_macos_register_both_schemes()
+    {
+        var desktop = File.ReadAllText(Path.Combine(RepoRoot, "packaging", "linux", "steward.desktop"));
+        Assert.Contains($"MimeType=x-scheme-handler/{CurseForgeLinks.Scheme};x-scheme-handler/{AddonSettingsPayload.Scheme};", desktop, StringComparison.Ordinal);
+        var plist = File.ReadAllText(Path.Combine(RepoRoot, "packaging", "macos", "Info.plist"));
+        Assert.Contains($"<string>{AddonSettingsPayload.Scheme}</string>", plist, StringComparison.Ordinal);
+        Assert.Contains($"<string>{CurseForgeLinks.Scheme}</string>", plist, StringComparison.Ordinal);
     }
 
     [Fact]

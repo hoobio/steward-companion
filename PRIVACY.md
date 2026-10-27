@@ -44,7 +44,7 @@ The Steward API answers with your guild's roster, members, professions and banne
 
 ## What Steward writes into your WoW folders
 
-Steward writes only into `Interface\AddOns`, never into `WTF`, except for the optional beta-to-live copy, which copies your own files from the beta install to the live install when you ask it to.
+Steward writes only into `Interface\AddOns`, never into `WTF`, except for two things you ask for: the optional beta-to-live copy, which copies your own files from the beta install to the live install, and an addon settings import (below), which changes the HoobiScripts saved variables you confirm while the game is closed.
 
 - Addon files it installs and updates.
 - `Steward\StewardSync.lua` and avatar images, so the Steward addon can show your guild's data.
@@ -52,9 +52,17 @@ Steward writes only into `Interface\AddOns`, never into `WTF`, except for the op
 - `Core\Theme.lua` in protected addons, holding your Discord user id. If someone shares a copy of a protected addon, this id shows who downloaded it. The addon's notice in the app says this too.
 - `StewardIcon.tga` and an icon line in the addon's TOC file, for addons that have no in-game icon.
 
+## Addon settings and plans
+
+"Edit on the website", "Plan talents" and "Plan action bars" in Settings open guild.hoobi.io in your browser with an export of one WoW account. The export holds the account folder name, the names of the installed addon folders, character names with their classes, realm names and the realm folder numbers, the HoobiScripts addon setting values in the saved variables (mail targets name characters), and your talent plans and action bar plans.
+
+The export and the import link the website sends back are in the part of the address after `#`. Browsers never send that part to a server, so the data stays in the address and in your browser. Steward does not send it to the Steward API, and the website does not send it to a server.
+
+An import changes only the settings and plans you confirm in Steward, and only while the game is closed.
+
 ## What Steward reads on your PC
 
-- **WoW folders:** install details (`.build.info`, `.flavor.info`), addon folders and their TOC files, and these saved variables: `Steward.lua`, `StewardGuides.lua` and `StewardJourney.lua`. It also reads file dates under `WTF\Account` to tell when the game last saved.
+- **WoW folders:** install details (`.build.info`, `.flavor.info`), addon folders and their TOC files, and these saved variables: `Steward.lua`, `StewardGuides.lua` and `StewardJourney.lua`. For an addon settings export or import, it also reads the saved variables of the HoobiScripts addons and the character folder names of that account. It also reads file dates under `WTF\Account` to tell when the game last saved.
 - **Running programs:** whether WoW, CurseForge or WowUp is running. Steward waits for the game to close before some changes, and warns you before it adopts addons another manager handles.
 - **Windows settings:** the Battle.net install location and the Blizzard install path, the startup entries and Startup-folder shortcuts for CurseForge and WowUp, and which app opens `curseforge://` links.
 

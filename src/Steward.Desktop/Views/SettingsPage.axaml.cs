@@ -63,6 +63,7 @@ public sealed partial class SettingsPage : UserControl
             MinimizeToTrayCard.Description = tray ? minimizeDescription : NoTrayDescription;
             CloseToTrayCard.Description = tray ? closeDescription : NoTrayDescription;
             AutoUpdateChoice.SelectedIndex = viewModel.AutoUpdateIndex;
+            viewModel.AddonSettings.RefreshAccounts();
             viewModel.EditInstallRequested += OnEditInstallRequested;
             viewModel.AppUpdateFocusRequested += OnAppUpdateFocusRequested;
             _ = ShowPendingEditAsync();
@@ -165,6 +166,12 @@ public sealed partial class SettingsPage : UserControl
     }
 
     private static void Open(string target) => ShellOpen.Open(target);
+
+    private void OnEditAddonSettingsClick(object? sender, RoutedEventArgs e) => ViewModel.AddonSettings.ExportCommand.Execute(null);
+
+    private void OnPlanTalentsClick(object? sender, RoutedEventArgs e) => ViewModel.AddonSettings.ExportCommand.Execute("talents");
+
+    private void OnPlanActionBarsClick(object? sender, RoutedEventArgs e) => ViewModel.AddonSettings.ExportCommand.Execute("actionbars");
 
     private void OnGuildPanelClick(object? sender, RoutedEventArgs e) => Open("https://guild.hoobi.io");
 

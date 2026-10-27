@@ -41,7 +41,6 @@ public sealed class ShellTests(AvaloniaSession session)
     [InlineData(typeof(HomePage))]
     [InlineData(typeof(SyncPage))]
     [InlineData(typeof(GuidesPage))]
-    [InlineData(typeof(AddonSettingsPage))]
     [InlineData(typeof(SettingsPage))]
     public void Every_page_resolves_as_a_singleton(Type page) => session.Run(() =>
     {

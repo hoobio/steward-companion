@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:views="using:Steward.Desktop.Views"
     xmlns:vm="using:Steward.App.ViewModels"
+    xmlns:core="using:Steward.Core"
     x:DataType="vm:MainViewModel">
 
     <UserControl.Resources>
@@ -212,6 +213,59 @@
                         <ToggleSwitch AutomationProperties.Name="{Binding StartWithWindowsHeader}" IsChecked="{Binding StartWithWindows, Mode=TwoWay}" OnContent="{x:Null}" OffContent="{x:Null}" />
                     </StackPanel>
                 </views:SettingsCard>
+            </StackPanel>
+
+            <StackPanel x:Name="AddonSettingsGroup" Spacing="4" IsVisible="{Binding AddonSettingsVisibility}">
+                <TextBlock Text="Addon settings and plans" Classes="BodyStrong" Margin="0,20,0,4" />
+
+                <StackPanel Classes="SettingsGroup">
+                    <views:SettingsCard
+                        Header="WoW account"
+                        Description="Addon settings and plans are kept per World of Warcraft account"
+                        HeaderGlyph="{StaticResource Glyph.Game}">
+                        <ComboBox
+                            x:Name="SettingsAccountPicker"
+                            MinWidth="260"
+                            AutomationProperties.Name="WoW account"
+                            ItemsSource="{Binding AddonSettings.Accounts}"
+                            SelectedItem="{Binding AddonSettings.SelectedAccount, Mode=TwoWay}"
+                            DisplayMemberBinding="{Binding Label, x:DataType=core:ForeverCopyAccount}" />
+                    </views:SettingsCard>
+
+                    <views:SettingsCard
+                        Header="Edit on the website"
+                        Description="{Binding AddonSettings.ExportDescription}"
+                        HeaderGlyph="{StaticResource Glyph.Edit}"
+                        ActionGlyph="{StaticResource Glyph.OpenInNewWindow}"
+                        IsClickEnabled="True"
+                        IsEnabled="{Binding AddonSettings.CanExport}"
+                        Click="OnEditAddonSettingsClick" />
+
+                    <views:SettingsCard
+                        Header="Plan talents"
+                        Description="Opens the talent builder with this account's talent plans"
+                        HeaderGlyph="{StaticResource Glyph.Library}"
+                        ActionGlyph="{StaticResource Glyph.OpenInNewWindow}"
+                        IsClickEnabled="True"
+                        IsEnabled="{Binding AddonSettings.CanExport}"
+                        Click="OnPlanTalentsClick" />
+
+                    <views:SettingsCard
+                        Header="Plan action bars"
+                        Description="Opens the action bar planner with this account's action bar plans"
+                        HeaderGlyph="{StaticResource Glyph.BulletedList}"
+                        ActionGlyph="{StaticResource Glyph.OpenInNewWindow}"
+                        IsClickEnabled="True"
+                        IsEnabled="{Binding AddonSettings.CanExport}"
+                        Click="OnPlanActionBarsClick" />
+
+                    <views:SettingsCard
+                        Header="Paste from website"
+                        Description="Applies a link copied from the website, while the game is closed"
+                        HeaderGlyph="{StaticResource Glyph.Download}">
+                        <Button Content="Paste" Command="{Binding AddonSettings.PasteCommand}" />
+                    </views:SettingsCard>
+                </StackPanel>
             </StackPanel>
 
             <TextBlock Text="About" Classes="BodyStrong" Margin="0,20,0,4" />

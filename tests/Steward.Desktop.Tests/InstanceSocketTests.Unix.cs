@@ -1,5 +1,7 @@
 using System.Net.Sockets;
 
+using Steward.Core;
+
 using InstanceSocket = Steward.App.Services.InstanceCoordination.InstanceSocket;
 
 namespace Steward.Desktop.Tests;
@@ -55,11 +57,11 @@ public sealed class InstanceSocketTests : IDisposable
     public void Dispatch_drops_a_link_over_the_length_limit()
     {
         string? seen = null;
-        InstanceSocket.Dispatch(InstanceSocket.LinkPrefix + new string('a', 2049), () => { }, () => { }, link => seen = link);
+        InstanceSocket.Dispatch(InstanceSocket.LinkPrefix + new string('a', AddonSettingsPayload.MaxLinkLength + 1), () => { }, () => { }, link => seen = link);
         Assert.Null(seen);
 
-        InstanceSocket.Dispatch(InstanceSocket.LinkPrefix + new string('a', 2048), () => { }, () => { }, link => seen = link);
-        Assert.Equal(2048, seen?.Length);
+        InstanceSocket.Dispatch(InstanceSocket.LinkPrefix + new string('a', AddonSettingsPayload.MaxLinkLength), () => { }, () => { }, link => seen = link);
+        Assert.Equal(AddonSettingsPayload.MaxLinkLength, seen?.Length);
     }
 
     [Fact]

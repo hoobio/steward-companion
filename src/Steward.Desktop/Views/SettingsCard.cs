@@ -117,19 +117,32 @@ public class SettingsCard : ContentControl
         }
     }
 
-    protected override AutomationPeer OnCreateAutomationPeer() =>
-        IsClickEnabled ? new ClickablePeer(this) : new CardPeer(this);
+    protected override AutomationPeer OnCreateAutomationPeer() => new CardPeer(this);
 
-    private class CardPeer(SettingsCard owner) : ContentControlAutomationPeer(owner)
+    // The peer is created once and can predate IsClickEnabled, so its role and Invoke read the property at each call.
+    private sealed class CardPeer(SettingsCard owner) : ControlAutomationPeer(owner), IInvokeProvider
     {
+        private SettingsCard Card => (SettingsCard)Owner;
+
+        public void Invoke()
+        {
+            if (Card.IsClickEnabled && Card.IsEffectivelyEnabled)
+            {
+                Card.RaiseClick();
+            }
+        }
+
         protected override string? GetNameCore() =>
-            AutomationProperties.GetName(Owner) is { Length: > 0 } name ? name : (Owner as SettingsCard)?.Header as string;
-    }
+            AutomationProperties.GetName(Owner) is { Length: > 0 } name ? name : Card.Header as string;
 
-    private sealed class ClickablePeer(SettingsCard owner) : CardPeer(owner), IInvokeProvider
-    {
-        public void Invoke() => ((SettingsCard)Owner).RaiseClick();
+        protected override AutomationControlType GetAutomationControlTypeCore() =>
+            Card.IsClickEnabled ? AutomationControlType.Button : AutomationControlType.Group;
 
-        protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Button;
+        protected override bool IsControlElementCore() => true;
+
+        protected override bool IsContentElementCore() => true;
+
+        protected override object? GetProviderCore(Type providerType) =>
+            providerType == typeof(IInvokeProvider) && !Card.IsClickEnabled ? null : base.GetProviderCore(providerType);
     }
 }
