@@ -49,6 +49,13 @@ public sealed class AddonSettingsTransferTests : IDisposable
         },
         },
         },
+        ["spellPlans"] = {
+        ["DRUID"] = {
+        ["Rejuvenation"] = -1,
+        ["Wrath"] = 22,
+        ["Moonfire"] = 0,
+        },
+        },
         }
         HoobiScriptsCharDB = nil
 
@@ -449,7 +456,7 @@ public sealed class AddonSettingsTransferTests : IDisposable
         Assert.Equal(8, import.Items.Count);
         Assert.Equal("Log in to a character on this realm once first", import.Items[0].Reason);
         Assert.Equal(("Hoobi Scripts", "Auto repair", "Guild gold, then own", "Guild gold, then own"), (import.Items[1].Addon, import.Items[1].Label, import.Items[1].Old, import.Items[1].New));
-        Assert.Equal(SettingsImportStatus.Conflict, import.Items[1].Status);
+        Assert.Equal(SettingsImportStatus.Unchanged, import.Items[1].Status);
         Assert.Equal(SettingsImportStatus.Conflict, import.Items[6].Status);
     }
 
@@ -468,6 +475,8 @@ public sealed class AddonSettingsTransferTests : IDisposable
             """);
 
         Assert.Equal(("3 points", "2 points", SettingsImportStatus.Ready), (import.Items[0].Old, import.Items[0].New, import.Items[0].Status));
+        Assert.Equal(("Talent plans", "Druid talents, plan 1"), (import.Items[0].Page, import.Items[0].Label));
+        Assert.Equal(["1 point added to node 101", "2 points removed from node 102"], import.Items[0].Details);
         Assert.Equal(SettingsImportStatus.Conflict, import.Items[1].Status);
         Assert.Equal(
             ["The talent group is not 1 or 2", "Not a class", "Talent ids must be positive whole numbers", "More than 51 talent points"],
@@ -495,6 +504,16 @@ public sealed class AddonSettingsTransferTests : IDisposable
 
         Assert.Equal(SettingsImportStatus.Ready, import.Items[0].Status);
         Assert.Equal(("2 slots, 2 macros", "3 slots, 1 macro"), (import.Items[0].Old, import.Items[0].New));
+        Assert.Equal(
+            [
+                "Action bar 1, button 1: Spell 5176 → Spell 5185 (this rank)",
+                "Action bar 1, button 2: empty → Macro Heal",
+                "Action bar 1, button 3: Macro Heal → empty",
+                "Action bar 1 page 2, button 2: empty → Macro PowerShift",
+                "Macro Heal changed",
+            ],
+            import.Items[0].Details);
+        Assert.Equal(["Action bar 1, button 12: Spell 1 (this rank) → empty"], import.Items[1].Details);
         Assert.Equal(SettingsImportStatus.Conflict, import.Items[1].Status);
         var warriorBefore = SettingsPlans.Canonical(SettingsPlans.PlanToJson(Bars().GetTable("plans")!.GetTable("WARRIOR")!));
         Assert.Equal(1, Apply(import));
@@ -545,5 +564,230 @@ public sealed class AddonSettingsTransferTests : IDisposable
             """);
 
         Assert.Equal("Macro M: a variant's body is missing or longer than 255 characters", Assert.Single(import.Items).Reason);
+    }
+
+    [Theory]
+    [InlineData(1, null, "Action bar 1, button 1")]
+    [InlineData(24, null, "Action bar 1 page 2, button 12")]
+    [InlineData(25, null, "Right bar, button 1")]
+    [InlineData(61, null, "Bottom left bar, button 1")]
+    [InlineData(73, "DRUID", "Cat Form bar, button 1")]
+    [InlineData(109, "DRUID", "Moonkin Form bar, button 1")]
+    [InlineData(86, "WARRIOR", "Defensive Stance bar, button 2")]
+    [InlineData(85, null, "Stance bar 2, button 1")]
+    [InlineData(145, null, "Bar 6, button 1")]
+    [InlineData(169, null, "Bar 8, button 1")]
+    public void SlotName_NamesTheBarAndButton(int slot, string? classToken, string name) =>
+        Assert.Equal(name, AddonSettingsImport.SlotName(slot, classToken));
+
+    [Fact]
+    public void PreviewLines_StopAfterTwentyAndCountTheRest()
+    {
+        var lines = AddonSettingsImport.TalentLines([], [.. Enumerable.Range(1, 25).Select(id => (long)id)]);
+
+        Assert.Equal(21, lines.Count);
+        Assert.Equal("1 point added to node 20", lines[19]);
+        Assert.Equal("and 5 more", lines[20]);
+        Assert.Equal(["The same points in another order"], AddonSettingsImport.TalentLines([1, 2], [2, 1]));
+        Assert.Equal(
+            ["Bar 8, button 1: empty → Macro Cat", "Macro Cat added", "Macro Old removed"],
+            AddonSettingsImport.ActionBarLines(
+                JsonNode.Parse("""{"macros":{"Old":{"perChar":false,"variants":[]},"PowerShift":{}}}""")!.AsObject(),
+                JsonNode.Parse("""{"169":{"macro":"Cat"},"macros":{"Cat":{"perChar":false,"variants":[]}}}""")!.AsObject(),
+                "DRUID"));
+    }
+
+    [Fact]
+    public void Export_ReadsSpellPlansWithoutZeroCaps()
+    {
+        var plans = JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "Forever", 1))!["plans"]!;
+
+        Assert.Equal("""{"DRUID":{"Rejuvenation":-1,"Wrath":22}}""", plans["spells"]!.ToJsonString());
+    }
+
+    [Fact]
+    public void Import_ReplacesOneSpellPlanAndKeepsTheRest()
+    {
+        var import = Preview("""
+            "changes":[],"plans":{"talents":[],"actionBars":[],"spells":[
+              {"class":"DRUID","from":{"Rejuvenation":-1,"Wrath":22},"to":{"Rejuvenation":-1,"Wrath":30,"Moonfire":10,"Starfire":0}},
+              {"class":"MAGE","from":null,"to":{"Frostbolt":-1}},
+              {"class":"PRIEST","from":{"Smite":4},"to":{}}
+            ]}
+            """);
+
+        var druid = import.Items[0];
+        Assert.Equal(("Spell training plans", "Druid spell training", "2 spells", "3 spells", SettingsImportStatus.Ready), (druid.Page, druid.Label, druid.Old, druid.New, druid.Status));
+        Assert.Equal(["Moonfire: not learning → up to level 10", "Wrath: up to level 22 → up to level 30"], druid.Details);
+        Assert.Equal(("No plan", "1 spell", SettingsImportStatus.Ready), (import.Items[1].Old, import.Items[1].New, import.Items[1].Status));
+        Assert.Equal(["Frostbolt: not learning → every rank"], import.Items[1].Details);
+        Assert.Equal(SettingsImportStatus.Conflict, import.Items[2].Status);
+        Assert.Equal(2, Apply(import));
+
+        var db = AddonSettings.Load(CoreFile)["HoobiScriptsDB"];
+        Assert.Equal(
+            [("Moonfire", 10L), ("Rejuvenation", -1L), ("Wrath", 30L)],
+            SettingsPlans.Spells(db.GetTable("spellPlans")!.GetTable("DRUID")).Select(spell => (spell.Key, spell.Value)));
+        Assert.Equal(3, db.GetTable("spellPlans")!.GetTable("DRUID")!.Table.Count);
+        Assert.Equal(-1, db.GetTable("spellPlans")!.GetTable("MAGE")!.GetNumber("Frostbolt"));
+        Assert.Null(db.GetTable("spellPlans")!.GetTable("PRIEST"));
+        Assert.Equal([101L, 102L, 102L], SettingsPlans.Talents(SettingsPlans.GetIndex(db.GetTable("talentPlans")!.GetTable("DRUID"), 1)!));
+    }
+
+    [Theory]
+    [InlineData("FOO", """{"Wrath":1}""", "Not a class")]
+    [InlineData("DRUID", "[]", "The plan is not a table")]
+    [InlineData("DRUID", """{" ":1}""", "A spell name is empty or longer than 64 characters")]
+    [InlineData("DRUID", """{"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA":1}""", "A spell name is empty or longer than 64 characters")]
+    [InlineData("DRUID", """{"Wrath":61}""", "Wrath: the level is not -1 or a whole number from 1 to 60")]
+    [InlineData("DRUID", """{"Wrath":-2}""", "Wrath: the level is not -1 or a whole number from 1 to 60")]
+    [InlineData("DRUID", """{"Wrath":1.5}""", "Wrath: the level is not -1 or a whole number from 1 to 60")]
+    [InlineData("DRUID", """{"Wrath":"10"}""", "Wrath: the level is not -1 or a whole number from 1 to 60")]
+    public void Import_RefusesAnInvalidSpellPlan(string classToken, string plan, string reason)
+    {
+        var import = Preview($$"""
+            "changes":[],"plans":{"spells":[{"class":"{{classToken}}","from":null,"to":{{plan}}}]}
+            """);
+
+        Assert.Equal(reason, Assert.Single(import.Items).Reason);
+    }
+
+    [Fact]
+    public void Parse_ReadsAnUnboundPayloadWithOrWithoutAProduct()
+    {
+        var bare = AddonSettingsImport.Parse("""{"v":1,"plans":{}}""");
+        var withProduct = AddonSettingsImport.Parse("""{"v":1,"product":"wowf","account":null,"plans":{}}""");
+
+        Assert.True(bare.IsUnbound);
+        Assert.Null(bare.Product);
+        Assert.Equal(("wowf", true), (withProduct.Product, withProduct.IsUnbound));
+        Assert.False(AddonSettingsImport.Parse(ContractJson).IsUnbound);
+        Assert.Throws<FormatException>(() => AddonSettingsImport.Parse("""{"v":1,"product":"wowf","account":""}"""));
+        Assert.Throws<FormatException>(() => AddonSettingsImport.Parse("""{"v":1,"product":"wowf","account":5}"""));
+        Assert.Throws<FormatException>(() => AddonSettingsImport.Parse("""{"v":1,"product":5}"""));
+    }
+
+    [Fact]
+    public void Import_UnboundRefusesSettingsAndNewCharactersAndChecksNoConflicts()
+    {
+        var payload = AddonSettingsImport.Parse($$$"""
+            {"v":1,
+             "changes":[{{{Change("hideErrors", "true", "false")}}}],
+             "newCharacters":[{"first":"Zug","last":"Zug","class":"WARRIOR","realm":"Nightslayer"}],
+             "plans":{"talents":[{"class":"DRUID","group":1,"from":[9],"to":[7]}],
+                      "actionBars":[{"target":"account","from":null,"to":{}}],
+                      "spells":[{"class":"DRUID","from":null,"to":{"Wrath":30}}]}}
+            """);
+        var import = AddonSettingsImport.Preview(payload, Account(), Sources());
+
+        var refused = import.Items[0];
+        Assert.Equal((SettingsImportStatus.Refused, AddonSettingsImport.UnboundRefusal), (refused.Status, refused.Reason));
+        Assert.Equal(4, import.Items.Count);
+        Assert.All(import.Items.Skip(1), item => Assert.Equal(SettingsImportStatus.Ready, item.Status));
+        Assert.Equal(("3 points", "1 point"), (import.Items[1].Old, import.Items[1].New));
+        Assert.Equal(("2 spells", "1 spell"), (import.Items[3].Old, import.Items[3].New));
+        Assert.Equal(3, Apply(import));
+
+        var db = AddonSettings.Load(CoreFile)["HoobiScriptsDB"];
+        Assert.True(db.GetTable("settings")!.Get("hideErrors")!.Boolean);
+        Assert.Equal(3, AddonSettings.Characters(AddonSettings.Load(CoreFile)).Count);
+        Assert.Equal(30, db.GetTable("spellPlans")!.GetTable("DRUID")!.GetNumber("Wrath"));
+    }
+
+    [Fact]
+    public void Import_DecodesTheWebsitesUnboundVectorAndNamesWhatItChanges()
+    {
+        var json = File.ReadAllText(Fixture("addon-settings-unbound-web-vector.json")).Trim();
+        var decoded = AddonSettingsPayload.Decode(File.ReadAllText(Fixture("addon-settings-unbound-web-vector.txt")).Trim());
+        Assert.True(json == decoded, AddonSettingsPayload.Encode(json));
+
+        var payload = AddonSettingsImport.Parse(json);
+        Assert.True(payload.IsUnbound);
+        var import = AddonSettingsImport.Preview(payload, Account(), Sources());
+        Assert.Equal(
+            [SettingsImportStatus.Ready, SettingsImportStatus.Unchanged, SettingsImportStatus.Ready, SettingsImportStatus.Ready],
+            import.Items.Select(item => item.Status));
+        Assert.Equal(["Druid talents, plan 1", "Druid talents, plan 2", "Druid", "Druid spell training"], import.Items.Select(item => item.Label));
+        Assert.Equal(["1 point added to Ferocity", "1 point removed from Feral Aggression"], import.Items[0].Details);
+        Assert.Empty(import.Items[1].Details);
+        Assert.Equal(
+            ["Action bar 1, button 2: empty → First of Refreshing Spring Water, Rejuvenation", "Action bar 1, button 3: Macro Heal → empty", "Macro Heal removed"],
+            import.Items[2].Details);
+        Assert.Equal(("2 spells", "2 spells"), (import.Items[3].Old, import.Items[3].New));
+        Assert.Equal(["Wrath: up to level 22 → up to level 30"], import.Items[3].Details);
+
+        Assert.Equal(
+            ["Rejuvenation: not learning → every rank", "Wrath: not learning → up to level 30"],
+            AddonSettingsImport.SpellLines(new Dictionary<string, long>(), new Dictionary<string, long> { ["Rejuvenation"] = -1, ["Wrath"] = 30 }));
+        var labels = new PlanLabels(payload.Root.GetProperty("labels"));
+        Assert.Equal(
+            ["Action bar 1, button 1: Regrowth → Wrath", "Action bar 1, button 2: Wrath → First of Refreshing Spring Water, Rejuvenation"],
+            AddonSettingsImport.ActionBarLines(
+                JsonNode.Parse("""{"1":{"spell":8936},"2":{"spell":5177}}""")!.AsObject(),
+                JsonNode.Parse("""{"1":{"spell":5176},"2":{"list":[{"item":159},{"spell":774}]}}""")!.AsObject(),
+                "DRUID",
+                labels));
+        Assert.Equal(
+            ["1 point removed from Feline Swiftness", "1 point added to Improved Wrath", "1 point removed from Nature's Grasp"],
+            AddonSettingsImport.TalentLines([103, 202], [201], labels));
+    }
+
+    [Fact]
+    public void Import_UsesLabelsOnlyInTheConfirmation()
+    {
+        const string Plans = """
+            "changes":[],"plans":{"talents":[{"class":"DRUID","group":1,"from":[101,102,102],"to":[101,102,102,7]}],
+              "actionBars":[{"target":"WARRIOR","from":{"13":{"list":[{"item":159},{"profession":5}]},"macros":{}},"to":{"13":{"list":[{"item":160},{"spell":6673,"fixed":true}]},"macros":{}}}]}
+            """;
+        var labelled = Preview(Plans + """
+            ,"labels":{"spells":{"6673":"Battle\u0007 Shout\n","1":5},"items":{"160":"LONGNAMELONGNAMELONGNAMELONGNAMELONGNAMELONGNAMELONGNAMELONGNAMELONGNAME"},"nodes":{"7":"Ferocity"}}
+            """);
+        Assert.Equal(["1 point added to Ferocity"], labelled.Items[0].Details);
+        Assert.Equal(
+            ["Action bar 1 page 2, button 1: First of Item 159, Cooking → First of LONGNAMELONGNAMELONGNAMELONGNAMELONGNAMELONGNAMELONGNAMELONGNAME, Battle Shout (this rank)"],
+            labelled.Items[1].Details);
+        Assert.Equal(["1 point added to node 7"], Preview(Plans + ""","labels":"broken" """).Items[0].Details);
+        Assert.All(Preview(Plans + ""","labels":{"spells":[1],"nodes":{"7":{}}}""").Items, item => Assert.Equal(SettingsImportStatus.Ready, item.Status));
+
+        Assert.Equal(2, Apply(labelled));
+        var withLabels = File.ReadAllText(CoreFile) + File.ReadAllText(BarsFile);
+        File.WriteAllText(CoreFile, CoreLua);
+        File.WriteAllText(BarsFile, BarsLua);
+        Assert.Equal(2, Apply(Preview(Plans)));
+        Assert.Equal(withLabels, File.ReadAllText(CoreFile) + File.ReadAllText(BarsFile));
+    }
+
+    [Fact]
+    public void Import_DecodesTheUnboundVector()
+    {
+        var json = File.ReadAllText(Fixture("addon-settings-unbound-vector.json")).Trim();
+        var decoded = AddonSettingsPayload.Decode(File.ReadAllText(Fixture("addon-settings-unbound-vector.txt")).Trim());
+        Assert.True(json == decoded, AddonSettingsPayload.Encode(json));
+
+        var payload = AddonSettingsImport.Parse(json);
+        Assert.True(payload.IsUnbound);
+        var import = AddonSettingsImport.Preview(payload, Account(), Sources());
+        Assert.Equal(["Druid talents, plan 1", "Druid talents, plan 2", "Druid spell training"], import.Items.Select(item => item.Label));
+        Assert.Equal([SettingsImportStatus.Ready, SettingsImportStatus.Unchanged, SettingsImportStatus.Ready], import.Items.Select(item => item.Status));
+    }
+
+    [Fact]
+    public void Import_ListsAChangeTheFileAlreadyHoldsAsUnchangedAndWritesNothingForIt()
+    {
+        var before = File.ReadAllText(CoreFile) + File.ReadAllText(BarsFile);
+        var druid = JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "Forever", 1))!["plans"]!["actionBars"]!["classes"]!["DRUID"]!.AsObject();
+        druid["macros"]!.AsObject().Remove("PowerShift");
+        var exported = druid.ToJsonString();
+        var import = Preview($$$"""
+            "changes":[{{{Change("hideErrors", "false", "true")}}},{{{Change("autoRepair", "\"all\"", "\"all\"")}}},{{{Change("threatMeter", "null", "null")}}}],
+            "plans":{"talents":[{"class":"MAGE","group":2,"from":[1],"to":[301]}],
+                     "actionBars":[{"target":"DRUID","from":null,"to":{{{exported}}}}],
+                     "spells":[{"class":"DRUID","from":null,"to":{"Rejuvenation":-1,"Wrath":22,"Moonfire":0}}]}
+            """);
+
+        Assert.All(import.Items, item => Assert.Equal(SettingsImportStatus.Unchanged, item.Status));
+        Assert.All(import.Items, item => Assert.Null(item.Reason));
+        Assert.Equal(0, AddonSettingsImport.Apply(import, Account(), Sources(), import.Items, () => false));
+        Assert.Equal(before, File.ReadAllText(CoreFile) + File.ReadAllText(BarsFile));
     }
 }

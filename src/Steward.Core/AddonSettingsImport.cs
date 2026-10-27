@@ -9,6 +9,7 @@ public enum SettingsImportStatus
     Ready,
     Conflict,
     Refused,
+    Unchanged,
 }
 
 public sealed class SettingsImportItem
@@ -29,6 +30,8 @@ public sealed class SettingsImportItem
 
     public string? Reason { get; init; }
 
+    public IReadOnlyList<string> Details { get; init; } = [];
+
     internal string? File { get; init; }
 
     internal string? Character { get; init; }
@@ -36,6 +39,18 @@ public sealed class SettingsImportItem
     internal Func<IReadOnlyDictionary<string, LuaValue>, IReadOnlyDictionary<string, LuaValue>>? Edit { get; init; }
 
     internal Action? Prepare { get; init; }
+
+    public const string AlreadySameHeading = "Already the same in the game";
+
+    internal SettingsImportItem Unless(bool same) => !same ? this : new()
+    {
+        Addon = Addon,
+        Page = Page,
+        Label = Label,
+        Old = Old,
+        New = New,
+        Status = SettingsImportStatus.Unchanged,
+    };
 
     internal SettingsImportItem Refuse(string reason) => new()
     {
@@ -49,24 +64,85 @@ public sealed class SettingsImportItem
     };
 }
 
-public sealed record SettingsImportPayload(string Product, string Account, JsonElement Root);
+public sealed record SettingsImportPayload(string? Product, string? Account, JsonElement Root)
+{
+    public bool IsUnbound => Account is null;
+}
 
-public sealed record SettingsImport(string Product, string Account, IReadOnlyList<SettingsImportItem> Items);
+public sealed record SettingsImport(string? Product, string Account, IReadOnlyList<SettingsImportItem> Items);
+
+public sealed class PlanLabels
+{
+    public const int MaxLength = 64;
+
+    public static readonly PlanLabels None = new(default);
+
+    private readonly Dictionary<string, Dictionary<string, string>> _kinds = new(StringComparer.Ordinal);
+
+    public PlanLabels(JsonElement labels)
+    {
+        foreach (var kind in new[] { "spells", "items", "nodes" })
+        {
+            if (labels.ValueKind == JsonValueKind.Object && labels.TryGetProperty(kind, out var names) && names.ValueKind == JsonValueKind.Object)
+            {
+                _kinds[kind] = names.EnumerateObject()
+                    .Select(name => (name.Name, Text: name.Value.ValueKind == JsonValueKind.String ? Clean(name.Value.GetString()!) : ""))
+                    .Where(name => name.Text.Length > 0)
+                    .GroupBy(name => name.Name, StringComparer.Ordinal)
+                    .ToDictionary(group => group.Key, group => group.Last().Text, StringComparer.Ordinal);
+            }
+        }
+    }
+
+    public string Spell(string id) => Get("spells", id) ?? $"Spell {id}";
+
+    public string Item(string id) => Get("items", id) ?? $"Item {id}";
+
+    public string Node(long id) => Get("nodes", id.ToString(CultureInfo.InvariantCulture)) ?? $"node {id}";
+
+    private string? Get(string kind, string id) => _kinds.GetValueOrDefault(kind)?.GetValueOrDefault(id);
+
+    private static string Clean(string text)
+    {
+        var clean = new string([.. text.Where(c => !char.IsControl(c))]).Trim();
+        return clean.Length > MaxLength ? clean[..MaxLength] : clean;
+    }
+}
 
 public static class AddonSettingsImport
 {
+    public const string UnboundRefusal = "A link made on the website without an export can change only plans. Export from Steward first to change settings or add characters.";
+
+    public const int MaxDetails = 20;
+
+    public const int MaxSpellName = 64;
+
+    public const int MaxSpellLevel = 60;
+
     public static SettingsImportPayload Parse(string json)
     {
         try
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 32 });
             var root = document.RootElement.Clone();
-            return root.ValueKind == JsonValueKind.Object
-                && Prop(root, "v") is { ValueKind: JsonValueKind.Number } version && version.TryGetInt32(out var number) && number == 1
-                && Str(root, "product") is { Length: > 0 } product
-                && Str(root, "account") is { Length: > 0 } account
-                    ? new SettingsImportPayload(product, account, root)
+            if (root.ValueKind != JsonValueKind.Object
+                || Prop(root, "v") is not { ValueKind: JsonValueKind.Number } version || !version.TryGetInt32(out var number) || number != 1)
+            {
+                throw new FormatException(AddonSettingsPayload.NotALink);
+            }
+
+            var account = Prop(root, "account");
+            var product = Prop(root, "product");
+            if (account.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+            {
+                return product.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null or JsonValueKind.String
+                    ? new SettingsImportPayload(Str(root, "product"), null, root)
                     : throw new FormatException(AddonSettingsPayload.NotALink);
+            }
+
+            return Str(root, "product") is { Length: > 0 } bound && Str(root, "account") is { Length: > 0 } folder
+                ? new SettingsImportPayload(bound, folder, root)
+                : throw new FormatException(AddonSettingsPayload.NotALink);
         }
         catch (JsonException ex)
         {
@@ -79,14 +155,28 @@ public static class AddonSettingsImport
         ArgumentNullException.ThrowIfNull(payload);
         ArgumentNullException.ThrowIfNull(account);
         ArgumentNullException.ThrowIfNull(addons);
-        var newCharacters = new Dictionary<string, string>(StringComparer.Ordinal);
+        var unbound = payload.IsUnbound;
         var items = new List<SettingsImportItem>();
-        items.AddRange(Elements(payload.Root, "newCharacters").Select(entry => NewCharacter(entry, account, newCharacters)));
-        items.AddRange(Elements(payload.Root, "changes").Select(change => Change(change, account, addons, newCharacters)));
+        if (unbound)
+        {
+            if (Elements(payload.Root, "changes").Count + Elements(payload.Root, "newCharacters").Count > 0)
+            {
+                items.Add(new SettingsImportItem { Addon = account.TitleOf(SettingsAccount.CoreGlobal), Page = "", Label = "Settings and new characters" }.Refuse(UnboundRefusal));
+            }
+        }
+        else
+        {
+            var newCharacters = new Dictionary<string, string>(StringComparer.Ordinal);
+            items.AddRange(Elements(payload.Root, "newCharacters").Select(entry => NewCharacter(entry, account, newCharacters)));
+            items.AddRange(Elements(payload.Root, "changes").Select(change => Change(change, account, addons, newCharacters)));
+        }
+
         var plans = Prop(payload.Root, "plans");
-        items.AddRange(Elements(plans, "talents").Select(plan => TalentPlan(plan, account)));
-        items.AddRange(Elements(plans, "actionBars").Select(plan => ActionBarPlan(plan, account)));
-        return new SettingsImport(payload.Product, payload.Account, items);
+        var labels = new PlanLabels(Prop(payload.Root, "labels"));
+        items.AddRange(Elements(plans, "talents").Select(plan => TalentPlan(plan, account, unbound, labels)));
+        items.AddRange(Elements(plans, "actionBars").Select(plan => ActionBarPlan(plan, account, unbound, labels)));
+        items.AddRange(Elements(plans, "spells").Select(plan => SpellPlan(plan, account, unbound)));
+        return new SettingsImport(payload.Product, account.Account, items);
     }
 
     public static int Apply(SettingsImport import, SettingsAccount account, IReadOnlyList<SettingsSource> addons, IEnumerable<SettingsImportItem> chosen, Func<bool> clientRunning)
@@ -95,7 +185,7 @@ public static class AddonSettingsImport
         ArgumentNullException.ThrowIfNull(account);
         ArgumentNullException.ThrowIfNull(clientRunning);
         var picked = chosen.ToHashSet();
-        var items = import.Items.Where(item => picked.Contains(item) && item.Status != SettingsImportStatus.Refused && item.Edit is not null && item.File is not null).ToList();
+        var items = import.Items.Where(item => picked.Contains(item) && item.Status is SettingsImportStatus.Ready or SettingsImportStatus.Conflict && item.Edit is not null && item.File is not null).ToList();
         if (clientRunning())
         {
             throw new InvalidOperationException(AddonSettings.RunningMessage);
@@ -286,10 +376,10 @@ public static class AddonSettingsImport
             File = file,
             Character = row.IsClass ? null : character,
             Edit = globals => AddonSettings.Apply(globals, [new SettingChange(row, forCharacter, value)], other => other == forCharacter ? classToken : account.ClassOf(other)),
-        };
+        }.Unless(AddonSettings.Same(current ?? AddonSettings.Default(row, classToken), value));
     }
 
-    private static SettingsImportItem TalentPlan(JsonElement plan, SettingsAccount account)
+    private static SettingsImportItem TalentPlan(JsonElement plan, SettingsAccount account, bool unbound, PlanLabels labels)
     {
         var classToken = Str(plan, "class");
         var group = Prop(plan, "group") is { ValueKind: JsonValueKind.Number } number && number.TryGetInt32(out var parsed) ? parsed : 0;
@@ -299,7 +389,7 @@ public static class AddonSettingsImport
         {
             Addon = account.TitleOf(SettingsAccount.CoreGlobal),
             Page = "Talent plans",
-            Label = $"{(classToken is null ? "Unknown class" : AddonSettings.ClassLabel(classToken))}, talent group {group}",
+            Label = $"{(classToken is null ? "Unknown class" : AddonSettings.ClassLabel(classToken))} talents, plan {group}",
             New = ids is null ? null : Points(ids.Count),
         };
         if (classToken is null || !AddonSettings.ClassTokens.Contains(classToken))
@@ -337,7 +427,7 @@ public static class AddonSettingsImport
             ? SettingsPlans.Talents(table)
             : null;
         var expected = from.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? null : Ids(from);
-        var conflict = current is null ? expected is not null : expected is null || !current.SequenceEqual(expected);
+        var conflict = !unbound && (current is null ? expected is not null : expected is null || !current.SequenceEqual(expected));
         var keys = new[] { LuaValue.FromString("talentPlans"), LuaValue.FromString(AddonSettings.ToFile(classToken)), LuaValue.FromNumber(group) };
         var written = LuaValue.Array(ids.Select(id => LuaValue.FromNumber(id)));
         return new SettingsImportItem
@@ -347,14 +437,146 @@ public static class AddonSettingsImport
             Label = item.Label,
             Old = current is null ? "No plan" : Points(current.Count),
             New = item.New,
+            Details = TalentLines(current ?? [], ids, labels),
             Status = conflict ? SettingsImportStatus.Conflict : SettingsImportStatus.Ready,
             Reason = conflict ? SettingsImportItem.ChangedInGame : null,
             File = account.AccountFileOf(SettingsAccount.CoreGlobal),
             Edit = globals => With(globals, SettingsAccount.CoreGlobal, keys, written),
-        };
+        }.Unless(current is not null && current.SequenceEqual(ids));
     }
 
-    private static SettingsImportItem ActionBarPlan(JsonElement plan, SettingsAccount account)
+    public static IReadOnlyList<string> TalentLines(IReadOnlyList<long> current, IReadOnlyList<long> next, PlanLabels? labels = null)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(next);
+        labels ??= PlanLabels.None;
+        var lines = new List<string>();
+        foreach (var id in current.Union(next).Order())
+        {
+            var change = next.Count(point => point == id) - current.Count(point => point == id);
+            if (change != 0)
+            {
+                lines.Add(change > 0 ? $"{Points(change)} added to {labels.Node(id)}" : $"{Points(-change)} removed from {labels.Node(id)}");
+            }
+        }
+
+        if (lines.Count == 0 && !current.SequenceEqual(next))
+        {
+            lines.Add("The same points in another order");
+        }
+
+        return Capped(lines);
+    }
+
+    private static List<string> Capped(List<string> lines) =>
+        lines.Count <= MaxDetails ? lines : [.. lines.Take(MaxDetails), $"and {lines.Count - MaxDetails} more"];
+
+    private static SettingsImportItem SpellPlan(JsonElement plan, SettingsAccount account, bool unbound)
+    {
+        var classToken = Str(plan, "class");
+        var to = Prop(plan, "to");
+        var item = new SettingsImportItem
+        {
+            Addon = account.TitleOf(SettingsAccount.CoreGlobal),
+            Page = "Spell training plans",
+            Label = $"{(classToken is null ? "Unknown class" : AddonSettings.ClassLabel(classToken))} spell training",
+        };
+        if (classToken is null || !AddonSettings.ClassTokens.Contains(classToken))
+        {
+            return item.Refuse("Not a class");
+        }
+
+        if (SpellCaps(to, out var caps) is { } invalid)
+        {
+            return item.Refuse(invalid);
+        }
+
+        var from = Prop(plan, "from");
+        var expected = new SortedDictionary<string, long>(StringComparer.Ordinal);
+        if (from.ValueKind is not (JsonValueKind.Undefined or JsonValueKind.Null) && SpellCaps(from, out expected) is not null)
+        {
+            return item.Refuse("Not a valid change");
+        }
+
+        if (PlanFile(account, SettingsAccount.CoreGlobal) is { } refusal)
+        {
+            return item.Refuse(refusal);
+        }
+
+        var stored = SettingsPlans.SpellPlans(account)?.GetTable(AddonSettings.ToFile(classToken));
+        var current = SettingsPlans.Spells(stored);
+        var conflict = !unbound && !current.SequenceEqual(expected);
+        var keys = new[] { LuaValue.FromString("spellPlans"), LuaValue.FromString(AddonSettings.ToFile(classToken)) };
+        var written = LuaValue.FromTable([.. caps.Select(cap => new LuaEntry(LuaValue.FromString(AddonSettings.ToFile(cap.Key)), LuaValue.FromNumber(cap.Value)))]);
+        return new SettingsImportItem
+        {
+            Addon = item.Addon,
+            Page = item.Page,
+            Label = item.Label,
+            Old = stored is null ? "No plan" : SpellCount(current.Count),
+            New = SpellCount(caps.Count),
+            Details = SpellLines(current, caps),
+            Status = conflict ? SettingsImportStatus.Conflict : SettingsImportStatus.Ready,
+            Reason = conflict ? SettingsImportItem.ChangedInGame : null,
+            File = account.AccountFileOf(SettingsAccount.CoreGlobal),
+            Edit = globals => With(globals, SettingsAccount.CoreGlobal, keys, written),
+        }.Unless(stored is not null && current.SequenceEqual(caps));
+    }
+
+    private static string SpellCount(int count) => $"{count} {(count == 1 ? "spell" : "spells")}";
+
+    public static IReadOnlyList<string> SpellLines(IReadOnlyDictionary<string, long> current, IReadOnlyDictionary<string, long> next)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(next);
+        static string Cap(long? cap) => cap switch
+        {
+            null => "not learning",
+            -1 => "every rank",
+            _ => $"up to level {cap}",
+        };
+
+        return Capped([.. current.Keys.Union(next.Keys).Order(StringComparer.Ordinal)
+            .Select(name => (Name: name, Old: current.TryGetValue(name, out var old) ? old : (long?)null, New: next.TryGetValue(name, out var cap) ? cap : (long?)null))
+            .Where(spell => spell.Old != spell.New)
+            .Select(spell => $"{spell.Name}: {Cap(spell.Old)} → {Cap(spell.New)}")]);
+    }
+
+    private static string? SpellCaps(JsonElement plan, out SortedDictionary<string, long> caps)
+    {
+        caps = new SortedDictionary<string, long>(StringComparer.Ordinal);
+        if (plan.ValueKind != JsonValueKind.Object)
+        {
+            return "The plan is not a table";
+        }
+
+        foreach (var spell in plan.EnumerateObject())
+        {
+            if (spell.Name.Trim().Length == 0 || spell.Name.Length > MaxSpellName)
+            {
+                return $"A spell name is empty or longer than {MaxSpellName} characters";
+            }
+
+            if (spell.Value.ValueKind == JsonValueKind.Null)
+            {
+                continue;
+            }
+
+            if (spell.Value.ValueKind != JsonValueKind.Number || !spell.Value.TryGetInt32(out var cap) || cap < -1 || cap > MaxSpellLevel)
+            {
+                return $"{spell.Name}: the level is not -1 or a whole number from 1 to {MaxSpellLevel}";
+            }
+
+            if (cap != 0)
+            {
+                caps[spell.Name] = cap;
+            }
+        }
+
+        return null;
+    }
+
+    private static SettingsImportItem ActionBarPlan(JsonElement plan, SettingsAccount account, bool unbound, PlanLabels labels)
     {
         var target = Str(plan, "target");
         var to = Prop(plan, "to");
@@ -398,8 +620,10 @@ public static class AddonSettingsImport
         var db = SettingsPlans.ActionBarsDb(account);
         var current = target == SettingsPlans.AccountTarget ? db?.GetTable(SettingsPlans.AccountTarget) : db?.GetTable("plans")?.GetTable(AddonSettings.ToFile(target!));
         var expected = from.ValueKind == JsonValueKind.Object ? SettingsPlans.PlanToJson(SettingsPlans.PlanToLua((JsonObject)JsonNode.Parse(from.GetRawText())!)) : null;
-        var conflict = SettingsPlans.Canonical(current is null ? null : SettingsPlans.PlanToJson(current)) != SettingsPlans.Canonical(expected);
+        var currentJson = current is null ? null : SettingsPlans.PlanToJson(current);
+        var conflict = !unbound && SettingsPlans.Canonical(currentJson) != SettingsPlans.Canonical(expected);
         var written = WithGeneratedMacros(SettingsPlans.PlanToLua(toPlan), current);
+        var writtenJson = SettingsPlans.PlanToJson(written);
         return new SettingsImportItem
         {
             Addon = item.Addon,
@@ -407,11 +631,12 @@ public static class AddonSettingsImport
             Label = item.Label,
             Old = SettingsPlans.Summary(current),
             New = item.New,
+            Details = ActionBarLines(currentJson, writtenJson, target == SettingsPlans.AccountTarget ? null : target, labels),
             Status = conflict ? SettingsImportStatus.Conflict : SettingsImportStatus.Ready,
             Reason = conflict ? SettingsImportItem.ChangedInGame : null,
             File = account.AccountFileOf(SettingsAccount.ActionBarsGlobal),
             Edit = globals => With(globals, SettingsAccount.ActionBarsGlobal, keys, written),
-        };
+        }.Unless(currentJson is not null && SettingsPlans.Canonical(currentJson) == SettingsPlans.Canonical(writtenJson));
     }
 
     private static LuaValue WithGeneratedMacros(LuaValue plan, LuaValue? current)
@@ -423,6 +648,92 @@ public static class AddonSettingsImport
             ? plan
             : generated.Aggregate(plan, (table, entry) => SettingsPlans.SetPath(table, [LuaValue.FromString("macros"), entry.Key!], entry.Value));
     }
+
+    private static readonly Dictionary<(string Class, int Offset), string> StanceBars = new()
+    {
+        [("WARRIOR", 1)] = "Battle Stance bar",
+        [("WARRIOR", 2)] = "Defensive Stance bar",
+        [("WARRIOR", 3)] = "Berserker Stance bar",
+        [("DRUID", 1)] = "Cat Form bar",
+        [("DRUID", 2)] = "Prowl bar",
+        [("DRUID", 3)] = "Bear Form bar",
+        [("DRUID", 4)] = "Moonkin Form bar",
+        [("ROGUE", 1)] = "Stealth bar",
+        [("PRIEST", 1)] = "Shadowform bar",
+    };
+
+    public static string SlotName(int slot, string? classToken)
+    {
+        var page = ((slot - 1) / 12) + 1;
+        var bar = page switch
+        {
+            1 => "Action bar 1",
+            2 => "Action bar 1 page 2",
+            3 => "Right bar",
+            4 => "Left bar",
+            5 => "Bottom right bar",
+            6 => "Bottom left bar",
+            >= 13 => $"Bar {page - 7}",
+            _ => StanceBars.GetValueOrDefault((classToken ?? "", page - 6)) ?? $"Stance bar {page - 6}",
+        };
+        return $"{bar}, button {((slot - 1) % 12) + 1}";
+    }
+
+    public static IReadOnlyList<string> ActionBarLines(JsonObject? current, JsonObject next, string? classToken, PlanLabels? labels = null)
+    {
+        ArgumentNullException.ThrowIfNull(next);
+        labels ??= PlanLabels.None;
+        static IEnumerable<int> Slots(JsonObject? plan) =>
+            plan?.Select(entry => int.TryParse(entry.Key, NumberStyles.None, CultureInfo.InvariantCulture, out var slot) ? slot : 0).Where(slot => slot > 0) ?? [];
+
+        var lines = new List<string>();
+        foreach (var slot in Slots(current).Union(Slots(next)).Order())
+        {
+            var key = slot.ToString(CultureInfo.InvariantCulture);
+            var (old, now) = (current?[key], next[key]);
+            if (SettingsPlans.Canonical(old) != SettingsPlans.Canonical(now))
+            {
+                lines.Add($"{SlotName(slot, classToken)}: {EntryText(old, labels)} → {EntryText(now, labels)}");
+            }
+        }
+
+        var (oldMacros, newMacros) = (current?["macros"] as JsonObject, next["macros"] as JsonObject);
+        foreach (var name in (oldMacros?.Select(entry => entry.Key) ?? []).Union(newMacros?.Select(entry => entry.Key) ?? [])
+            .Where(name => !SettingsPlans.GeneratedMacros.Contains(name)).Order(StringComparer.Ordinal))
+        {
+            var (old, now) = (oldMacros?[name], newMacros?[name]);
+            if (old is null)
+            {
+                lines.Add($"Macro {name} added");
+            }
+            else if (now is null)
+            {
+                lines.Add($"Macro {name} removed");
+            }
+            else if (SettingsPlans.Canonical(old) != SettingsPlans.Canonical(now))
+            {
+                lines.Add($"Macro {name} changed");
+            }
+        }
+
+        return Capped(lines);
+    }
+
+    private static string EntryText(JsonNode? entry, PlanLabels labels) => entry switch
+    {
+        null => "empty",
+        JsonObject spell when spell["spell"] is { } id => $"{labels.Spell(id.ToJsonString())}{(spell["fixed"] is JsonValue isFixed && isFixed.GetValueKind() == JsonValueKind.True ? " (this rank)" : "")}",
+        JsonObject macro when macro["macro"] is JsonValue name && name.GetValueKind() == JsonValueKind.String => $"Macro {name.GetValue<string>()}",
+        JsonObject item when item["item"] is { } id => labels.Item(id.ToJsonString()),
+        JsonObject profession when profession["profession"] is { } kind => kind.ToJsonString() switch
+        {
+            "3" => "First Aid",
+            "5" => "Cooking",
+            var number => $"Profession {number}",
+        },
+        JsonObject list when list["list"] is JsonArray entries => $"First of {string.Join(", ", entries.Select(item => EntryText(item, labels)))}",
+        _ => "Unknown entry",
+    };
 
     private static string? PlanFile(SettingsAccount account, string global) =>
         account.AccountFileOf(global) is not { } file ? SettingsAccount.NoOwnerNotice

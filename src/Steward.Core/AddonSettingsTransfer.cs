@@ -295,6 +295,7 @@ public static class AddonSettingsExport
             {
                 ["talents"] = SettingsPlans.ExportTalents(account),
                 ["actionBars"] = SettingsPlans.ExportActionBars(account),
+                ["spells"] = SettingsPlans.ExportSpells(account),
             },
         };
         return payload.ToJsonString(Compact);
@@ -428,6 +429,35 @@ public static class SettingsPlans
 
         return result;
     }
+
+    public static JsonObject ExportSpells(SettingsAccount account)
+    {
+        ArgumentNullException.ThrowIfNull(account);
+        var result = new JsonObject();
+        foreach (var entry in SpellPlans(account)?.Table.Where(entry => entry.Key is { Kind: LuaKind.Text } && entry.Value.Kind == LuaKind.Table) ?? [])
+        {
+            result[AddonSettings.FromFile(entry.Key!.Text!)] = new JsonObject([.. Spells(entry.Value)
+                .Select(spell => KeyValuePair.Create(spell.Key, (JsonNode?)spell.Value))]);
+        }
+
+        return result;
+    }
+
+    public static SortedDictionary<string, long> Spells(LuaValue? plan)
+    {
+        var result = new SortedDictionary<string, long>(StringComparer.Ordinal);
+        foreach (var entry in plan?.Table ?? [])
+        {
+            if (entry.Key is { Kind: LuaKind.Text } key && entry.Value.Kind == LuaKind.Number && entry.Value.Number != 0)
+            {
+                result[AddonSettings.FromFile(key.Text!)] = (long)entry.Value.Number;
+            }
+        }
+
+        return result;
+    }
+
+    internal static LuaValue? SpellPlans(SettingsAccount account) => account.Core.GetValueOrDefault(SettingsAccount.CoreGlobal)?.GetTable("spellPlans");
 
     internal static LuaValue? TalentPlans(SettingsAccount account) => account.Core.GetValueOrDefault(SettingsAccount.CoreGlobal)?.GetTable("talentPlans");
 

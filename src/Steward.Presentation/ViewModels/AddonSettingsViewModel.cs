@@ -34,6 +34,8 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         _logger = logger;
         FetchSchema = updater.GetSettingsSchemaAsync;
         ReadClipboard = platform.GetClipboardTextAsync;
+        Initializing = () => main.InitializeCommand.ExecutionTask;
+        InstallsKnown = () => main.InstallsKnown;
         main.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(MainViewModel.SelectedInstall) or nameof(MainViewModel.AddonSettingsVisibility))
@@ -51,7 +53,15 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
 
     internal Func<DateTimeOffset> Now { get; set; } = () => DateTimeOffset.UtcNow;
 
-    public Func<SettingsImport, string, Task<IReadOnlyList<SettingsImportItem>?>>? ShowImport { get; set; }
+    internal Func<Task?> Initializing { get; set; }
+
+    internal Func<Task> InstallsKnown { get; set; }
+
+    public Func<SettingsImportSession, Task<IReadOnlyList<SettingsImportItem>?>>? ShowImport { get; set; }
+
+    public Action? BringToFront { get; set; }
+
+    public const string NoUnboundInstallMessage = "No World of Warcraft: Forever install here has Hoobi Scripts";
 
     public ObservableCollection<ForeverCopyAccount> Accounts { get; } = [];
 
@@ -98,10 +108,20 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
             return;
         }
 
+        await ExportGuardedAsync(install, account.Folder, view).ConfigureAwait(true);
+    }
+
+    private async Task ExportGuardedAsync(WowInstallViewModel install, string account, string? view)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
         IsBusy = true;
         try
         {
-            await ExportAsync(install, account.Folder, view).ConfigureAwait(true);
+            await ExportAsync(install, account, view).ConfigureAwait(true);
         }
         finally
         {
@@ -153,18 +173,19 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(link);
         _logger.Info($"Addon settings import link received ({link.Length} characters)");
-        if (_main.InitializeCommand.ExecutionTask is { } initializing)
+        BringToFront?.Invoke();
+        if (Initializing() is { } initializing)
         {
-            await initializing.ConfigureAwait(true);
+            await Task.WhenAny(InstallsKnown(), initializing).ConfigureAwait(true);
         }
 
         await ImportAsync(link).ConfigureAwait(true);
     }
 
-    private void Report(string message)
+    private void Report(string message, BannerLevel level = BannerLevel.Warning)
     {
         Status = message;
-        _main.ShowToast(message);
+        _main.ShowLocalInfoBanner(message, level: level);
     }
 
     private async Task ImportAsync(string text)
@@ -190,7 +211,7 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.Warn(ex, "Addon settings import failed");
-            Report(ex.Message);
+            Report(ex.Message, BannerLevel.Error);
         }
         finally
         {
@@ -223,48 +244,73 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
             return;
         }
 
-        var install = _main.Installs.FirstOrDefault(candidate => !candidate.IsMissing
-            && candidate.Install.ProductCode == payload.Product
-            && Directory.Exists(AddonSettings.AccountFolder(candidate.FlavourPath, payload.Account)));
-        if (install is null)
+        SettingsImportSession session;
+        if (payload.Account is { } boundAccount)
         {
-            Report($"No World of Warcraft install here has the account {payload.Account}");
-            return;
+            var install = _main.Installs.FirstOrDefault(candidate => !candidate.IsMissing
+                && candidate.Install.ProductCode == payload.Product
+                && Directory.Exists(AddonSettings.AccountFolder(candidate.FlavourPath, boundAccount)));
+            if (install is null)
+            {
+                Report($"No World of Warcraft install here has the account {boundAccount}");
+                return;
+            }
+
+            if (IsRunning(install.Install))
+            {
+                Report(AddonSettings.RunningMessage);
+                return;
+            }
+
+            session = new SettingsImportSession(payload, [install], install, PreviewAsync);
+        }
+        else
+        {
+            var installs = _main.Installs.Where(IsUnboundTarget).ToList();
+            if (installs.Count == 0)
+            {
+                Report(NoUnboundInstallMessage);
+                return;
+            }
+
+            session = new SettingsImportSession(payload, installs, installs.Contains(_main.SelectedInstall!) ? _main.SelectedInstall : installs[0], PreviewAsync);
         }
 
-        if (IsRunning(install.Install))
-        {
-            Report(AddonSettings.RunningMessage);
-            return;
-        }
-
-        var (settings, sources) = await LoadAsync(install, payload.Account).ConfigureAwait(true);
-        var preview = await Task.Run(() => AddonSettingsImport.Preview(payload, settings, sources)).ConfigureAwait(true);
-        _logger.Info($"Addon settings import for {install.FlavourPath}: {preview.Items.Count(item => item.Status == SettingsImportStatus.Ready)} ready, "
-            + $"{preview.Items.Count(item => item.Status == SettingsImportStatus.Conflict)} changed in game, {preview.Items.Count(item => item.Status == SettingsImportStatus.Refused)} refused");
-        if (ShowImport is not { } show || await show(preview, $"{install.Label} · {payload.Account}").ConfigureAwait(true) is not { } chosen)
+        await session.Loading.ConfigureAwait(true);
+        if (ShowImport is not { } show || await show(session).ConfigureAwait(true) is not { } chosen || session.Current is not { } target)
         {
             _logger.Info("Addon settings import cancelled");
             return;
         }
 
-        if (IsRunning(install.Install))
+        if (IsRunning(target.Install.Install))
         {
             Report(AddonSettings.RunningMessage);
             return;
         }
 
-        var applied = await Task.Run(() => AddonSettingsImport.Apply(preview, settings, sources, chosen, () => IsRunning(install.Install))).ConfigureAwait(true);
-        _logger.Info($"Addon settings import applied {applied} changes to {install.FlavourPath}");
-        if (_main.ShowLinkDialog is { } done
-            && await done(
-                "Addon settings applied",
-                $"Applied {applied} {(applied == 1 ? "change" : "changes")} to {payload.Account}. The game reads them at the next login.",
-                "Export again",
-                "Close").ConfigureAwait(true))
-        {
-            await ExportAsync(install, payload.Account, null).ConfigureAwait(true);
-        }
+        var applied = await Task.Run(() => AddonSettingsImport.Apply(target.Preview, target.Settings, target.Sources, chosen, () => IsRunning(target.Install.Install))).ConfigureAwait(true);
+        _logger.Info($"Addon settings import applied {applied} changes to {target.Install.FlavourPath}");
+        _main.ShowLocalInfoBanner(
+            $"Imported {applied} {(applied == 1 ? "change" : "changes")} to {target.Account} on {target.Install.Label}. The game reads them at the next login.",
+            actionLabel: "Export again",
+            action: () => _ = ExportGuardedAsync(target.Install, target.Account, null));
+    }
+
+    private bool IsUnboundTarget(WowInstallViewModel install) =>
+        !install.IsMissing
+        && ForeverLaunch.IsForever(install.Install.ProductCode)
+        && install.AddonRows.Any(row => string.Equals(row.AddonId, AddonId, StringComparison.OrdinalIgnoreCase) && row.IsInstalled);
+
+    private async Task<SettingsImportTarget> PreviewAsync(SettingsImportPayload payload, WowInstallViewModel install, string account)
+    {
+        var (settings, sources) = await LoadAsync(install, account).ConfigureAwait(true);
+        var preview = IsRunning(install.Install)
+            ? new SettingsImport(payload.Product, account, [new SettingsImportItem { Addon = settings.TitleOf(SettingsAccount.CoreGlobal), Page = "", Label = install.Label, Status = SettingsImportStatus.Refused, Reason = AddonSettings.RunningMessage }])
+            : await Task.Run(() => AddonSettingsImport.Preview(payload, settings, sources)).ConfigureAwait(true);
+        _logger.Info($"Addon settings import for {install.FlavourPath}: {preview.Items.Count(item => item.Status == SettingsImportStatus.Ready)} ready, "
+            + $"{preview.Items.Count(item => item.Status == SettingsImportStatus.Conflict)} changed in game, {preview.Items.Count(item => item.Status == SettingsImportStatus.Refused)} refused");
+        return new SettingsImportTarget(install, account, settings, sources, preview);
     }
 
     private async Task<(SettingsAccount Settings, IReadOnlyList<SettingsSource> Sources)> LoadAsync(WowInstallViewModel install, string account)
@@ -318,6 +364,107 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         {
             _logger.Warn(null, $"Settings schema for {row.AddonId} {version} could not be loaded: {ex.Message}");
             return new SettingsSource(row.AddonId, row.Addon.FolderName, version, null);
+        }
+    }
+}
+
+public sealed record SettingsImportTarget(WowInstallViewModel Install, string Account, SettingsAccount Settings, IReadOnlyList<SettingsSource> Sources, SettingsImport Preview);
+
+public sealed partial class SettingsImportSession : ObservableObject
+{
+    private readonly SettingsImportPayload _payload;
+    private readonly Func<SettingsImportPayload, WowInstallViewModel, string, Task<SettingsImportTarget>> _preview;
+    private int _generation;
+
+    internal SettingsImportSession(
+        SettingsImportPayload payload,
+        IReadOnlyList<WowInstallViewModel> installs,
+        WowInstallViewModel? selected,
+        Func<SettingsImportPayload, WowInstallViewModel, string, Task<SettingsImportTarget>> preview)
+    {
+        _payload = payload;
+        _preview = preview;
+        Installs = installs;
+        SelectedInstall = selected;
+    }
+
+    public bool IsUnbound => _payload.IsUnbound;
+
+    public IReadOnlyList<WowInstallViewModel> Installs { get; }
+
+    public IReadOnlyList<ForeverCopyAccount> Accounts { get; private set; } = [];
+
+    public Task Loading { get; private set; } = Task.CompletedTask;
+
+    public string Target => Current is { } current ? $"{current.Install.Label} · {current.Account}" : "";
+
+    [ObservableProperty]
+    public partial WowInstallViewModel? SelectedInstall { get; set; }
+
+    [ObservableProperty]
+    public partial ForeverCopyAccount? SelectedAccount { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Target))]
+    public partial SettingsImportTarget? Current { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsLoading { get; private set; }
+
+    partial void OnSelectedInstallChanged(WowInstallViewModel? value)
+    {
+        var accounts = value is null ? new List<ForeverCopyAccount>() : ForeverCopy.Accounts(value.Install);
+        if (_payload.Account is { } bound && !accounts.Any(account => string.Equals(account.Folder, bound, StringComparison.OrdinalIgnoreCase)))
+        {
+            accounts.Add(new ForeverCopyAccount(bound, []));
+        }
+
+        Accounts = accounts;
+        OnPropertyChanged(nameof(Accounts));
+        var account = accounts.FirstOrDefault(account => string.Equals(account.Folder, _payload.Account, StringComparison.OrdinalIgnoreCase)) ?? accounts.FirstOrDefault();
+        if (account == SelectedAccount)
+        {
+            Recompute();
+        }
+        else
+        {
+            SelectedAccount = account;
+        }
+    }
+
+    partial void OnSelectedAccountChanged(ForeverCopyAccount? value) => Recompute();
+
+    private void Recompute()
+    {
+        var generation = ++_generation;
+        var ready = SelectedInstall is not null && SelectedAccount is not null;
+        IsLoading = ready;
+        Current = null;
+        if (SelectedInstall is not { } install || SelectedAccount is not { } account)
+        {
+            Loading = Task.CompletedTask;
+            return;
+        }
+
+        Loading = Run();
+
+        async Task Run()
+        {
+            try
+            {
+                var target = await _preview(_payload, install, account.Folder).ConfigureAwait(true);
+                if (generation == _generation)
+                {
+                    Current = target;
+                }
+            }
+            finally
+            {
+                if (generation == _generation)
+                {
+                    IsLoading = false;
+                }
+            }
         }
     }
 }

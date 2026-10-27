@@ -119,6 +119,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _eventsCts;
     private string? _eventsGuildId;
     private bool _eventsUnsupported;
+    private bool _startInstallsDiscovered;
+    private readonly TaskCompletionSource _installsKnown = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool _isEventStreamLive;
     private CancellationTokenSource? _accessEventsCts;
     private bool _accessEventsRunning;
@@ -758,6 +760,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsSignedIn = _sessionService.TryRestoreSession();
         IsSessionChecked = true;
         RemoveLostAccessAddons();
+        if (IsSignedIn)
+        {
+            try
+            {
+                DiscoverStartInstalls();
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Install discovery before the startup checks failed; the startup pass tries again");
+                ResetInstalls();
+            }
+        }
+        else
+        {
+            _installsKnown.TrySetResult();
+        }
 
         if (AppInfo.IsPackaged)
         {
@@ -888,20 +906,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            DetectMissingInstalls();
-            var state = _stateStore.Load();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var install in DiscoverInstalls(state))
-            {
-                if (seen.Add(install.FlavourPath))
-                {
-                    AddInstall(install, state.AddedInstalls.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase));
-                }
-            }
-
-            EnsureSelection();
-            ShowMissingInstallBanners();
-            ApplyForeverGate();
+            DiscoverStartInstalls();
             await CheckAsync(background: false, cancellationToken).ConfigureAwait(true);
             EnsureInGameIcons();
             await PushCharacterSyncAsync().ConfigureAwait(true);
@@ -926,6 +931,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsBusy = false;
             RecomputeSummary();
         }
+    }
+
+    internal Task InstallsKnown => _installsKnown.Task;
+
+    // A restored session discovers before the startup network checks, so a steward:// import does not wait on them.
+    private void DiscoverStartInstalls()
+    {
+        if (_startInstallsDiscovered)
+        {
+            return;
+        }
+
+        _startInstallsDiscovered = true;
+        DetectMissingInstalls();
+        var state = _stateStore.Load();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var install in DiscoverInstalls(state))
+        {
+            if (seen.Add(install.FlavourPath))
+            {
+                AddInstall(install, state.AddedInstalls.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase));
+            }
+        }
+
+        EnsureSelection();
+        ShowMissingInstallBanners();
+        ApplyForeverGate();
+        _installsKnown.TrySetResult();
     }
 
     [RelayCommand]
@@ -1948,7 +1981,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     // No server banner backs this, so it skips BannerFilter's id/revision dismissal bookkeeping and is never persisted.
-    public void ShowLocalInfoBanner(string message, string? id = null, string? actionLabel = null, Action? action = null, Action? dismissed = null, string? detail = null, bool dismissible = true)
+    public void ShowLocalInfoBanner(
+        string message, string? id = null, string? actionLabel = null, Action? action = null, Action? dismissed = null, string? detail = null, bool dismissible = true, BannerLevel level = BannerLevel.Info)
     {
         BannerViewModel? banner = null;
         var dismiss = new RelayCommand(() =>
@@ -1957,15 +1991,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             dismissed?.Invoke();
             RefreshBanners();
         });
+        var (background, foreground, glyph) = BannerLook(level);
         banner = new BannerViewModel
         {
             Id = id ?? Guid.NewGuid().ToString(),
             Revision = 0,
             Title = message,
             Message = detail ?? string.Empty,
-            Background = "InfoTintBrush",
-            IconForeground = "AccentTextFillColorPrimaryBrush",
-            IconGlyph = Glyphs.Info,
+            Background = background,
+            IconForeground = foreground,
+            IconGlyph = glyph,
             IsDismissible = dismissible,
             Actions = action is null ? [] : [new BannerActionViewModel { Label = actionLabel!, Command = new RelayCommand(action) }],
             DismissCommand = dismiss,
@@ -1973,6 +2008,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _localBanners.Add(banner);
         RefreshBanners();
     }
+
+    private static (string Background, string Foreground, string Glyph) BannerLook(BannerLevel level) => level switch
+    {
+        BannerLevel.Success => ("SuccessTintBrush", "SystemFillColorSuccessBrush", Glyphs.CheckMark),
+        BannerLevel.Warning => ("CautionTintBrush", "SystemFillColorCautionBrush", Glyphs.Warning),
+        BannerLevel.Error => ("CriticalTintBrush", "SystemFillColorCriticalBrush", Glyphs.Error),
+        _ => ("InfoTintBrush", "AccentTextFillColorPrimaryBrush", Glyphs.Info),
+    };
 
     private void DismissBanner(Banner banner)
     {
@@ -2016,14 +2059,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
         }
 
-        var (background, foreground, glyph) = BannerLevels.Parse(banner.Level) switch
-        {
-            BannerLevel.Success => ("SuccessTintBrush", "SystemFillColorSuccessBrush", Glyphs.CheckMark),
-            BannerLevel.Warning => ("CautionTintBrush", "SystemFillColorCautionBrush", Glyphs.Warning),
-            BannerLevel.Error => ("CriticalTintBrush", "SystemFillColorCriticalBrush", Glyphs.Error),
-            _ => ("InfoTintBrush", "AccentTextFillColorPrimaryBrush", Glyphs.Info),
-        };
-
+        var (background, foreground, glyph) = BannerLook(BannerLevels.Parse(banner.Level));
         return new BannerViewModel
         {
             Id = banner.Id,
@@ -3425,6 +3461,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void ResetInstalls()
     {
         _recheckTimer?.Stop();
+        _startInstallsDiscovered = false;
         DisposeInstalls();
         _status.Clear();
         _releases.Clear();

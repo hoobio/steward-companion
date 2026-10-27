@@ -84,6 +84,7 @@ public sealed partial class MainWindow : Window
         ViewModel.ChooseLinkFile = ChooseLinkFileAsync;
         ViewModel.ShowForeverCopyDialog = ShowForeverCopyAsync;
         ViewModel.AddonSettings.ShowImport = ShowSettingsImportAsync;
+        ViewModel.AddonSettings.BringToFront = ShowFromTray;
         ViewModel.ChooseGuild = ChooseGuildAsync;
         ViewModel.QuitRequested = QuitCompletely;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -573,62 +574,180 @@ public sealed partial class MainWindow : Window
         return await AppDialogs.ShowAsync(dialog, this) == FAContentDialogResult.Primary;
     }
 
-    private async Task<IReadOnlyList<SettingsImportItem>?> ShowSettingsImportAsync(SettingsImport import, string target)
+    private async Task<IReadOnlyList<SettingsImportItem>?> ShowSettingsImportAsync(SettingsImportSession session)
     {
         var ticks = new Dictionary<SettingsImportItem, CheckBox>();
         var rows = new StackPanel { Spacing = 16 };
-        foreach (var item in import.Items)
-        {
-            var row = new StackPanel { Spacing = 2 };
-            row.Children.Add(Wrapped(string.Join(" · ", new[] { item.Addon, item.Page }.Where(part => part.Length > 0)), secondary: true, fontSize: 12));
-            row.Children.Add(Wrapped(item.Label));
-            if (item.Old is not null || item.New is not null)
-            {
-                row.Children.Add(Wrapped(item.Old is null ? item.New! : $"{item.Old} → {item.New ?? ""}", secondary: true, fontSize: 12));
-            }
-
-            if (item.Status == SettingsImportStatus.Refused)
-            {
-                var refused = Wrapped($"Not applied: {item.Reason}", fontSize: 12);
-                refused.Bind(TextBlock.ForegroundProperty, refused.GetResourceObservable("SystemFillColorCriticalBrush"));
-                row.Children.Add(refused);
-            }
-            else if (item.Status == SettingsImportStatus.Conflict)
-            {
-                var tick = new CheckBox { Content = $"{item.Reason}. Apply anyway", IsChecked = false, Margin = new Thickness(0, 4, 0, 0) };
-                ticks[item] = tick;
-                row.Children.Add(tick);
-            }
-
-            rows.Children.Add(row);
-        }
-
+        var target = Wrapped("", secondary: true, fontSize: 12);
+        var content = new StackPanel { Spacing = 12 };
         var dialog = new FAContentDialog
         {
             Title = Wrapped("Apply changes from the website?"),
-            Content = new StackPanel
-            {
-                Spacing = 12,
-                Children =
-                {
-                    Wrapped(import.Items.Count == 0 ? $"{target}: the website sent no changes." : target, secondary: true, fontSize: 12),
-                    new ScrollViewer { MaxHeight = 360, Content = rows },
-                },
-            },
+            Content = content,
             PrimaryButtonText = "Apply",
             CloseButtonText = "Cancel",
             DefaultButton = FAContentDialogButton.None,
         };
-        void UpdateApply() => dialog.IsPrimaryButtonEnabled = import.Items.Any(item => item.Status == SettingsImportStatus.Ready) || ticks.Values.Any(tick => tick.IsChecked == true);
-        foreach (var tick in ticks.Values)
+
+        if (session.IsUnbound)
         {
-            tick.IsCheckedChanged += (_, _) => UpdateApply();
+            var installs = new ComboBox
+            {
+                ItemsSource = session.Installs.Select(install => install.Label).ToList(),
+                SelectedIndex = session.Installs.ToList().IndexOf(session.SelectedInstall!),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
+            var accounts = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+            Avalonia.Automation.AutomationProperties.SetName(installs, "World of Warcraft install");
+            Avalonia.Automation.AutomationProperties.SetName(accounts, "WoW account");
+            var filling = false;
+            void FillAccounts()
+            {
+                filling = true;
+                accounts.ItemsSource = session.Accounts.Select(account => account.Label).ToList();
+                accounts.SelectedIndex = session.Accounts.ToList().IndexOf(session.SelectedAccount!);
+                filling = false;
+            }
+
+            installs.SelectionChanged += (_, _) =>
+            {
+                if (installs.SelectedIndex >= 0)
+                {
+                    session.SelectedInstall = session.Installs[installs.SelectedIndex];
+                    FillAccounts();
+                }
+            };
+            accounts.SelectionChanged += (_, _) =>
+            {
+                if (!filling && accounts.SelectedIndex >= 0)
+                {
+                    session.SelectedAccount = session.Accounts[accounts.SelectedIndex];
+                }
+            };
+            FillAccounts();
+            content.Children.Add(new StackPanel
+            {
+                Children =
+                {
+                    new TextBlock { Text = "World of Warcraft install", Classes = { "FieldHeader", "ComboBox" } },
+                    installs,
+                },
+            });
+            content.Children.Add(new StackPanel
+            {
+                Children =
+                {
+                    new TextBlock { Text = "WoW account", Classes = { "FieldHeader", "ComboBox" } },
+                    accounts,
+                },
+            });
+        }
+        else
+        {
+            content.Children.Add(target);
         }
 
-        UpdateApply();
-        return await AppDialogs.ShowAsync(dialog, this) == FAContentDialogResult.Primary
-            ? [.. import.Items.Where(item => item.Status == SettingsImportStatus.Ready || (ticks.TryGetValue(item, out var tick) && tick.IsChecked == true))]
-            : null;
+        content.Children.Add(new ScrollViewer { MaxHeight = session.IsUnbound ? 240 : 360, Content = rows });
+
+        IReadOnlyList<SettingsImportItem> Items() => session.Current?.Preview.Items ?? [];
+        void UpdateApply() => dialog.IsPrimaryButtonEnabled = !session.IsLoading
+            && (Items().Any(item => item.Status == SettingsImportStatus.Ready) || ticks.Values.Any(tick => tick.IsChecked == true));
+
+        TextBlock Line(string text, string? brush = null)
+        {
+            var line = Wrapped(text, secondary: brush is null, fontSize: 12);
+            if (brush is not null)
+            {
+                line.Bind(TextBlock.ForegroundProperty, line.GetResourceObservable(brush));
+            }
+
+            return line;
+        }
+
+        void Fill()
+        {
+            ticks.Clear();
+            rows.Children.Clear();
+            var items = Items();
+            target.Text = items.Count == 0 ? $"{session.Target}: the website sent no changes." : session.Target;
+            if (session.Current is null)
+            {
+                rows.Children.Add(Line(session.IsLoading ? "Reading the account's files…" : AddonSettingsViewModel.NoAccountMessage));
+            }
+            else if (items.Count == 0 && session.IsUnbound)
+            {
+                rows.Children.Add(Line("The website sent no changes."));
+            }
+
+            foreach (var addon in items.Where(item => item.Status != SettingsImportStatus.Unchanged).GroupBy(item => item.Addon))
+            {
+                var group = new StackPanel { Spacing = 12 };
+                group.Children.Add(new TextBlock { Text = addon.Key, Classes = { "BodyStrong" }, TextWrapping = TextWrapping.Wrap });
+                foreach (var item in addon)
+                {
+                    var row = new StackPanel { Spacing = 2 };
+                    if (item.Page.Length > 0)
+                    {
+                        row.Children.Add(Line(item.Page));
+                    }
+
+                    row.Children.Add(Wrapped(item.Label));
+                    if (item.Old is not null || item.New is not null)
+                    {
+                        row.Children.Add(Line(item.Old is null ? item.New! : $"{item.Old} → {item.New ?? ""}"));
+                    }
+
+                    foreach (var detail in item.Details)
+                    {
+                        row.Children.Add(Line(detail));
+                    }
+
+                    if (item.Status == SettingsImportStatus.Refused)
+                    {
+                        row.Children.Add(Line($"Not applied: {item.Reason}", "SystemFillColorCriticalBrush"));
+                    }
+                    else if (item.Status == SettingsImportStatus.Conflict)
+                    {
+                        var tick = new CheckBox { Content = $"{item.Reason}. Apply anyway", IsChecked = false, Margin = new Thickness(0, 4, 0, 0) };
+                        tick.IsCheckedChanged += (_, _) => UpdateApply();
+                        ticks[item] = tick;
+                        row.Children.Add(tick);
+                    }
+
+                    group.Children.Add(row);
+                }
+
+                rows.Children.Add(group);
+            }
+
+            if (items.Where(item => item.Status == SettingsImportStatus.Unchanged).Select(item => item.Label).ToList() is { Count: > 0 } same)
+            {
+                rows.Children.Add(Line($"{SettingsImportItem.AlreadySameHeading}: {string.Join("; ", same)}"));
+            }
+
+            UpdateApply();
+        }
+
+        void OnSessionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName is nameof(SettingsImportSession.Current) or nameof(SettingsImportSession.IsLoading))
+            {
+                Fill();
+            }
+        }
+
+        Fill();
+        session.PropertyChanged += OnSessionChanged;
+        try
+        {
+            return await AppDialogs.ShowAsync(dialog, this) == FAContentDialogResult.Primary && !session.IsLoading
+                ? [.. Items().Where(item => item.Status == SettingsImportStatus.Ready || (ticks.TryGetValue(item, out var tick) && tick.IsChecked == true))]
+                : null;
+        }
+        finally
+        {
+            session.PropertyChanged -= OnSessionChanged;
+        }
     }
 
     private async Task<int?> ChooseLinkFileAsync(string title, IReadOnlyList<string> options, int selected, string hint)

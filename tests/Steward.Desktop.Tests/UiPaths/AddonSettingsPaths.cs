@@ -23,6 +23,7 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
            {"addon":"HoobiScripts","scope":"account","key":"hideErrors","from":true,"to":false},
            {"addon":"HoobiScripts","scope":"account","key":"autoRepair","from":"off","to":"own"},
            {"addon":"HoobiScripts","scope":"account","key":"skin","from":null,"to":"neon"},
+           {"addon":"HoobiScripts","scope":"account","key":"mailTradeGoods","from":false,"to":true},
            {"addon":"HoobiScripts","scope":"character","character":"Zug Zug-Classic Beta PvP","key":"vendorPlainWater","from":null,"to":false}
          ],
          "newCharacters":[{"first":"zug","last":"zug","class":"WARRIOR","realm":"Classic Beta PvP"}],
@@ -110,16 +111,23 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
             Assert.Contains("On → Off", text, StringComparison.Ordinal);
             Assert.Contains("Not applied: Not one of the choices", text, StringComparison.Ordinal);
             Assert.Contains("Zug Zug (Classic Beta PvP)", text, StringComparison.Ordinal);
+            Assert.Contains("Druid talents, plan 1", text, StringComparison.Ordinal);
+            Assert.Contains("1 point added to node 3", text, StringComparison.Ordinal);
+            Assert.Contains("Already the same in the game: Mail trade goods", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("On → On", text, StringComparison.Ordinal);
             var conflict = dialog.GetVisualDescendants().OfType<CheckBox>().Single();
             Assert.False(conflict.IsChecked);
             Save(world, "sync-import-dialog");
 
             Click(DialogButton(dialog, "PrimaryButton"));
-            WaitFor(() => world.TryFind<FluentAvalonia.UI.Controls.FAContentDialog>(found => found != dialog && Text(found).Contains("Addon settings applied", StringComparison.Ordinal)) is not null);
-            var done = world.Find<FluentAvalonia.UI.Controls.FAContentDialog>(found => Text(found).Contains("Addon settings applied", StringComparison.Ordinal));
-            Assert.Contains("Applied 4 changes to 1#1", Text(done), StringComparison.Ordinal);
-            Click(DialogButton(done, "CloseButton"));
             world.WaitForNoDialog();
+            var done = WaitForBanner(world, "Imported 4 changes to 1#1 on ");
+            Assert.EndsWith("The game reads them at the next login.", done.Title, StringComparison.Ordinal);
+            Assert.True(done.IsDismissible);
+            var opened = world.Opened.Count;
+            Assert.Single(done.Actions, action => action.Label == "Export again").Command.Execute(null);
+            WaitFor(() => world.Opened.Count == opened + 1);
+            Assert.StartsWith("https://guild.hoobi.io/addon-settings#v1.", world.Opened[^1], StringComparison.Ordinal);
 
             var globals = AddonSettings.Load(file);
             var settings = globals["HoobiScriptsDB"].GetTable("settings")!;
@@ -192,8 +200,14 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
         WaitFor(() => world.TryFind<FluentAvalonia.UI.Controls.FAContentDialog>(found => found == dialog && found.IsVisible) is null);
     }
 
+    private static Steward.App.ViewModels.BannerViewModel WaitForBanner(UiPathWorld world, string start)
+    {
+        WaitFor(() => world.Main.Banners.Any(banner => banner.Title.StartsWith(start, StringComparison.Ordinal)));
+        return world.Main.Banners.First(banner => banner.Title.StartsWith(start, StringComparison.Ordinal));
+    }
+
     [Fact]
-    public void A_link_that_arrives_while_the_result_dialog_is_open_is_shown_after_it_closes() => session.Run(() =>
+    public void A_link_that_arrives_while_the_confirmation_is_open_is_shown_after_it_closes() => session.Run(() =>
     {
         using var world = World(session, "addon-settings-queued");
         var file = AddonSettings.FilePath(world.Beta, "1#1", "HoobiScripts");
@@ -205,27 +219,151 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
             """;
 
         var first = world.Main.ReceiveLinkAsync("steward://import#" + AddonSettingsPayload.Encode(ImportJson));
-        Press(world, WaitForDialogWith(world, "Apply changes from the website?"), "PrimaryButton");
-        var result = WaitForDialogWith(world, "Addon settings applied");
+        var confirmation = WaitForDialogWith(world, "Apply changes from the website?");
         Assert.True(settings.IsBusy);
 
         var second = world.Main.ReceiveLinkAsync("steward://import#" + AddonSettingsPayload.Encode(Second));
         WaitFor(() => second.IsCompleted);
         Assert.Null(settings.Status);
-        Assert.True(result.IsVisible);
+        Assert.True(confirmation.IsVisible);
 
-        Press(world, result, "CloseButton");
-        var confirmation = WaitForDialogWith(world, "Skin");
-        Assert.True(settings.IsBusy);
-        Assert.True(DialogButton(confirmation, "PrimaryButton").IsEffectivelyEnabled, Text(confirmation));
         Press(world, confirmation, "PrimaryButton");
-        Press(world, WaitForDialogWith(world, "Addon settings applied"), "CloseButton");
+        WaitForBanner(world, "Imported 4 changes to 1#1 on ");
+        var queued = WaitForDialogWith(world, "Skin");
+        Assert.True(settings.IsBusy);
+        Assert.True(DialogButton(queued, "PrimaryButton").IsEffectivelyEnabled, Text(queued));
+        Press(world, queued, "PrimaryButton");
+        WaitForBanner(world, "Imported 1 change to 1#1 on ");
         WaitFor(() => first.IsCompleted);
 
         Assert.True(first.IsCompletedSuccessfully);
         Assert.False(settings.IsBusy);
         Assert.True(settings.CanExport);
         Assert.Equal("hoobi", AddonSettings.Load(file)["HoobiScriptsDB"].GetTable("settings")!.GetString("skin"));
+    });
+
+    [Fact]
+    public void An_import_link_brings_the_window_out_of_the_tray() => session.Run(() =>
+    {
+        using var world = World(session, "addon-settings-tray");
+        var settings = world.Main.AddonSettings;
+        var link = "steward://import#" + AddonSettingsPayload.Encode(ImportJson);
+
+        world.Window.HideToTray();
+        Pump();
+        Assert.False(world.Window.IsVisible);
+        var first = world.Main.ReceiveLinkAsync(link);
+        var confirmation = WaitForDialogWith(world, "Apply changes from the website?");
+        Assert.True(world.Window.IsVisible);
+        Assert.NotEqual(WindowState.Minimized, world.Window.WindowState);
+
+        world.Window.WindowState = WindowState.Minimized;
+        Pump();
+        var second = world.Main.ReceiveLinkAsync(link);
+        WaitFor(() => second.IsCompleted);
+        Assert.NotEqual(WindowState.Minimized, world.Window.WindowState);
+        Assert.True(world.Window.IsVisible);
+
+        Press(world, confirmation, "CloseButton");
+        Press(world, WaitForDialogWith(world, "Apply changes from the website?"), "CloseButton");
+        WaitFor(() => first.IsCompleted);
+        Assert.False(settings.IsBusy);
+    });
+
+    [Fact]
+    public void An_import_link_during_a_slow_startup_waits_only_for_the_installs() => session.Run(() =>
+    {
+        using var world = World(session, "addon-settings-slow-start");
+        var settings = world.Main.AddonSettings;
+        Assert.True(world.Main.InstallsKnown.IsCompleted);
+        var known = new TaskCompletionSource();
+        settings.Initializing = () => new TaskCompletionSource().Task;
+        settings.InstallsKnown = () => known.Task;
+
+        var import = world.Main.ReceiveLinkAsync("steward://import#" + AddonSettingsPayload.Encode(ImportJson));
+        Pump();
+        Pump();
+        Assert.False(import.IsCompleted);
+        Assert.Null(world.TryFind<FluentAvalonia.UI.Controls.FAContentDialog>(_ => true));
+
+        known.SetResult();
+        Press(world, WaitForDialogWith(world, "Apply changes from the website?"), "CloseButton");
+        WaitFor(() => import.IsCompleted);
+        Assert.True(import.IsCompletedSuccessfully);
+        Assert.False(settings.IsBusy);
+    });
+
+    private const string UnboundJson = """
+        {"v":1,
+         "changes":[{"addon":"HoobiScripts","scope":"account","key":"hideErrors","from":null,"to":false}],
+         "newCharacters":[],
+         "plans":{"talents":[{"class":"DRUID","group":1,"from":null,"to":[1,2]}],"actionBars":[],
+                  "spells":[{"class":"DRUID","from":null,"to":{"Wrath":30,"Rejuvenation":-1}}]},
+         "labels":{"nodes":{"1":"Ferocity"}}}
+        """;
+
+    [Fact]
+    public void An_unbound_import_asks_for_the_install_and_account_and_writes_only_plans() => session.Run(() =>
+    {
+        using var world = World(session, "addon-settings-unbound");
+        var settings = world.Main.AddonSettings;
+        var first = AddonSettings.FilePath(world.Beta, "1#1", "HoobiScripts");
+        var second = AddonSettings.FilePath(world.Beta, "2#1", "HoobiScripts");
+        Directory.CreateDirectory(Path.GetDirectoryName(second)!);
+        File.WriteAllText(second, File.ReadAllText(first).Replace("HoobiScriptsDB = {", "HoobiScriptsDB = {\n[\"spellPlans\"] = {\n[\"DRUID\"] = {\n[\"Wrath\"] = 22,\n},\n},", StringComparison.Ordinal));
+        var firstBefore = File.ReadAllText(first);
+        Steward.App.ViewModels.SettingsImportSession? shown = null;
+        var show = settings.ShowImport!;
+        settings.ShowImport = found =>
+        {
+            shown = found;
+            return show(found);
+        };
+
+        var import = world.Main.ReceiveLinkAsync("steward://import#" + AddonSettingsPayload.Encode(UnboundJson));
+        var dialog = WaitForDialogWith(world, "Wrath: not learning → up to level 30");
+        Assert.NotNull(shown);
+        Assert.True(shown.IsUnbound);
+        Assert.Same(world.Main.SelectedInstall, shown.SelectedInstall);
+        Assert.Equal(["1#1", "2#1"], shown.Accounts.Select(account => account.Folder));
+        Assert.Equal("1#1", shown.SelectedAccount?.Folder);
+        var text = Text(dialog);
+        Assert.Contains("Not applied: " + AddonSettingsImport.UnboundRefusal, text, StringComparison.Ordinal);
+        Assert.Contains("Druid spell training", text, StringComparison.Ordinal);
+        Assert.Contains("No plan → 2 spells", text, StringComparison.Ordinal);
+        Assert.Contains("1 point added to Ferocity", text, StringComparison.Ordinal);
+        Assert.Contains("1 point added to node 2", text, StringComparison.Ordinal);
+        Assert.Empty(dialog.GetVisualDescendants().OfType<CheckBox>());
+
+        var accounts = dialog.GetVisualDescendants().OfType<ComboBox>().Single(box => Avalonia.Automation.AutomationProperties.GetName(box) == "WoW account");
+        var installs = dialog.GetVisualDescendants().OfType<ComboBox>().Single(box => Avalonia.Automation.AutomationProperties.GetName(box) == "World of Warcraft install");
+        Assert.Equal(world.Main.SelectedInstall!.Label, installs.SelectedItem as string);
+        Assert.Equal(0, accounts.SelectedIndex);
+        accounts.SelectedIndex = 1;
+        WaitFor(() => Text(dialog).Contains("Wrath: up to level 22 → up to level 30", StringComparison.Ordinal));
+        Assert.Equal("2#1", shown.Current?.Account);
+        Assert.Contains("1 spell → 2 spells", Text(dialog), StringComparison.Ordinal);
+        Assert.True(DialogButton(dialog, "PrimaryButton").IsEffectivelyEnabled);
+        Save(world, "unbound-dialog");
+
+        accounts.IsDropDownOpen = true;
+        var list = Assert.IsType<Border>(accounts.GetVisualDescendants().OfType<Avalonia.Controls.Primitives.Popup>().Single(popup => popup.Name == "PART_Popup").Child);
+        WaitFor(() => Steward.Desktop.Styles.Acrylic.GetMode(list) == Steward.Desktop.Styles.AcrylicMode.Blur && list.Background is Avalonia.Media.ImageBrush);
+        Save(world, "unbound-dialog-account-picker");
+        accounts.IsDropDownOpen = false;
+        Pump();
+        Assert.Equal("2#1", shown.Current?.Account);
+
+        Press(world, dialog, "PrimaryButton");
+        WaitFor(() => import.IsCompleted);
+        Assert.True(import.IsCompletedSuccessfully);
+        WaitForBanner(world, "Imported 2 changes to 2#1 on ");
+        Assert.Equal(firstBefore, File.ReadAllText(first));
+        var db = AddonSettings.Load(second)["HoobiScriptsDB"];
+        Assert.Equal(30, db.GetTable("spellPlans")!.GetTable("DRUID")!.GetNumber("Wrath"));
+        Assert.Equal(-1, db.GetTable("spellPlans")!.GetTable("DRUID")!.GetNumber("Rejuvenation"));
+        Assert.Equal([1L, 2L], SettingsPlans.Talents(SettingsPlans.GetIndex(db.GetTable("talentPlans")!.GetTable("DRUID"), 1)!));
+        Assert.True(db.GetTable("settings")!.Get("hideErrors")!.Boolean);
     });
 
     [Fact]
@@ -251,14 +389,16 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
         var refused = world.Main.ReceiveLinkAsync("steward://import#" + AddonSettingsPayload.Encode(ImportJson.Replace("\"1#1\"", "\"9#9\"", StringComparison.Ordinal)));
         Settled(refused);
         Assert.Equal("No World of Warcraft install here has the account 9#9", settings.Status);
+        Assert.Equal("CautionTintBrush", WaitForBanner(world, "No World of Warcraft install here has the account 9#9").Background);
 
         var show = settings.ShowImport;
-        settings.ShowImport = (_, _) => throw new InvalidOperationException("The dialog broke");
+        settings.ShowImport = _ => throw new InvalidOperationException("The dialog broke");
         var failed = world.Main.ReceiveLinkAsync(link);
         Settled(failed);
         Assert.Equal("The dialog broke", settings.Status);
+        Assert.Equal("CriticalTintBrush", WaitForBanner(world, "The dialog broke").Background);
 
-        settings.ShowImport = (_, _) => throw new KeyNotFoundException("Unexpected");
+        settings.ShowImport = _ => throw new KeyNotFoundException("Unexpected");
         var unexpected = world.Main.ReceiveLinkAsync(link);
         Settled(unexpected);
         Assert.Equal("Unexpected", settings.Status);
@@ -266,8 +406,8 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
 
         var applied = world.Main.ReceiveLinkAsync(link);
         Press(world, WaitForDialogWith(world, "Apply changes from the website?"), "PrimaryButton");
-        Press(world, WaitForDialogWith(world, "Addon settings applied"), "CloseButton");
         Settled(applied);
+        WaitForBanner(world, "Imported 4 changes to 1#1 on ");
         Assert.Null(settings.Status);
     });
 
