@@ -12,6 +12,20 @@ public static class LuaWriter
         return builder.ToString();
     }
 
+    public static string SerializeGlobals(IReadOnlyDictionary<string, LuaValue> globals)
+    {
+        ArgumentNullException.ThrowIfNull(globals);
+        var builder = new StringBuilder();
+        foreach (var (name, value) in globals)
+        {
+            builder.Append(name).Append(" = ");
+            WriteValue(builder, value, 0);
+            builder.Append('\n');
+        }
+
+        return builder.ToString();
+    }
+
     public static string SerializeString(string text)
     {
         var builder = new StringBuilder();

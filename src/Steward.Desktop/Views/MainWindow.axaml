@@ -727,6 +727,19 @@
                             <TextBlock Classes="Glyph" Text="{StaticResource Glyph.Library}" HorizontalAlignment="Left" />
                         </Grid>
                     </Button>
+                    <Button
+                        x:Name="AddonSettingsItem"
+                        Classes="Nav"
+                        Tag="addonsettings"
+                        ToolTip.Tip="Addon settings"
+                        AutomationProperties.Name="Addon settings"
+                        IsVisible="{Binding AddonSettingsVisibility}"
+                        Click="OnNavItemClick">
+                        <Grid>
+                            <Border Classes="Indicator" Width="3" Height="16" CornerRadius="2" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{DynamicResource NavigationViewSelectionIndicatorForeground}" />
+                            <TextBlock Classes="Glyph" Text="{StaticResource Glyph.BulletedList}" HorizontalAlignment="Left" />
+                        </Grid>
+                    </Button>
                 </StackPanel>
                 <Panel />
             </DockPanel>

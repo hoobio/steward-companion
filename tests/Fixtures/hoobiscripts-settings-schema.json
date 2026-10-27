@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "addon": "hoobiscripts",
+  "folder": "HoobiScripts",
+  "version": "0.42.0",
+  "pages": [
+    {
+      "title": "General",
+      "sections": [
+        {
+          "title": "Merchant",
+          "column": 1,
+          "rows": [
+            { "type": "dropdown", "key": "autoRepair", "label": "Auto repair", "tooltip": "Repair at every merchant that can.", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": "off",
+              "options": [ { "label": "Off", "value": "off" }, { "label": "Own gold", "value": "own" }, { "label": "Guild gold, then own", "value": "all" } ] },
+            { "type": "note", "text": "Repairs run when you open a merchant window." },
+            { "type": "money", "key": "autoSellLimit", "label": "Sell grey items worth less than", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": 10000 },
+            { "type": "checkbox", "key": "vendorOldFood", "label": "Sell old food", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": false },
+            { "type": "checkbox", "key": "vendorOldWater", "label": "Sell old water too", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": false, "parent": "vendorOldFood" }
+          ]
+        },
+        {
+          "title": "Interface",
+          "column": 2,
+          "rows": [
+            { "type": "checkbox", "key": "hideErrors", "label": "Hide error messages", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": false },
+            { "type": "text", "key": "reenableEnemyNameplates", "label": "Re-enable enemy nameplates after (seconds)", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": "", "maxLetters": 6, "placeholder": "Off",
+              "rule": { "kind": "integer", "min": 1, "max": 3600, "empty": true } },
+            { "type": "bitmask", "key": "actionBars", "label": "Action bars", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": 0,
+              "options": [ { "label": "Bottom left", "bit": 0 }, { "label": "Bottom right", "bit": 1 }, { "label": "Right", "bit": 2 }, { "label": "Right 2", "bit": 3 } ] },
+            { "type": "dropdown", "key": "skin", "label": "Skin", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": "blizzard",
+              "options": [ { "label": "Blizzard", "value": "blizzard" }, { "label": "Hoobi", "value": "hoobi" } ] },
+            { "type": "dropdown", "key": "skinAccent", "label": "Accent colour", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": "blue", "visibleWhen": { "key": "skin", "equals": "hoobi" },
+              "options": [ { "label": "Blue", "value": "blue" }, { "label": "Gold", "value": "gold" } ] },
+            { "type": "checkbox", "key": "threatMeter", "label": "Threat meter", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": true, "lockedWhenLoaded": ["Details"] }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Quests",
+      "sections": [
+        {
+          "title": "World",
+          "column": 1,
+          "rows": [
+            { "type": "checkbox", "key": "worldSparkles", "label": "World sparkles", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": true },
+            { "type": "checkbox", "key": "questMobSparkles", "label": "Quest mob sparkles", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": false, "keepDefault": true }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Mail",
+      "sections": [
+        {
+          "title": "Trade goods",
+          "column": 1,
+          "rows": [
+            { "type": "checkbox", "key": "mailTradeGoods", "label": "Mail trade goods", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": false },
+            { "type": "mailTarget", "key": "mailTradeGoodsTarget", "label": "Send trade goods to", "scope": "account",
+              "path": ["HoobiScriptsDB", "settings"], "default": "", "parent": "mailTradeGoods", "rule": { "kind": "characterName" } }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Items",
+      "sections": [
+        {
+          "title": "This character",
+          "column": 1,
+          "rows": [
+            { "type": "dropdown", "key": "vendorPlainWater", "label": "Plain water", "scope": "character",
+              "path": ["HoobiScriptsDB", "chars", "{character}"], "default": false,
+              "defaultByClass": { "WARRIOR": true, "ROGUE": true, "DRUID": false, "MAGE": false },
+              "options": [ { "label": "Keep", "value": false }, { "label": "Sell", "value": true } ] }
+          ]
+        }
+      ]
+    }
+  ]
+}

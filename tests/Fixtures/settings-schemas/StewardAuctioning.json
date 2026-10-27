@@ -1,0 +1,53 @@
+{
+  "addon": "steward-auctioning",
+  "folder": "StewardAuctioning",
+  "pages": [
+    {
+      "sections": [
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": 15,
+              "key": "fullScanMinutes",
+              "label": "Full scan age",
+              "options": [
+                {
+                  "label": "5 min",
+                  "value": 5
+                },
+                {
+                  "label": "10 min",
+                  "value": 10
+                },
+                {
+                  "label": "15 min",
+                  "value": 15
+                },
+                {
+                  "label": "30 min",
+                  "value": 30
+                },
+                {
+                  "label": "60 min",
+                  "value": 60
+                }
+              ],
+              "path": [
+                "StewardAuctioningDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "How long after the last full scan another one is asked for. The server's own limit on Forever is unmeasured; retail's is 15 minutes.",
+              "type": "dropdown"
+            }
+          ],
+          "title": "Auction house"
+        }
+      ],
+      "title": "Auctioning"
+    }
+  ],
+  "schemaVersion": 1,
+  "version": "0.42.0"
+}

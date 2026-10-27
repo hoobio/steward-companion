@@ -1,0 +1,2934 @@
+{
+  "addon": "hoobiscripts",
+  "folder": "HoobiScripts",
+  "pages": [
+    {
+      "sections": [
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "fasterLoot",
+              "label": "Faster auto loot",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Loots everything instantly, skipping the loot window.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "autoOpenClams",
+              "label": "Auto open clams",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Opens clams and other containers in your bags out of combat.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoLoot",
+              "label": "Auto loot",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Defaults Auto-loot to on at login. Useful for overriding new toon defaults.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Looting"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": "off",
+              "key": "autoRepair",
+              "label": "Auto repair",
+              "options": [
+                {
+                  "label": "Off",
+                  "value": "off"
+                },
+                {
+                  "label": "Equipped only",
+                  "value": "equipped"
+                },
+                {
+                  "label": "All",
+                  "value": "all"
+                }
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Repairs at every merchant that can, when you have the gold. Equipped only leaves your bags alone.",
+              "type": "dropdown"
+            }
+          ],
+          "title": "Repair"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": 15,
+              "key": "actionBars",
+              "label": "Auto enabled Action Bars",
+              "options": [
+                {
+                  "bit": 0,
+                  "label": "Action Bar 2"
+                },
+                {
+                  "bit": 1,
+                  "label": "Action Bar 3"
+                },
+                {
+                  "bit": 2,
+                  "label": "Action Bar 4"
+                },
+                {
+                  "bit": 3,
+                  "label": "Action Bar 5"
+                },
+                {
+                  "bit": 4,
+                  "label": "Action Bar 6"
+                },
+                {
+                  "bit": 5,
+                  "label": "Action Bar 7"
+                },
+                {
+                  "bit": 6,
+                  "label": "Action Bar 8"
+                }
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Bars shown at every login. Bar 1 is always shown.",
+              "type": "bitmask"
+            }
+          ],
+          "title": "Action Bars"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "maxCameraZoom",
+              "label": "Max camera zoom",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Zooms the camera out to the furthest distance the client allows, twice Blizzard's slider, at every loading screen. The mouse wheel still zooms in.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "skipIntroCinematic",
+              "label": "Skip starting zone cinematics",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Skips the intro cinematic a new character sees at level 1. Escape still skips it by hand.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "skipTutorials",
+              "label": "Skip tutorials",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Turns off Blizzard's new player tutorial and tutorial pop-ups.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Camera"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "disableStickyTargeting",
+              "label": "Disable sticky targeting",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Clicking empty ground clears your target. Blizzard's Sticky Targeting checkbox changes this setting too.",
+              "type": "checkbox"
+            },
+            {
+              "default": "",
+              "key": "reenableEnemyNameplates",
+              "label": "Re-enable enemy nameplates after (seconds)",
+              "maxLetters": 6,
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "placeholder": "Off",
+              "rule": {
+                "empty": true,
+                "kind": "integer",
+                "max": 3600,
+                "min": 1
+              },
+              "scope": "account",
+              "tooltip": "When enemy nameplates are turned off, turns them back on after this many seconds (1 to 3600). Empty is off.",
+              "type": "text"
+            },
+            {
+              "default": true,
+              "key": "worldSparkles",
+              "label": "Sparkles on herbs, ore and quest objects",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Gold sparkles on the herb, ore, chest or quest object in front of you, within interact reach. Turns on the interact key and its object icons, which these need.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "keepDefault": true,
+              "key": "questMobSparkles",
+              "label": "Sparkles on quest mobs",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Red sparkles on the nameplate of every mob your quests need. Enemy nameplates must be shown.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "unitScan",
+              "label": "Unit scan",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Raid warning and sound when a nameplate shows a mob the RestedXP step scans for, or one you added with /us <name>. Nameplates must be shown.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Targeting"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "enableDamageMeter",
+              "label": "Enable damage meter",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Turns on Blizzard's damage meter at every login.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "meterHoverBreakdown",
+              "label": "Spell breakdown on hover",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Hovering a damage meter bar shows that player's spells beside the meter. In combat it works on your own bar; click other bars for Blizzard's breakdown.",
+              "type": "checkbox"
+            },
+            {
+              "default": "",
+              "dynamicOptions": true,
+              "key": "damageMeterSyncSource",
+              "label": "Sync extra windows from",
+              "options": [
+                {
+                  "label": "None",
+                  "value": ""
+                }
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Copies the extra damage meter windows of this character to every other character: which windows show, what they track and where they sit. That character is saved at each logout. Another character takes the positions at login and which windows show at its next login. None turns it off.",
+              "type": "dropdown"
+            },
+            {
+              "default": false,
+              "key": "threatMeter",
+              "label": "Threat meter",
+              "lockedWhenLoaded": [
+                "Ellesmere*"
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Shows your, your pet's and each party member's threat on your target in a window styled like the damage meter. Drag its header to move it. Red is the one holding aggro.",
+              "type": "checkbox"
+            },
+            {
+              "default": 7,
+              "key": "threatMeterShow",
+              "label": "Show in",
+              "lockedWhenLoaded": [
+                "Ellesmere*"
+              ],
+              "options": [
+                {
+                  "bit": 0,
+                  "label": "Solo"
+                },
+                {
+                  "bit": 1,
+                  "label": "Party"
+                },
+                {
+                  "bit": 2,
+                  "label": "Raid"
+                }
+              ],
+              "parent": "threatMeter",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where the threat window shows: solo, in a party, in a raid.",
+              "type": "bitmask"
+            },
+            {
+              "default": true,
+              "key": "threatMeterRaw",
+              "label": "Show raw threat",
+              "lockedWhenLoaded": [
+                "Ellesmere*"
+              ],
+              "parent": "threatMeter",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Shows each row's threat number before its percentage.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Damage meter"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "raidStylePartyFrames",
+              "label": "Raid-style party frames",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Turns on Use Raid-Style Party Frames in your Edit Mode layout at login. On a preset layout it saves an account copy of the preset with the option on. Unticking leaves the layout alone.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "raidFramesPowerBars",
+              "label": "Display power bars",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Turns on the raid frames' Display Power Bars at every login.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "raidFramesClassColors",
+              "label": "Display class colours",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Turns on the raid frames' Display Class Colors at every login.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "trimRaidEditBox",
+              "label": "Fit Edit Mode box to raid frames",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Stops the party frames stretching the raid frames' Edit Mode box.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Raid frames"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "tooltipIDs",
+              "label": "Show item and spell IDs",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Adds the item ID or spell ID to the bottom of item and spell tooltips.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "questItemTooltip",
+              "label": "Show which quest needs an item",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Names the quests in your log that need the item and your progress, or says no quest in your log needs a quest item.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "uberTooltips",
+              "label": "Full action bar tooltips",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Turns on UberTooltips at every login, so action bar buttons show the whole spell tooltip rather than the name alone.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "tooltipGuildRank",
+              "label": "Show guild rank",
+              "lockedWhenLoaded": [
+                "Leatrix_Plus"
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Adds the player's guild rank after the guild name on unit tooltips.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "tooltipTarget",
+              "label": "Show the unit's target",
+              "lockedWhenLoaded": [
+                "Leatrix_Plus"
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Adds a line naming what the unit you hover is targeting.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Tooltips"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": false,
+              "key": "hideErrors",
+              "label": "Hide red error messages",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Hides the red error text in the middle of the screen, such as out of range and not enough mana. Bags full and quest log full still show.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Screen text"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "boatTimers",
+              "label": "Boat timers",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Shows when the next boat leaves each dock on the world map, worked out from the boats' fixed schedule.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "mapReveal",
+              "label": "Reveal unexplored areas",
+              "lockedWhenLoaded": [
+                "Leatrix_Maps"
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Draws the areas of zone maps you have not explored yet, faded, rather than leaving them blank.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "mapZoneInfo",
+              "label": "Zone levels and fishing skill",
+              "lockedWhenLoaded": [
+                "Leatrix_Maps"
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Shows each zone's level range and the fishing skill it needs on continent maps.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "townPins",
+              "label": "Map pins",
+              "lockedWhenLoaded": [
+                "Leatrix_Maps"
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Marks mailboxes, innkeepers, bankers, auctioneers, flight masters, spirit healers, dungeon entrances, portals and zone exits on the world map. Click a pin to track it. Town positions come from the 1.12 game data, so anything Forever moved or added is missing.",
+              "type": "checkbox"
+            },
+            {
+              "default": 511,
+              "key": "townPinKinds",
+              "label": "Pins shown",
+              "lockedWhenLoaded": [
+                "Leatrix_Maps"
+              ],
+              "options": [
+                {
+                  "bit": 0,
+                  "label": "Mailboxs"
+                },
+                {
+                  "bit": 1,
+                  "label": "Innkeepers"
+                },
+                {
+                  "bit": 2,
+                  "label": "Bankers"
+                },
+                {
+                  "bit": 3,
+                  "label": "Auctioneers"
+                },
+                {
+                  "bit": 4,
+                  "label": "Flight masters"
+                },
+                {
+                  "bit": 5,
+                  "label": "Spirit healers"
+                },
+                {
+                  "bit": 6,
+                  "label": "Dungeons and raids"
+                },
+                {
+                  "bit": 7,
+                  "label": "Portals and trams"
+                },
+                {
+                  "bit": 8,
+                  "label": "Zone exits"
+                }
+              ],
+              "parent": "townPins",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Which kinds of pin to show on the world map.",
+              "type": "bitmask"
+            }
+          ],
+          "title": "World map"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "instanceTracker",
+              "label": "Instance tracker",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Counts the dungeons and raids you enter each hour against the hourly cap, prints the count on entering and warns with a raid warning when the cap is close. /hs instances lists them.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Instances"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": "",
+              "dynamicOptions": true,
+              "key": "editModeLayout",
+              "label": "Layout at login",
+              "options": [
+                {
+                  "label": "None",
+                  "value": ""
+                }
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Switches Edit Mode to this layout at every login. None leaves it alone, and so does EllesmereUI being loaded.",
+              "type": "dropdown"
+            },
+            {
+              "default": true,
+              "key": "editModeOffScreen",
+              "label": "Allow moving off screen",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Lets Edit Mode elements and chat windows sit at or past the screen edge instead of being pushed back on. Select an element and press the arrow keys to move it 1 pixel, or 10 with Shift held.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "hideMicroMenuArt",
+              "label": "Hide menu bar border",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Hides the border and background behind the menu buttons.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "hideBagsBarArt",
+              "label": "Hide bag bar border",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Hides the border behind the bag buttons.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Edit Mode"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "minimapButton",
+              "label": "Minimap button",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Left-click lists what HoobiScripts addons add, right-click opens these settings. Drag it around the edge. Not shown while Steward is loaded, whose minimap button carries this menu.",
+              "type": "checkbox"
+            },
+            {
+              "default": 7867,
+              "key": "minimapTracking",
+              "label": "Tracking at login",
+              "options": [
+                {
+                  "bit": 0,
+                  "label": "Auctioneer"
+                },
+                {
+                  "bit": 1,
+                  "label": "Banker"
+                },
+                {
+                  "bit": 2,
+                  "label": "Battlemaster"
+                },
+                {
+                  "bit": 3,
+                  "label": "Innkeeper"
+                },
+                {
+                  "bit": 4,
+                  "label": "Mailbox"
+                },
+                {
+                  "bit": 5,
+                  "label": "Class Trainer"
+                },
+                {
+                  "bit": 6,
+                  "label": "Profession Trainers"
+                },
+                {
+                  "bit": 7,
+                  "label": "Repair"
+                },
+                {
+                  "bit": 8,
+                  "label": "Stable Master"
+                },
+                {
+                  "bit": 9,
+                  "label": "Flight Master"
+                },
+                {
+                  "bit": 10,
+                  "label": "Low-Level Quests"
+                },
+                {
+                  "bit": 11,
+                  "label": "Find Herbs"
+                },
+                {
+                  "bit": 12,
+                  "label": "Find Minerals"
+                }
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Turns these on in the minimap tracking menu at every login. Nothing is turned off, so anything else you track stays tracked. Find Herbs and Find Minerals also turn on when you learn them.",
+              "type": "bitmask"
+            },
+            {
+              "default": true,
+              "key": "retrackAfterDeath",
+              "label": "Recast tracking after death",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Turns Find Herbs, Find Minerals and any other tracking spell you had on back on when you come back to life.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Minimap"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "updateSpellRanks",
+              "label": "Update spell ranks on the bars",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Moves bar slots up to each new spell rank you learn. /hs ranks runs it now.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "announceNewSpells",
+              "label": "Announce new spells on level up",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Lists in chat, one line each, the spells and ranks your trainer now has for you, and any from earlier levels you have not trained. /spells opens the full list.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "trainPlanned",
+              "label": "Train planned spells at the trainer",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "From level 10, learns every spell rank in your spell plan that the trainer has for you, one a moment, while you can pay for it. Every spell starts on Never train.A GamerGuides step that lists its own training takes over that visit.",
+              "type": "checkbox"
+            },
+            {
+              "default": 0,
+              "key": "trainKeepGold",
+              "label": "Keep at least",
+              "parent": "trainPlanned",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Planned spells are bought only while this much money is left afterwards.",
+              "type": "money"
+            },
+            {
+              "default": true,
+              "key": "followTalentPlan",
+              "label": "Follow the talent plan",
+              "path": [
+                "HoobiScriptsDB",
+                "chars",
+                "{character}"
+              ],
+              "scope": "character",
+              "tooltip": "Each level-up spends its new talent point on the next point of your talent plan, out of combat, while your talents match the plan so far. Points you already had unspent wait for Learn plan now in the plan window.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Spells"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "waterMacro",
+              "label": "Water macro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps the HoobiWater macro on your best usable drink.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "foodMacro",
+              "label": "Food macro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps the HoobiFood macro on your best usable food.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "foodMacroBuffs",
+              "label": "Prefer buff food",
+              "parent": "foodMacro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Picks well fed or XP food over plain food, buffs scored by your stat weights.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "bandageMacro",
+              "label": "Bandage macro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps the HoobiBandage macro on your best usable bandage.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "healthPotionMacro",
+              "label": "Health potion macro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps the HoobiHealthPotion macro on the usable potion in your bags that restores the most health.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "manaPotionMacro",
+              "label": "Mana potion macro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps the HoobiManaPotion macro on the usable potion in your bags that restores the most mana.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Macros"
+        }
+      ],
+      "title": "General"
+    },
+    {
+      "sections": [
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "autoAcceptQuests",
+              "label": "Auto accept quests",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Accepts quests as soon as they are offered.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoStartItemQuests",
+              "label": "Auto start quests from items",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Starts quests from items in your bags, out of combat.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoTurnInQuests",
+              "label": "Auto hand in quests",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Hands in completed quests that have no reward choice.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "autoTurnInRepeatable",
+              "label": "Auto hand in repeatable quests",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Also accepts and hands in repeatable quests.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoSelectReward",
+              "label": "Highlight best quest reward",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Highlights the best reward choice and shows why.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "autoHandInReward",
+              "label": "Auto hand in for best quest reward",
+              "parent": "autoSelectReward",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Also takes the highlighted reward and hands the quest in.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoSingleGossip",
+              "label": "Skip single-option gossip",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Opens the vendor, trainer or other service at once when an NPC offers it as its only option and has no quests. Hold Ctrl, Alt or Shift to see the gossip.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "questLogAbandon",
+              "label": "Abandon button in the quest log",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Shows a red cross beside each quest's track checkbox in the quest log that abandons it after a confirm.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Automation"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": false,
+              "key": "autoShareQuests",
+              "label": "Share new quests with the party",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Shares each quest you accept with your party.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoAcceptShared",
+              "label": "Auto accept shared quests",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Accepts quests shared by party members running HoobiScripts.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "syncPartyQuests",
+              "label": "Sync quests with the party",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Needs RestedXP. Every 30 seconds, and on any quest pickup or level up, asks party members running HoobiScripts to share the quests in your current or a later guide that they have and you lack, and accepts them whatever Auto accept shared quests says. Grey quests and ones you abandoned or completed are skipped. A quest refused for prerequisites is asked for again after your next hand-in, one refused for level after you level, and one refused for class, race or faction never. A quest you abandon is not synced or shared automatically for the session until you accept it again; Abandon Forever on the map's quest details declines it when shared, unless a guide ahead of you needs it.",
+              "type": "checkbox",
+              "visibleWhenLoaded": [
+                "RXPGuides"
+              ]
+            },
+            {
+              "default": true,
+              "key": "shareQuestLoot",
+              "label": "Share quest item drops",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "When you loot an item that starts a quest, or fills a 1/1 item objective, says so in party chat with a map pin. Party members running HoobiScripts within 1000 yards who still need it get a warning and a tracked pin on the spot, which goes once they loot it or accept the quest.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Sharing"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": false,
+              "key": "questTargetMacro",
+              "label": "Enable macro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps the HoobiTargets macro on the mobs your zone's quests need killed.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "questTargetRXP",
+              "label": "Include RXPGuides targets",
+              "parent": "questTargetMacro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Adds the mobs from RestedXP's current step.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "questTargetNPCs",
+              "label": "Target RXPGuides quest givers",
+              "parent": "questTargetMacro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Targets the NPC RestedXP's current step talks to when no quest mob is in range.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "questTargetItems",
+              "label": "Use RXPGuides step items",
+              "parent": "questTargetMacro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Adds a /use line for each item RestedXP's current step uses, while it is in your bags.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "questTargetGather",
+              "label": "Gather with the macro's key",
+              "parent": "questTargetMacro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Out of combat, the key the macro is on picks the herb, ore, chest or quest object in reach, opens the mailbox in reach, or talks to the NPC in reach, instead. Needs the sparkles setting on the General page.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "questTargetTooltip",
+              "label": "Explain the macro in its tooltip",
+              "parent": "questTargetMacro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Hovering the macro on an action bar lists what it targets, attacks with and uses, and the herb or ore its key will pick.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "disableActionTargeting",
+              "label": "Keep action targeting off",
+              "parent": "questTargetMacro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps action targeting off, so the macro never attacks a bystander.",
+              "type": "checkbox"
+            },
+            {
+              "default": "",
+              "dynamicOptions": true,
+              "key": "attackSpell",
+              "label": "Attack spell",
+              "options": [],
+              "path": [
+                "HoobiScriptsDB",
+                "chars",
+                "{character}"
+              ],
+              "scope": "character",
+              "tooltip": "The spell the macro casts. Automatic prefers a ranged spell, then a ranged weapon, then melee.",
+              "type": "dropdown"
+            },
+            {
+              "default": "",
+              "dynamicOptions": true,
+              "key": "attackSpellRank",
+              "label": "Attack spell rank",
+              "options": [],
+              "path": [
+                "HoobiScriptsDB",
+                "chars",
+                "{character}"
+              ],
+              "scope": "character",
+              "tooltip": "The rank the macro casts. Lower ranks save mana.",
+              "type": "dropdown"
+            }
+          ],
+          "title": "Quest target macro"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "inGameNavigation",
+              "label": "In-world waypoint marker",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Shows Blizzard's in-world marker for the tracked quest or pin, which Forever hides.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "navFollowRXP",
+              "label": "Follow RestedXP waypoints",
+              "parent": "inGameNavigation",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Points the marker at RestedXP's current step.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "wayCommand",
+              "label": "/way waypoints",
+              "parent": "inGameNavigation",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "TomTom's /way [zone] x y sets a map pin and points the marker at it. Left alone when another addon owns /way; /hs way always works.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "flightTimer",
+              "label": "Flight time left",
+              "parent": "inGameNavigation",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "While flying, shows the time left under the marker's distance: the last flight on the same path, or an estimate marked ~ until the path has been flown once.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "waypointEta",
+              "label": "Time to waypoint",
+              "parent": "inGameNavigation",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Shows how long until you reach the marker at the speed you are closing on it, under its distance. Hidden while standing still or moving away.",
+              "type": "checkbox"
+            },
+            {
+              "default": "metric",
+              "key": "distanceUnits",
+              "label": "Distance units",
+              "options": [
+                {
+                  "label": "Metric",
+                  "value": "metric"
+                },
+                {
+                  "label": "Burgerhead",
+                  "value": "burgerhead"
+                }
+              ],
+              "parent": "inGameNavigation",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Metric shows the marker's distance in metres, with one decimal below 10 m. Burgerhead keeps Blizzard's yards.",
+              "type": "dropdown"
+            },
+            {
+              "default": true,
+              "key": "guideXPMarker",
+              "label": "Mark guide XP targets",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "While a RestedXP step asks you to grind to an amount of XP, marks that amount on your XP bar. Hover it for how much is left.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "completeVendorSteps",
+              "label": "Finish vendor steps on close",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Closing any merchant completes the current RestedXP sell junk step, which RestedXP misses when the merchant was not your target.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "trackGuideQuestsOnly",
+              "label": "Track only guide quests",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "The objective tracker shows only the quests the current RestedXP guide still accepts, completes or hands in, from the current step on. Unticking tracks every quest again.",
+              "type": "checkbox",
+              "visibleWhenLoaded": [
+                "RXPGuides"
+              ]
+            },
+            {
+              "default": true,
+              "key": "compactQuestTracker",
+              "label": "Compact quest tracker",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "With a RestedXP guide loaded, the objective tracker hides finished objectives and hand-in text. Hover a quest's name for them, its quest ID and its guide step.",
+              "type": "checkbox",
+              "visibleWhenLoaded": [
+                "RXPGuides"
+              ]
+            },
+            {
+              "default": true,
+              "key": "startDefaultGuide",
+              "label": "Start the guide for your race",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "On a level 1 character with no guide loaded, loads RestedXP's starting guide for your race, once per character, without the RestedXP setup wizard.",
+              "type": "checkbox",
+              "visibleWhenLoaded": [
+                "RXPGuides"
+              ]
+            }
+          ],
+          "title": "Navigation"
+        }
+      ],
+      "title": "Quests"
+    },
+    {
+      "sections": [
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "autoEquipUpgrades",
+              "label": "Auto equip upgrades",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Equips bag items that score higher than what you wear. Bind-on-equip and still-tradeable upgrades are offered in a window first.",
+              "type": "checkbox"
+            },
+            {
+              "default": 0,
+              "key": "ignoreSlots",
+              "label": "Ignore slots",
+              "options": [
+                {
+                  "bit": 0,
+                  "label": "Head"
+                },
+                {
+                  "bit": 1,
+                  "label": "Neck"
+                },
+                {
+                  "bit": 2,
+                  "label": "Shoulder"
+                },
+                {
+                  "bit": 3,
+                  "label": "Back"
+                },
+                {
+                  "bit": 4,
+                  "label": "Chest"
+                },
+                {
+                  "bit": 5,
+                  "label": "Wrist"
+                },
+                {
+                  "bit": 6,
+                  "label": "Hands"
+                },
+                {
+                  "bit": 7,
+                  "label": "Waist"
+                },
+                {
+                  "bit": 8,
+                  "label": "Legs"
+                },
+                {
+                  "bit": 9,
+                  "label": "Feet"
+                },
+                {
+                  "bit": 10,
+                  "label": "Finger"
+                },
+                {
+                  "bit": 11,
+                  "label": "Trinket"
+                },
+                {
+                  "bit": 12,
+                  "label": "Weapon"
+                },
+                {
+                  "bit": 13,
+                  "label": "Off hand"
+                },
+                {
+                  "bit": 14,
+                  "label": "Ranged"
+                }
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Slots auto equip leaves alone.",
+              "type": "bitmask"
+            },
+            {
+              "default": "",
+              "key": "spec",
+              "label": "Spec",
+              "options": [
+                {
+                  "label": "Not set",
+                  "value": ""
+                }
+              ],
+              "optionsByClass": {
+                "DRUID": [
+                  {
+                    "label": "Not set",
+                    "value": ""
+                  },
+                  {
+                    "label": "Balance",
+                    "value": "Balance"
+                  },
+                  {
+                    "label": "Feral",
+                    "value": "Feral"
+                  },
+                  {
+                    "label": "Feral (bear)",
+                    "value": "Feral (bear)"
+                  },
+                  {
+                    "label": "Restoration",
+                    "value": "Restoration"
+                  }
+                ],
+                "HUNTER": [
+                  {
+                    "label": "Not set",
+                    "value": ""
+                  },
+                  {
+                    "label": "Beast Mastery",
+                    "value": "Beast Mastery"
+                  },
+                  {
+                    "label": "Marksmanship",
+                    "value": "Marksmanship"
+                  },
+                  {
+                    "label": "Survival",
+                    "value": "Survival"
+                  }
+                ],
+                "MAGE": [
+                  {
+                    "label": "Not set",
+                    "value": ""
+                  },
+                  {
+                    "label": "Arcane",
+                    "value": "Arcane"
+                  },
+                  {
+                    "label": "Fire",
+                    "value": "Fire"
+                  },
+                  {
+                    "label": "Frost",
+                    "value": "Frost"
+                  }
+                ],
+                "PALADIN": [
+                  {
+                    "label": "Not set",
+                    "value": ""
+                  },
+                  {
+                    "label": "Holy",
+                    "value": "Holy"
+                  },
+                  {
+                    "label": "Protection",
+                    "value": "Protection"
+                  },
+                  {
+                    "label": "Retribution",
+                    "value": "Retribution"
+                  }
+                ],
+                "PRIEST": [
+                  {
+                    "label": "Not set",
+                    "value": ""
+                  },
+                  {
+                    "label": "Discipline",
+                    "value": "Discipline"
+                  },
+                  {
+                    "label": "Holy",
+                    "value": "Holy"
+                  },
+                  {
+                    "label": "Shadow",
+                    "value": "Shadow"
+                  }
+                ],
+                "ROGUE": [
+                  {
+                    "label": "Not set",
+                    "value": ""
+                  },
+                  {
+                    "label": "Assassination",
+                    "value": "Assassination"
+                  },
+                  {
+                    "label": "Combat",
+                    "value": "Combat"
+                  },
+                  {
+                    "label": "Subtlety",
+                    "value": "Subtlety"
+                  }
+                ],
+                "SHAMAN": [
+                  {
+                    "label": "Not set",
+                    "value": ""
+                  },
+                  {
+                    "label": "Elemental",
+                    "value": "Elemental"
+                  },
+                  {
+                    "label": "Enhancement",
+                    "value": "Enhancement"
+                  },
+                  {
+                    "label": "Restoration",
+                    "value": "Restoration"
+                  }
+                ],
+                "WARLOCK": [
+                  {
+                    "label": "Not set",
+                    "value": ""
+                  },
+                  {
+                    "label": "Affliction",
+                    "value": "Affliction"
+                  },
+                  {
+                    "label": "Demonology",
+                    "value": "Demonology"
+                  },
+                  {
+                    "label": "Destruction",
+                    "value": "Destruction"
+                  }
+                ],
+                "WARRIOR": [
+                  {
+                    "label": "Not set",
+                    "value": ""
+                  },
+                  {
+                    "label": "Arms",
+                    "value": "Arms"
+                  },
+                  {
+                    "label": "Fury",
+                    "value": "Fury"
+                  },
+                  {
+                    "label": "Protection",
+                    "value": "Protection"
+                  }
+                ]
+              },
+              "path": [
+                "HoobiScriptsDB",
+                "chars",
+                "{character}"
+              ],
+              "scope": "character",
+              "tooltip": "Your talent build, per character. /hs spec reopens the chooser.",
+              "type": "dropdown"
+            },
+            {
+              "default": "auto",
+              "key": "primaryStat",
+              "label": "Primary stat",
+              "options": [
+                {
+                  "label": "Automatic (Intellect)",
+                  "value": "auto"
+                },
+                {
+                  "label": "Strength",
+                  "value": "STR"
+                },
+                {
+                  "label": "Agility",
+                  "value": "AGI"
+                },
+                {
+                  "label": "Intellect",
+                  "value": "INT"
+                }
+              ],
+              "optionsByClass": {
+                "DRUID": [
+                  {
+                    "label": "Automatic (Agility)",
+                    "value": "auto"
+                  },
+                  {
+                    "label": "Strength",
+                    "value": "STR"
+                  },
+                  {
+                    "label": "Agility",
+                    "value": "AGI"
+                  },
+                  {
+                    "label": "Intellect",
+                    "value": "INT"
+                  }
+                ],
+                "HUNTER": [
+                  {
+                    "label": "Automatic (Agility)",
+                    "value": "auto"
+                  },
+                  {
+                    "label": "Strength",
+                    "value": "STR"
+                  },
+                  {
+                    "label": "Agility",
+                    "value": "AGI"
+                  },
+                  {
+                    "label": "Intellect",
+                    "value": "INT"
+                  }
+                ],
+                "MAGE": [
+                  {
+                    "label": "Automatic (Intellect)",
+                    "value": "auto"
+                  },
+                  {
+                    "label": "Strength",
+                    "value": "STR"
+                  },
+                  {
+                    "label": "Agility",
+                    "value": "AGI"
+                  },
+                  {
+                    "label": "Intellect",
+                    "value": "INT"
+                  }
+                ],
+                "PALADIN": [
+                  {
+                    "label": "Automatic (Strength)",
+                    "value": "auto"
+                  },
+                  {
+                    "label": "Strength",
+                    "value": "STR"
+                  },
+                  {
+                    "label": "Agility",
+                    "value": "AGI"
+                  },
+                  {
+                    "label": "Intellect",
+                    "value": "INT"
+                  }
+                ],
+                "PRIEST": [
+                  {
+                    "label": "Automatic (Intellect)",
+                    "value": "auto"
+                  },
+                  {
+                    "label": "Strength",
+                    "value": "STR"
+                  },
+                  {
+                    "label": "Agility",
+                    "value": "AGI"
+                  },
+                  {
+                    "label": "Intellect",
+                    "value": "INT"
+                  }
+                ],
+                "ROGUE": [
+                  {
+                    "label": "Automatic (Agility)",
+                    "value": "auto"
+                  },
+                  {
+                    "label": "Strength",
+                    "value": "STR"
+                  },
+                  {
+                    "label": "Agility",
+                    "value": "AGI"
+                  },
+                  {
+                    "label": "Intellect",
+                    "value": "INT"
+                  }
+                ],
+                "SHAMAN": [
+                  {
+                    "label": "Automatic (Strength)",
+                    "value": "auto"
+                  },
+                  {
+                    "label": "Strength",
+                    "value": "STR"
+                  },
+                  {
+                    "label": "Agility",
+                    "value": "AGI"
+                  },
+                  {
+                    "label": "Intellect",
+                    "value": "INT"
+                  }
+                ],
+                "WARLOCK": [
+                  {
+                    "label": "Automatic (Intellect)",
+                    "value": "auto"
+                  },
+                  {
+                    "label": "Strength",
+                    "value": "STR"
+                  },
+                  {
+                    "label": "Agility",
+                    "value": "AGI"
+                  },
+                  {
+                    "label": "Intellect",
+                    "value": "INT"
+                  }
+                ],
+                "WARRIOR": [
+                  {
+                    "label": "Automatic (Strength)",
+                    "value": "auto"
+                  },
+                  {
+                    "label": "Strength",
+                    "value": "STR"
+                  },
+                  {
+                    "label": "Agility",
+                    "value": "AGI"
+                  },
+                  {
+                    "label": "Intellect",
+                    "value": "INT"
+                  }
+                ]
+              },
+              "path": [
+                "HoobiScriptsDB",
+                "chars",
+                "{character}"
+              ],
+              "scope": "character",
+              "tooltip": "The stat gear is scored on. Automatic follows your spec.",
+              "type": "dropdown"
+            },
+            {
+              "default": "auto",
+              "key": "role",
+              "label": "Role",
+              "options": [
+                {
+                  "label": "Automatic (Damage)",
+                  "value": "auto"
+                },
+                {
+                  "label": "Tank",
+                  "value": "TANK"
+                },
+                {
+                  "label": "Healer",
+                  "value": "HEALER"
+                },
+                {
+                  "label": "Damage",
+                  "value": "DAMAGER"
+                }
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "chars",
+                "{character}"
+              ],
+              "scope": "character",
+              "tooltip": "Weights stamina, spirit and avoidance. Automatic follows your spec.",
+              "type": "dropdown"
+            },
+            {
+              "default": true,
+              "key": "arrangeBags",
+              "label": "Arrange bags",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Moves an equipped reagent or profession bag into the reagent bag slot and a quiver or ammo pouch into the last bag slot.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "bagSortButton",
+              "label": "Bag sort button",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Puts the Clean Up Bags button back on the backpack. Not shown while EllesmereUI is loaded.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "gearScoreTooltip",
+              "label": "Show gear score in tooltips",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Adds the gear score and the gain over what you wear to item tooltips.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Equipment"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "lowAmmoWarning",
+              "label": "Low ammo warning",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Pulses red text in the middle of the screen while a bow, crossbow or gun is equipped and fewer than 200 arrows or bullets are left.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Ammo"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "xpFoodReminder",
+              "label": "XP food reminder",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Raid warning naming the food when you carry XP food you can eat and have no XP well fed buff. Not at max level.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "wellRestedReminder",
+              "label": "Well-Rested reminder",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Warns 60, 30 and 15 minutes before the Cozy Sleeping Bag's Well-Rested buff ends, then every minute from 10, and shows a button in the middle of the screen out of combat that uses the bag. Below level 60 only.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Food"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "vendorGreys",
+              "label": "Auto vendor greys",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Sells grey items at merchants without asking.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "vendorUnusable",
+              "label": "Vendor unequippable gear",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Offers gear your class can never use.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "vendorDowngrades",
+              "label": "Vendor downgrades",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Offers gear no better than what you wear.",
+              "type": "checkbox"
+            },
+            {
+              "default": 2,
+              "key": "vendorDowngradeQuality",
+              "label": "Tick up to quality",
+              "options": [
+                {
+                  "label": "Common",
+                  "value": 1
+                },
+                {
+                  "label": "Uncommon",
+                  "value": 2
+                },
+                {
+                  "label": "Rare",
+                  "value": 3
+                },
+                {
+                  "label": "Epic",
+                  "value": 4
+                }
+              ],
+              "parent": "vendorDowngrades",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "The highest quality of downgrade ticked by default.",
+              "type": "dropdown"
+            },
+            {
+              "default": true,
+              "key": "vendorDowngradeBoPOnly",
+              "label": "Leave bind-on-equip unticked",
+              "parent": "vendorDowngrades",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Leaves bind-on-equip downgrades unticked.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "defaultByClass": {
+                "DRUID": true,
+                "HUNTER": false,
+                "MAGE": false,
+                "PALADIN": true,
+                "PRIEST": true,
+                "ROGUE": false,
+                "SHAMAN": true,
+                "WARLOCK": false,
+                "WARRIOR": false
+              },
+              "key": "vendorPlainFood",
+              "label": "Vendor plain food",
+              "path": [
+                "HoobiScriptsDB",
+                "chars",
+                "{character}"
+              ],
+              "scope": "character",
+              "tooltip": "Offers food that only restores health. Per character, on for classes with healing spells.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "vendorPlainFoodSilent",
+              "label": "Sell without asking",
+              "parent": "vendorPlainFood",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Sells plain food at merchants without the confirmation window.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "vendorOldFood",
+              "label": "Vendor superseded food",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Offers plain food healing less than the best plain food you can eat.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "defaultByClass": {
+                "DRUID": false,
+                "HUNTER": false,
+                "MAGE": false,
+                "PALADIN": false,
+                "PRIEST": false,
+                "ROGUE": true,
+                "SHAMAN": false,
+                "WARLOCK": false,
+                "WARRIOR": true
+              },
+              "key": "vendorPlainWater",
+              "label": "Vendor plain water",
+              "path": [
+                "HoobiScriptsDB",
+                "chars",
+                "{character}"
+              ],
+              "scope": "character",
+              "tooltip": "Offers every drink in your bags. Per character, on for classes without mana.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "vendorPlainWaterSilent",
+              "label": "Sell without asking",
+              "parent": "vendorPlainWater",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Sells plain water at merchants without the confirmation window.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "vendorOldWater",
+              "label": "Vendor superseded water",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Water weaker than the best in your bags is always listed; this starts it ticked.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "keepBagSlotFree",
+              "label": "Keep a bag slot free",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "When your bags fill, deletes the cheapest grey or plain food healing the same as another food you carry, or white gear with no stats when there are neither, on your next click or key press. Never vendored items are kept.",
+              "type": "checkbox"
+            },
+            {
+              "default": 5000,
+              "key": "keepBagSlotFreeValue",
+              "label": "Delete up to",
+              "parent": "keepBagSlotFree",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "The most a stack may sell for and still be deleted.",
+              "type": "money"
+            },
+            {
+              "default": false,
+              "key": "alwaysDelete",
+              "label": "Always delete button",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Adds Always delete under the delete item confirmation. It deletes the item and marks it, and a marked item reaching your bags is deleted on your next click or key press. Items RestedXP needs are kept.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "keepGuideItems",
+              "label": "Keep items RestedXP needs",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Never vendors, mails or deletes an item a RestedXP guide step from the current one onwards collects or buys, and marks it in your bags with the RestedXP logo.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "protectGuideItems",
+              "label": "Keep every RestedXP guide item",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Never vendors, mails or deletes any item a RestedXP guide on this client collects, buys or uses, whichever guide or step you are on.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Vendoring"
+        }
+      ],
+      "title": "Items"
+    },
+    {
+      "sections": [
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "autoInvite",
+              "label": "Invite on whisper",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Invites anyone who whispers you the keyword.",
+              "type": "checkbox"
+            },
+            {
+              "default": "inv",
+              "key": "autoInviteKeyword",
+              "label": "Invite keyword",
+              "maxLetters": 24,
+              "parent": "autoInvite",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "rule": {
+                "empty": false,
+                "kind": "string",
+                "lower": true
+              },
+              "scope": "account",
+              "tooltip": "The whisper that gets an invite. /hs invite <word> sets it too.",
+              "type": "text"
+            },
+            {
+              "default": "Auto-inviting you to the group",
+              "key": "autoInviteReply",
+              "label": "Reply",
+              "maxLetters": 80,
+              "parent": "autoInvite",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "rule": {
+                "kind": "string"
+              },
+              "scope": "account",
+              "tooltip": "Whispered back with the invite. Empty sends nothing.",
+              "type": "text"
+            },
+            {
+              "default": false,
+              "key": "autoInviteGuildOnly",
+              "label": "Only guild members",
+              "parent": "autoInvite",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Only invites guild members.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "autoInviteFriendsOnly",
+              "label": "Only friends",
+              "parent": "autoInvite",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Only invites friends and Battle.net friends.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoAcceptInvite",
+              "label": "Accept invite after asking",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Accepts a group invite from anyone you whispered the invite keyword to in the last two minutes.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Auto invite"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": false,
+              "key": "autoFreeForAll",
+              "label": "Set free for all loot",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Sets the loot method to free for all when you form a group or become its leader. A loot method you pick yourself afterwards stays.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Group loot"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "partyXPBar",
+              "label": "Party XP on the XP bar",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Pins each party member running HoobiScripts on your XP bar in their class colour, with an arrow at the end of the bar for a higher level and at the start for a lower one.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Party XP"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "chatArrowKeys",
+              "label": "Arrow keys in the chat box",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "The arrow keys move the cursor in the chat box rather than needing Alt held.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "chatNoFade",
+              "label": "Chat text never fades",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps chat text on screen rather than fading it out after a while.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "chatCopyTab",
+              "label": "Ctrl-click a chat tab to copy",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Ctrl-click a chat tab to open its recent lines in a window you can select and copy from.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "chatRestore",
+              "label": "Keep chat after a reload",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Puts the recent chat lines back after /reload. A normal login starts with empty chat.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Chat"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": false,
+              "key": "greetGuildJoins",
+              "label": "Greet new guild members",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Greets new guild members in guild chat.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "farewellGuildLeaves",
+              "label": "Say bye to leavers",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Says goodbye, bye or cya in guild chat when someone leaves the guild.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "announceLevelUp",
+              "label": "Announce level ups",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Says \"ding <level>\" in guild chat on every level up.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "congratulateDings",
+              "label": "Congratulate dings",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Says gz, grats or congrats when someone says ding in guild or party chat.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "guildChatOff",
+              "label": "Turn these off for the guild",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Officers only. Turns the four options above off for every guild member running HoobiScripts, and greys them out for the session.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Guild greeting"
+        }
+      ],
+      "title": "Social"
+    },
+    {
+      "sections": [
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": false,
+              "key": "mailTradeGoods",
+              "label": "Mail trade goods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Lists your trade goods to mail when a mailbox opens.",
+              "type": "checkbox"
+            },
+            {
+              "default": "",
+              "key": "mailTradeGoodsTarget",
+              "label": "Send to",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "rule": {
+                "kind": "characterName"
+              },
+              "scope": "account",
+              "tooltip": "The character trade goods go to.",
+              "type": "text"
+            }
+          ],
+          "title": "Trade goods"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": "",
+              "key": "mailTarget7_1",
+              "label": "Parts",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where parts is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget7_5",
+              "label": "Cloth",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where cloth is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget7_6",
+              "label": "Leather",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where leather is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget7_7",
+              "label": "Metal & Stone",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where metal & stone is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget7_8",
+              "label": "Cooking",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where cooking is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget7_9",
+              "label": "Herb",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where herb is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget7_10",
+              "label": "Elemental",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where elemental is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget7_11",
+              "label": "Other",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where other is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget7_12",
+              "label": "Enchanting",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where enchanting is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            }
+          ],
+          "title": "Trade Goods"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": "",
+              "key": "mailTarget9_0",
+              "label": "Book",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where book is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget9_1",
+              "label": "Leatherworking",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where leatherworking is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget9_2",
+              "label": "Tailoring",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where tailoring is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget9_3",
+              "label": "Engineering",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where engineering is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget9_4",
+              "label": "Blacksmithing",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where blacksmithing is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget9_5",
+              "label": "Cooking",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where cooking is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget9_6",
+              "label": "Alchemy",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where alchemy is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget9_7",
+              "label": "First Aid",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where first aid is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget9_8",
+              "label": "Enchanting",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where enchanting is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": "",
+              "key": "mailTarget9_9",
+              "label": "Fishing",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where fishing is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            }
+          ],
+          "title": "Recipe"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": "",
+              "key": "mailTarget5_0",
+              "label": "Reagent",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where reagent is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            }
+          ],
+          "title": "Reagent"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": "-",
+              "key": "mailTarget12_0",
+              "label": "Quest",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where quest is mailed. Empty follows Send to.",
+              "type": "mailTarget"
+            }
+          ],
+          "title": "Quest"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": "",
+              "key": "mailTargetBoE",
+              "label": "Bind on equip",
+              "maxLetters": 32,
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where bind-on-equip gear goes. Empty follows Send to.",
+              "type": "mailTarget"
+            },
+            {
+              "default": true,
+              "key": "mailBoENonUpgrades",
+              "label": "Keep upgrades",
+              "parent": "mailTradeGoods",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps bind-on-equip upgrades out of the mail.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Bind on equip gear"
+        }
+      ],
+      "title": "Mail"
+    },
+    {
+      "sections": [
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "trackLevelXP",
+              "label": "Track XP per level",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Records XP per level and alerts when it changes.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Experience"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": false,
+              "key": "hideIssueReporter",
+              "label": "Hide the Issue Reporter",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Hides the floating Issue Reporter button.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "writeTaintLog",
+              "label": "Write the taint log",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Writes Logs\\taint.log at every login for bug reports.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Beta client"
+        }
+      ],
+      "title": "Beta"
+    }
+  ],
+  "schemaVersion": 1,
+  "version": "0.42.0"
+}

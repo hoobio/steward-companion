@@ -1,0 +1,63 @@
+{
+  "addon": "hoobiscripts-sniper",
+  "folder": "HoobiScripts_Sniper",
+  "pages": [
+    {
+      "sections": [
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": 100,
+              "key": "flipMinProfit",
+              "label": "Minimum profit",
+              "path": [
+                "HoobiScripts_SniperDB"
+              ],
+              "scope": "account",
+              "tooltip": "AH to vendor items profiting less than this per item are hidden from the Vendor flips window and Buy next. 0 shows every one.",
+              "type": "money"
+            },
+            {
+              "default": 5,
+              "key": "snipeInterval",
+              "label": "Pass interval",
+              "options": [
+                {
+                  "label": "3 s",
+                  "value": 3
+                },
+                {
+                  "label": "5 s",
+                  "value": 5
+                },
+                {
+                  "label": "10 s",
+                  "value": 10
+                },
+                {
+                  "label": "15 s",
+                  "value": 15
+                },
+                {
+                  "label": "30 s",
+                  "value": 30
+                }
+              ],
+              "path": [
+                "HoobiScripts_SniperDB"
+              ],
+              "scope": "account",
+              "tooltip": "How long sniping waits after one browse pass ends before the next starts.",
+              "type": "dropdown"
+            }
+          ],
+          "title": "Vendor flips"
+        }
+      ],
+      "title": "Sniper"
+    }
+  ],
+  "schemaVersion": 1,
+  "version": "0.42.0"
+}

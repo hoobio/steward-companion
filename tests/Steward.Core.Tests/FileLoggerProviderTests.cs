@@ -28,6 +28,21 @@ public sealed class FileLoggerProviderTests : IDisposable
     }
 
     [Fact]
+    public void Write_AfterDispose_LeavesTheFileClosed()
+    {
+        var provider = new FileLoggerProvider(_root, "debug", () => new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero));
+        var logger = provider.CreateLogger("Steward");
+        logger.Warn(null, "before");
+        provider.Dispose();
+
+        logger.Warn(null, "after");
+
+        var file = Path.Combine(_root, "steward-debug-20260927.log");
+        File.Delete(file);
+        Assert.False(File.Exists(file));
+    }
+
+    [Fact]
     public void CreateLogger_IncludesTheExceptionStackTrace()
     {
         using var provider = new FileLoggerProvider(_root, "debug", () => DateTimeOffset.UtcNow);

@@ -62,6 +62,7 @@ public sealed partial class App : Application
         builder.Services.AddSingleton<HomePage>();
         builder.Services.AddSingleton<SyncPage>();
         builder.Services.AddSingleton<GuidesPage>();
+        builder.Services.AddSingleton<AddonSettingsPage>();
         builder.Services.AddSingleton<SettingsPage>();
         var host = builder.Build();
         platform.Http = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient("Addon");

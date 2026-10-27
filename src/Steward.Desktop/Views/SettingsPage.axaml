@@ -7,99 +7,6 @@
     x:DataType="vm:MainViewModel">
 
     <UserControl.Resources>
-        <SolidColorBrush x:Key="SettingsCardStrokeBrush" Color="#19000000" />
-        <SolidColorBrush x:Key="SettingsExpandedHeaderBrush" Color="#0FFFFFFF" />
-        <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#FF73D0FF" />
-        <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#FF73D0FF" />
-        <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#FF73D0FF" />
-        <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FF000000" />
-        <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="#FF000000" />
-        <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="#FF000000" />
-
-        <ControlTheme x:Key="{x:Type views:SettingsCard}" TargetType="views:SettingsCard">
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource SettingsCardStrokeBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
-            <Setter Property="MinHeight" Value="68" />
-            <Setter Property="Padding" Value="16,15.01" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="{TemplateBinding CornerRadius}"
-                        ClipToBounds="True">
-                        <Border
-                            x:Name="PART_Fill"
-                            Background="{TemplateBinding Background}"
-                            Padding="{TemplateBinding Padding}">
-                            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                <Panel Grid.Column="0" Width="20" Height="20" Margin="2,0,20,0" VerticalAlignment="Center">
-                                    <ContentPresenter Content="{TemplateBinding HeaderIcon}" />
-                                    <TextBlock
-                                        Classes="Glyph"
-                                        FontSize="20"
-                                        Text="{TemplateBinding HeaderGlyph}"
-                                        IsVisible="{TemplateBinding HeaderGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                </Panel>
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <ContentPresenter x:Name="PART_Header" Content="{TemplateBinding Header}">
-                                        <ContentPresenter.DataTemplates>
-                                            <DataTemplate DataType="x:String">
-                                                <TextBlock Text="{Binding}" FontSize="{StaticResource ControlContentThemeFontSize}" TextWrapping="Wrap" />
-                                            </DataTemplate>
-                                        </ContentPresenter.DataTemplates>
-                                    </ContentPresenter>
-                                    <ContentPresenter
-                                        x:Name="PART_Description"
-                                        Content="{TemplateBinding Description}"
-                                        TextElement.FontSize="{StaticResource CaptionTextBlockFontSize}"
-                                        TextElement.Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                                        <ContentPresenter.DataTemplates>
-                                            <DataTemplate DataType="x:String">
-                                                <TextBlock Classes="Caption" Text="{Binding}" TextWrapping="Wrap" />
-                                            </DataTemplate>
-                                        </ContentPresenter.DataTemplates>
-                                    </ContentPresenter>
-                                </StackPanel>
-                                <ContentPresenter
-                                    Grid.Column="2"
-                                    Margin="16,0,0,0"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Right"
-                                    Content="{TemplateBinding Content}"
-                                    ContentTemplate="{TemplateBinding ContentTemplate}" />
-                                <TextBlock
-                                    Grid.Column="3"
-                                    Classes="Glyph"
-                                    Margin="14,0,0,0"
-                                    FontSize="14"
-                                    Text="{TemplateBinding ActionGlyph}"
-                                    IsVisible="{TemplateBinding ActionGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                            </Grid>
-                        </Border>
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-            <Style Selector="^[IsClickEnabled=True]:pointerover /template/ Border#PART_Fill">
-                <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}" />
-            </Style>
-            <Style Selector="^[IsClickEnabled=True]:pressed /template/ Border#PART_Fill">
-                <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorTertiaryBrush}" />
-            </Style>
-            <Style Selector="^:disabled">
-                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-            </Style>
-            <Style Selector="^:disabled /template/ ContentPresenter#PART_Header">
-                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-            </Style>
-            <Style Selector="^:disabled /template/ ContentPresenter#PART_Description">
-                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-            </Style>
-        </ControlTheme>
-
         <DataTemplate x:Key="InstallCardTemplate" x:DataType="vm:WowInstallViewModel">
             <views:SettingsCard
                 Classes="Item"
@@ -143,37 +50,18 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
+        <StyleInclude Source="avares://Steward.Desktop/Styles/SettingsCards.axaml" />
         <Style Selector="views|SettingsCard.Item">
             <Setter Property="CornerRadius" Value="0" />
             <Setter Property="MinHeight" Value="52" />
             <Setter Property="BorderThickness" Value="0,1,0,0" />
             <Setter Property="Padding" Value="16,8,16,9" />
         </Style>
-        <Style Selector="StackPanel.SettingsGroup">
-            <Setter Property="Spacing" Value="1" />
-            <Setter Property="views:GroupEdges.IsEnabled" Value="True" />
-        </Style>
-        <Style Selector="StackPanel.SettingsGroup > views|SettingsCard">
-            <Setter Property="CornerRadius" Value="{StaticResource GroupMiddleCornerRadius}" />
-            <Setter Property="BorderThickness" Value="0" />
-        </Style>
-        <Style Selector="StackPanel.SettingsGroup > views|SettingsCard.FirstVisible">
-            <Setter Property="CornerRadius" Value="{StaticResource GroupTopCornerRadius}" />
-        </Style>
-        <Style Selector="StackPanel.SettingsGroup > views|SettingsCard.LastVisible">
-            <Setter Property="CornerRadius" Value="{StaticResource GroupBottomCornerRadius}" />
-        </Style>
-        <Style Selector="StackPanel.SettingsGroup > views|SettingsCard.FirstVisible.LastVisible">
-            <Setter Property="CornerRadius" Value="{StaticResource OverlayCornerRadius}" />
-        </Style>
         <Style Selector="Border#InstallsGroup.expanded views|SettingsCard#InstallsHeader /template/ Border#PART_Fill">
             <Setter Property="Background" Value="{DynamicResource SettingsExpandedHeaderBrush}" />
         </Style>
         <Style Selector="TextBlock#InstallsChevron">
             <Setter Property="Text" Value="{StaticResource Glyph.ChevronDown}" />
-        </Style>
-        <Style Selector="ToggleSwitch">
-            <Setter Property="Margin" Value="0,-1,-12,-1" />
         </Style>
         <Style Selector="Border#InstallsGroup.expanded TextBlock#InstallsChevron">
             <Setter Property="Text" Value="{StaticResource Glyph.ChevronUp}" />

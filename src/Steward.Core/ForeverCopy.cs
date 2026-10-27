@@ -17,7 +17,23 @@ public sealed record ForeverCopyPlan(
     IReadOnlyList<ForeverCopyAccount> LiveAccounts,
     IReadOnlyDictionary<string, string?> AccountMap);
 
-public sealed record ForeverCopyAccount(string Folder, IReadOnlyList<string> Characters, string? FoundIn = null);
+public sealed record ForeverCopyAccount(string Folder, IReadOnlyList<string> Characters, string? FoundIn = null)
+{
+    public string Label
+    {
+        get
+        {
+            var names = Characters.Take(3).ToList();
+            if (Characters.Count > 3)
+            {
+                names.Add($"+{Characters.Count - 3}");
+            }
+
+            var label = names.Count == 0 ? Folder : $"{Folder} ({string.Join(", ", names)})";
+            return FoundIn is { } game ? $"{label} (from {game.Trim('_')})" : label;
+        }
+    }
+}
 
 public sealed record ForeverCopyResult(int Copied, int Updated, int SavedVariablesFiles, int SettingsFiles, int ClientSettings, int Failures);
 
@@ -375,7 +391,7 @@ public static partial class ForeverCopy
         return map.GetValueOrDefault(relativePath[..split]) is { } mapped ? Path.Combine(Account(live), mapped, relativePath[(split + 1)..]) : null;
     }
 
-    private static List<ForeverCopyAccount> Accounts(WowInstall install) =>
+    public static List<ForeverCopyAccount> Accounts(WowInstall install) =>
         Directory.Exists(Account(install))
             ? [.. Directory.EnumerateDirectories(Account(install))
                 .Where(account => !string.Equals(Path.GetFileName(account), "SavedVariables", StringComparison.OrdinalIgnoreCase))

@@ -1,0 +1,283 @@
+{
+  "addon": "steward-buffmanager",
+  "folder": "StewardBuffManager",
+  "pages": [
+    {
+      "sections": [
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "enabled",
+              "label": "Show buff button",
+              "path": [
+                "StewardBuffManagerDB"
+              ],
+              "scope": "account",
+              "tooltip": "Shows one button out of combat with the next buff you should cast and on whom. Each click casts it. Druids share Mark of the Wild and Thorns, paladins split blessings so each target gets the most cover, and Salvation is never assigned. Bind it under Key Bindings, Steward: Buff Manager.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "alert",
+              "label": "Alert when buffs are due",
+              "path": [
+                "StewardBuffManagerDB"
+              ],
+              "scope": "account",
+              "tooltip": "Plays a sound and shows the buffs owed in the raid warning area when you go from nothing to cast to something to cast, out of combat, at most once a minute.",
+              "type": "checkbox"
+            },
+            {
+              "default": "Map ping",
+              "dynamicOptions": true,
+              "key": "alertSound",
+              "label": "Alert sound",
+              "options": [
+                {
+                  "label": "Map ping",
+                  "value": "Map ping"
+                },
+                {
+                  "label": "Quest log open",
+                  "value": "Quest log open"
+                },
+                {
+                  "label": "Raid warning",
+                  "value": "Raid warning"
+                },
+                {
+                  "label": "None",
+                  "value": "None"
+                }
+              ],
+              "parent": "alert",
+              "path": [
+                "StewardBuffManagerDB"
+              ],
+              "scope": "account",
+              "tooltip": "The sound the alert plays: a quiet map ping by default, two other Blizzard sounds, or any sound registered with LibSharedMedia by your addons. Picking one plays it.",
+              "type": "dropdown"
+            },
+            {
+              "default": true,
+              "key": "macro",
+              "label": "Buff macro",
+              "path": [
+                "StewardBuffManagerDB"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps a character macro named HoobiBuffs that clicks the buff button, with the icon of the buff it will cast next. Put it on an action bar to bind it like a spell.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "frameDots",
+              "label": "Missing buffs on raid frames",
+              "path": [
+                "StewardBuffManagerDB"
+              ],
+              "scope": "account",
+              "tooltip": "Shows a small icon on Blizzard's party and raid frames for each buff your party could give that member but it lacks. Blizzard's own buff icons only show the buffs you cast yourself.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "dotsMine",
+              "label": "Only show buffs I can cast",
+              "parent": "frameDots",
+              "path": [
+                "StewardBuffManagerDB"
+              ],
+              "scope": "account",
+              "tooltip": "Leaves out of the raid frame icons every buff you do not know yourself, so a druid sees only missing Mark of the Wild and Thorns.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Party buffs"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": "120",
+              "key": "kings",
+              "label": "Blessing of Kings",
+              "maxLetters": 4,
+              "path": [
+                "StewardBuffManagerDB",
+                "recast"
+              ],
+              "rule": {
+                "empty": false,
+                "kind": "integer",
+                "max": 3600,
+                "min": 0
+              },
+              "scope": "account",
+              "tooltip": "With fewer seconds left than this, Blessing of Kings counts as missing and the button offers to recast it, out of combat only. 0 to 3600, default 120.",
+              "type": "text"
+            },
+            {
+              "default": "120",
+              "key": "might",
+              "label": "Blessing of Might",
+              "maxLetters": 4,
+              "path": [
+                "StewardBuffManagerDB",
+                "recast"
+              ],
+              "rule": {
+                "empty": false,
+                "kind": "integer",
+                "max": 3600,
+                "min": 0
+              },
+              "scope": "account",
+              "tooltip": "With fewer seconds left than this, Blessing of Might counts as missing and the button offers to recast it, out of combat only. 0 to 3600, default 120.",
+              "type": "text"
+            },
+            {
+              "default": "120",
+              "key": "wisdom",
+              "label": "Blessing of Wisdom",
+              "maxLetters": 4,
+              "path": [
+                "StewardBuffManagerDB",
+                "recast"
+              ],
+              "rule": {
+                "empty": false,
+                "kind": "integer",
+                "max": 3600,
+                "min": 0
+              },
+              "scope": "account",
+              "tooltip": "With fewer seconds left than this, Blessing of Wisdom counts as missing and the button offers to recast it, out of combat only. 0 to 3600, default 120.",
+              "type": "text"
+            },
+            {
+              "default": "120",
+              "key": "light",
+              "label": "Blessing of Light",
+              "maxLetters": 4,
+              "path": [
+                "StewardBuffManagerDB",
+                "recast"
+              ],
+              "rule": {
+                "empty": false,
+                "kind": "integer",
+                "max": 3600,
+                "min": 0
+              },
+              "scope": "account",
+              "tooltip": "With fewer seconds left than this, Blessing of Light counts as missing and the button offers to recast it, out of combat only. 0 to 3600, default 120.",
+              "type": "text"
+            },
+            {
+              "default": "120",
+              "key": "fort",
+              "label": "Power Word: Fortitude",
+              "maxLetters": 4,
+              "path": [
+                "StewardBuffManagerDB",
+                "recast"
+              ],
+              "rule": {
+                "empty": false,
+                "kind": "integer",
+                "max": 3600,
+                "min": 0
+              },
+              "scope": "account",
+              "tooltip": "With fewer seconds left than this, Power Word: Fortitude counts as missing and the button offers to recast it, out of combat only. 0 to 3600, default 120.",
+              "type": "text"
+            },
+            {
+              "default": "120",
+              "key": "spirit",
+              "label": "Divine Spirit",
+              "maxLetters": 4,
+              "path": [
+                "StewardBuffManagerDB",
+                "recast"
+              ],
+              "rule": {
+                "empty": false,
+                "kind": "integer",
+                "max": 3600,
+                "min": 0
+              },
+              "scope": "account",
+              "tooltip": "With fewer seconds left than this, Divine Spirit counts as missing and the button offers to recast it, out of combat only. 0 to 3600, default 120.",
+              "type": "text"
+            },
+            {
+              "default": "120",
+              "key": "int",
+              "label": "Arcane Intellect",
+              "maxLetters": 4,
+              "path": [
+                "StewardBuffManagerDB",
+                "recast"
+              ],
+              "rule": {
+                "empty": false,
+                "kind": "integer",
+                "max": 3600,
+                "min": 0
+              },
+              "scope": "account",
+              "tooltip": "With fewer seconds left than this, Arcane Intellect counts as missing and the button offers to recast it, out of combat only. 0 to 3600, default 120.",
+              "type": "text"
+            },
+            {
+              "default": "120",
+              "key": "motw",
+              "label": "Mark of the Wild",
+              "maxLetters": 4,
+              "path": [
+                "StewardBuffManagerDB",
+                "recast"
+              ],
+              "rule": {
+                "empty": false,
+                "kind": "integer",
+                "max": 3600,
+                "min": 0
+              },
+              "scope": "account",
+              "tooltip": "With fewer seconds left than this, Mark of the Wild counts as missing and the button offers to recast it, out of combat only. 0 to 3600, default 120.",
+              "type": "text"
+            },
+            {
+              "default": "60",
+              "key": "thorns",
+              "label": "Thorns",
+              "maxLetters": 4,
+              "path": [
+                "StewardBuffManagerDB",
+                "recast"
+              ],
+              "rule": {
+                "empty": false,
+                "kind": "integer",
+                "max": 3600,
+                "min": 0
+              },
+              "scope": "account",
+              "tooltip": "With fewer seconds left than this, Thorns counts as missing and the button offers to recast it, out of combat only. 0 to 3600, default 60.",
+              "type": "text"
+            }
+          ],
+          "title": "Recast below (seconds)"
+        }
+      ],
+      "title": "Buff Manager"
+    }
+  ],
+  "schemaVersion": 1,
+  "version": "0.42.0"
+}

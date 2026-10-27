@@ -58,6 +58,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(IsAnyRowBusy),
         nameof(InstallsDescription),
         nameof(GuidesVisibility),
+        nameof(AddonSettingsVisibility),
         nameof(SelectedGuide),
         nameof(SelectedGuideVisibility),
         nameof(GuidesNotInstalledVisibility),
@@ -218,6 +219,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             StateChanged = () => OnPropertyChanged(nameof(SyncBadgeVisibility)),
         };
+        AddonSettings = new AddonSettingsViewModel(this, addonUpdater);
         SavedVariablesChanged = Sync.ReloadAsync;
         AfterStewardInstalled = install => HasStewardFeature ? Sync.WriteGeneratedFileAsync(install) : WriteMeAfterInstallAsync();
         ShellOpen.Failed += OnShellOpenFailed;
@@ -249,6 +251,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public SyncViewModel Sync { get; }
+
+    public AddonSettingsViewModel AddonSettings { get; }
 
     public RestedXpViewModel RestedXp { get; }
 
@@ -552,6 +556,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool GuidesVisibility => IsGuidesPreview
         || (HasGuidesFeature && RestedXp.IsSignedIn && Installs.Any(HasRestedXp));
 
+    public bool AddonSettingsVisibility => SelectedInstall is { } install && install.AddonRows.Any(row =>
+        string.Equals(row.AddonId, AddonSettingsViewModel.AddonId, StringComparison.OrdinalIgnoreCase)
+        && row.State is not (AddonRowState.Missing or AddonRowState.NoReleases));
+
     public bool IsForeverSelected => SelectedInstall is null || ForeverLaunch.IsForever(SelectedInstall.Install.ProductCode);
 
     private static bool HasRestedXp(WowInstallViewModel install) => install.AddonRows.Any(row =>
@@ -672,8 +680,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _ => "Not checked for updates yet",
     };
 
+    public bool IsDisposed { get; private set; }
+
     public void Dispose()
     {
+        IsDisposed = true;
         ShellOpen.Failed -= OnShellOpenFailed;
         _recheckTimer?.Stop();
         _eventsCts?.Cancel();
@@ -1978,6 +1989,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         "settings" => true,
         "sync" => SyncVisibility,
         "guides" => GuidesVisibility,
+        "addonsettings" => AddonSettingsVisibility,
         _ => false,
     };
 

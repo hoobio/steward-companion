@@ -1,0 +1,119 @@
+<UserControl
+    x:Class="Steward.Desktop.Views.AddonSettingsPage"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="using:FluentAvalonia.UI.Controls"
+    xmlns:views="using:Steward.Desktop.Views"
+    xmlns:vm="using:Steward.App.ViewModels"
+    xmlns:core="using:Steward.Core"
+    x:DataType="vm:MainViewModel">
+
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Steward.Desktop/Styles/SettingsCards.axaml" />
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="*,Auto">
+        <ScrollViewer x:Name="Scroller">
+            <Border MaxWidth="1064" Padding="{StaticResource PageGutter}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Addon settings" FontFamily="{StaticResource DisplayFontFamily}" FontSize="26" FontWeight="SemiBold" Margin="{StaticResource PageTitleMargin}" />
+                    <TextBlock
+                        Classes="Body"
+                        Text="Change your addons' in-game settings while the game is closed. The game reads them at the next login."
+                        TextWrapping="Wrap"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+                    <views:BannerList Banners="{Binding Banners}" Margin="0,6,0,0" />
+
+                    <ui:FAInfoBar
+                        Margin="0,6,0,0"
+                        Severity="Warning"
+                        IsClosable="False"
+                        CornerRadius="8"
+                        IsOpen="{Binding AddonSettings.RunningVisibility}"
+                        Message="{x:Static core:AddonSettings.RunningMessage}" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16" Margin="0,12,0,0">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Classes="FieldHeader ComboBox" Text="Account" />
+                            <ComboBox
+                                x:Name="AccountPicker"
+                                HorizontalAlignment="Stretch"
+                                AutomationProperties.Name="Account"
+                                ItemsSource="{Binding AddonSettings.Accounts}"
+                                SelectedItem="{Binding AddonSettings.SelectedAccount, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="core:ForeverCopyAccount">
+                                        <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" IsVisible="{Binding AddonSettings.CharacterPickerVisibility}">
+                            <TextBlock Classes="FieldHeader ComboBox" Text="Character" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <ComboBox
+                                    x:Name="CharacterPicker"
+                                    HorizontalAlignment="Stretch"
+                                    AutomationProperties.Name="Character"
+                                    PlaceholderText="No characters yet"
+                                    ItemsSource="{Binding AddonSettings.Characters}"
+                                    SelectedItem="{Binding AddonSettings.SelectedCharacter, Mode=TwoWay}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SettingsCharacterOption">
+                                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button
+                                    x:Name="NewCharacterButton"
+                                    Grid.Column="1"
+                                    Content="New character…"
+                                    IsEnabled="{Binding AddonSettings.CanCreateCharacter}"
+                                    ToolTip.Tip="{Binding AddonSettings.NewCharacterTip}"
+                                    ToolTip.ShowOnDisabled="True"
+                                    Click="OnNewCharacterClick" />
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border
+                        Margin="0,12,0,0"
+                        CornerRadius="8"
+                        Padding="16,14"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        IsVisible="{Binding AddonSettings.MessageVisibility}">
+                        <TextBlock Classes="Body" Text="{Binding AddonSettings.Message}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" IsVisible="{Binding AddonSettings.IsLoading}">
+                        <views:ProgressRing Width="16" Height="16" VerticalAlignment="Center" IsActive="{Binding AddonSettings.IsLoading}" />
+                        <TextBlock Classes="Body" Text="Loading settings…" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="PagesHost" Spacing="4" />
+                </StackPanel>
+            </Border>
+        </ScrollViewer>
+
+        <Border
+            Grid.Row="1"
+            Padding="24,12"
+            BorderThickness="0,1,0,0"
+            BorderBrush="{DynamicResource RowHairlineBrush}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" MaxWidth="1016">
+                <TextBlock
+                    Classes="Body"
+                    VerticalAlignment="Center"
+                    TextWrapping="Wrap"
+                    Text="{Binding AddonSettings.Status}"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <Button
+                    Grid.Column="1"
+                    Theme="{StaticResource AccentButtonStyle}"
+                    Content="Save"
+                    Command="{Binding AddonSettings.SaveCommand}" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -33,7 +33,13 @@ public sealed class ManifestCache
         }
     }
 
-    public void Clear() => _entries.Clear();
+    internal ConcurrentDictionary<string, (string ETag, SettingsSchema? Schema)> Schemas { get; } = new(StringComparer.Ordinal);
+
+    public void Clear()
+    {
+        _entries.Clear();
+        Schemas.Clear();
+    }
 }
 
 public sealed class AddonUpdater
@@ -85,6 +91,54 @@ public sealed class AddonUpdater
 
         var client = addon.ManifestNeedsSession ? _sessionClient ?? _httpClient : _httpClient;
         return await FetchManifestAsync(client, ManifestUri(addon, channel), cancellationToken, noCache, revalidate ? ManifestCache : null).ConfigureAwait(false);
+    }
+
+    public static Uri SettingsSchemaUri(ManagedAddon addon, string version)
+    {
+        ArgumentNullException.ThrowIfNull(addon);
+        return new(new Uri(addon.ManifestBaseUrl ?? throw new InvalidOperationException($"{addon.Id} has no ManifestBaseUrl")), $"settings-schema/{Uri.EscapeDataString(version)}.json");
+    }
+
+    public async Task<SettingsSchema?> GetSettingsSchemaAsync(ManagedAddon addon, string version, CancellationToken cancellationToken)
+    {
+        var uri = SettingsSchemaUri(addon, version);
+        var client = addon.ManifestNeedsSession ? _sessionClient ?? _httpClient : _httpClient;
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        var cached = ManifestCache.Schemas.TryGetValue(uri.AbsoluteUri, out var entry) ? entry : default((string ETag, SettingsSchema? Schema)?);
+        if (cached is { } known)
+        {
+            request.Headers.TryAddWithoutValidation("If-None-Match", known.ETag);
+        }
+
+        using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.NotModified && cached is { } unchanged)
+        {
+            return unchanged.Schema;
+        }
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            ManifestCache.Schemas.TryRemove(uri.AbsoluteUri, out _);
+            return null;
+        }
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        response.EnsureSuccessStatusCode();
+        var schema = SettingsSchema.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+        if (response.Headers.ETag?.ToString() is { Length: > 0 } etag)
+        {
+            ManifestCache.Schemas[uri.AbsoluteUri] = (etag, schema);
+        }
+        else
+        {
+            ManifestCache.Schemas.TryRemove(uri.AbsoluteUri, out _);
+        }
+
+        return schema;
     }
 
     public Task<byte[]> GetIconAsync(Uri iconUri, CancellationToken cancellationToken) =>

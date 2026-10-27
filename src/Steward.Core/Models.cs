@@ -456,5 +456,6 @@ public sealed record ProviderAddonsState(
 [JsonSerializable(typeof(RestedXpTimestamps))]
 [JsonSerializable(typeof(RecipeCatalogueResponse))]
 [JsonSerializable(typeof(SelectedGuildRequest))]
+[JsonSerializable(typeof(SettingsSchema))]
 [JsonSerializable(typeof(TukUiAddon[]))]
 public sealed partial class CompanionJsonContext : JsonSerializerContext;

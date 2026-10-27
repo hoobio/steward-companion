@@ -1,0 +1,281 @@
+{
+  "addon": "hoobiscripts-gamerguides",
+  "folder": "HoobiScripts_GamerGuides",
+  "pages": [
+    {
+      "sections": [
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "autoStart",
+              "label": "Start the trio guide on new characters",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "At level 1 on a Night Elf, switches RXPGuides to 01-06 Trio Shadowglen once per character, and on arrival in Darkshore switches every Alliance character but a Night Elf hunter, if not already on a trio guide, to 11-13 Quintet Darkshore, also once per character.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "deathWarning",
+              "label": "Raid warnings on guide steps",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "When an RXPGuides step asks you to die and respawn at a spirit healer, to use your hearthstone, or carries a guide alert, shows it as a red raid warning and plays the raid warning sound.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "campReminder",
+              "label": "Remind me to drop a camp",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "From level 20, a red raid warning when you have no Boosted Rest debuff, so a Camp Tent would give rested XP: out of combat, outside towns and inns, and only while your rested XP is under the 5% of a level a tent gives. It repeats every 5 minutes until the debuff is back. Another warning comes 3 minutes before Boosted Rest ends.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoBuy",
+              "label": "Buy what guide steps list",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "At a vendor, buys what the current guide steps list, up to the listed amount and never below the money a step says to keep; buys fewer stacks when that is all you can afford.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "skipWater",
+              "label": "Skip water purchase steps",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "Skips guide steps that only buy water and never buys a drink, for players who bring their own.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoTrain",
+              "label": "Train what guide steps list",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "At a trainer, learns the spells the current guide step names; extra spells only while the money the step says to keep is left over.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "closeTrainer",
+              "label": "Close the trainer afterwards",
+              "parent": "autoTrain",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "Closes the trainer window once everything the guide step lists has been learnt. A trainer you open again, or one where nothing was learnt, stays open.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoBind",
+              "label": "Set the hearthstone where guide steps say",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "At an innkeeper, picks the bind option and confirms it when the current guide step, or one of the next few steps naming that innkeeper, sets the hearthstone there, even with RXPGuides' own bind automation off. Hold Shift to talk normally.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "autoAbandon",
+              "label": "Abandon quests the guide leaves out",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "While a Hoobi guide is current, abandons any quest it names as left out (The Totem of Infliction in Duskwood) as soon as a party share or a quest giver puts it in your log.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "cleanupQuests",
+              "label": "Offer to abandon quests no guide ahead uses",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "A few seconds after login and whenever a quest enters your log, lists every quest the current and later guides never accept, complete or hand in, ticked, with an Abandon button. A quest left unticked at Abandon starts unticked every later time, and dismissed quests are not asked about again this session. /cleanup opens the list for every such quest.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "shareFragments",
+              "label": "Pool Mathystral Amulet Fragments in the party",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "While a guide step collects Mathystral Amulet Fragments, the first party member to loot one becomes the collector, a raid warning names them, opening a trade with them fills it with your fragments (you press Trade), and a message shows the party's fragment total whenever it rises.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "fadeDoneSteps",
+              "label": "Fade done steps in the guide window",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "In RXPGuides' step list, steps that are completed, skipped or behind the current step are faded further than RXPGuides' own half strength, so the ones left stand out.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "scrollToStep",
+              "label": "Scroll the guide window to the current step",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "A second after the guide step changes, scrolls RXPGuides' step list so the current step is at the top. RXPGuides scrolls there itself, but before it has measured the steps, so it often lands a step or two above.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "resumeOnUpdate",
+              "label": "Find your step when a guide updates",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "When a new version of your current trio guide has been installed since you last played, moves the guide to the last step whose quest you have handed in, so added or removed steps do not leave you on the wrong one. RXPGuides then skips forward past what is already done.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Trio guides"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "routeMap",
+              "label": "Route line on the world map",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "Draws the route of the current guide, from your position on, as a line on the world map.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "routeMinimap",
+              "label": "Route line on the minimap",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "Draws the route of the current guide as a line on the minimap.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "routeMapFull",
+              "label": "Show the whole route on the maps",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "Draws every step of the current guide on the world map and minimap. Off, they show 1000 yd behind you and ahead of you, or further when the next two objectives are beyond that.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "routeCompass",
+              "label": "Route compass",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "A round view of the route around you with your facing up, separate from the minimap. Drag it to move it, scroll on it to change its range, right-click it to lock it. Hovering an objective dot on it, the minimap or the world map shows that step's text.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "compassLocked",
+              "label": "Lock the route compass",
+              "parent": "routeCompass",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "Clicks, the mouse wheel and hovering pass through the compass to the world, so it cannot be moved, resized or right-clicked until this is unticked.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "compassAutoZoom",
+              "label": "Zoom the compass to the next objective",
+              "parent": "routeCompass",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "Zooms the compass in so the route from you to the next objective fills it, down to 40 yd. The range you scroll to is the furthest it zooms out.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "corpseRoute",
+              "label": "Corpse run route after dying in a dungeon",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "While you are a ghost after dying in a dungeon, draws the walk from your spirit healer back to the dungeon entrance as a red line on the world map, the minimap and the route compass.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "lostSpawns",
+              "label": "Duskwood Lost spawns on the world map",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "On the Duskwood map, shows every spawn point of the Lost Stalker (purple), Lost Knight (blue), Lost Watcher (green) and Lost Defender (orange), whose drops start quests. Hover a dot for the mob and its drop.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "routeTrail",
+              "label": "Route trail in the world (experimental)",
+              "path": [
+                "HoobiScripts_GamerGuidesDB"
+              ],
+              "scope": "account",
+              "tooltip": "Draws the route ahead of you as dots on the screen. The client gives no read of the camera, so the dots are right only while the camera sits behind you at the pitch /ggtrail pitch sets, or after a far waypoint marker on screen has calibrated it; they drift after a drag.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Route"
+        }
+      ],
+      "title": "GamerGuides"
+    }
+  ],
+  "schemaVersion": 1,
+  "version": "0.42.0"
+}

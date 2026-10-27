@@ -74,6 +74,7 @@ public sealed partial class MainWindow : Window
         {
             "sync" => SyncItem,
             "guides" => GuidesItem,
+            "addonsettings" => AddonSettingsItem,
             "settings" => SettingsItem,
             _ => AddonsItem,
         });
@@ -177,6 +178,7 @@ public sealed partial class MainWindow : Window
         {
             "sync" => typeof(SyncPage),
             "guides" => typeof(GuidesPage),
+            "addonsettings" => typeof(AddonSettingsPage),
             "settings" => typeof(SettingsPage),
             _ => typeof(HomePage),
         });
@@ -227,13 +229,20 @@ public sealed partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        // Disposing the view model clears the installs, which hides pages after the container that resolves them is gone.
+        if (ViewModel.IsDisposed)
+        {
+            return;
+        }
+
         if (e.PropertyName is nameof(MainViewModel.Toast))
         {
             ShowToast(ViewModel.Toast);
             return;
         }
 
-        if (e.PropertyName is nameof(MainViewModel.SyncVisibility) && !ViewModel.SyncVisibility && PageHost.Content is SyncPage)
+        if ((e.PropertyName is nameof(MainViewModel.SyncVisibility) && !ViewModel.SyncVisibility && PageHost.Content is SyncPage)
+            || (e.PropertyName is nameof(MainViewModel.AddonSettingsVisibility) && !ViewModel.AddonSettingsVisibility && PageHost.Content is AddonSettingsPage))
         {
             Navigate(AddonsItem);
             return;
@@ -583,18 +592,6 @@ public sealed partial class MainWindow : Window
     {
         static string Count(int count, string one, string many, string rest) => $"{count} {(count == 1 ? one : many)} {rest}";
 
-        static string AccountLabel(ForeverCopyAccount account)
-        {
-            var names = account.Characters.Take(3).ToList();
-            if (account.Characters.Count > 3)
-            {
-                names.Add($"+{account.Characters.Count - 3}");
-            }
-
-            var label = names.Count == 0 ? account.Folder : $"{account.Folder} ({string.Join(", ", names)})";
-            return account.FoundIn is { } game ? $"{label} (from {game.Trim('_')})" : label;
-        }
-
         static void SetOption(CheckBox option, string? detail, string empty, bool? isChecked = null)
         {
             option.IsChecked = isChecked ?? detail is not null;
@@ -653,7 +650,7 @@ public sealed partial class MainWindow : Window
         ShowAccountCounts(plan);
         var accountMap = plan.AccountMap.ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
         var accountCombos = new Dictionary<string, ComboBox>(StringComparer.OrdinalIgnoreCase);
-        var accountChoices = plan.BetaAccounts.Select(AccountLabel).Prepend("Don't copy").ToList();
+        var accountChoices = plan.BetaAccounts.Select(account => account.Label).Prepend("Don't copy").ToList();
         string? SourceOf(string live) =>
             accountMap.FirstOrDefault(entry => string.Equals(entry.Value, live, StringComparison.OrdinalIgnoreCase)).Key;
         int SourceIndex(string live) =>
@@ -715,7 +712,7 @@ public sealed partial class MainWindow : Window
                     }
                 }
             };
-            accountBlock.Children.Add(new StackPanel { Spacing = 4, Children = { Wrapped($"{AccountLabel(account)} copies from", secondary: true, fontSize: 12), combo } });
+            accountBlock.Children.Add(new StackPanel { Spacing = 4, Children = { Wrapped($"{account.Label} copies from", secondary: true, fontSize: 12), combo } });
         }
 
         var clientSettings = Option(

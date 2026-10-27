@@ -1,0 +1,123 @@
+{
+  "addon": "hoobiscripts-actionbars",
+  "folder": "HoobiScripts_ActionBars",
+  "pages": [
+    {
+      "sections": [
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
+              "key": "{class}",
+              "label": "Apply this class's plan",
+              "path": [
+                "HoobiScripts_ActionBarsDB",
+                "classEnabled"
+              ],
+              "scope": "class",
+              "tooltip": "Place every planned spell, macro and item of this class's plan on the bars of every character of this class at login and as spells are learned. Switched on automatically when a plan is created.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "applyAccount",
+              "label": "Apply account slots",
+              "path": [
+                "HoobiScripts_ActionBarsDB"
+              ],
+              "scope": "account",
+              "tooltip": "Place the slots marked as account slots in the planner on every character, whatever its class. Independent of the class plan setting.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "clearUnplanned",
+              "label": "Remove unplanned actions from planned bars",
+              "path": [
+                "HoobiScripts_ActionBarsDB"
+              ],
+              "scope": "account",
+              "tooltip": "Ticking this, Apply now, an import and every login at level 1 also clear anything on a planned bar that the plan does not put there, including a spell planned for a slot that is not known yet. Bars the plan never touches are left alone.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "blockAutoPush",
+              "label": "Stop the game placing new spells on your bars",
+              "path": [
+                "HoobiScripts_ActionBarsDB"
+              ],
+              "scope": "account",
+              "tooltip": "While the plan applies on this character, sets the game's AutoPushSpellToActionBar option off so newly learned spells are not placed on the bars. Unticking restores the game's default.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "formsMacro",
+              "label": "Druid form macro",
+              "path": [
+                "HoobiScripts_ActionBarsDB"
+              ],
+              "scope": "account",
+              "tooltip": "On druids, keeps a character macro named PowerShift up to date with the forms you know: Aquatic Form in water, Travel Form outdoors, Cat Form otherwise, Shift for Bear Form (Dire Bear Form once learned). In combat it recasts the bear or cat form you are in, to break roots and slows. Place it from the planner's Macros list.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Action bar planner"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": 15,
+              "key": "actionBars",
+              "label": "Auto enabled Action Bars",
+              "options": [
+                {
+                  "bit": 0,
+                  "label": "Action Bar 2"
+                },
+                {
+                  "bit": 1,
+                  "label": "Action Bar 3"
+                },
+                {
+                  "bit": 2,
+                  "label": "Action Bar 4"
+                },
+                {
+                  "bit": 3,
+                  "label": "Action Bar 5"
+                },
+                {
+                  "bit": 4,
+                  "label": "Action Bar 6"
+                },
+                {
+                  "bit": 5,
+                  "label": "Action Bar 7"
+                },
+                {
+                  "bit": 6,
+                  "label": "Action Bar 8"
+                }
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Bars shown at every login. Bar 1 is always shown.",
+              "type": "bitmask"
+            }
+          ],
+          "title": "Action Bars"
+        }
+      ],
+      "title": "Action Bars"
+    }
+  ],
+  "schemaVersion": 1,
+  "version": "0.42.0"
+}

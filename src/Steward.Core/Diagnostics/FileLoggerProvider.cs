@@ -14,6 +14,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
     private readonly Func<DateTimeOffset> _now;
     private StreamWriter? _writer;
     private DateOnly _writerDate;
+    private bool _disposed;
 
     public FileLoggerProvider(string directory, string buildName) : this(directory, buildName, () => DateTimeOffset.UtcNow)
     {
@@ -35,6 +36,12 @@ public sealed class FileLoggerProvider : ILoggerProvider
         var now = _now();
         lock (_writeLock)
         {
+            // A write that outlives the host would otherwise reopen the file and hold it until the process exits.
+            if (_disposed)
+            {
+                return;
+            }
+
             var writer = WriterFor(now);
             writer.Write(now.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture));
             writer.Write(' ');
@@ -83,6 +90,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
     {
         lock (_writeLock)
         {
+            _disposed = true;
             _writer?.Flush();
             _writer?.Dispose();
             _writer = null;
