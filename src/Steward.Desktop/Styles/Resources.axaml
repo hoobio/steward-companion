@@ -146,8 +146,8 @@
     <SolidColorBrush x:Key="ComboBoxBorderBrushDisabled" Color="Transparent" />
     <SolidColorBrush x:Key="ComboBoxBackgroundBorderBrushFocused" Color="Transparent" />
     <SolidColorBrush x:Key="ComboBoxBackgroundBorderBrushUnfocused" Color="Transparent" />
-    <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#FF2C2C2C" />
     <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="Transparent" />
+    <Thickness x:Key="ComboBoxDropdownBorderThickness">0</Thickness>
 
     <SolidColorBrush x:Key="SegmentedBackground" Color="#FF15181F" />
     <SolidColorBrush x:Key="SegmentedBorderBrush" Color="Transparent" />
