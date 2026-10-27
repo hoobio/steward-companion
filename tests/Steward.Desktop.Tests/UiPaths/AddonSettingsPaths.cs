@@ -251,7 +251,8 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
 
         world.Window.HideToTray();
         Pump();
-        Assert.False(world.Window.IsVisible);
+        // With no tray host (Linux under Xvfb) HideToTray minimises instead of hiding.
+        Assert.True(!world.Window.IsVisible || world.Window.WindowState == WindowState.Minimized);
         var first = world.Main.ReceiveLinkAsync(link);
         var confirmation = WaitForDialogWith(world, "Apply changes from the website?");
         Assert.True(world.Window.IsVisible);
