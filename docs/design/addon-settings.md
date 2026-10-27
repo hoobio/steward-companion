@@ -157,6 +157,20 @@ Plans travel in `plans` in both payloads with the same rules as settings: an imp
 - **Export:** `plans.talents` is `{ "<CLASS>": { "1": [ids], "2": [ids] } }` for every class in the file. The website offers "Open in builder" per class.
 - **Import:** `plans.talents` is a list of `{ "class", "group", "from": [ids] | null, "to": [ids] }`. The app checks: `class` is a class token, `group` is 1 or 2, every id is a positive integer, at most 51 entries. It replaces that one array.
 
+- **New plans:** the Talent plans tab has "New plan" with a class picker for any class the export does not hold; it opens that class empty in the builder.
+- **From the builder:** the builder's Talents tab always shows "Export to Steward". With an export stored in the session it adds a talents change to that pending import (as before). Without one it opens an unbound import (see "Unbound imports") holding that class's `plan1` and `plan2` as two talents changes with `from: null`.
+
+### Spell training plans
+
+- **In game:** `HoobiScriptsDB.spellPlans[CLASS][spellName] = cap` (`SpellPlan.lua`), one plan per class across the account. `cap` is the highest learn level wanted for that spell, `-1` is every rank, and an absent name (or `0`) is not learning it. The trainer sells a rank only to a player who has the one before it, so the plan is a level, not a set of ranks. Below level 10 the addon's guides decide what is bought, whatever the plan.
+- **On the website:** a "Spell training" tab: a class picker, then the class's trainable spells from `class-spells.json` grouped by tab, each with "Not learning", one choice per rank ("Up to rank N, level L") and "Every rank", plus "Every rank for all" and "Clear all" per tab. Icons and tooltips as in the action bar planner.
+- **Export:** `plans.spells` is `{ "<CLASS>": { "<spell name>": cap } }` for every class in the file.
+- **Import:** `plans.spells` is a list of `{ "class", "from": { name: cap } | null, "to": { name: cap } }`. The app checks: `class` is a class token, every name is a non-empty string of at most 64 characters, every cap is `-1` or an integer from 1 to 60 (`0` and absent are written as absent). It replaces that one class table.
+
+## Unbound imports
+
+An import link whose payload has no `account` (made on the website without an export, such as the builder's "Export to Steward") is unbound. The app's confirmation then starts with an install picker (installs whose product is Forever and that have HoobiScripts) and an account picker (that install's `WTF\Account` folders, labelled as elsewhere), defaulting to the selected install and its first account. An unbound import may carry only plan changes (`plans.talents`, `plans.actionBars`, `plans.spells`), never settings or new characters; the app refuses anything else in it. Every change in it has `from: null`, so there is no conflict check: the preview shows the file's current value against the new one, and Apply replaces it.
+
 ### Action bar plans
 
 - **In game:** `HoobiScripts_ActionBarsDB.plans[CLASS]` (one plan per class) and `HoobiScripts_ActionBarsDB.account` (applied to every class, overriding the class plan). A plan's numeric keys are slots (`slot = button + (page - 1) * 12`; pages: bar 1 is 1, bar 1 page 2 is 2, right 3, left 4, bottom right 5, bottom left 6, bars 6 to 8 are 13 to 15, a stance or form bar is `6 + offset` with offsets Warrior Battle 1, Defensive 2, Berserker 3, Druid Cat 1, Prowl 2, Bear 3, Moonkin 4, Rogue Stealth 1, Priest Shadowform 1). A slot holds one of `{ spell, fixed? }` (a rank spell id; without `fixed` the addon moves it to the highest known rank), `{ macro }` (a name defined in the plan's `macros`), `{ item }`, `{ profession }` (1 and 2 the two professions, 3 First Aid, 5 Cooking) or `{ list = { entry, ... } }` (fallbacks, the first that resolves is placed). `macros[name]` is `{ perChar, icon?, variants = { { level, body, icon?, spells? } } }`, variant 1 at level 1, `body` at most 255 characters, `spells` spell names.
