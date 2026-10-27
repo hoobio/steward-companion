@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.29.0](https://github.com/hoobio/steward-companion/compare/v0.28.0...v0.29.0) (2026-10-27)
+
+
+### Features
+
+* ✨ addon settings and plans are edited on the website, and Steward exports and imports them through steward:// links ([f472220](https://github.com/hoobio/steward-companion/commit/f4722201e1c381ebf032198ac8608364a7e23ea9))
+* ✨ Addon settings page edits HoobiScripts and Steward addon settings while the game is closed ([6c1379f](https://github.com/hoobio/steward-companion/commit/6c1379fe2b43e9f6f04748255a1aaee4eecf9cc0))
+
+
+### Bug Fixes
+
+* ✨ spell training plans and builder imports reach the game through Steward, and the import confirmation lists every slot, talent and spell it writes ([12f79bf](https://github.com/hoobio/steward-companion/commit/12f79bf7d768f402eea8055a5428f90f8c0c2b6b))
+* 🐛 Addon settings saves each setting in the file of the addon that keeps it and asks before unsaved changes are lost ([7321946](https://github.com/hoobio/steward-companion/commit/7321946fc3e2387b325c7dd14ab2d78c222200de))
+* 🐛 Steward frees its memory 3 seconds after its window loses focus ([66555ae](https://github.com/hoobio/steward-companion/commit/66555aed33d280362efbd99d9292cd150548ebd6))
+* 🐛 Steward uses a few MB of memory while it is in the tray or behind other windows ([0c68644](https://github.com/hoobio/steward-companion/commit/0c68644058a6537b7ab299ff81b4140089bb9ad2))
+* 🐛 Store screenshot script sends a JSON content type on its empty POSTs ([ed87dad](https://github.com/hoobio/steward-companion/commit/ed87dad3c494c8a1606e01eb59bc2de6b272b8d3))
+* 💄 ComboBox lists show the page behind them blurred under the tint, as menus do ([c8eee40](https://github.com/hoobio/steward-companion/commit/c8eee40fec9c16cb02aac738faf157cfd64eea24))
+
 ## [0.28.0](https://github.com/hoobio/steward-companion/compare/v0.27.0...v0.28.0) (2026-10-26)
 
 
