@@ -116,6 +116,7 @@ public sealed partial class MainWindow : Window
             }
         }, RoutingStrategies.Tunnel, handledEventsToo: true);
         Deactivated += (_, _) => UpdateCaptionButtons();
+        ViewModel.BackgroundPassCompleted = TrimIfIdle;
         Opened += (_, _) => UpdateCaptionButtons();
         Closing += OnWindowClosing;
         PropertyChanged += OnWindowPropertyChanged;
@@ -910,6 +911,14 @@ public sealed partial class MainWindow : Window
     public void TrimIfHidden()
     {
         if (!IsVisible)
+        {
+            Native.TrimWorkingSet();
+        }
+    }
+
+    private void TrimIfIdle()
+    {
+        if (!IsActive)
         {
             Native.TrimWorkingSet();
         }

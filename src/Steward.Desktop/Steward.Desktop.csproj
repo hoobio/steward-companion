@@ -14,7 +14,12 @@
     <GitHubRelease Condition="'$(GitHubRelease)' == ''">false</GitHubRelease>
     <StorePreRelease Condition="'$(StorePreRelease)' == ''">false</StorePreRelease>
     <PortableZip Condition="'$(PortableZip)' == ''">false</PortableZip>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+  </ItemGroup>
 
   <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>

@@ -1,3 +1,4 @@
+using System.Runtime;
 using System.Runtime.InteropServices;
 
 using Avalonia.Input;
@@ -106,6 +107,8 @@ internal static class Native
 
     public static void TrimWorkingSet()
     {
+        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
         if (OperatingSystem.IsWindows())
         {
             SetProcessWorkingSetSizeEx(GetCurrentProcess(), -1, -1, 0);

@@ -280,6 +280,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public Action? QuitRequested { get; set; }
 
+    public Action? BackgroundPassCompleted { get; set; }
+
     public Func<Task>? SavedVariablesChanged { get; set; }
 
     public Func<WowInstall, Task>? AfterStewardInstalled { get; set; }
@@ -3192,6 +3194,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         finally
         {
             _isChecking = false;
+            BackgroundPassCompleted?.Invoke();
         }
     }
 
