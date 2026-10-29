@@ -296,6 +296,16 @@ public static class AddonSettingsExport
                 ["spells"] = SettingsPlans.ExportSpells(account),
             },
         };
+        if (AddonSettings.UnrecordedCharacters(account.AccountFolder, account.KnownRealms, account.Characters) is { Count: > 0 } unrecorded)
+        {
+            payload["unrecorded"] = new JsonArray([.. unrecorded.Select(entry => (JsonNode)new JsonObject
+            {
+                ["first"] = entry.First,
+                ["last"] = entry.Last,
+                ["realm"] = entry.Realm,
+            })]);
+        }
+
         return payload.ToJsonString(Compact);
     }
 

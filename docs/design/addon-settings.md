@@ -115,6 +115,7 @@ There is no server-side copy of anyone's game files. Everything travels in the U
 - `values` holds only keys the schema names and only keys present in the file. An absent key is left out, so "absent" (the addon's default) and "set to the default" stay different.
 - `installed` is every folder on the install (for `visibleWhenLoaded`, `hiddenWhenLoaded`, `lockedWhenLoaded`).
 - `realms` are the known realms (realm pairing below), and `characters` the `HoobiScriptsDB.chars` keys with their class, both with the beta-realm filter applied before export on a `wowf` install.
+- `unrecorded` (optional, left out when empty) lists the character folders under a known realm's folder that have no `HoobiScriptsDB.chars` entry, as `[{ "first": "Hoo", "last": "Bi", "realm": "CAMWOW AU1 Realm 2 PvP" }]` (folder `Hoo-Bi`). The class is not on disk, so the website asks for it and sends the character back as a `newCharacters` entry, whose import accepts a character folder that already exists. A reader that does not know the field ignores it.
 
 ### Import payload
 

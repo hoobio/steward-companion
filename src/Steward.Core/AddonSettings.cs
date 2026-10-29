@@ -632,6 +632,18 @@ public static partial class AddonSettings
 
     public static string CharacterKey(string first, string last, string realm) => $"{NamePart(first.Trim())} {NamePart(last.Trim())}-{realm}";
 
+    public static IReadOnlyList<(string First, string Last, string Realm)> UnrecordedCharacters(
+        string accountFolder, IReadOnlyDictionary<string, string> knownRealms, IReadOnlyList<string> characters) =>
+        [.. knownRealms.OrderBy(realm => realm.Key, StringComparer.OrdinalIgnoreCase)
+            .Where(realm => Directory.Exists(Path.Combine(accountFolder, realm.Value)))
+            .SelectMany(realm => Directory.EnumerateDirectories(Path.Combine(accountFolder, realm.Value))
+                .Select(Path.GetFileName).OfType<string>()
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .Select(folder => folder.Split('-'))
+                .Where(parts => parts is [var first, var last] && CheckNamePart(first) is null && CheckNamePart(last) is null)
+                .Select(parts => (First: parts[0], Last: parts[1], Realm: realm.Key)))
+            .Where(entry => !characters.Contains(CharacterKey(entry.First, entry.Last, entry.Realm), StringComparer.OrdinalIgnoreCase))];
+
     public static string CreateCharacterFolder(string accountFolder, string realmId, string first, string last)
     {
         var folder = Path.Combine(accountFolder, realmId, $"{NamePart(first.Trim())}-{NamePart(last.Trim())}");

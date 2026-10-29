@@ -235,6 +235,28 @@ public sealed class AddonSettingsTransferTests : IDisposable
     }
 
     [Fact]
+    public void Export_ListsUnrecordedCharactersThatImportAsNewCharacters()
+    {
+        Directory.CreateDirectory(Path.Combine(AccountFolder, "89", "Hoo-Bi"));
+        Directory.CreateDirectory(Path.Combine(Flavour, "Logs"));
+        File.WriteAllText(Path.Combine(Flavour, "Logs", "Connection.log"), """
+            10/29 14:47:54.446  [N][Connection] Battle.net last played character received code="ERROR_OK (0)" realmEntry="{"wowRealmAddress":1493172226,"name":"CAMWOW AU1 Realm 2 PvP"}"
+            """);
+
+        var export = JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "World of Warcraft: Forever", 1761550000))!;
+        var import = Preview("""
+            "newCharacters":[{"first":"Hoo","last":"Bi","class":"MAGE","realm":"CAMWOW AU1 Realm 2 PvP"}],
+            "changes":[]
+            """);
+
+        Assert.Equal("""[{"first":"Hoo","last":"Bi","realm":"CAMWOW AU1 Realm 2 PvP"}]""", export["unrecorded"]!.ToJsonString());
+        Assert.Equal(SettingsImportStatus.Ready, Assert.Single(import.Items).Status);
+        Assert.Equal(1, Apply(import));
+        Assert.Equal("MAGE", AddonSettings.Load(CoreFile)["HoobiScriptsDB"].GetTable("chars")!.GetTable("Hoo Bi-CAMWOW AU1 Realm 2 PvP")!.GetString("class"));
+        Assert.Null(JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "World of Warcraft: Forever", 1761550000))!["unrecorded"]);
+    }
+
+    [Fact]
     public void Export_HoldsOnlyKeysInTheFileAndLeavesOutBetaCharactersOnTheLiveClient()
     {
         var live = JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "Forever", 1))!;
