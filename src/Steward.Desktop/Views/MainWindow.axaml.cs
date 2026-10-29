@@ -594,10 +594,7 @@ public sealed partial class MainWindow : Window
         {
             Text = prefill,
             PlaceholderText = "Paste the link from the website",
-            AcceptsReturn = true,
-            TextWrapping = TextWrapping.Wrap,
-            MinHeight = 120,
-            MaxHeight = 240,
+            MinWidth = 360,
         };
         Avalonia.Automation.AutomationProperties.SetName(box, "Link from the website");
         var error = Wrapped("", fontSize: 12);
