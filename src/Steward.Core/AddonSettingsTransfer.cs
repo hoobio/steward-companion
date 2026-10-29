@@ -110,7 +110,8 @@ public static class AddonSettingsPayload
 
     public static bool IsImportLink(string? link) => link?.StartsWith(Scheme + ":", StringComparison.OrdinalIgnoreCase) == true;
 
-    public static string ExportUrl(string payload) => $"{WebsiteUrl}#{payload}";
+    public static string ExportUrl(string payload, string? view = null) =>
+        view is null ? $"{WebsiteUrl}#{payload}" : $"{WebsiteUrl}?view={Uri.EscapeDataString(view)}#{payload}";
 }
 
 public sealed record SettingsSource(string AddonId, string Folder, string? Version, SettingsSchema? Schema);

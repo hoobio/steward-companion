@@ -76,7 +76,7 @@ public sealed class AddonTablePaths(AvaloniaSession session)
         world.Step(13, "Steward overflow menu (auto-install)", () =>
         {
             Click(More(world, "Steward"));
-            Assert.Equal(["Open folder", "Reinstall"], MenuHeaders(world));
+            Assert.Equal(["Open folder", "Settings", "Reinstall"], MenuHeaders(world));
         });
 
         world.Step(14, "second click on the More button closes the menu", () =>

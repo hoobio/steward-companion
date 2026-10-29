@@ -3090,6 +3090,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             IsAddedByUser = isAddedByUser,
         };
+        viewModel.OpenAddonSettings = row => _ = AddonSettings.OpenAsync(row);
         viewModel.SetIsAdmin(IsAdminFor);
         viewModel.RowsChanged += OnInstallRowsChanged;
         Installs.Insert(

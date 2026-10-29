@@ -221,7 +221,9 @@ public sealed class AddonSettingsTransferTests : IDisposable
     [Fact]
     public void ExportUrl_PutsTheViewInTheQueryAndThePayloadInTheFragment()
     {
-        Assert.Equal("https://guild.hoobi.io/addon-settings#v1.x", AddonSettingsPayload.ExportUrl("v1.x"));    }
+        Assert.Equal("https://guild.hoobi.io/addon-settings#v1.x", AddonSettingsPayload.ExportUrl("v1.x"));
+        Assert.Equal("https://guild.hoobi.io/addon-settings?view=HoobiScripts.0#v1.x", AddonSettingsPayload.ExportUrl("v1.x", "HoobiScripts.0"));
+    }
 
     [Fact]
     public void Export_MatchesTheCheckedInVector()

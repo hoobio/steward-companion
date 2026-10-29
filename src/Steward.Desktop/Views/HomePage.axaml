@@ -403,6 +403,7 @@
                                                 <MenuItem Header="Change channel" Command="{Binding ChangeChannelCommand}" IsVisible="{Binding ChannelChipVisibility}" />
                                                 <MenuItem Header="{Binding HideLabel}" Command="{Binding ToggleHiddenCommand}" IsVisible="{Binding HideVisibility}" />
                                                 <MenuItem Header="Open folder" Command="{Binding OpenFolderCommand}" IsVisible="{Binding InstalledActionsVisibility}" />
+                                                <MenuItem Header="Settings" Command="{Binding OpenSettingsCommand}" IsVisible="{Binding SettingsVisibility}" />
                                                 <MenuItem Header="Reinstall" Command="{Binding ReinstallCommand}" IsVisible="{Binding ReleaseActionsVisibility}" />
                                                 <MenuItem
                                                     Header="Unmanage addon"

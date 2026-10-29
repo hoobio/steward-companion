@@ -113,7 +113,22 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         await ExportGuardedAsync(install, account.Folder).ConfigureAwait(true);
     }
 
-    private async Task ExportGuardedAsync(WowInstallViewModel install, string account)
+    public async Task OpenAsync(AddonRowViewModel row)
+    {
+        if (_main.SelectedInstall is not { } install || SelectedAccount is not { } account)
+        {
+            await ReportAsync(NoAccountMessage).ConfigureAwait(true);
+            return;
+        }
+
+        await ExportGuardedAsync(install, account.Folder, $"{row.Addon.FolderName}.0").ConfigureAwait(true);
+        if (Status is { } failure)
+        {
+            await ReportAsync(failure).ConfigureAwait(true);
+        }
+    }
+
+    private async Task ExportGuardedAsync(WowInstallViewModel install, string account, string? view = null)
     {
         if (IsBusy)
         {
@@ -123,7 +138,7 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            await ExportAsync(install, account).ConfigureAwait(true);
+            await ExportAsync(install, account, view).ConfigureAwait(true);
         }
         finally
         {
@@ -133,13 +148,13 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         await RunQueuedAsync().ConfigureAwait(true);
     }
 
-    private async Task ExportAsync(WowInstallViewModel install, string account)
+    private async Task ExportAsync(WowInstallViewModel install, string account, string? view)
     {
         try
         {
             var (settings, sources) = await LoadAsync(install, account).ConfigureAwait(true);
             var json = await Task.Run(() => AddonSettingsExport.Build(settings, sources, install.GameVersionName ?? install.Label, Now().ToUnixTimeSeconds())).ConfigureAwait(true);
-            var url = AddonSettingsPayload.ExportUrl(AddonSettingsPayload.Encode(json));
+            var url = AddonSettingsPayload.ExportUrl(AddonSettingsPayload.Encode(json), view);
             if (url.Length > AddonSettingsPayload.MaxExportUrlLength)
             {
                 _logger.Info($"Addon settings export of {url.Length} characters refused");
@@ -356,7 +371,7 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
     }
 
     // Every addon built from hoobio/HoobiScripts is a Steward or Protected catalogue row; one without a settings page answers 404 and is left out.
-    private static bool IsSettingsAddon(AddonRowViewModel row) =>
+    public static bool IsSettingsAddon(AddonRowViewModel row) =>
         row.IsInstalled
         && !row.Addon.IsCurseForge
         && row.Addon.Source is AddonCatalogue.StewardSource or AddonCatalogue.ProtectedSource;

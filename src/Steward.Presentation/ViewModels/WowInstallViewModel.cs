@@ -542,6 +542,8 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         }
     }
 
+    public Action<AddonRowViewModel>? OpenAddonSettings { get; set; }
+
     private AddonRowViewModel CreateRow(ManagedAddon addon)
     {
         return new AddonRowViewModel(
@@ -558,6 +560,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
             (dependant, channel, release, status, progress) => _installRequirements(this, dependant, channel, release, status, progress),
             _themeId,
             () => _excludedFolders(this, addon.Id),
+            row => OpenAddonSettings?.Invoke(row),
             _platform,
             _logger);
     }

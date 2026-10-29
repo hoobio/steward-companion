@@ -229,6 +229,19 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
         Assert.Empty(world.Opened);
     });
 
+    [Fact]
+    public void The_addon_row_menu_opens_the_website_settings_on_the_addons_first_tab() => session.Run(() =>
+    {
+        using var world = World(session, "addon-settings-row");
+        var row = world.Main.SelectedInstall!.AddonRows.Single(row => row.AddonId == "hoobiscripts");
+        Assert.True(row.SettingsVisibility);
+
+        row.OpenSettingsCommand.Execute(null);
+        WaitFor(() => world.Opened.Count == 1);
+
+        Assert.StartsWith("https://guild.hoobi.io/addon-settings?view=HoobiScripts.0#v1.", world.Opened[0], StringComparison.Ordinal);
+    });
+
     private static FluentAvalonia.UI.Controls.FAContentDialog WaitForDialogWith(UiPathWorld world, string text)
     {
         var dialog = world.WaitForDialog();

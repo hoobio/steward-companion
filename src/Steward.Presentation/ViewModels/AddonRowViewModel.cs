@@ -91,6 +91,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         nameof(IgnoreLabel),
         nameof(ReleaseActionsVisibility),
         nameof(InstalledActionsVisibility),
+        nameof(SettingsVisibility),
         nameof(UninstallVisibility),
         nameof(UnmanageVisibility),
         nameof(UninstallErrorVisibility),
@@ -135,6 +136,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     private readonly Func<ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> _installRequirements;
     private readonly Func<string?> _themeId;
     private readonly Func<IReadOnlyList<string>> _foreignFolders;
+    private readonly Action<AddonRowViewModel> _openSettings;
     private readonly IUiPlatform _platform;
     private readonly ILogger _logger;
 
@@ -159,9 +161,11 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         Func<ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> installRequirements,
         Func<string?> themeId,
         Func<IReadOnlyList<string>> foreignFolders,
+        Action<AddonRowViewModel> openSettings,
         IUiPlatform platform,
         ILogger logger)
     {
+        _openSettings = openSettings;
         _platform = platform;
         _logger = logger;
         _themeId = themeId;
@@ -577,6 +581,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public bool InstalledActionsVisibility => IsInstalled;
 
+    public bool SettingsVisibility => AddonSettingsViewModel.IsSettingsAddon(this);
+
     public bool OverflowVisibility => CanIgnoreOrHide || IsInstalled || HasChannelChoice;
 
     public bool HiddenPillVisibility => Status == AddonRowStatus.Hidden;
@@ -880,6 +886,9 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     {
         ShellOpen.Open(Directory.Exists(AddonFolderPath) ? AddonFolderPath : _install.AddOnsPath);
     }
+
+    [RelayCommand]
+    private void OpenSettings() => _openSettings(this);
 
     [RelayCommand]
     private void ChangeChannel() => _changeChannelRequested(AddonId);
