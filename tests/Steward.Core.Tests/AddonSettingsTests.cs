@@ -493,6 +493,22 @@ public sealed class AddonSettingsTests : IDisposable
     }
 
     [Fact]
+    public void KnownRealms_FallsBackToTheConnectionLog()
+    {
+        var account = Account(Path.Combine("91", "Hoo-Bi"));
+        var log = Path.Combine(_temp, "Connection.log");
+        File.WriteAllText(log, """
+            10/29 14:47:54.446  [N][Connection] Battle.net last played character received code="ERROR_OK (0)" subRegion="91-1-89" selectedSubRegion="91-1-89" realmEntry="{"wowRealmAddress":1527316482,"useBleepChance":0.0,"version":{"versionMajor":1,"versionBuild":70399},"cfgRealmsID":6801,"name":"CAMWOW AU1 Realm 2 PvP","superDistrictID":1}"
+            10/29 14:47:55.000  [N][Connection] realm join requested subRegion="91-1-89" realmAddress="91-9-2"
+            """);
+
+        Assert.Equal("91", Assert.Single(AddonSettings.KnownRealms(account, [], log)).Value);
+        Assert.Equal("CAMWOW AU1 Realm 2 PvP", AddonSettings.KnownRealms(account, [], log).Keys.Single());
+        Assert.Equal("Classic Beta PvP", Assert.Single(AddonSettings.KnownRealms(account, ["Hoo Bi-Classic Beta PvP"], log)).Key);
+        Assert.Empty(AddonSettings.KnownRealms(account, [], Path.Combine(_temp, "missing.log")));
+    }
+
+    [Fact]
     public void CreateCharacterFolder_UsesTheGameNameForm()
     {
         var account = Account();

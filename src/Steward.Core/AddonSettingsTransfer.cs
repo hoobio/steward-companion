@@ -93,12 +93,11 @@ public static class AddonSettingsPayload
 
         if (link.StartsWith(Scheme + ":", StringComparison.OrdinalIgnoreCase))
         {
-            if (!link.StartsWith(ImportLink + "#", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new FormatException(NotALink);
-            }
-
-            link = link[(ImportLink.Length + 1)..];
+            // Packaged activation hands over Uri.AbsoluteUri, which adds a slash after the host: steward://import/#v1...
+            var start = link.StartsWith(ImportLink + "#", StringComparison.OrdinalIgnoreCase) ? ImportLink.Length + 1
+                : link.StartsWith(ImportLink + "/#", StringComparison.OrdinalIgnoreCase) ? ImportLink.Length + 2
+                : throw new FormatException(NotALink);
+            link = link[start..];
         }
 
         if (link.Contains('%', StringComparison.Ordinal))
@@ -111,8 +110,7 @@ public static class AddonSettingsPayload
 
     public static bool IsImportLink(string? link) => link?.StartsWith(Scheme + ":", StringComparison.OrdinalIgnoreCase) == true;
 
-    public static string ExportUrl(string payload, string? view = null) =>
-        $"{WebsiteUrl}{(view is null ? "" : "?view=" + view)}#{payload}";
+    public static string ExportUrl(string payload) => $"{WebsiteUrl}#{payload}";
 }
 
 public sealed record SettingsSource(string AddonId, string Folder, string? Version, SettingsSchema? Schema);
@@ -141,7 +139,7 @@ public sealed class SettingsAccount
         CoreFile = AccountFileOf(CoreGlobal);
         Core = (CoreFile is null ? null : Read(CoreFile)) ?? new Dictionary<string, LuaValue>(StringComparer.Ordinal);
         Characters = AddonSettings.CharactersOn(AddonSettings.Characters(Core, CoreGlobal), productCode);
-        KnownRealms = AddonSettings.KnownRealms(AccountFolder, Characters);
+        KnownRealms = AddonSettings.KnownRealms(AccountFolder, Characters, Path.Combine(flavourPath, "Logs", "Connection.log"));
     }
 
     public string FlavourPath { get; }

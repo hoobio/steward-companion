@@ -527,7 +527,7 @@ public static partial class AddonSettings
         return total;
     }
 
-    public static IReadOnlyDictionary<string, string> KnownRealms(string accountFolder, IEnumerable<string> characters)
+    public static IReadOnlyDictionary<string, string> KnownRealms(string accountFolder, IEnumerable<string> characters, string? connectionLog = null)
     {
         var realmsByName = characters
             .Select(key => key.IndexOf('-', StringComparison.Ordinal) is var split and > 0 ? (Name: key[..split], Realm: key[(split + 1)..]) : default)
@@ -559,7 +559,58 @@ public static partial class AddonSettings
             }
         }
 
+        var named = ids.Values.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, id) in LoggedRealms(connectionLog))
+        {
+            if (!ids.ContainsKey(name) && !named.Contains(id) && Directory.Exists(Path.Combine(accountFolder, id)))
+            {
+                ids[name] = id;
+            }
+        }
+
         return ids.Where(entry => entry.Value is not null).ToDictionary(entry => entry.Key, entry => entry.Value!, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static Dictionary<string, string> LoggedRealms(string? connectionLog)
+    {
+        const string Marker = "realmEntry=\"";
+        var realms = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (connectionLog is null || !File.Exists(connectionLog))
+        {
+            return realms;
+        }
+
+        try
+        {
+            using var reader = new StreamReader(new FileStream(connectionLog, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete));
+            while (reader.ReadLine() is { } line)
+            {
+                var start = line.IndexOf(Marker, StringComparison.Ordinal);
+                var end = line.LastIndexOf('}');
+                if (start < 0 || end < start)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    using var entry = JsonDocument.Parse(line.AsMemory(start + Marker.Length, end - start - Marker.Length + 1));
+                    if (entry.RootElement.TryGetProperty("wowRealmAddress", out var address) && address.TryGetUInt32(out var realmAddress)
+                        && entry.RootElement.TryGetProperty("name", out var name) && name.GetString() is { Length: > 0 } realmName)
+                    {
+                        realms[realmName] = (realmAddress >> 24).ToString(CultureInfo.InvariantCulture);
+                    }
+                }
+                catch (JsonException)
+                {
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+        }
+
+        return realms;
     }
 
     public static string? CheckNamePart(string part)

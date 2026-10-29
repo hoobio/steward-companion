@@ -207,6 +207,7 @@ public sealed class AddonSettingsTransferTests : IDisposable
         Assert.DoesNotContain('=', payload);
         Assert.Equal(ContractJson, AddonSettingsPayload.Decode(payload));
         Assert.Equal(payload, AddonSettingsPayload.FromLink($"steward://import#{payload}"));
+        Assert.Equal(payload, AddonSettingsPayload.FromLink(new Uri($"steward://import#{payload}").AbsoluteUri));
         Assert.Equal(payload, AddonSettingsPayload.FromLink($"  {payload}\n"));
         Assert.Equal(payload, AddonSettingsPayload.FromLink($"steward://import#{payload.Replace(".", "%2E", StringComparison.Ordinal)}"));
         Assert.Throws<FormatException>(() => AddonSettingsPayload.FromLink("steward://other#" + payload));
@@ -220,9 +221,7 @@ public sealed class AddonSettingsTransferTests : IDisposable
     [Fact]
     public void ExportUrl_PutsTheViewInTheQueryAndThePayloadInTheFragment()
     {
-        Assert.Equal("https://guild.hoobi.io/addon-settings#v1.x", AddonSettingsPayload.ExportUrl("v1.x"));
-        Assert.Equal("https://guild.hoobi.io/addon-settings?view=talents#v1.x", AddonSettingsPayload.ExportUrl("v1.x", "talents"));
-    }
+        Assert.Equal("https://guild.hoobi.io/addon-settings#v1.x", AddonSettingsPayload.ExportUrl("v1.x"));    }
 
     [Fact]
     public void Export_MatchesTheCheckedInVector()
