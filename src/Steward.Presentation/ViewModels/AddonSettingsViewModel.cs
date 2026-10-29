@@ -20,8 +20,6 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
 
     public const string ExportDescriptionText = "Opens guild.hoobi.io with this account's addon settings, talent plans and action bar plans";
 
-    public const string EmptyClipboardMessage = "Copy the link on the website first";
-
     private const int MaxQueued = 4;
 
     private readonly MainViewModel _main;
@@ -58,6 +56,10 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
     internal Func<Task> InstallsKnown { get; set; }
 
     public Func<SettingsImportSession, Task<IReadOnlyList<SettingsImportItem>?>>? ShowImport { get; set; }
+
+    public Func<string, Func<string, string?>, Task<string?>>? ShowPaste { get; set; }
+
+    public Func<string, Task>? ShowError { get; set; }
 
     public Action? BringToFront { get; set; }
 
@@ -101,17 +103,17 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
     private bool CanPaste => !IsBusy;
 
     [RelayCommand(CanExecute = nameof(CanExport))]
-    private async Task ExportAsync(string? view)
+    private async Task ExportAsync()
     {
         if (_main.SelectedInstall is not { } install || SelectedAccount is not { } account)
         {
             return;
         }
 
-        await ExportGuardedAsync(install, account.Folder, view).ConfigureAwait(true);
+        await ExportGuardedAsync(install, account.Folder).ConfigureAwait(true);
     }
 
-    private async Task ExportGuardedAsync(WowInstallViewModel install, string account, string? view)
+    private async Task ExportGuardedAsync(WowInstallViewModel install, string account)
     {
         if (IsBusy)
         {
@@ -121,7 +123,7 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            await ExportAsync(install, account, view).ConfigureAwait(true);
+            await ExportAsync(install, account).ConfigureAwait(true);
         }
         finally
         {
@@ -131,13 +133,13 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         await RunQueuedAsync().ConfigureAwait(true);
     }
 
-    private async Task ExportAsync(WowInstallViewModel install, string account, string? view)
+    private async Task ExportAsync(WowInstallViewModel install, string account)
     {
         try
         {
             var (settings, sources) = await LoadAsync(install, account).ConfigureAwait(true);
             var json = await Task.Run(() => AddonSettingsExport.Build(settings, sources, install.GameVersionName ?? install.Label, Now().ToUnixTimeSeconds())).ConfigureAwait(true);
-            var url = AddonSettingsPayload.ExportUrl(AddonSettingsPayload.Encode(json), view);
+            var url = AddonSettingsPayload.ExportUrl(AddonSettingsPayload.Encode(json));
             if (url.Length > AddonSettingsPayload.MaxExportUrlLength)
             {
                 _logger.Info($"Addon settings export of {url.Length} characters refused");
@@ -159,15 +161,29 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanPaste))]
     private async Task PasteAsync()
     {
-        var text = await ReadClipboard().ConfigureAwait(true);
-        if (string.IsNullOrWhiteSpace(text))
+        var clipboard = await ReadClipboard().ConfigureAwait(true);
+        if (ShowPaste is not { } show || await show(clipboard ?? "", LinkError).ConfigureAwait(true) is not { } text)
         {
-            Status = EmptyClipboardMessage;
             return;
         }
 
         await ImportAsync(text).ConfigureAwait(true);
     }
+
+    private static string? LinkError(string text)
+    {
+        try
+        {
+            ParseLink(text);
+            return null;
+        }
+        catch (FormatException ex)
+        {
+            return ex.Message;
+        }
+    }
+
+    private static SettingsImportPayload ParseLink(string text) => AddonSettingsImport.Parse(AddonSettingsPayload.Decode(AddonSettingsPayload.FromLink(text)));
 
     public async Task ReceiveLinkAsync(string link)
     {
@@ -182,10 +198,13 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         await ImportAsync(link).ConfigureAwait(true);
     }
 
-    private void Report(string message, BannerLevel level = BannerLevel.Warning)
+    private async Task ReportAsync(string message)
     {
         Status = message;
-        _main.ShowLocalInfoBanner(message, level: level);
+        if (ShowError is { } show)
+        {
+            await show(message).ConfigureAwait(true);
+        }
     }
 
     private async Task ImportAsync(string text)
@@ -194,7 +213,7 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         {
             if (_queued.Count >= MaxQueued)
             {
-                Report("Too many import links at once; send this one again");
+                await ReportAsync("Too many import links at once; send this one again").ConfigureAwait(true);
                 return;
             }
 
@@ -211,7 +230,7 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.Warn(ex, "Addon settings import failed");
-            Report(ex.Message, BannerLevel.Error);
+            await ReportAsync(ex.Message).ConfigureAwait(true);
         }
         finally
         {
@@ -235,12 +254,12 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         SettingsImportPayload payload;
         try
         {
-            payload = AddonSettingsImport.Parse(AddonSettingsPayload.Decode(AddonSettingsPayload.FromLink(text)));
+            payload = ParseLink(text);
         }
         catch (FormatException ex)
         {
             _logger.Info($"Addon settings import refused: {ex.Message}");
-            Report(ex.Message);
+            await ReportAsync(ex.Message).ConfigureAwait(true);
             return;
         }
 
@@ -252,13 +271,13 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
                 && Directory.Exists(AddonSettings.AccountFolder(candidate.FlavourPath, boundAccount)));
             if (install is null)
             {
-                Report($"No World of Warcraft install here has the account {boundAccount}");
+                await ReportAsync($"No World of Warcraft install here has the account {boundAccount}").ConfigureAwait(true);
                 return;
             }
 
             if (IsRunning(install.Install))
             {
-                Report(AddonSettings.RunningMessage);
+                await ReportAsync(AddonSettings.RunningMessage).ConfigureAwait(true);
                 return;
             }
 
@@ -269,7 +288,7 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
             var installs = _main.Installs.Where(IsUnboundTarget).ToList();
             if (installs.Count == 0)
             {
-                Report(NoUnboundInstallMessage);
+                await ReportAsync(NoUnboundInstallMessage).ConfigureAwait(true);
                 return;
             }
 
@@ -285,7 +304,7 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
 
         if (IsRunning(target.Install.Install))
         {
-            Report(AddonSettings.RunningMessage);
+            await ReportAsync(AddonSettings.RunningMessage).ConfigureAwait(true);
             return;
         }
 
@@ -294,7 +313,7 @@ public sealed partial class AddonSettingsViewModel : ObservableObject
         _main.ShowLocalInfoBanner(
             $"Imported {applied} {(applied == 1 ? "change" : "changes")} to {target.Account} on {target.Install.Label}. The game reads them at the next login.",
             actionLabel: "Export again",
-            action: () => _ = ExportGuardedAsync(target.Install, target.Account, null));
+            action: () => _ = ExportGuardedAsync(target.Install, target.Account));
     }
 
     private bool IsUnboundTarget(WowInstallViewModel install) =>

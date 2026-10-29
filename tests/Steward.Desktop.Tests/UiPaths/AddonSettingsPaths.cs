@@ -86,13 +86,6 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
             Assert.Equal(("wow_classic_beta", "1#1", 1761550000L), ((string?)export["product"], (string?)export["account"], (long)export["exportedAt"]!));
             Assert.True((bool)export["values"]!["HoobiScripts"]!["account"]!["hideErrors"]!);
             Assert.Contains("HoobiScripts", export["installed"]!.AsArray().Select(folder => (string?)folder));
-
-            Click(Card(world, "Plan talents"));
-            WaitFor(() => world.Opened.Count == 2);
-            Assert.StartsWith("https://guild.hoobi.io/addon-settings?view=talents#v1.", world.Opened[1], StringComparison.Ordinal);
-            Click(Card(world, "Plan action bars"));
-            WaitFor(() => world.Opened.Count == 3);
-            Assert.StartsWith("https://guild.hoobi.io/addon-settings?view=actionbars#v1.", world.Opened[2], StringComparison.Ordinal);
         });
 
         world.Step("X8", "Paste from website confirms each change and writes the account file", () =>
@@ -102,7 +95,9 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
             paste.BringIntoView();
             Pump();
             Click(paste);
-            WaitFor(() => world.TryFind<FluentAvalonia.UI.Controls.FAContentDialog>(_ => true) is not null || world.Main.AddonSettings.Status is not null);
+            var pasteDialog = WaitForDialogWith(world, "Paste from website");
+            Assert.StartsWith("steward://import#", pasteDialog.GetVisualDescendants().OfType<TextBox>().Single().Text, StringComparison.Ordinal);
+            Press(world, pasteDialog, "PrimaryButton");
             Assert.Null(world.Main.AddonSettings.Status);
             var dialog = world.WaitForDialog();
             var text = Text(dialog);
@@ -151,19 +146,66 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
 
         var otherAccount = AddonSettingsPayload.Encode(ImportJson.Replace("\"1#1\"", "\"2#1\"", StringComparison.Ordinal));
         var unknown = world.Main.ReceiveLinkAsync("steward://import#" + Uri.EscapeDataString(otherAccount));
+        Press(world, WaitForDialogWith(world, "No World of Warcraft install here has the account 2#1"), "CloseButton");
         WaitFor(() => unknown.IsCompleted);
         Assert.Equal("No World of Warcraft install here has the account 2#1", world.Main.AddonSettings.Status);
 
         world.Main.AddonSettings.IsRunning = _ => true;
         var running = world.Main.ReceiveLinkAsync("steward://import#" + AddonSettingsPayload.Encode(ImportJson));
+        Press(world, WaitForDialogWith(world, AddonSettings.RunningMessage), "CloseButton");
         WaitFor(() => running.IsCompleted);
         Assert.Equal(AddonSettings.RunningMessage, world.Main.AddonSettings.Status);
 
         var garbage = world.Main.ReceiveLinkAsync("steward://import#v1.not-deflate");
+        Press(world, WaitForDialogWith(world, "Could not import"), "CloseButton");
         WaitFor(() => garbage.IsCompleted);
         Assert.Equal(AddonSettingsPayload.NotALink, world.Main.AddonSettings.Status);
         Assert.Null(world.TryFind<FluentAvalonia.UI.Controls.FAContentDialog>(_ => true));
         Assert.Equal(before, File.ReadAllText(file));
+    });
+
+    [Fact]
+    public void The_paste_dialog_keeps_a_bad_link_open_with_the_error_and_imports_a_good_one() => session.Run(() =>
+    {
+        using var world = World(session, "addon-settings-paste-dialog");
+        var settings = world.Main.AddonSettings;
+        settings.ReadClipboard = () => Task.FromResult<string?>(null);
+
+        var paste = settings.PasteCommand.ExecuteAsync(null);
+        var dialog = WaitForDialogWith(world, "Paste from website");
+        var box = dialog.GetVisualDescendants().OfType<TextBox>().Single();
+        Assert.Equal("Paste the link from the website", box.PlaceholderText);
+        Assert.True(string.IsNullOrEmpty(box.Text));
+        Assert.False(DialogButton(dialog, "PrimaryButton").IsEffectivelyEnabled);
+
+        box.Text = "steward://import#v1.not-deflate";
+        Pump();
+        Assert.True(DialogButton(dialog, "PrimaryButton").IsEffectivelyEnabled);
+        Click(DialogButton(dialog, "PrimaryButton"));
+        WaitFor(() => Text(dialog).Contains(AddonSettingsPayload.NotALink, StringComparison.Ordinal));
+        Assert.True(dialog.IsVisible);
+        Assert.False(paste.IsCompleted);
+
+        box.Text = "steward://import#" + AddonSettingsPayload.Encode(ImportJson);
+        Pump();
+        Press(world, dialog, "PrimaryButton");
+        Press(world, WaitForDialogWith(world, "Apply changes from the website?"), "CloseButton");
+        WaitFor(() => paste.IsCompleted);
+        Assert.False(settings.IsBusy);
+    });
+
+    [Fact]
+    public void Cancelling_the_paste_dialog_imports_nothing() => session.Run(() =>
+    {
+        using var world = World(session, "addon-settings-paste-cancel");
+        var settings = world.Main.AddonSettings;
+        settings.ReadClipboard = () => Task.FromResult<string?>("steward://import#" + AddonSettingsPayload.Encode(ImportJson));
+
+        var paste = settings.PasteCommand.ExecuteAsync(null);
+        Press(world, WaitForDialogWith(world, "Paste from website"), "CloseButton");
+        WaitFor(() => paste.IsCompleted);
+        Assert.Null(world.TryFind<FluentAvalonia.UI.Controls.FAContentDialog>(_ => true));
+        Assert.Null(settings.Status);
     });
 
     [Fact]
@@ -373,8 +415,13 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
         using var world = World(session, "addon-settings-busy");
         var settings = world.Main.AddonSettings;
         var link = "steward://import#" + AddonSettingsPayload.Encode(ImportJson);
-        void Settled(Task import)
+        void Settled(Task import, string? error = null)
         {
+            if (error is not null)
+            {
+                Press(world, WaitForDialogWith(world, error), "CloseButton");
+            }
+
             WaitFor(() => import.IsCompleted);
             Assert.True(import.IsCompletedSuccessfully);
             Assert.False(settings.IsBusy);
@@ -388,20 +435,19 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
         Assert.Null(settings.Status);
 
         var refused = world.Main.ReceiveLinkAsync("steward://import#" + AddonSettingsPayload.Encode(ImportJson.Replace("\"1#1\"", "\"9#9\"", StringComparison.Ordinal)));
-        Settled(refused);
+        Settled(refused, "No World of Warcraft install here has the account 9#9");
         Assert.Equal("No World of Warcraft install here has the account 9#9", settings.Status);
-        Assert.Equal("CautionTintBrush", WaitForBanner(world, "No World of Warcraft install here has the account 9#9").Background);
+        Assert.DoesNotContain(world.Main.Banners, banner => banner.Title.StartsWith("No World of Warcraft", StringComparison.Ordinal));
 
         var show = settings.ShowImport;
         settings.ShowImport = _ => throw new InvalidOperationException("The dialog broke");
         var failed = world.Main.ReceiveLinkAsync(link);
-        Settled(failed);
+        Settled(failed, "The dialog broke");
         Assert.Equal("The dialog broke", settings.Status);
-        Assert.Equal("CriticalTintBrush", WaitForBanner(world, "The dialog broke").Background);
 
         settings.ShowImport = _ => throw new KeyNotFoundException("Unexpected");
         var unexpected = world.Main.ReceiveLinkAsync(link);
-        Settled(unexpected);
+        Settled(unexpected, "Unexpected");
         Assert.Equal("Unexpected", settings.Status);
         settings.ShowImport = show;
 
@@ -434,8 +480,8 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
 
         Button("Privacy policy").GetProvider<IInvokeProvider>()!.Invoke();
         Assert.Contains("https://github.com/hoobio/steward-companion/blob/main/PRIVACY.md", world.Opened);
-        Button("Plan talents").GetProvider<IInvokeProvider>()!.Invoke();
-        WaitFor(() => world.Opened.Any(url => url.StartsWith("https://guild.hoobi.io/addon-settings?view=talents#v1.", StringComparison.Ordinal)));
+        Button("Edit on the website").GetProvider<IInvokeProvider>()!.Invoke();
+        WaitFor(() => world.Opened.Any(url => url.StartsWith("https://guild.hoobi.io/addon-settings#v1.", StringComparison.Ordinal)));
 
         var late = new SettingsCard { Header = "Late" };
         var peer = ControlAutomationPeer.CreatePeerForElement(late);

@@ -169,10 +169,6 @@ public sealed partial class SettingsPage : UserControl
 
     private void OnEditAddonSettingsClick(object? sender, RoutedEventArgs e) => ViewModel.AddonSettings.ExportCommand.Execute(null);
 
-    private void OnPlanTalentsClick(object? sender, RoutedEventArgs e) => ViewModel.AddonSettings.ExportCommand.Execute("talents");
-
-    private void OnPlanActionBarsClick(object? sender, RoutedEventArgs e) => ViewModel.AddonSettings.ExportCommand.Execute("actionbars");
-
     private void OnGuildPanelClick(object? sender, RoutedEventArgs e) => Open("https://guild.hoobi.io");
 
     private void OnReleasesClick(object? sender, RoutedEventArgs e) =>

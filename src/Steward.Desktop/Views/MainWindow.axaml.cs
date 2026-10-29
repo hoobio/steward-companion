@@ -84,6 +84,8 @@ public sealed partial class MainWindow : Window
         ViewModel.ChooseLinkFile = ChooseLinkFileAsync;
         ViewModel.ShowForeverCopyDialog = ShowForeverCopyAsync;
         ViewModel.AddonSettings.ShowImport = ShowSettingsImportAsync;
+        ViewModel.AddonSettings.ShowPaste = ShowSettingsPasteAsync;
+        ViewModel.AddonSettings.ShowError = ShowSettingsErrorAsync;
         ViewModel.AddonSettings.BringToFront = ShowFromTray;
         ViewModel.ChooseGuild = ChooseGuildAsync;
         ViewModel.QuitRequested = QuitCompletely;
@@ -572,6 +574,59 @@ public sealed partial class MainWindow : Window
             DefaultButton = primary is null ? FAContentDialogButton.Close : FAContentDialogButton.None,
         };
         return await AppDialogs.ShowAsync(dialog, this) == FAContentDialogResult.Primary;
+    }
+
+    private async Task ShowSettingsErrorAsync(string message)
+    {
+        var dialog = new FAContentDialog
+        {
+            Title = Wrapped("Could not import"),
+            Content = Wrapped(message),
+            CloseButtonText = "OK",
+            DefaultButton = FAContentDialogButton.Close,
+        };
+        await AppDialogs.ShowAsync(dialog, this);
+    }
+
+    private async Task<string?> ShowSettingsPasteAsync(string prefill, Func<string, string?> validate)
+    {
+        var box = new TextBox
+        {
+            Text = prefill,
+            PlaceholderText = "Paste the link from the website",
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinHeight = 120,
+            MaxHeight = 240,
+        };
+        Avalonia.Automation.AutomationProperties.SetName(box, "Link from the website");
+        var error = Wrapped("", fontSize: 12);
+        error.IsVisible = false;
+        error.Bind(TextBlock.ForegroundProperty, error.GetResourceObservable("SystemFillColorCriticalBrush"));
+        var dialog = new FAContentDialog
+        {
+            Title = Wrapped("Paste from website"),
+            Content = new StackPanel { Spacing = 8, Children = { box, error } },
+            PrimaryButtonText = "Import",
+            CloseButtonText = "Cancel",
+            DefaultButton = FAContentDialogButton.None,
+            IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(prefill),
+        };
+        box.TextChanged += (_, _) =>
+        {
+            dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(box.Text);
+            error.IsVisible = false;
+        };
+        dialog.PrimaryButtonClick += (_, args) =>
+        {
+            if (validate(box.Text ?? "") is { } message)
+            {
+                args.Cancel = true;
+                error.Text = message;
+                error.IsVisible = true;
+            }
+        };
+        return await AppDialogs.ShowAsync(dialog, this) == FAContentDialogResult.Primary ? box.Text : null;
     }
 
     private async Task<IReadOnlyList<SettingsImportItem>?> ShowSettingsImportAsync(SettingsImportSession session)

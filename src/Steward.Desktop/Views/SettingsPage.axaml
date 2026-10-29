@@ -242,24 +242,6 @@
                         Click="OnEditAddonSettingsClick" />
 
                     <views:SettingsCard
-                        Header="Plan talents"
-                        Description="Opens the talent builder with this account's talent plans"
-                        HeaderGlyph="{StaticResource Glyph.Library}"
-                        ActionGlyph="{StaticResource Glyph.OpenInNewWindow}"
-                        IsClickEnabled="True"
-                        IsEnabled="{Binding AddonSettings.CanExport}"
-                        Click="OnPlanTalentsClick" />
-
-                    <views:SettingsCard
-                        Header="Plan action bars"
-                        Description="Opens the action bar planner with this account's action bar plans"
-                        HeaderGlyph="{StaticResource Glyph.BulletedList}"
-                        ActionGlyph="{StaticResource Glyph.OpenInNewWindow}"
-                        IsClickEnabled="True"
-                        IsEnabled="{Binding AddonSettings.CanExport}"
-                        Click="OnPlanActionBarsClick" />
-
-                    <views:SettingsCard
                         Header="Paste from website"
                         Description="Applies a link copied from the website, while the game is closed"
                         HeaderGlyph="{StaticResource Glyph.Download}">
