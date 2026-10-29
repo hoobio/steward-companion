@@ -37,9 +37,22 @@ public sealed partial class MainViewModel
         _missingInstalls = new HashSet<string>(report.Missing.Except(report.DueForRemoval, StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase);
     }
 
+    private void DropVanishedInstalls()
+    {
+        var added = _stateStore.Load().AddedInstalls;
+        foreach (var install in Installs.Where(install => !added.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase) && !Directory.Exists(install.FlavourPath)).ToList())
+        {
+            _logger.Info($"Dropping install {install.FlavourPath}: its folder no longer exists");
+            DetachInstall(install);
+        }
+
+        SyncCharacterSyncRows();
+    }
+
     private void ApplyMissingInstalls()
     {
         DetectMissingInstalls();
+        DropVanishedInstalls();
 
         var state = _stateStore.Load();
         foreach (var install in Installs.ToList())

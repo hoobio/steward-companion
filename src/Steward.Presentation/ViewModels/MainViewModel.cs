@@ -1009,6 +1009,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Rescan()
     {
+        DropVanishedInstalls();
         foreach (var install in Installs)
         {
             _ = install.RescanLocalAsync();
