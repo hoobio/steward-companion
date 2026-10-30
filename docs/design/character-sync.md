@@ -153,7 +153,7 @@ Test vectors, pinned in steward-server's `SyncFingerprintTests` and the addon's 
 - `k1`: the Gear vector's bank (observedAt `1790900000`, the one `item:18813` entry) for the same guid: `e90613d8`.
 - `c3`: the `c2` Blacksmithing vector with scannedAt `1790900000`: `65e2f091`.
 
-The catalogue recipes' `header`, `tools` and reagent `name` are not yet signed by any version; that gap is outstanding work, not an exception.
+The catalogue recipes' `header`, `tools` and reagent `name` are not signed by any version. The client-data catalogue (Recipe catalogue) closes this gap, since no client sends the catalogue from rollout step 1.
 
 ## Plausibility
 
@@ -167,7 +167,7 @@ After verification steward-server rejects a character whose signed data cannot b
 | max skill at most 300 | `<Skill> max skill above 300` |
 | max skill a Classic tier: 75, 150, 225 or 300 | `<Skill> max skill <n> is not a skill tier` |
 | the tier allowed by the level: 150 from 10, 225 from 20, 300 from 35 (75 from 1); secondary skills alike | `<Skill> max skill <n> needs level <level>` |
-| every known recipe id in the guild catalogue (stored plus this push's verified catalogue) for a profession the catalogue holds | `<Profession> recipe <id> is not in the guild catalogue` |
+| every known recipe id in the guild catalogue (stored plus this push's verified catalogue; the client-data catalogue from Recipe catalogue rollout step 1) for a profession the catalogue holds | `<Profession> recipe <id> is not in the guild catalogue` |
 | the character's `observedAt` and the professions' `observedAt` at most 5 minutes ahead of the server clock | `observed in the future` |
 
 A catalogue profession whose `scannedAt` is more than 5 minutes ahead is dropped with the DM reason `scanned in the future`. The tiers are Classic's; Forever's own tier levels are unverified. The catalogue records no required skill per recipe, so no rank-against-recipe check is made.
@@ -178,7 +178,62 @@ Verified in game on 26 Sep 2026: the client has no server-side guild professions
 
 ## Recipe catalogue
 
-Verified in game on 26 Sep 2026: once a profession's window has opened, `C_TradeSkillUI.GetAllRecipeIDs()` lists every recipe of that profession, learned or not (32 for First Aid); `IsPlayerSpell(recipeId)` answers `true` for a learned recipe after a `/reload` with no window opened; recipe ids are Forever's own (`1230117` First Aid Kit), and Forever moves recipes between professions (Minor Healing Potion is First Aid), so no Classic data applies. Known recipes are therefore detected without a window against a catalogue the guild builds itself.
+Verified in game on 26 Sep 2026: once a profession's window has opened, `C_TradeSkillUI.GetAllRecipeIDs()` lists every recipe of that profession, learned or not (32 for First Aid); `IsPlayerSpell(recipeId)` answers `true` for a learned recipe after a `/reload` with no window opened; recipe ids are Forever's own (`1230117` First Aid Kit), and Forever moves recipes between professions (Minor Healing Potion is First Aid), so no Classic data applies. Known recipes are therefore detected without a window against a catalogue.
+
+Agreed 30 Oct 2026, not built yet: steward-server builds the catalogue from the Forever client's data tables, read from Blizzard's CDN. This replaces the guild-built catalogue below, which the addon captures from the trade skill window and the app pushes. The guild-built catalogue stays in service until the rollout steps below remove it.
+
+### Client-data source
+
+- On each new `wowf` build (`WowVersions` already polls `us.version.battle.net`), steward-server reads the tables below from Blizzard's CDN through TACTSharp and DBCD, the libraries `tools\DumpRecipeIds.cs` uses, and replaces the catalogue as a whole. The patch service lists `wowf` at `http://us.patch.battle.net:1119/wowf/versions` (checked 30 Oct 2026, build `1.60.1.70685`).
+- Hotfixes are not applied. A client gets them from the game server (`Cache\ADB\enUS\DBCache.bin`), and the CDN does not serve them.
+- A recipe is a `SkillLineAbility` row that meets all three rules:
+  - `SkillLine` is one of the 12 professions: First Aid 129, Blacksmithing 164, Leatherworking 165, Alchemy 171, Herbalism 182, Cooking 185, Mining 186, Tailoring 197, Engineering 202, Enchanting 333, Fishing 356 and Skinning 393. Poisons (40), Comprehension (3012) and Test Profession [DNT] (2933) are left out. `SkillLine.CategoryID` does not separate them, since Poisons and Comprehension share category 9 with Cooking, First Aid and Fishing.
+  - `SpellName` has a name for `Spell`. A row with no name is new content that is encrypted on the CDN.
+  - `TradeSkillCategoryID` is not 0, or `SpellReagents` has a row for `Spell`. Without this rule, 125 rank and passive spells ("Mining", "Find Herbs", "Disenchant") are included. With the category rule alone, Smelt Obsidian-Infused Thorium Bar (`1213638`), which has no category in game either, is left out.
+- A recipe with no `SkillLineAbility` row is not in the catalogue, also when a hotfix makes it live in game. On build 70685 this is Disorienting Smog Potion (`1251750`).
+- Checked on build `1.60.1.70685` against the guild catalogue of 2,492 recipes: the rules give about 2,500 recipes, and `1251750` is the only guild catalogue recipe they leave out.
+
+### Client-data fields
+
+The served shape and keys do not change, so older apps, addons and the website read it as before.
+
+| Field | Source |
+|---|---|
+| profession key | `SkillLine.DisplayName_lang` |
+| `recipe_id` | `SkillLineAbility.Spell` |
+| `name` | `SpellName.Name_lang` |
+| `header` | `TradeSkillCategory.Name_lang` of `TradeSkillCategoryID`; absent for category 0 |
+| `order` | categories by `TradeSkillCategory.OrderIndex`, walking `ParentTradeSkillCategoryID` as the addon does today, then by recipe name |
+| `item_id` | `SpellEffect.EffectItemType` of the create item effect (`Effect` 24) |
+| `reagents` | `SpellReagents.Reagent_n` and `ReagentCount_n`, with the name from `ItemSparse.Display_lang` |
+| `tools` | `SpellTotems` to `TotemCategory.Name_lang`, and the spell focus from `SpellCastingRequirements.RequiresSpellFocus` to `SpellFocusObject.Name_lang`; unverified until rollout step 1 compares it |
+| `grey` | `TrivialSkillLineRankHigh` |
+| `yellow_from` | `TrivialSkillLineRankLow` |
+| `green_from` | `floor((TrivialSkillLineRankLow + TrivialSkillLineRankHigh) / 2)` |
+| `orange_to` | `yellow_from - 1` |
+| `yellow_to` | `green_from - 1` |
+
+The thresholds were checked on build 70685 against the guild's 2,492 observed bounds. `grey` disagrees for 3 recipes, `yellow_from` for 11 and the rounded-down green start for 4, which fits values changed by hotfixes. A rounded-up green start disagrees for 615.
+
+### Client-data delivery
+
+- `GET /api/admin/{guild_id}/recipes/catalogue`, `GET /api/guild/{guild_id}/recipes/catalogue` and the `catalogue` of `GET /api/guild/{guild_id}/professions` keep their gates and shape, and serve the one client-data catalogue to each guild.
+- The app writes it into `StewardSync.lua` as `["catalogue"]`, as it does now.
+- The addon reads it for the known-recipe sweep (`IsSpellKnown` per catalogue recipe), its professions window and its crafter tooltips. The window capture keeps writing `professions[guid].recipes` and `recipeScans` from the window's learned flags, which are not catalogue data.
+- Plausibility checks known recipe ids against this catalogue, in place of the stored rows, the push's catalogue and the embedded `RecipeCatalogue.json`.
+
+### Client-data rollout
+
+Each step keeps older builds working.
+
+1. steward-server builds the catalogue from the CDN, serves it on the three routes and checks plausibility against it. It accepts a pushed `catalogue` and discards it, with no 400, no `c3` check and no DM. `recipe_catalogue` stays, unwritten, for rollback. A test compares each field with the stored guild catalogue and lists the differences. This step adds DBCD 2.3.1 and TACTSharp 0.2.0-alpha as package references of a service project.
+2. The app stops reading `StewardDB.catalogue` and stops sending `catalogue`: `ProfessionCatalogue` parsing, `CatalogueFingerprint` and the catalogue part of `ProfessionsPushSelection` and the push gate go. The pull and the `StewardSync.lua` write do not change.
+3. The addon removes its catalogue capture (`Recipe`, `Reagents`, `Tools`, `Order`, `Observe`, `MergeBounds`, `AddsNothing`, `CatalogueFingerprint` and their selftests, about 245 lines), reads the synced catalogue alone, deletes `StewardDB.catalogue` at login and shows the thresholds as exact values.
+4. When releases with steps 2 and 3 are out and a week passes with no pushed `catalogue`, steward-server removes the catalogue ingest, `c3`, `CatalogueAdd`, `RecipeCatalogue.json` and `tools\DumpRecipeIds.cs`, then drops `recipe_catalogue`.
+
+### Guild-built catalogue
+
+In service until rollout step 1 (server) and step 3 (addon).
 
 - The addon writes `StewardDB.catalogue[profession] = { ["scannedAt"], ["list"] = { recipe, ... } }` whenever a profession's window data arrives: every recipe `GetAllRecipeIDs` returns, learned or not, in the recipe shape above minus `difficulty`, except those the synced catalogue in `StewardSync.lua` already holds with every field the capture has and no looser bound. The entry is deleted when no recipe is left, and on login a stored profession is deleted when every recipe in it is held that way. The pushed `catalogue` is therefore only what would change steward-server's rows, which are per recipe and never deleted by an absent one.
 - Each catalogue recipe also carries, each absent until known:
@@ -198,7 +253,7 @@ Agreed direction on 26 Sep 2026, built: raiders push their own characters' profe
 - A record for any other guid is stripped from the batch, logged, and reported by the bot as a DM to the global admins (one DM per offending batch, naming the user and the stripped count).
 - The app sends a seatless holder's records only for guids present in `StewardDB.professions` (the account's own characters), via `CharacterSyncMapping.FilterToProfessionsOnly`; the batch still carries each `CharacterSyncEntry`'s roster fields (name, realm, guild, level, classId), since the server's validation requires them on the shape, but the catalogue and guild ranks are sent null. An honest push never trips the alert; the addon's `characters` table holds the whole guild roster and would otherwise be stripped and reported on every push.
 - Routing: a non-officer has no seat, so steward-server's officer gate (`GuildAccess.MapOfficerGuild`) 403s every `/api/admin/{guild_id}/` route for them. `/api/me` returns the guilds where a seatless caller is a live Discord member holding `sync`, `roster`, `professions` or `signups` (`CallerAccess.Scope`), so the app has a guild id to push and to read the catalogue against. The member gate (`GuildAccess.MapMemberGuild`: an officer of that guild, or a live Discord member of it) covers `/api/guild/{guild_id}/` and `/api/sync/{guild_id}/`: `POST /api/sync/{guild_id}/characters` and its legacy alias `POST /api/guild/{guild_id}/characters/sync` also require `sync` in that guild (`SyncRoutes`), and `GET /api/guild/{guild_id}/recipes/catalogue` requires `sync` or `professions` (`Characters.MemberCatalogue`).
-- Catalogue: only officers update it; a seatless holder's push may add to it. Decided 27 Sep 2026, built in steward-server. Each profession in the seatless `catalogue` is validated like the officer path and kept only when its `fp` matches; a missing or mismatched `fp` drops that profession's additions, the rest of the push proceeds, and the global admins get the same throttled integrity DM with the reason `catalogue fingerprint missing` or `catalogue fingerprint mismatch` and the profession name. A kept recipe is inserted only when that `(guild, profession, recipeId)` is not already in the catalogue, recording the contributor's user id; an existing entry is never updated, replaced or deleted by a seatless push, whatever its `scannedAt`. The officer path verifies `fp` the same way but updates existing entries. The app does not send a seatless `catalogue` yet. `GET recipes/catalogue` opens to them so their addon gets the guild catalogue.
+- Catalogue: only officers update it; a seatless holder's push may add to it. Decided 27 Sep 2026, built in steward-server, and retired by Recipe catalogue rollout step 1. Each profession in the seatless `catalogue` is validated like the officer path and kept only when its `fp` matches; a missing or mismatched `fp` drops that profession's additions, the rest of the push proceeds, and the global admins get the same throttled integrity DM with the reason `catalogue fingerprint missing` or `catalogue fingerprint mismatch` and the profession name. A kept recipe is inserted only when that `(guild, profession, recipeId)` is not already in the catalogue, recording the contributor's user id; an existing entry is never updated, replaced or deleted by a seatless push, whatever its `scannedAt`. The officer path verifies `fp` the same way but updates existing entries. The app does not send a seatless `catalogue` yet. `GET recipes/catalogue` opens to them so their addon gets the guild catalogue.
 - Catalogue `fp`: keyed FNV-1a 32-bit exactly like the professions `fp` (same key, 8 lowercase hex) over UTF-8 text with `\n` after every line, the last included: `c2`, then the profession name, then one `<recipeId>|<name>|<itemId>|<reagents>|<order>|<grey>|<orangeTo>|<yellowFrom>|<yellowTo>|<greenFrom>` line per recipe in that profession's pushed `list`, sorted by `recipeId` ascending numerically. `itemId` and each level field are empty when absent; `reagents` is each reagent as `<itemId>:<count>` sorted by `itemId` ascending numerically, a reagent with no `itemId` rendering as `:<count>` and sorting first, comma-joined, empty when none. The raw pushed strings are used. A recipe with no `recipeId` renders with an empty `recipeId` and sorts first, though the server never stores it. Test vector: `Blacksmithing` with `2660` "Rough Sharpening Stone" (item `2862`, one `2835`, order 2, grey 55, orangeTo 14, yellowFrom 15, yellowTo 30) and `3115` "Rough Weightstone" (item `3239`, one `2835`, order 1, grey 65, greenFrom 45) has the canonical text `c2\nBlacksmithing\n2660|Rough Sharpening Stone|2862|2835:1|2|55|14|15|30|\n3115|Rough Weightstone|3239|2835:1|1|65||||45\n` and `fp` `8d7355e0`. `c2` and the earlier `c1` form are no longer accepted (Integrity above); `c1` was the same lines without the six level fields under a `c1` header (the same two recipes give `c1\nBlacksmithing\n2660|Rough Sharpening Stone|2862|2835:1\n3115|Rough Weightstone|3239|2835:1\n`, `fp` `8744cb70`).
 - The app's roster pull (`/roster`, `/members`) and the event stream stay officer-only (`HasStewardFeature`); for a raider the catalogue fetch runs on its own.
 - The app's access gate no longer needs `addons`, `guides` or `steward` alongside `sync`: `StewardClient.IsAuthorizing` treats `sync` alone as authorizing.
