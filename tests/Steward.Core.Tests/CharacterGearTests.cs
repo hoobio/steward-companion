@@ -81,6 +81,23 @@ public sealed class CharacterGearTests
     }
 
     [Fact]
+    public void Read_MapsGearNestedUnderCharacters_WithoutCountingTheEntrySkipped()
+    {
+        var nested = GearLua(2, BankLua).Replace($"[\"{Guid}\"] = {{", $"[\"{Guid}\"] = {{ [\"gear\"] = {{", StringComparison.Ordinal) + "\n},";
+        var snapshot = StewardSavedVariables.Read([("account.lua", DateTimeOffset.UnixEpoch, $$"""
+            StewardDB = {
+            ["characters"] = {
+            {{nested}}
+            },
+            }
+            """)]);
+
+        Assert.Equal(0, snapshot.Skipped);
+        Assert.Empty(snapshot.Characters);
+        Assert.Equal(JsonSerializer.Serialize(ReadAccount(GearLua(2, BankLua)).Gear[Guid]), JsonSerializer.Serialize(snapshot.Gear[Guid]));
+    }
+
+    [Fact]
     public void Read_MapsAForeverCapture_WithEmptySlotsAsPositionalNils()
     {
         var snapshot = StewardSavedVariables.Read([("account.lua", DateTimeOffset.UnixEpoch, """

@@ -98,9 +98,10 @@ public static class StewardSavedVariables
             if (account is not null)
             {
                 roster.AddRange(MapAll(account.GetTable("roster"), MapRoster, ref skipped));
-                var fileCharacters = MapCharacters(account.GetTable("characters"), ref skipped);
-                var fileProfessions = MapProfessionsByGuid(account.GetTable("professions"), ref skipped, ref outdatedProfessions);
-                var fileGear = MapGearByGuid(account.GetTable("gear"), ref skipped);
+                var characterTable = account.GetTable("characters");
+                var fileCharacters = MapCharacters(characterTable, ref skipped);
+                var fileProfessions = MapProfessionsByGuid(WithNested(account.GetTable("professions"), characterTable, "professions"), ref skipped, ref outdatedProfessions);
+                var fileGear = MapGearByGuid(WithNested(account.GetTable("gear"), characterTable, "gear"), ref skipped);
                 professions.AddRange(fileProfessions
                     .Select(p => (p.Guid, ToTimestamp(p.Professions.ObservedAt) ?? DateTimeOffset.MinValue, p.Professions)));
                 gear.AddRange(fileGear
@@ -292,6 +293,15 @@ public static class StewardSavedVariables
         return new AttendanceRecord(id, at.Value, instance, present);
     }
 
+    // An addon from 30 Oct 2026 keeps professions and gear under characters[guid]; an older one keeps them in top-level tables keyed by guid.
+    private static LuaValue WithNested(LuaValue? topLevel, LuaValue? characters, string key) =>
+        LuaValue.FromTable([
+            .. topLevel?.Table ?? [],
+            .. (characters?.Table ?? [])
+                .Where(e => e.Value.Kind is LuaKind.Table && e.Value.Get(key) is not null)
+                .Select(e => new LuaEntry(e.Key, e.Value.Get(key)!)),
+        ]);
+
     private static List<CharacterObservation> MapCharacters(LuaValue? table, ref int skipped)
     {
         var mapped = new List<CharacterObservation>();
@@ -300,6 +310,11 @@ public static class StewardSavedVariables
             var record = entry.Key is { Kind: LuaKind.Text } key && entry.Value.Kind is LuaKind.Table
                 ? MapCharacter(key.Text!, entry.Value)
                 : null;
+            if (record is null && entry.Value.Get("name") is null && (entry.Value.Get("professions") ?? entry.Value.Get("gear")) is not null)
+            {
+                continue;
+            }
+
             if (record is null)
             {
                 skipped++;
