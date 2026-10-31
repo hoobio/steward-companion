@@ -418,6 +418,11 @@ public static class AddonSettingsImport
             return item.Refuse("Not a valid change");
         }
 
+        if (StampRefusal(Prop(plan, "spells"), ids, out var stamp) is { } invalidStamp)
+        {
+            return item.Refuse(invalidStamp);
+        }
+
         if (PlanFile(account, SettingsAccount.CoreGlobal) is { } refusal)
         {
             return item.Refuse(refusal);
@@ -426,10 +431,13 @@ public static class AddonSettingsImport
         var current = SettingsPlans.GetIndex(SettingsPlans.TalentPlans(account)?.GetTable(AddonSettings.ToFile(classToken)), group) is { Kind: LuaKind.Table } table
             ? SettingsPlans.Talents(table)
             : null;
+        var currentStamp = SettingsPlans.TalentStamp(SettingsPlans.GetIndex(SettingsPlans.TalentPlanSpells(account)?.GetTable(AddonSettings.ToFile(classToken)), group));
         var expected = from.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? null : Ids(from);
         var conflict = !unbound && (current is null ? expected is not null : expected is null || !current.SequenceEqual(expected));
         var keys = new[] { LuaValue.FromString("talentPlans"), LuaValue.FromString(AddonSettings.ToFile(classToken)), LuaValue.FromNumber(group) };
         var written = LuaValue.Array(ids.Select(id => LuaValue.FromNumber(id)));
+        var stampKeys = new[] { LuaValue.FromString("talentPlanSpells"), keys[1], keys[2] };
+        var writtenStamp = stamp.Count == 0 ? LuaValue.Nil : LuaValue.FromTable([.. stamp.Select(spell => new LuaEntry(LuaValue.FromNumber(spell.Key), LuaValue.FromNumber(spell.Value)))]);
         return new SettingsImportItem
         {
             Addon = item.Addon,
@@ -441,8 +449,43 @@ public static class AddonSettingsImport
             Status = conflict ? SettingsImportStatus.Conflict : SettingsImportStatus.Ready,
             Reason = conflict ? SettingsImportItem.ChangedInGame : null,
             File = account.AccountFileOf(SettingsAccount.CoreGlobal),
-            Edit = globals => With(globals, SettingsAccount.CoreGlobal, keys, written),
-        }.Unless(current is not null && current.SequenceEqual(ids));
+            Edit = globals => With(
+                stamp.Count == 0 && currentStamp.Count == 0 ? globals : With(globals, SettingsAccount.CoreGlobal, stampKeys, writtenStamp),
+                SettingsAccount.CoreGlobal,
+                keys,
+                written),
+        }.Unless(current is not null && current.SequenceEqual(ids) && currentStamp.SequenceEqual(stamp));
+    }
+
+    private static string? StampRefusal(JsonElement spells, IReadOnlyCollection<long> ids, out SortedDictionary<long, long> stamp)
+    {
+        stamp = [];
+        if (spells.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (spells.ValueKind != JsonValueKind.Object)
+        {
+            return "The talent spells are not a table";
+        }
+
+        foreach (var spell in spells.EnumerateObject())
+        {
+            if (!long.TryParse(spell.Name, NumberStyles.None, CultureInfo.InvariantCulture, out var node) || !ids.Contains(node))
+            {
+                return $"{spell.Name} is not a talent node in the plan";
+            }
+
+            if (PositiveInteger(spell.Value) is not { } id)
+            {
+                return $"Node {spell.Name}: the spell is not a spell id";
+            }
+
+            stamp[node] = id;
+        }
+
+        return null;
     }
 
     public static IReadOnlyList<string> TalentLines(IReadOnlyList<long> current, IReadOnlyList<long> next, PlanLabels? labels = null)

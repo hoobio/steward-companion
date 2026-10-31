@@ -49,6 +49,14 @@ public sealed class AddonSettingsTransferTests : IDisposable
         },
         },
         },
+        ["talentPlanSpells"] = {
+        ["DRUID"] = {
+        {
+        [101] = 5000,
+        [102] = 5001,
+        },
+        },
+        },
         ["spellPlans"] = {
         ["DRUID"] = {
         ["Rejuvenation"] = -1,
@@ -283,6 +291,7 @@ public sealed class AddonSettingsTransferTests : IDisposable
         var plans = JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "Forever", 1))!["plans"]!;
 
         Assert.Equal("""{"DRUID":{"1":[101,102,102],"2":[201]},"MAGE":{"2":[301]}}""", plans["talents"]!.ToJsonString());
+        Assert.Equal("""{"DRUID":{"1":{"101":5000,"102":5001}}}""", plans["talentSpells"]!.ToJsonString());
         var druid = plans["actionBars"]!["classes"]!["DRUID"]!;
         Assert.Equal(5176, (int)druid["1"]!["spell"]!);
         Assert.Null(druid["2"]);
@@ -481,6 +490,50 @@ public sealed class AddonSettingsTransferTests : IDisposable
         Assert.Equal(("Hoobi Scripts", "Auto repair", "Guild gold, then own", "Guild gold, then own"), (import.Items[1].Addon, import.Items[1].Label, import.Items[1].Old, import.Items[1].New));
         Assert.Equal(SettingsImportStatus.Unchanged, import.Items[1].Status);
         Assert.Equal(SettingsImportStatus.Conflict, import.Items[6].Status);
+    }
+
+    [Fact]
+    public void Import_WritesTheTalentStampWithThePlanAndClearsItWithoutOne()
+    {
+        var import = Preview("""
+            "changes":[],"plans":{"talents":[
+              {"class":"DRUID","group":1,"from":[101,102,102],"to":[101,102,102,103],"spells":{"101":6000,"103":6003}},
+              {"class":"DRUID","group":2,"from":[201],"to":[201,202],"spells":{"201":7000}},
+              {"class":"MAGE","group":2,"from":[301],"to":[301,302]}
+            ]}
+            """);
+
+        Assert.All(import.Items, item => Assert.Equal(SettingsImportStatus.Ready, item.Status));
+        Assert.Equal(3, Apply(import));
+        var db = AddonSettings.Load(CoreFile)["HoobiScriptsDB"];
+        var stamps = db.GetTable("talentPlanSpells")!;
+        Assert.Equal([(101L, 6000L), (103L, 6003L)], SettingsPlans.TalentStamp(SettingsPlans.GetIndex(stamps.GetTable("DRUID"), 1)).Select(spell => (spell.Key, spell.Value)));
+        Assert.Equal([(201L, 7000L)], SettingsPlans.TalentStamp(SettingsPlans.GetIndex(stamps.GetTable("DRUID"), 2)).Select(spell => (spell.Key, spell.Value)));
+        Assert.Null(stamps.GetTable("MAGE"));
+        Assert.Equal([101L, 102L, 102L, 103L], SettingsPlans.Talents(SettingsPlans.GetIndex(db.GetTable("talentPlans")!.GetTable("DRUID"), 1)!));
+
+        var cleared = Preview("""
+            "changes":[],"plans":{"talents":[{"class":"DRUID","group":1,"from":[101,102,102,103],"to":[101,102,102,103]}]}
+            """);
+        Assert.Equal(SettingsImportStatus.Ready, Assert.Single(cleared.Items).Status);
+        Assert.Equal(1, Apply(cleared));
+        Assert.Empty(SettingsPlans.TalentStamp(SettingsPlans.GetIndex(AddonSettings.Load(CoreFile)["HoobiScriptsDB"].GetTable("talentPlanSpells")!.GetTable("DRUID"), 1)));
+    }
+
+    [Theory]
+    [InlineData("""{"999":1}""", "999 is not a talent node in the plan")]
+    [InlineData("""{"x":1}""", "x is not a talent node in the plan")]
+    [InlineData("""{"101":0}""", "Node 101: the spell is not a spell id")]
+    [InlineData("""{"101":1.5}""", "Node 101: the spell is not a spell id")]
+    [InlineData("""{"101":"5"}""", "Node 101: the spell is not a spell id")]
+    [InlineData("[]", "The talent spells are not a table")]
+    public void Import_RefusesAnInvalidTalentStamp(string spells, string reason)
+    {
+        var import = Preview($$"""
+            "changes":[],"plans":{"talents":[{"class":"DRUID","group":1,"from":null,"to":[101,102],"spells":{{spells}}}]}
+            """);
+
+        Assert.Equal(reason, Assert.Single(import.Items).Reason);
     }
 
     [Fact]

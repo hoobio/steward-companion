@@ -293,6 +293,7 @@ public static class AddonSettingsExport
             ["plans"] = new JsonObject
             {
                 ["talents"] = SettingsPlans.ExportTalents(account),
+                ["talentSpells"] = SettingsPlans.ExportTalentSpells(account),
                 ["actionBars"] = SettingsPlans.ExportActionBars(account),
                 ["spells"] = SettingsPlans.ExportSpells(account),
             },
@@ -415,6 +416,34 @@ public static class SettingsPlans
         return result;
     }
 
+    public static JsonObject ExportTalentSpells(SettingsAccount account)
+    {
+        ArgumentNullException.ThrowIfNull(account);
+        var result = new JsonObject();
+        foreach (var entry in TalentPlanSpells(account)?.Table.Where(entry => entry.Key is { Kind: LuaKind.Text } && entry.Value.Kind == LuaKind.Table) ?? [])
+        {
+            var groups = new JsonObject();
+            foreach (var (group, value) in Indexed(entry.Value).Where(group => group.Value.Kind == LuaKind.Table))
+            {
+                if (TalentStamp(value) is { Count: > 0 } stamp)
+                {
+                    groups[group.ToString(CultureInfo.InvariantCulture)] = new JsonObject([.. stamp
+                        .Select(spell => KeyValuePair.Create(spell.Key.ToString(CultureInfo.InvariantCulture), (JsonNode?)spell.Value))]);
+                }
+            }
+
+            if (groups.Count > 0)
+            {
+                result[AddonSettings.FromFile(entry.Key!.Text!)] = groups;
+            }
+        }
+
+        return result;
+    }
+
+    public static SortedDictionary<long, long> TalentStamp(LuaValue? group) =>
+        new(Indexed(group ?? LuaValue.Nil).Where(node => node.Value.Kind == LuaKind.Number && node.Value.Number >= 1).DistinctBy(node => node.Index).ToDictionary(node => node.Index, node => (long)node.Value.Number));
+
     public static JsonObject ExportActionBars(SettingsAccount account)
     {
         ArgumentNullException.ThrowIfNull(account);
@@ -469,6 +498,8 @@ public static class SettingsPlans
     internal static LuaValue? SpellPlans(SettingsAccount account) => account.Core.GetValueOrDefault(SettingsAccount.CoreGlobal)?.GetTable("spellPlans");
 
     internal static LuaValue? TalentPlans(SettingsAccount account) => account.Core.GetValueOrDefault(SettingsAccount.CoreGlobal)?.GetTable("talentPlans");
+
+    internal static LuaValue? TalentPlanSpells(SettingsAccount account) => account.Core.GetValueOrDefault(SettingsAccount.CoreGlobal)?.GetTable("talentPlanSpells");
 
     internal static LuaValue? ActionBarsDb(SettingsAccount account) =>
         account.AccountFileOf(SettingsAccount.ActionBarsGlobal) is { } file && File.Exists(file) && account.Read(file) is { } globals
