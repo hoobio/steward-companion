@@ -8,14 +8,17 @@ public static class PackedSavedVariables
 {
     private const int Break = -1;
 
-    // The Steward addon's Steward.Pack: C_EncodingUtil.SerializeCBOR, then CompressString with Zlib, then standard base64.
+    // The Steward addon's Steward.Pack: C_EncodingUtil.SerializeCBOR, CompressString with its default method, standard base64.
     public static LuaValue Decode(string packed)
     {
         try
         {
-            using var zlib = new ZLibStream(new MemoryStream(Convert.FromBase64String(packed)), CompressionMode.Decompress);
             using var bytes = new MemoryStream();
-            zlib.CopyTo(bytes);
+            using (var inflate = Inflate(Convert.FromBase64String(packed)))
+            {
+                inflate.CopyTo(bytes);
+            }
+
             var reader = new Reader(bytes.ToArray());
             var value = reader.Next() ?? throw new FormatException("the packed value is a CBOR break");
             return reader.AtEnd ? value : throw new FormatException("the packed value has trailing bytes");
@@ -24,6 +27,18 @@ public static class PackedSavedVariables
         {
             throw new FormatException("the packed value is not valid zlib-compressed CBOR", e);
         }
+    }
+
+    private static Stream Inflate(byte[] compressed)
+    {
+        var source = new MemoryStream(compressed);
+        return compressed switch
+        {
+            [0x1F, 0x8B, ..] => new GZipStream(source, CompressionMode.Decompress),
+            [var cmf and (0x08 or 0x18 or 0x28 or 0x38 or 0x48 or 0x58 or 0x68 or 0x78), var flg, ..] when (cmf * 256 + flg) % 31 == 0
+                => new ZLibStream(source, CompressionMode.Decompress),
+            _ => new DeflateStream(source, CompressionMode.Decompress),
+        };
     }
 
     private sealed class Reader(byte[] data)

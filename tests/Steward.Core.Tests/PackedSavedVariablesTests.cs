@@ -7,15 +7,24 @@ namespace Steward.Core.Tests;
 
 public sealed class PackedSavedVariablesTests
 {
-    private static string Pack(byte[] cbor)
+    private static string Pack(byte[] cbor, Func<Stream, Stream>? compressor = null)
     {
         using var buffer = new MemoryStream();
-        using (var zlib = new ZLibStream(buffer, CompressionLevel.SmallestSize, leaveOpen: true))
+        using (var stream = (compressor ?? (s => new DeflateStream(s, CompressionLevel.SmallestSize, leaveOpen: true)))(buffer))
         {
-            zlib.Write(cbor);
+            stream.Write(cbor);
         }
 
         return Convert.ToBase64String(buffer.ToArray());
+    }
+
+    [Fact]
+    public void Decode_ReadsRawDeflateZlibAndGzip()
+    {
+        var cbor = Convert.FromHexString("a16161182a");
+        Assert.Equal(42, PackedSavedVariables.Decode(Pack(cbor)).GetNumber("a"));
+        Assert.Equal(42, PackedSavedVariables.Decode(Pack(cbor, s => new ZLibStream(s, CompressionLevel.SmallestSize, leaveOpen: true))).GetNumber("a"));
+        Assert.Equal(42, PackedSavedVariables.Decode(Pack(cbor, s => new GZipStream(s, CompressionLevel.SmallestSize, leaveOpen: true))).GetNumber("a"));
     }
 
     private static LuaValue Decode(string hex) => PackedSavedVariables.Decode(Pack(Convert.FromHexString(hex)));
