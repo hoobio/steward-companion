@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.30.0](https://github.com/hoobio/steward-companion/compare/v0.29.0...v0.30.0) (2026-10-31)
+
+
+### Features
+
+* ✨ Paste from website opens a dialog to edit and confirm the link, import errors show in a modal, and the Plan talents and Plan action bars cards are removed ([769e652](https://github.com/hoobio/steward-companion/commit/769e65228a66697a60e11fe33296e94fa3946154))
+* ✨ talent plan exports carry the spell each node had when the plan was saved, and imports write or clear that stamp with the plan ([4c78cde](https://github.com/hoobio/steward-companion/commit/4c78cde21dd00f67d249821deeab5a933383cbeb))
+* ✨ the addon row menu has Settings, which opens the website addon settings page on that addon's first tab ([8a0c24f](https://github.com/hoobio/steward-companion/commit/8a0c24ff0038ddfd395eb869ae8de7c2a92844dc))
+* ✨ the addon settings export lists characters that have a WTF folder on a known realm but no HoobiScripts entry, so the website can add them before anyone enters the world ([4c21c75](https://github.com/hoobio/steward-companion/commit/4c21c752c00addfc478ef8fcbbfc7f3df3fea64d))
+
+
+### Bug Fixes
+
+* 🐛 Paste from website shows the link in a one-line box instead of a tall wrapped block ([4996442](https://github.com/hoobio/steward-companion/commit/4996442d26e3676e20b81bdc8ee4d234cb45d292))
+* 🐛 Refresh and Rescan drop a found install whose folder was deleted while Steward runs ([70f0c46](https://github.com/hoobio/steward-companion/commit/70f0c468232a545ba6ef9ae3f3dcedc540ac55b0))
+* 🐛 Send to Steward imports from the Store build, whose activation adds a slash after steward://import, and the export names a realm from the game's Connection.log when no recorded character names it, so New character works before anyone enters the world ([08ebdfe](https://github.com/hoobio/steward-companion/commit/08ebdfedbbdf5aed38c7f07718a69f0113fc1bb2))
+* 🐛 the app reads the packed characters table the Steward addon now saves at logout, with professions and gear nested under each character ([789f717](https://github.com/hoobio/steward-companion/commit/789f717a8d126e41e2e59347b3244a57e1b4cb75))
+* 🐛 the packed characters reader takes the addon's existing Comms codec, CompressString's default DEFLATE ([9e8739b](https://github.com/hoobio/steward-companion/commit/9e8739b51671ca26051dd89369e12d016a14190a))
+
 ## [0.29.0](https://github.com/hoobio/steward-companion/compare/v0.28.0...v0.29.0) (2026-10-27)
 
 
