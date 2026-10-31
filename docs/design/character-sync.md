@@ -48,6 +48,10 @@ StewardDB = {
 - Notes are neither persisted nor sent.
 - `ClubMemberInfo.guid` is nilable on this client: a member with a nil guid or one failing the format is skipped, and `/sw check` reports the skipped count.
 
+## Storage layout
+
+From 31 Oct 2026 the addon keeps each own character's professions and gear inside its `characters` entry: what this document calls `StewardDB.professions[guid]` and `StewardDB.gear[guid]` is stored as `StewardDB.characters[guid].professions` and `.gear`, with the same shape and `fp`. The addon moves the old top-level tables there at `ADDON_LOADED`, carrying every `fp`, since each signs the guid and not the table path. A `characters` entry for an own alt outside the scanned guild holds only `professions` and `gear` and no roster fields. After every `PLAYER_LOGOUT` handler the addon replaces `characters` with `packedCharacters`, a string `C_EncodingUtil.EncodeBase64(CompressString(SerializeCBOR(characters), Zlib))` (`Steward.Pack`), and unpacks it again at `ADDON_LOADED`; CBOR keeps the integer gear slot keys that JSON would turn into strings. On 30 Oct 2026 this took a 403 KB `characters` table to 74 KB. When the unpack fails the addon keeps `packedCharacters`, writes a plain `characters` table for that session and does not pack over it. `StewardSavedVariables` reads a plain `characters` table when one is present, else `packedCharacters` through `PackedSavedVariables.Decode`, and takes professions and gear from both the nested entries and the old top-level tables, so a file from either addon version reads the same; an entry with no `name` that holds professions or gear is not counted as skipped.
+
 ## App (this repo)
 
 - `StewardSavedVariables` maps `StewardDB.characters` to `CharacterObservation` records through the existing `LuaSavedVariables` parser, skipping and counting malformed records like the other datasets.

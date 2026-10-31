@@ -98,7 +98,8 @@ public static class StewardSavedVariables
             if (account is not null)
             {
                 roster.AddRange(MapAll(account.GetTable("roster"), MapRoster, ref skipped));
-                var characterTable = account.GetTable("characters");
+                var characterTable = account.GetTable("characters")
+                    ?? (account.GetString("packedCharacters") is { } packed ? PackedSavedVariables.Decode(packed) : null);
                 var fileCharacters = MapCharacters(characterTable, ref skipped);
                 var fileProfessions = MapProfessionsByGuid(WithNested(account.GetTable("professions"), characterTable, "professions"), ref skipped, ref outdatedProfessions);
                 var fileGear = MapGearByGuid(WithNested(account.GetTable("gear"), characterTable, "gear"), ref skipped);
