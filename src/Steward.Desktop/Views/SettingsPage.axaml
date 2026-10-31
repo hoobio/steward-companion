@@ -21,7 +21,11 @@
                     </StackPanel>
                 </views:SettingsCard.Description>
                 <views:SettingsCard.HeaderIcon>
-                    <Image Source="{Binding ProductIcon, Converter={x:Static views:BindConvert.Image}}" Width="20" Height="20" />
+                    <views:IconImage
+                        Source="{Binding ProductIcon, Converter={x:Static views:BindConvert.Image}}"
+                        FallbackSource="{Binding ProductFallbackIcon, Converter={x:Static views:BindConvert.Image}}"
+                        Width="20"
+                        Height="20" />
                 </views:SettingsCard.HeaderIcon>
                 <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
                     <Border

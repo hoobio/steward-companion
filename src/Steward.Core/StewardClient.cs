@@ -84,6 +84,27 @@ public sealed class StewardClient
         return BannerParsing.Parse(json);
     }
 
+    public async Task<IReadOnlyList<ProductOverride>> GetProductsAsync(CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .GetAsync($"{_baseUrl}/api/app/products", cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return [];
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"GET /api/app/products returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
+        }
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        return AppProducts.Parse(json);
+    }
+
     public async Task<MemberRoster> GetMemberRosterAsync(string guildId, CancellationToken cancellationToken)
     {
         using var response = await _httpClient

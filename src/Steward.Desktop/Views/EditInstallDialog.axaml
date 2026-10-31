@@ -36,12 +36,13 @@
                     <ComboBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:GameVersionOption">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Image
+                                <views:IconImage
                                     Width="20"
                                     Height="20"
                                     VerticalAlignment="Center"
                                     Stretch="Uniform"
                                     Source="{Binding Icon, Converter={x:Static views:BindConvert.Image}}"
+                                    FallbackSource="{Binding FallbackIcon, Converter={x:Static views:BindConvert.Image}}"
                                     IsVisible="{Binding IconVisibility}" />
                                 <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
                             </StackPanel>

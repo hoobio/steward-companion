@@ -59,10 +59,18 @@ public sealed class ClientFlavourTests(AvaloniaSession session)
         Dispatcher.UIThread.RunJobs();
         Assert.False(main.SyncVisibility);
         Assert.IsType<HomePage>(window.CurrentPage);
-        main.LaunchCountdown = "11 days 14 hours";
+        main.ApplyProducts([new("wowf", Events: [new("Launch", DateTimeOffset.Now.AddDays(3).ToUnixTimeMilliseconds(), Headline: true)])]);
         Assert.False(main.CountdownVisibility);
         main.SelectedInstall = forever;
         Assert.True(main.CountdownVisibility);
+        Assert.Equal("2 days 23 hours", main.LaunchCountdown);
+        main.ApplyProducts([new("wowf", Events: []), new("wow_classic_era", Events: [new("Patch", DateTimeOffset.Now.AddDays(1).ToUnixTimeMilliseconds(), Headline: true)])]);
+        Assert.False(main.CountdownVisibility);
+        Assert.False(main.ScheduleVisibility);
+        main.SelectedInstall = era;
+        Assert.True(main.CountdownVisibility);
+        Assert.Equal("World of Warcraft: Classic Era", main.ScheduleTitle);
+        main.ApplyProducts([]);
 
         window.Hide();
         main.Installs.Remove(forever);

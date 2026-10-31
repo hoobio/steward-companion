@@ -1,9 +1,13 @@
+using System.Reflection;
+
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 
 using Steward.App;
+using Steward.App.ViewModels;
+using Steward.Core;
 using Steward.Desktop.Views;
 
 using static Steward.Desktop.Tests.UiPaths.UiPathWorld;
@@ -120,14 +124,40 @@ public sealed class ShellPaths(AvaloniaSession session)
 
         world.Step("X5", "launch countdown under the install picker and its timers in the picker menu", () =>
         {
+            world.Main.SelectedInstall = world.Main.Installs.Single(install => install.Install.ProductCode == ForeverLaunch.BetaProduct);
+            SyncProducts(world);
+            Assert.NotNull(world.Main.LaunchCountdown);
             Assert.Equal(world.Main.LaunchCountdown, world.ByName<TextBlock>("LaunchCountdownText").Text);
             Assert.DoesNotContain("Launches", world.Main.LaunchCountdown, StringComparison.Ordinal);
             Click(picker);
             Assert.True(picker.Flyout!.IsOpen);
             var text = Text(world.ByName<StackPanel>("ScheduleList"));
+            Assert.Contains("World of Warcraft: Forever - Beta", text, StringComparison.Ordinal);
+            Assert.Contains("Server event", text, StringComparison.Ordinal);
+            Assert.Contains("Opens in ", text, StringComparison.Ordinal);
             Assert.Contains("Launch", text, StringComparison.Ordinal);
             Assert.Contains("Starts in ", text, StringComparison.Ordinal);
             world.Press(Key.Escape);
+
+            world.Api.ProductsBody = """{"products":[{"code":"wow_classic_beta","name":"World of Warcraft: Server Beta","events":null}]}""";
+            SyncProducts(world);
+            Assert.Equal("Server Beta", world.Main.SelectedInstall.Label);
+            Pump();
+            Assert.Contains("Server Beta", Text(picker), StringComparison.Ordinal);
+            Assert.Equal("World of Warcraft: Server Beta", world.Main.ScheduleTitle);
+            Assert.Contains(world.Main.GameVersions, option => option.Name == "Server Beta");
+            Assert.Equal("Server Beta", world.Main.SelectedInstall.DefaultName);
+            Assert.Equal("World of Warcraft: Server Beta", world.Main.SelectedInstall.DisplayName);
+
+            var icon = world.ByName<Image>("InstallPickerIcon");
+            var bundled = icon.Source;
+            world.Api.ProductsBody = """{"products":[{"code":"wow_classic_beta","icon_url":"https://cdn.invalid/beta.png"}]}""";
+            SyncProducts(world);
+            Assert.NotSame(bundled, world.Main.SelectedInstall.ProductIcon);
+            WaitFor(() => ReferenceEquals(icon.Source, bundled));
+
+            world.Api.ProductsBody = FakeApi.Products;
+            SyncProducts(world);
             Assert.Equal(24, world.ByName<Image>("InstallPickerIcon").Bounds.Width);
 
             world.Main.LaunchCountdown = null;
@@ -136,6 +166,14 @@ public sealed class ShellPaths(AvaloniaSession session)
             Assert.Equal(default, picker.Margin);
         });
     });
+
+    private static void SyncProducts(UiPathWorld world)
+    {
+        var sync = (Task)typeof(MainViewModel).GetMethod("SyncProductsAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(world.Main, [])!;
+        WaitFor(() => sync.IsCompleted);
+        Assert.True(sync.IsCompletedSuccessfully, sync.Exception?.ToString());
+        Pump();
+    }
 
     [Fact]
     public void P080_P087_account_flyout_and_hover() => session.Run(() =>

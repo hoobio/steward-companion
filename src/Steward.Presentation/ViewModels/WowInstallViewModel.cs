@@ -109,7 +109,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public event EventHandler? RowsChanged;
 
-    public WowInstall Install { get; }
+    public WowInstall Install { get; private set; }
 
     public string DisplayName => Install.DisplayName;
 
@@ -119,7 +119,18 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     public string? ClientVersion => Install.ClientVersion;
 
-    public string? GameVersionName { get; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DefaultName), nameof(Label), nameof(EditAccessibleName), nameof(StatusText), nameof(SelectedDetailText))]
+    public partial string? GameVersionName { get; private set; }
+
+    public void RefreshProduct(string? productName)
+    {
+        GameVersionName = productName is null ? null : ShortProductName(productName);
+        Install = Install with { DisplayName = productName ?? Install.Flavour };
+        OnPropertyChanged(nameof(DisplayName));
+        OnPropertyChanged(nameof(ProductIcon));
+        OnPropertyChanged(nameof(ProductFallbackIcon));
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Label), nameof(EditAccessibleName), nameof(StatusText), nameof(SelectedDetailText), nameof(GameVersionLineVisibility))]
@@ -130,6 +141,8 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     public bool HasGameVersion => GameVersionName is not null;
 
     public object? ProductIcon => HasGameVersion ? Services.ProductIcon.For(_platform, Install.ProductCode) : null;
+
+    public object? ProductFallbackIcon => HasGameVersion ? Services.ProductIcon.Bundled(_platform, Install.ProductCode) : null;
 
     public bool ProductIconVisibility => ProductIcon is not null;
 

@@ -49,7 +49,23 @@ public sealed class FakeApi
         ]
         """;
 
+    public const string Products = """
+        {"products":[
+          {"code":"wow_classic_beta","name":null,"icon_url":null,"events":[
+            {"name":"Server event","starts_at":1893000000000,"ends_at":1893200000000,"headline":false,"upcoming_text":"Opens in {time}","active_text":"Live now"},
+            {"name":"Launch","starts_at":1893456000000,"ends_at":null,"headline":true,"upcoming_text":null,"active_text":null}
+          ]},
+          {"code":"wowf","name":null,"icon_url":null,"events":[
+            {"name":"Launch","starts_at":1893456000000,"ends_at":null,"headline":true}
+          ]},
+          {"code":"wow","events":[]},
+          {"code":"broken","events":"nope"}
+        ]}
+        """;
+
     public string MeBody { get; set; } = Me("steward", "sync", "roster", "addons", "guides");
+
+    public string ProductsBody { get; set; } = Products;
 
     public HttpMessageHandler Handler() => new Routed(this);
 
@@ -74,6 +90,11 @@ public sealed class FakeApi
         if (path.EndsWith("/api/banners", StringComparison.Ordinal))
         {
             return (HttpStatusCode.OK, """{"banners":[]}""");
+        }
+
+        if (path.EndsWith("/api/app/products", StringComparison.Ordinal))
+        {
+            return (HttpStatusCode.OK, ProductsBody);
         }
 
         if (path.EndsWith("/latest-release.json", StringComparison.Ordinal) || path.EndsWith("/latest-pre-release.json", StringComparison.Ordinal))

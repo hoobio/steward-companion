@@ -393,6 +393,10 @@ public sealed record AppState(
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<CatalogueAddon>? AddonCatalogue { get; init; }
 
+    [JsonPropertyName("product_overrides")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ProductOverride>? ProductOverrides { get; init; }
+
     [JsonPropertyName("lost_access")]
     public Dictionary<string, LostAccessAddon> LostAccess { get; init; } = null!;
 

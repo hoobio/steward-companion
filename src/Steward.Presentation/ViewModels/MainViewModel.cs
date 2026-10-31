@@ -77,7 +77,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly AppUpdater _appUpdater;
     private readonly AppStateStore _stateStore;
     private readonly IReadOnlyList<ManagedAddon> _addons;
-    private readonly IReadOnlyDictionary<string, string> _supportedProducts;
+    private readonly IReadOnlyDictionary<string, string> _bundledProducts;
+    private IReadOnlyDictionary<string, string> _supportedProducts;
     private readonly IReadOnlyDictionary<string, int> _curseForgeVersionTypes;
     private readonly ILogger<MainViewModel> _logger;
     private readonly Dictionary<string, AddonChannelStatus> _status = new(StringComparer.OrdinalIgnoreCase);
@@ -177,6 +178,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _stateStore = stateStore;
         LastAppUpdateCheck = stateStore.Load().AppUpdateCheck;
         _addons = addons;
+        _bundledProducts = supportedProducts;
         _supportedProducts = supportedProducts;
         _logger = logger;
         _journeyUploader = new JourneyUploader(stewardClient, stateStore);
@@ -188,6 +190,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var state = stateStore.Load();
         _addonCatalogue = state.AddonCatalogue?.Select(addon => addon.ToManagedAddon()).ToList();
+        ApplyProducts(state.ProductOverrides ?? []);
         _isLoadingState = true;
         MinimizeToTray = state.MinimizeToTray;
         CloseToTray = state.CloseToTray;
@@ -225,7 +228,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SavedVariablesChanged = Sync.ReloadAsync;
         AfterStewardInstalled = install => HasStewardFeature ? Sync.WriteGeneratedFileAsync(install) : WriteMeAfterInstallAsync();
         ShellOpen.Failed += OnShellOpenFailed;
-        StartCountdown();
+        UpdateCountdown();
     }
 
     private void OnShellOpenFailed(string target, string failure) => RunOnUi(() =>
@@ -1939,6 +1942,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task SyncBannersAsync()
     {
+        await SyncProductsAsync().ConfigureAwait(true);
         try
         {
             _allBanners = await _stewardClient.GetBannersAsync(CancellationToken.None).ConfigureAwait(true);

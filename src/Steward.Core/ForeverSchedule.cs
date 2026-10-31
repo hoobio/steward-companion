@@ -1,6 +1,6 @@
 namespace Steward.Core;
 
-public sealed record ScheduleEvent(string Name, DateTimeOffset Start, DateTimeOffset? End);
+public sealed record ScheduleEvent(string Name, DateTimeOffset Start, DateTimeOffset? End, bool Headline = false, string? UpcomingText = null, string? ActiveText = null);
 
 public static class ForeverSchedule
 {
@@ -8,26 +8,29 @@ public static class ForeverSchedule
     public static readonly IReadOnlyList<ScheduleEvent> Events =
     [
         new("Stress test", new(2026, 10, 21, 14, 0, 0, TimeSpan.FromHours(-7)), null),
-        new("Name reservations", new(2026, 10, 27, 13, 0, 0, TimeSpan.FromHours(-7)), new(2026, 11, 3, 23, 59, 0, TimeSpan.FromHours(-8))),
-        new("Launch", new(2026, 11, 4, 15, 0, 0, TimeSpan.FromHours(-8)), null),
+        new("Name reservations", new(2026, 10, 27, 13, 0, 0, TimeSpan.FromHours(-7)), new(2026, 11, 3, 23, 59, 0, TimeSpan.FromHours(-8)), ActiveText: "Live now"),
+        new("Launch", new(2026, 11, 4, 15, 0, 0, TimeSpan.FromHours(-8)), null, Headline: true),
     ];
 
     public static ScheduleEvent Launch => Events[^1];
 
     public static readonly TimeSpan LiveFor = TimeSpan.FromDays(1);
 
-    public static string? TitleCountdown(DateTimeOffset now) =>
-        now < Launch.Start ? Humanize(Launch.Start - now)
-        : now < Launch.Start + LiveFor ? "Live now"
+    public static string? TitleCountdown(IReadOnlyList<ScheduleEvent> events, DateTimeOffset now) =>
+        events.FirstOrDefault(schedule => schedule.Headline) is not { } headline ? null
+        : now < headline.Start ? Humanize(headline.Start - now)
+        : now < (headline.End ?? headline.Start + LiveFor) ? "Live now"
         : null;
 
-    public static IEnumerable<ScheduleEvent> Current(DateTimeOffset now) =>
-        Events.Where(schedule => now < (schedule.End ?? schedule.Start));
+    public static IEnumerable<ScheduleEvent> Current(IReadOnlyList<ScheduleEvent> events, DateTimeOffset now) =>
+        events.Where(schedule => now < (schedule.End ?? schedule.Start));
 
     public static string Status(ScheduleEvent schedule, DateTimeOffset now) =>
         now < schedule.Start || schedule.End is not { } end
-            ? $"Starts in {Humanize(schedule.Start - now)}"
-            : $"Ends in {Humanize(end - now)}";
+            ? Fill(schedule.UpcomingText ?? "Starts in {time}", schedule.Start - now)
+            : Fill(schedule.ActiveText ?? "Ends in {time}", end - now);
+
+    private static string Fill(string text, TimeSpan span) => text.Replace("{time}", Humanize(span), StringComparison.Ordinal);
 
     public static string Humanize(TimeSpan span)
     {

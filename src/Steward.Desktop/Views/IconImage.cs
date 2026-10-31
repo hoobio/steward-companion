@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Threading;
 
 using Steward.Desktop.Services;
@@ -8,7 +9,15 @@ namespace Steward.Desktop.Views;
 
 public sealed class IconImage : Image
 {
+    public static readonly StyledProperty<IImage?> FallbackSourceProperty = AvaloniaProperty.Register<IconImage, IImage?>(nameof(FallbackSource));
+
     public event EventHandler? Failed;
+
+    public IImage? FallbackSource
+    {
+        get => GetValue(FallbackSourceProperty);
+        set => SetValue(FallbackSourceProperty, value);
+    }
 
     protected override Type StyleKeyOverride => typeof(Image);
 
@@ -42,6 +51,10 @@ public sealed class IconImage : Image
         if (ReferenceEquals(sender, Source))
         {
             Failed?.Invoke(this, EventArgs.Empty);
+            if (FallbackSource is { } fallback)
+            {
+                SetCurrentValue(SourceProperty, fallback);
+            }
         }
     }
 }

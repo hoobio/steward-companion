@@ -88,7 +88,10 @@
                                 FontSize="14"
                                 Foreground="{DynamicResource SystemFillColorCautionBrush}"
                                 IsVisible="{Binding NoGameVersionVisibility}" />
-                            <Image Source="{Binding ProductIcon, Converter={x:Static views:BindConvert.Image}}" Stretch="Uniform" />
+                            <views:IconImage
+                                Source="{Binding ProductIcon, Converter={x:Static views:BindConvert.Image}}"
+                                FallbackSource="{Binding ProductFallbackIcon, Converter={x:Static views:BindConvert.Image}}"
+                                Stretch="Uniform" />
                         </Grid>
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock FontSize="12.5" TextTrimming="CharacterEllipsis">
@@ -261,11 +264,12 @@
                             FontSize="13"
                             Foreground="{DynamicResource SystemFillColorCautionBrush}"
                             IsVisible="{Binding SelectedInstall.NoGameVersionVisibility, FallbackValue=False}" />
-                        <Image
+                        <views:IconImage
                             x:Name="InstallPickerIcon"
                             VerticalAlignment="Center"
                             Stretch="Uniform"
                             Source="{Binding SelectedInstall.ProductIcon, Converter={x:Static views:BindConvert.Image}, FallbackValue={x:Null}}"
+                            FallbackSource="{Binding SelectedInstall.ProductFallbackIcon, Converter={x:Static views:BindConvert.Image}, FallbackValue={x:Null}}"
                             IsVisible="{Binding SelectedInstall.ProductIconVisibility, FallbackValue=False}" />
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock
@@ -336,7 +340,7 @@
                                 <StackPanel x:Name="ScheduleList" Spacing="2" IsVisible="{Binding ScheduleVisibility}">
                                     <Border Height="1" Margin="-4,2" Background="{DynamicResource MenuFlyoutSeparatorBackground}" />
                                     <TextBlock
-                                        Text="World of Warcraft: Forever"
+                                        Text="{Binding ScheduleTitle}"
                                         FontSize="11.5"
                                         Margin="8,4,8,2"
                                         Foreground="{DynamicResource TextFillColorTertiaryBrush}" />

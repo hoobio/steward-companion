@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Steward.App.ViewModels;
 
-public sealed record GameVersionOption(string Code, string Name, object? Icon)
+public sealed record GameVersionOption(string Code, string Name, object? Icon, object? FallbackIcon = null)
 {
     public bool IconVisibility => Icon is not null;
 
@@ -67,7 +67,7 @@ public sealed partial class MainViewModel
     public ObservableCollection<IAddonTableRow> TableRows { get; } = [];
 
     public IReadOnlyList<GameVersionOption> GameVersions =>
-        [.. _supportedProducts.Select(product => new GameVersionOption(product.Key, WowInstallViewModel.ShortProductName(product.Value), ProductIcon.For(_platform, product.Key)))];
+        [.. _supportedProducts.Select(product => new GameVersionOption(product.Key, WowInstallViewModel.ShortProductName(product.Value), ProductIcon.For(_platform, product.Key), ProductIcon.Bundled(_platform, product.Key)))];
 
     public Func<AddonChannelViewModel, Task>? ShowChannelDialog { get; set; }
 
@@ -173,7 +173,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(SyncVisibility));
         OnPropertyChanged(nameof(GuidesVisibility));
         OnPropertyChanged(nameof(AddonSettingsVisibility));
-        OnPropertyChanged(nameof(CountdownVisibility));
+        UpdateCountdown();
     }
 
     partial void OnFilterTextChanged(string value) => Resort();
