@@ -97,12 +97,12 @@ public sealed class PickerPaths(AvaloniaSession session)
 
         world.Step(49, "Copy from the beta wizard", () =>
         {
-            Directory.CreateDirectory(Path.Combine(world.Live!, "WTF", "Account", "JIMMYBOBOZ"));
+            Directory.CreateDirectory(Path.Combine(world.Live!, "WTF", "Account", "JANEDOEACCT"));
             Click(world.Find<Button>(button => button.Content as string == "Copy from beta"));
             var dialog = world.WaitForDialog();
             var text = Text(dialog);
             Assert.Contains("Copy from the beta", text, StringComparison.Ordinal);
-            Assert.Contains("JIMMYBOBOZ copies from", text, StringComparison.Ordinal);
+            Assert.Contains("JANEDOEACCT copies from", text, StringComparison.Ordinal);
             Assert.Contains("1 file newer on the beta", text, StringComparison.Ordinal);
             Assert.Equal("Copy", dialog.PrimaryButtonText);
         });

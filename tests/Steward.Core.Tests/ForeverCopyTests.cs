@@ -225,45 +225,45 @@ public sealed class ForeverCopyTests : IDisposable
     public void DefaultAccountMap_PairsTheOnlyUnmappedBetaAccountWithTheOnlyFreeLiveOne()
     {
         Directory.CreateDirectory(BetaAccount("1#1"));
-        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+        Directory.CreateDirectory(LiveAccount("JANEDOEACCT"));
 
-        Assert.Equal("JIMMYBOBOZ", ForeverCopy.DefaultAccountMap(_beta, _live)["1#1"]);
+        Assert.Equal("JANEDOEACCT", ForeverCopy.DefaultAccountMap(_beta, _live)["1#1"]);
     }
 
     [Fact]
     public void DefaultAccountMap_SkipsAStaleNumberedFolderBesideALegacyOne()
     {
-        Directory.CreateDirectory(BetaAccount("54939295#1"));
-        Directory.CreateDirectory(Path.Combine(LiveAccount("54939295#1"), "SavedVariables"));
-        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+        Directory.CreateDirectory(BetaAccount("51234567#1"));
+        Directory.CreateDirectory(Path.Combine(LiveAccount("51234567#1"), "SavedVariables"));
+        Directory.CreateDirectory(LiveAccount("JANEDOEACCT"));
 
-        Assert.Equal("JIMMYBOBOZ", ForeverCopy.DefaultAccountMap(_beta, _live)["54939295#1"]);
-        Assert.Contains(ForeverCopy.Plan(_beta, _live, []).LiveAccounts, account => account.Folder == "54939295#1");
+        Assert.Equal("JANEDOEACCT", ForeverCopy.DefaultAccountMap(_beta, _live)["51234567#1"]);
+        Assert.Contains(ForeverCopy.Plan(_beta, _live, []).LiveAccounts, account => account.Folder == "51234567#1");
     }
 
     [Fact]
     public void DefaultAccountMap_GivesALoneClassicAccountNameTheFirstBetaAccount()
     {
-        Directory.CreateDirectory(BetaAccount("54939295#5"));
-        Directory.CreateDirectory(BetaAccount("54939295#1"));
-        Directory.CreateDirectory(BetaAccount("54939295#10"));
-        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+        Directory.CreateDirectory(BetaAccount("51234567#5"));
+        Directory.CreateDirectory(BetaAccount("51234567#1"));
+        Directory.CreateDirectory(BetaAccount("51234567#10"));
+        Directory.CreateDirectory(LiveAccount("JANEDOEACCT"));
 
         var map = ForeverCopy.DefaultAccountMap(_beta, _live);
 
-        Assert.Equal("JIMMYBOBOZ", map["54939295#1"]);
-        Assert.Null(map["54939295#5"]);
-        Assert.Null(map["54939295#10"]);
+        Assert.Equal("JANEDOEACCT", map["51234567#1"]);
+        Assert.Null(map["51234567#5"]);
+        Assert.Null(map["51234567#10"]);
     }
 
     [Fact]
     public void DefaultAccountMap_IgnoresTheClientsAccountLevelSavedVariablesFolder()
     {
-        Directory.CreateDirectory(BetaAccount("54939295#10"));
-        Directory.CreateDirectory(Path.Combine(LiveAccount("54939295#10"), "SavedVariables"));
+        Directory.CreateDirectory(BetaAccount("51234567#10"));
+        Directory.CreateDirectory(Path.Combine(LiveAccount("51234567#10"), "SavedVariables"));
         Directory.CreateDirectory(LiveAccount("SavedVariables"));
 
-        Assert.Equal("54939295#10", ForeverCopy.DefaultAccountMap(_beta, _live)["54939295#10"]);
+        Assert.Equal("51234567#10", ForeverCopy.DefaultAccountMap(_beta, _live)["51234567#10"]);
         Assert.DoesNotContain(ForeverCopy.Plan(_beta, _live, []).LiveAccounts, account => account.Folder == "SavedVariables");
         Assert.False(ForeverCopy.NeedsAccountMigration(_beta, _live));
     }
@@ -271,12 +271,12 @@ public sealed class ForeverCopyTests : IDisposable
     [Fact]
     public void NeedsAccountMigration_TrueForAStaleNumberedFolderBesideALegacyOne()
     {
-        Directory.CreateDirectory(BetaAccount("54939295#1"));
-        Directory.CreateDirectory(LiveAccount("54939295#1"));
-        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+        Directory.CreateDirectory(BetaAccount("51234567#1"));
+        Directory.CreateDirectory(LiveAccount("51234567#1"));
+        Directory.CreateDirectory(LiveAccount("JANEDOEACCT"));
 
         Assert.True(ForeverCopy.NeedsAccountMigration(_beta, _live));
-        Assert.Equal("JIMMYBOBOZ", ForeverCopy.FirstLegacyAccount(_live));
+        Assert.Equal("JANEDOEACCT", ForeverCopy.FirstLegacyAccount(_live));
     }
 
     [Fact]
@@ -293,14 +293,14 @@ public sealed class ForeverCopyTests : IDisposable
     public void NeedsAccountMigration_FalseWhenTheBetaAccountAlreadyMapsToTheLegacyFolder()
     {
         Directory.CreateDirectory(BetaAccount("1#1"));
-        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+        Directory.CreateDirectory(LiveAccount("JANEDOEACCT"));
 
         Assert.False(ForeverCopy.NeedsAccountMigration(_beta, _live));
     }
 
     [Theory]
-    [InlineData("54939295#1", false)]
-    [InlineData("JIMMYBOBOZ", true)]
+    [InlineData("51234567#1", false)]
+    [InlineData("JANEDOEACCT", true)]
     [InlineData("1#a", true)]
     public void IsLegacyAccountName_IsAnythingButDigitsHashDigits(string folder, bool legacy) =>
         Assert.Equal(legacy, ForeverCopy.IsLegacyAccountName(folder));
@@ -332,14 +332,14 @@ public sealed class ForeverCopyTests : IDisposable
     public void Plan_ListsCharactersPerAccount()
     {
         Write(Path.Combine(BetaAccount("1#1"), "Realm", "Hoobi", "layout-local.txt"), New);
-        Write(Path.Combine(BetaAccount("1#1"), "Other", "Grug", "layout-local.txt"), New);
+        Write(Path.Combine(BetaAccount("1#1"), "Other", "Gorm", "layout-local.txt"), New);
         Write(Path.Combine(BetaAccount("1#1"), "Other", "Hoobi", "layout-local.txt"), New);
         Write(Path.Combine(BetaAccount("1#1"), "SavedVariables", "Details.lua"), New);
 
         var account = Assert.Single(ForeverCopy.Plan(_beta, _live, []).BetaAccounts);
 
         Assert.Equal("1#1", account.Folder);
-        Assert.Equal(["Grug", "Hoobi"], account.Characters);
+        Assert.Equal(["Gorm", "Hoobi"], account.Characters);
     }
 
     [Fact]
@@ -347,7 +347,7 @@ public sealed class ForeverCopyTests : IDisposable
     {
         Write(Path.Combine(BetaAccount("1#1"), "SavedVariables", "Details.lua"), New, "beta");
         Write(Path.Combine(BetaAccount("1#1"), "bindings-cache.wtf"), New, "bind UP TOGGLEAUTORUN");
-        Directory.CreateDirectory(LiveAccount("JIMMYBOBOZ"));
+        Directory.CreateDirectory(LiveAccount("JANEDOEACCT"));
         Directory.CreateDirectory(LiveAccount("SIGGY72"));
         var map = new Dictionary<string, string?> { ["1#1"] = "SIGGY72" };
 
@@ -356,7 +356,7 @@ public sealed class ForeverCopyTests : IDisposable
         Assert.Equal((1, 1), (result.SavedVariablesFiles, result.SettingsFiles));
         Assert.Equal("beta", File.ReadAllText(Path.Combine(LiveAccount("SIGGY72"), "SavedVariables", "Details.lua")));
         Assert.Equal(Convert.FromHexString("53902DBF37E9DA72E3E62D57F4AED271"), File.ReadAllBytes(Path.Combine(LiveAccount("SIGGY72"), "cache.md5"))[24..40]);
-        Assert.Empty(Directory.GetFileSystemEntries(LiveAccount("JIMMYBOBOZ")));
+        Assert.Empty(Directory.GetFileSystemEntries(LiveAccount("JANEDOEACCT")));
         Assert.False(Directory.Exists(LiveAccount("1#1")));
     }
 
@@ -365,17 +365,17 @@ public sealed class ForeverCopyTests : IDisposable
     [Fact]
     public void Plan_OffersAClassicAccountNameFromASiblingGameAndPairsItWithTheFirstBetaAccount()
     {
-        Directory.CreateDirectory(BetaAccount("54939295#2"));
-        Directory.CreateDirectory(BetaAccount("54939295#1"));
-        Directory.CreateDirectory(SiblingAccount("_classic_", "JIMMYBOBOZ"));
-        Directory.CreateDirectory(SiblingAccount("_retail_", "jimmyboboz"));
+        Directory.CreateDirectory(BetaAccount("51234567#2"));
+        Directory.CreateDirectory(BetaAccount("51234567#1"));
+        Directory.CreateDirectory(SiblingAccount("_classic_", "JANEDOEACCT"));
+        Directory.CreateDirectory(SiblingAccount("_retail_", "janedoeacct"));
 
         var plan = ForeverCopy.Plan(_beta, _live, []);
 
-        Assert.Equal([("JIMMYBOBOZ", "_classic_")], plan.LiveAccounts.Select(account => (account.Folder, account.FoundIn)));
-        Assert.Equal("JIMMYBOBOZ", plan.AccountMap["54939295#1"]);
-        Assert.Null(plan.AccountMap["54939295#2"]);
-        Assert.Equal("JIMMYBOBOZ", ForeverCopy.DefaultAccountMap(_beta, _live)["54939295#1"]);
+        Assert.Equal([("JANEDOEACCT", "_classic_")], plan.LiveAccounts.Select(account => (account.Folder, account.FoundIn)));
+        Assert.Equal("JANEDOEACCT", plan.AccountMap["51234567#1"]);
+        Assert.Null(plan.AccountMap["51234567#2"]);
+        Assert.Equal("JANEDOEACCT", ForeverCopy.DefaultAccountMap(_beta, _live)["51234567#1"]);
         Assert.False(ForeverCopy.NeedsAccountMigration(_beta, _live));
     }
 
@@ -383,7 +383,7 @@ public sealed class ForeverCopyTests : IDisposable
     public void Plan_OffersNoCandidatesWhenLiveHasALegacyFolder()
     {
         Directory.CreateDirectory(LiveAccount("OWN"));
-        Directory.CreateDirectory(SiblingAccount("_classic_", "JIMMYBOBOZ"));
+        Directory.CreateDirectory(SiblingAccount("_classic_", "JANEDOEACCT"));
 
         var account = Assert.Single(ForeverCopy.Plan(_beta, _live, []).LiveAccounts);
 
@@ -394,7 +394,7 @@ public sealed class ForeverCopyTests : IDisposable
     public void Plan_IgnoresSavedVariablesNumberedFoldersAndTheBetaInSiblingScans()
     {
         Directory.CreateDirectory(SiblingAccount("_classic_", "SavedVariables"));
-        Directory.CreateDirectory(SiblingAccount("_classic_", "54939295#1"));
+        Directory.CreateDirectory(SiblingAccount("_classic_", "51234567#1"));
         Directory.CreateDirectory(BetaAccount("BETAONLY"));
 
         Assert.Empty(ForeverCopy.Plan(_beta, _live, []).LiveAccounts);
@@ -405,13 +405,13 @@ public sealed class ForeverCopyTests : IDisposable
     {
         Write(Path.Combine(BetaAccount("1#1"), "SavedVariables", "Details.lua"), New, "beta");
         Write(Path.Combine(BetaAccount("1#1"), "bindings-cache.wtf"), New, "bind UP TOGGLEAUTORUN");
-        Directory.CreateDirectory(SiblingAccount("_classic_", "JIMMYBOBOZ"));
+        Directory.CreateDirectory(SiblingAccount("_classic_", "JANEDOEACCT"));
 
         var result = ForeverCopy.Sync(_beta, _live, [], addons: false, savedVariables: true, settings: true, clientSettings: false, (_, ex) => throw ex);
 
         Assert.Equal((1, 1), (result.SavedVariablesFiles, result.SettingsFiles));
-        Assert.Equal("beta", File.ReadAllText(Path.Combine(LiveAccount("JIMMYBOBOZ"), "SavedVariables", "Details.lua")));
-        Assert.True(File.Exists(Path.Combine(LiveAccount("JIMMYBOBOZ"), "cache.md5")));
+        Assert.Equal("beta", File.ReadAllText(Path.Combine(LiveAccount("JANEDOEACCT"), "SavedVariables", "Details.lua")));
+        Assert.True(File.Exists(Path.Combine(LiveAccount("JANEDOEACCT"), "cache.md5")));
     }
 
     [Fact]

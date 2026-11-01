@@ -28,14 +28,14 @@ Each Discord guild carries an allow-list of WoW guild names, sent as `sync_guild
 StewardDB = {
   ["characters"] = {
     ["Player-4395-0A1B2C3D"] = {
-      ["name"] = "Hoobi Furry", ["realm"] = "Nightslayer", ["realmName"] = "Nightslayer", ["guild"] = "Steward",
+      ["name"] = "Hoobi Fenn", ["realm"] = "Northmoor", ["realmName"] = "Northmoor", ["guild"] = "Ironvale",
       ["level"] = 60, ["classID"] = 1, ["raceID"] = 2, ["gender"] = 2, ["rankIndex"] = 1,
       ["lastOnline"] = 1758250000, ["linkedUserId"] = "123456789012345678",
       ["linkKnown"] = true, ["observedAt"] = 1758260000,
     },
   },
   ["guildRanks"] = {
-    ["realm"] = "Nightslayer", ["realmName"] = "Nightslayer", ["guild"] = "Steward", ["observedAt"] = 1758260000,
+    ["realm"] = "Northmoor", ["realmName"] = "Northmoor", ["guild"] = "Ironvale", ["observedAt"] = 1758260000,
     ["ranks"] = { [1] = "Guild Master", [2] = "Officer", [3] = "Member" },
   },
 }
@@ -149,8 +149,8 @@ The addon writes its own TOC `## Version` as `addonVersion` on every character e
 
 Test vectors, pinned in steward-server's `SyncFingerprintTests` and the addon's `/sw selftest`:
 
-- `o1`: guid `Player-5826-0A1B2C3D`, `Hoobi Furry`, realm `ClassicBetaPvP2`, no `realmName`, guild `Steward`, level 60, class 1, race 2, gender 3, rank 1, lastOnline `1790890000`, linkedUserId `123456789012345678`, linkKnown true, observedAt `1790900000`: `10f9ae4a`.
-- `r1`: realm and realmName `Nightslayer`, guild `Steward`, observedAt `1790900000`, ranks `Guild Master`, `Officer`, `Member`: `5330ac56`.
+- `o1`: guid `Player-5826-0A1B2C3D`, `Hoobi Fenn`, realm `ClassicBetaPvP2`, no `realmName`, guild `Ironvale`, level 60, class 1, race 2, gender 3, rank 1, lastOnline `1790890000`, linkedUserId `123456789012345678`, linkKnown true, observedAt `1790900000`: `56804809`.
+- `r1`: realm and realmName `Northmoor`, guild `Ironvale`, observedAt `1790900000`, ranks `Guild Master`, `Officer`, `Member`: `cfc4c190`.
 - `v3`: guid `Player-4619-0104D32F`, observedAt `1790900000`, Alchemy 285/300 primary, Cooking 150/225 secondary: `d5e8cda1`.
 - `p1`: the same guid, Alchemy recipes `11460, 11461`, scannedAt `1790900000`: `672cacde`.
 - `g3`: the Gear vector below (equipped and bags) with observedAt `1790900000` and level 60: `6728e227`, whatever the bank.

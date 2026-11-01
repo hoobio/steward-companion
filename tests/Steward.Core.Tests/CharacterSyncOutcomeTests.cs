@@ -110,10 +110,10 @@ public sealed class CharacterSyncOutcomeTests
     public void CharacterSyncRejectionCopy_DescribeNotLinked_LinkedToAnotherKnownPerson()
     {
         var characters = new List<DirectoryCharacter> { new("Player-4619-00B33CCD", "Hoobi", 60, 11, "user-2") };
-        var people = new List<DirectoryPerson> { new("user-2", "Grug", null) };
+        var people = new List<DirectoryPerson> { new("user-2", "Gorm", null) };
 
         Assert.Equal(
-            "Linked to Grug in the guild roster",
+            "Linked to Gorm in the guild roster",
             CharacterSyncRejectionCopy.DescribeNotLinked("Player-4619-00B33CCD", characters, people, "user-1"));
     }
 

@@ -87,7 +87,7 @@ There is no server-side copy of anyone's game files. Everything travels in the U
 - **Payload:** UTF-8 JSON (below), compressed with raw DEFLATE (`System.IO.Compression.DeflateStream`; the website reads it with the browser's `DecompressionStream("deflate-raw")`), then base64url without padding.
 - **Export:** the app opens `https://guild.hoobi.io/addon-settings#v1.<payload>` in the default browser through `ShellOpen`. The website decodes the fragment in the page, fetches each schema, and shows the settings pages, talent plans and action bar plans with the exported values. The app refuses an export whose URL is over 32,000 characters ("Too much to export at once; choose one account") rather than truncate it.
 - **Import:** the website's "Send to Steward" button opens `steward://import#v1.<payload>`. The app registers the `steward` scheme beside `curseforge` (the MSIX manifest's protocol, the Linux desktop entry's `MimeType=x-scheme-handler/steward;`, macOS `CFBundleURLTypes`), and a launch with that link is handed to the running instance through the existing link pipe or socket, as a CurseForge link is. The website also offers the same link as text to copy, and the app has "Paste from website" for a browser that blocks the scheme.
-- **Test vector:** both sides decode this to exactly `{"v":1,"product":"wowf","account":"54939295#1","basedOn":1761550000,"changes":[{"addon":"HoobiScripts","scope":"account","key":"autoRepair","from":false,"to":true}],"newCharacters":[],"plans":{"talents":[],"actionBars":[]}}`: `v1.PY2xasNAEAX_5bndQkoiB22ZNOkCdmlcrE-rWES5Pe5WFkbo34NwSDnD8N6CG7gmpGzdFByM2eYeBAnBpriJ5qV9bp_aZleDcJGi3WcE16_7ummqqqoI4SrxSwv4tEC6ziIYH2aX4RjykLyAUIIlBf_PEr71vvHkdtAkQwahz_YD7mUsSnADe550PROizu9XyRJc83ZzJqRRYgEvcBk1-p-V4IPFN3lU6_oL` (made by .NET's `DeflateStream`). Each side's tests also encode and decode a payload of its own, and decode the other side's checked-in vector.
+- **Test vector:** both sides decode this to exactly `{"v":1,"product":"wowf","account":"51234567#1","basedOn":1761550000,"changes":[{"addon":"HoobiScripts","scope":"account","key":"autoRepair","from":false,"to":true}],"newCharacters":[],"plans":{"talents":[],"actionBars":[]}}`: `v1.NY2xDsIwDET_5VgzUKAgZYSFDQlGxGBSFypKHCUpFar677gCPJ2f784DXrCFQYhSdS7Dope-hgE5J52fQFkslqtyvZkViq-UuDp4zWzWRVnOdQzcnfyNE-x5AFWV6Bl7kWtzcrEJOWkuOQms-F9r8OD3tHdZjhyoiYrqKE_YmtrEBllgc-x4vBh47nd3iuQyx-mNotCSVzkgU8s-_6g6GvFb-rrG8QM` (made by .NET's `DeflateStream`). Each side's tests also encode and decode a payload of its own, and decode the other side's checked-in vector.
 - **Confirmation:** an import never writes on its own. A `steward://` link brings the app out of the tray or minimised state first. The app shows what will change, grouped under one heading per addon: for a setting the page, row label, old value and new value, and for a plan its class (and talent group) with one line for each thing it writes: the points added to or removed from each talent node ("2 points added to Ferocity"), each changed action bar slot by bar and button ("Bar 8, button 1: empty → Rejuvenation") and each added, changed or removed macro, and each changed spell ("Rejuvenation: not learning → every rank"). A plan with more than 20 lines shows the first 20 and "and N more". A setting or plan change whose new value the file already holds is not written or counted, and is listed once at the end ("Already the same in the game: Druid talents, plan 2"). The app writes only after the user presses Apply, as a CurseForge link install asks first. After Apply, a dismissible banner reads "Imported N changes to <account> on <install>. The game reads them at the next login." and offers Export again; a refused or failed import shows as a warning or error banner.
 
 ### Export payload
@@ -97,13 +97,13 @@ There is no server-side copy of anyone's game files. Everything travels in the U
   "v": 1,
   "product": "wowf",
   "install": "World of Warcraft: Forever",
-  "account": "54939295#1",
+  "account": "51234567#1",
   "exportedAt": 1761550000,
   "addons": [{ "id": "hoobiscripts", "folder": "HoobiScripts", "version": "0.0.0-pre-release.15e85ca" }],
   "installed": ["HoobiScripts", "HoobiScripts_ActionBars", "RXPGuides", "EllesmereUI"],
   "realms": [{ "name": "Classic Beta PvP", "id": "91" }],
-  "characters": [{ "key": "Hoobi Drood-Classic Beta PvP", "class": "DRUID" }],
-  "values": { "HoobiScripts": { "account": { "autoRepair": false }, "character": { "Hoobi Drood-Classic Beta PvP": { "spec": "Feral" } } } },
+  "characters": [{ "key": "Hoobi Dorn-Classic Beta PvP", "class": "DRUID" }],
+  "values": { "HoobiScripts": { "account": { "autoRepair": false }, "character": { "Hoobi Dorn-Classic Beta PvP": { "spec": "Feral" } } } },
   "plans": { "talents": {}, "actionBars": {} }
 }
 ```
@@ -115,7 +115,7 @@ There is no server-side copy of anyone's game files. Everything travels in the U
 - `values` holds only keys the schema names and only keys present in the file. An absent key is left out, so "absent" (the addon's default) and "set to the default" stay different.
 - `installed` is every folder on the install (for `visibleWhenLoaded`, `hiddenWhenLoaded`, `lockedWhenLoaded`).
 - `realms` are the known realms (realm pairing below), and `characters` the `HoobiScriptsDB.chars` keys with their class, both with the beta-realm filter applied before export on a `wowf` install.
-- `unrecorded` (optional, left out when empty) lists the character folders under a known realm's folder that have no `HoobiScriptsDB.chars` entry, as `[{ "first": "Hoo", "last": "Bi", "realm": "CAMWOW AU1 Realm 2 PvP" }]` (folder `Hoo-Bi`). The class is not on disk, so the website asks for it and sends the character back as a `newCharacters` entry, whose import accepts a character folder that already exists. A reader that does not know the field ignores it.
+- `unrecorded` (optional, left out when empty) lists the character folders under a known realm's folder that have no `HoobiScriptsDB.chars` entry, as `[{ "first": "Hob", "last": "Ek", "realm": "Cairn AU1 Realm 2 PvP" }]` (folder `Hob-Ek`). The class is not on disk, so the website asks for it and sends the character back as a `newCharacters` entry, whose import accepts a character folder that already exists. A reader that does not know the field ignores it.
 
 ### Import payload
 
@@ -123,13 +123,13 @@ There is no server-side copy of anyone's game files. Everything travels in the U
 {
   "v": 1,
   "product": "wowf",
-  "account": "54939295#1",
+  "account": "51234567#1",
   "basedOn": 1761550000,
   "changes": [
     { "addon": "HoobiScripts", "scope": "account", "key": "autoRepair", "from": false, "to": true },
-    { "addon": "HoobiScripts", "scope": "character", "character": "Hoobi Drood-Classic Beta PvP", "key": "spec", "from": "Feral", "to": null }
+    { "addon": "HoobiScripts", "scope": "character", "character": "Hoobi Dorn-Classic Beta PvP", "key": "spec", "from": "Feral", "to": null }
   ],
-  "newCharacters": [{ "first": "Grug", "last": "Aa", "class": "WARRIOR", "realm": "Classic Beta PvP" }],
+  "newCharacters": [{ "first": "Gorm", "last": "Aa", "class": "WARRIOR", "realm": "Classic Beta PvP" }],
   "plans": { "talents": [], "actionBars": [] }
 }
 ```

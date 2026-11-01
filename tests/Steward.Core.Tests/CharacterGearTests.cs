@@ -7,8 +7,8 @@ public sealed class CharacterGearTests
     private const string Guid = "Player-5826-0A1B2C3D";
     private const string OtherGuid = "Player-5826-11111111";
 
-    private static readonly CharacterObservation Hoobi = new(Guid, "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
-    private static readonly CharacterObservation Grug = new(OtherGuid, "Grug", "Nightslayer", "Stormrage", 58, 7, 3, 2, null, null, false, null);
+    private static readonly CharacterObservation Hoobi = new(Guid, "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+    private static readonly CharacterObservation Gorm = new(OtherGuid, "Gorm", "Northmoor", "Stormrage", 58, 7, 3, 2, null, null, false, null);
 
     private static SavedVariablesSnapshot ReadAccount(string gearTable) =>
         StewardSavedVariables.Read([("account.lua", DateTimeOffset.UnixEpoch, $$"""
@@ -178,7 +178,7 @@ public sealed class CharacterGearTests
     [Fact]
     public void CharacterSyncEntry_OmitsGear_WhenNoneObserved()
     {
-        var entry = CharacterSyncMapping.ToEntry(Grug, new Dictionary<string, CharacterProfessions>(), GearFor(SampleGear()));
+        var entry = CharacterSyncMapping.ToEntry(Gorm, new Dictionary<string, CharacterProfessions>(), GearFor(SampleGear()));
 
         var json = JsonSerializer.Serialize(entry, CompanionJsonContext.Default.CharacterSyncEntry);
 
@@ -283,10 +283,10 @@ public sealed class CharacterGearTests
                 p => p.Key,
                 p => new CharacterPushOutcome(true, Fingerprint: CharacterSyncMapping.ProfessionsFingerprint(p.Value, gear.GetValueOrDefault(p.Key)))));
 
-        Assert.False(ProfessionsPushSelection.Select([Hoobi, Grug], professions, catalogue, last, null, null, false, gear).HasWork);
+        Assert.False(ProfessionsPushSelection.Select([Hoobi, Gorm], professions, catalogue, last, null, null, false, gear).HasWork);
 
         var changed = new Dictionary<string, CharacterGear> { [Guid] = SampleGear() with { Bags = [] } };
-        var plan = ProfessionsPushSelection.Select([Hoobi, Grug], professions, catalogue, last, null, null, false, changed);
+        var plan = ProfessionsPushSelection.Select([Hoobi, Gorm], professions, catalogue, last, null, null, false, changed);
 
         Assert.Equal(Guid, Assert.Single(plan.Characters).CharacterGuid);
     }
@@ -297,7 +297,7 @@ public sealed class CharacterGearTests
         var professions = new Dictionary<string, CharacterProfessions> { [Guid] = new CharacterProfessions(1, null, null, "fp") };
         var gear = GearFor(SampleGear());
         var snapshot = new SavedVariablesSnapshot(
-            [], null, [], [], [], 0, [Hoobi, Grug], "irrelevant", professions, new Dictionary<string, ProfessionCatalogue>(), HasAccountData: true)
+            [], null, [], [], [], 0, [Hoobi, Gorm], "irrelevant", professions, new Dictionary<string, ProfessionCatalogue>(), HasAccountData: true)
         {
             Gear = gear,
         };

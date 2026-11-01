@@ -12,8 +12,8 @@ HoobiScriptsDB = {
 ["autoRepair"] = "all",
 ["skin"] = "blizzard",
 ["mailTradeGoods"] = true,
-["mailTradeGoodsTarget"] = "Grüg Aa",
-["damageMeterSyncSource"] = "Yim Kisser-Classic Beta PvP",
+["mailTradeGoodsTarget"] = "Görm Aa",
+["damageMeterSyncSource"] = "Yara Kest-Classic Beta PvP",
 ["autoSellLimit"] = 25050,
 ["lastSeen"] = 1758260000,
 ["bigCounter"] = 9007199254740992,
@@ -35,7 +35,7 @@ HoobiScriptsDB = {
 },
 },
 ["meterWindows"] = {
-["Hoobi Ragsock-Classic Beta PvP"] = {
+["Hoobi Rask-Classic Beta PvP"] = {
 ["frames"] = {
 [2] = {
 "BOTTOMRIGHT",
@@ -51,7 +51,7 @@ HoobiScriptsDB = {
 [1200] = false,
 },
 ["chars"] = {
-["Hoobi Spellbook-Classic Beta PvP"] = {
+["Hoobi Sorrel-Classic Beta PvP"] = {
 ["weights"] = {
 },
 ["lockedRankSlots"] = {
@@ -59,7 +59,7 @@ HoobiScriptsDB = {
 ["spec"] = "Holy",
 ["vendorPlainWater"] = false,
 },
-["Hoobi Quester-Classic Beta PvP"] = {
+["Hoobi Quill-Classic Beta PvP"] = {
 ["class"] = "DRUID",
 ["questRefusals"] = {
 ["refused"] = {
@@ -69,7 +69,7 @@ HoobiScriptsDB = {
 },
 },
 },
-["Grüg Aa-Classic Beta PvP"] = {
+["Görm Aa-Classic Beta PvP"] = {
 ["class"] = "WARRIOR",
 },
 },
