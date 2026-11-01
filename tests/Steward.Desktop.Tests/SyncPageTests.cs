@@ -91,7 +91,7 @@ public sealed class SyncPageTests(AvaloniaSession session)
         view.Datasets.Add(mine);
         view.ProfessionsDataset = mine;
         view.ProfessionsCharacters.Add(new ProfessionsCharacterViewModel("Hoobi", 60, "Warrior", "Blacksmithing 300, Mining 300", ProfessionsCharacterState.Synced, null));
-        view.ProfessionsCharacters.Add(new ProfessionsCharacterViewModel("Grug", 42, "Hunter", "", ProfessionsCharacterState.Pending, null));
+        view.ProfessionsCharacters.Add(new ProfessionsCharacterViewModel("Gorm", 42, "Hunter", "", ProfessionsCharacterState.Pending, null));
         view.ProfessionsCharacters.Add(new ProfessionsCharacterViewModel("Thok", 30, "Shaman", "Herbalism 150", ProfessionsCharacterState.Rejected, "This character is linked to another account."));
         return view;
     }

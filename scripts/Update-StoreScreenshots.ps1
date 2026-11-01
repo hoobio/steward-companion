@@ -3,7 +3,7 @@
 param(
     [string]$Directory = (Join-Path $PSScriptRoot '..\docs\screenshots'),
     [string]$ProductId = '9PBKMZFKZHKX',
-    [string]$KeyVault = 'hbicfgkvtaus01'
+    [Parameter(Mandatory)][string]$KeyVault
 )
 $ErrorActionPreference = 'Stop'
 $api = "https://manage.devcenter.microsoft.com/v1.0/my/applications/$ProductId"

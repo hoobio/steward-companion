@@ -13,7 +13,7 @@ public sealed class LuaWriterTests
     [InlineData("carriage\rreturn")]
     [InlineData("a\ttab")]
     [InlineData("pipe|colour code")]
-    [InlineData("Grüg")]
+    [InlineData("Görm")]
     [InlineData("")]
     public void Serialize_RoundTripsStrings(string text)
     {

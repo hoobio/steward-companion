@@ -49,9 +49,9 @@ The addon writes `characters`, `professions`, `catalogue` and `guildRanks` (see 
 ```lua
 StewardDB = {
 ["exportedAt"] = 1758260000,
-["roster"] = { { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["class"] = "WARRIOR", ["level"] = 60, ["rank"] = "Officer", ["rankIndex"] = 1, ["note"] = "", ["officerNote"] = "", ["lastOnline"] = 1758250000 }, },
+["roster"] = { { ["name"] = "Hoobi", ["realm"] = "Northmoor", ["class"] = "WARRIOR", ["level"] = 60, ["rank"] = "Officer", ["rankIndex"] = 1, ["note"] = "", ["officerNote"] = "", ["lastOnline"] = 1758250000 }, },
 ["loot"] = { { ["id"] = "3f2a...", ["at"] = 1758240000, ["player"] = "Hoobi", ["itemId"] = 19019, ["item"] = "Thunderfury", ["quality"] = 5, ["source"] = "Ragnaros", ["instance"] = "Molten Core" }, },
-["attendance"] = { { ["id"] = "9c1b...", ["at"] = 1758230000, ["instance"] = "Molten Core", ["present"] = { "Hoobi", "Grug" } }, },
+["attendance"] = { { ["id"] = "9c1b...", ["at"] = 1758230000, ["instance"] = "Molten Core", ["present"] = { "Hoobi", "Gorm" } }, },
 }
 ```
 
