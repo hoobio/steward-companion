@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.0](https://github.com/hoobio/steward-companion/compare/v0.30.0...v0.31.0) (2026-10-31)
+
+
+### Features
+
+* ✨ steward-server can override each client's display name, icon and countdown events, cached so they apply offline ([02509e1](https://github.com/hoobio/steward-companion/commit/02509e18d93b674fc188ab06ede5c31b45169f08))
+
 ## [0.30.0](https://github.com/hoobio/steward-companion/compare/v0.29.0...v0.30.0) (2026-10-31)
 
 
