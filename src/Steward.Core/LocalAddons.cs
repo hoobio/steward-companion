@@ -181,7 +181,7 @@ public static class LocalAddons
             return null;
         }
 
-        var stripped = Regex.Replace(value, @"\|c[0-9A-Fa-f]{8}", "").Replace("|r", "");
+        var stripped = Regex.Replace(value, @"\|c[0-9A-Fa-f]{8}|\|r|\|T[^|]*\|t|\|A[^|]*\|a", "").Trim();
         return stripped.Length == 0 ? null : stripped;
     }
 }

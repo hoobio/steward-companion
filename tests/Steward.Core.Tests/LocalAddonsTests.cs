@@ -114,6 +114,15 @@ public sealed class LocalAddonsTests : IDisposable
     }
 
     [Fact]
+    public void Scan_StripsTextureAndAtlasEscapesFromTitle()
+    {
+        WriteAddon("AtlasBIStooltips", @"## Title: |TInterface\AddOns\AtlasLootClassic\atlas_tga:16|t AtlasLoot Forever |cFF0099FF[BiS ToolTip]|r |A:raceicon:16:16|a" + "\n");
+
+        var addon = Assert.Single(LocalAddons.Scan(_addOnsPath, []));
+        Assert.Equal("AtlasLoot Forever [BiS ToolTip]", addon.Name);
+    }
+
+    [Fact]
     public void ReadDeclaredIds_ReadsTopLevelTocOnly_IgnoringEmbeddedLibraryToc()
     {
         WriteAddon("RXPGuides", "## Title: RXPGuides\n## X-Curse-Project-ID: 486246\n## X-Wago-ID: rkGrgw6y\n");
