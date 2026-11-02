@@ -88,8 +88,8 @@
 
         <views:BannerList Grid.Row="1" Margin="26,10,26,0" Banners="{Binding Banners}" />
 
-        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="26,10,26,26" Spacing="10">
+        <DockPanel Grid.Row="2" Margin="26,10,26,26">
+            <StackPanel DockPanel.Dock="Top" Spacing="10">
                 <Border
                     CornerRadius="8"
                     Padding="12,8"
@@ -337,52 +337,64 @@
                         </StackPanel>
                     </StackPanel>
                 </Grid>
+            </StackPanel>
 
-                <Border
-                    Margin="0,10,0,0"
-                    CornerRadius="8"
-                    Background="{DynamicResource LayerFillColorDefaultBrush}"
-                    IsVisible="{Binding TableVisibility}">
-                    <StackPanel x:Name="TableBody" SizeChanged="OnTableSizeChanged">
-                        <Border
-                            x:Name="TableHeader"
-                            Padding="16,6"
-                            CornerRadius="{StaticResource GroupTopCornerRadius}"
-                            Background="{DynamicResource LayerFillColorAltBrush}">
-                            <Grid ColumnDefinitions="30,3*,2*,1.2*,1*,*,32" ColumnSpacing="12">
-                                <Button Grid.Column="1" Classes="Subtle Sort" Command="{Binding SortByCommand}" CommandParameter="name">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Classes="Sort" Text="Name" />
-                                        <TextBlock Classes="Glyph SortGlyph" Text="{Binding NameSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
-                                    </StackPanel>
-                                </Button>
-                                <Button
-                                    Grid.Column="2"
-                                    Classes="Subtle Sort"
-                                    AutomationProperties.Name="Sort by last updated"
-                                    Command="{Binding SortByCommand}"
-                                    CommandParameter="version">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Classes="Sort" Text="Version" />
-                                        <TextBlock Classes="Glyph SortGlyph" Text="{Binding VersionSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
-                                    </StackPanel>
-                                </Button>
-                                <TextBlock Grid.Column="3" Classes="Sort" Text="Channel" VerticalAlignment="Center" />
-                                <Button Grid.Column="4" Classes="Subtle Sort" Command="{Binding SortByCommand}" CommandParameter="source">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Classes="Sort" Text="Source" />
-                                        <TextBlock Classes="Glyph SortGlyph" Text="{Binding SourceSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
-                                    </StackPanel>
-                                </Button>
-                                <Button Grid.Column="5" Classes="Subtle Sort" Command="{Binding SortByCommand}" CommandParameter="status">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <TextBlock Classes="Sort" Text="Status" />
-                                        <TextBlock Classes="Glyph SortGlyph" Text="{Binding StatusSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
-                                    </StackPanel>
-                                </Button>
-                            </Grid>
-                        </Border>
+            <Border
+                Margin="0,20,0,0"
+                VerticalAlignment="Top"
+                CornerRadius="8"
+                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                IsVisible="{Binding TableVisibility}">
+                <DockPanel x:Name="TableBody" SizeChanged="OnTableSizeChanged">
+                    <Border
+                        x:Name="TableHeader"
+                        DockPanel.Dock="Top"
+                        Padding="16,6"
+                        CornerRadius="{StaticResource GroupTopCornerRadius}"
+                        Background="{DynamicResource LayerFillColorAltBrush}">
+                        <Grid ColumnDefinitions="30,3*,2*,1.2*,1*,*,32" ColumnSpacing="12">
+                            <Button Grid.Column="1" Classes="Subtle Sort" Command="{Binding SortByCommand}" CommandParameter="name">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Classes="Sort" Text="Name" />
+                                    <TextBlock Classes="Glyph SortGlyph" Text="{Binding NameSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
+                                </StackPanel>
+                            </Button>
+                            <Button
+                                Grid.Column="2"
+                                Classes="Subtle Sort"
+                                AutomationProperties.Name="Sort by last updated"
+                                Command="{Binding SortByCommand}"
+                                CommandParameter="version">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Classes="Sort" Text="Version" />
+                                    <TextBlock Classes="Glyph SortGlyph" Text="{Binding VersionSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock Grid.Column="3" Classes="Sort" Text="Channel" VerticalAlignment="Center" />
+                            <Button Grid.Column="4" Classes="Subtle Sort" Command="{Binding SortByCommand}" CommandParameter="source">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Classes="Sort" Text="Source" />
+                                    <TextBlock Classes="Glyph SortGlyph" Text="{Binding SourceSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Column="5" Classes="Subtle Sort" Command="{Binding SortByCommand}" CommandParameter="status">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Classes="Sort" Text="Status" />
+                                    <TextBlock Classes="Glyph SortGlyph" Text="{Binding StatusSortGlyph, Converter={x:Static views:BindConvert.Glyph}}" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
 
+                    <TextBlock
+                        DockPanel.Dock="Top"
+                        Text="No addons match"
+                        Padding="0,28"
+                        HorizontalAlignment="Center"
+                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                        IsVisible="{Binding NoMatchVisibility}" />
+
+                    <ScrollViewer x:Name="TableScroller" HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding TableRows}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -928,17 +940,10 @@
                                 </DataTemplate>
                             </ItemsControl.DataTemplates>
                         </ItemsControl>
-
-                        <TextBlock
-                            Text="No addons match"
-                            Padding="0,28"
-                            HorizontalAlignment="Center"
-                            Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                            IsVisible="{Binding NoMatchVisibility}" />
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-        </ScrollViewer>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </DockPanel>
 
         <StackPanel
             Grid.Row="2"

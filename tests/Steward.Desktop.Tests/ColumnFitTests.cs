@@ -113,8 +113,7 @@ public sealed class ColumnFitTests(AvaloniaSession session)
         Settle(ticks: 4);
 
         var page = (HomePage)window.CurrentPage!;
-        var body = page.GetVisualDescendants().OfType<StackPanel>().First(panel => panel.Name == "TableBody");
-        var scroller = body.FindAncestorOfType<ScrollViewer>()!;
+        var scroller = page.GetVisualDescendants().OfType<ScrollViewer>().First(viewer => viewer.Name == "TableScroller");
         var header = (Grid)page.GetVisualDescendants().OfType<Border>().First(border => border.Name == "TableHeader").Child!;
         var first = main.TableRows.OfType<AddonRowViewModel>().First();
         Assert.True(scroller.Extent.Height > scroller.Viewport.Height * 2);
