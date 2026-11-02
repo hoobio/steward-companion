@@ -4,6 +4,7 @@ using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -117,6 +118,19 @@ public sealed class ColumnFitTests(AvaloniaSession session)
         var header = (Grid)page.GetVisualDescendants().OfType<Border>().First(border => border.Name == "TableHeader").Child!;
         var first = main.TableRows.OfType<AddonRowViewModel>().First();
         Assert.True(scroller.Extent.Height > scroller.Viewport.Height * 2);
+        if (Environment.GetEnvironmentVariable("STEWARD_HOME_PNG_DIR") is { Length: > 0 } directory)
+        {
+            Directory.CreateDirectory(directory);
+            foreach (var (name, offset) in new[] { ("home-scroll-top", 0.0), ("home-scroll-middle", 900.0) })
+            {
+                scroller.Offset = new Vector(0, offset);
+                Settle(ticks: 4);
+                window.CaptureRenderedFrame()!.Save(Path.Combine(directory, $"{name}.png"), PngBitmapEncoderOptions.Default);
+            }
+
+            scroller.Offset = default;
+            Settle(ticks: 4);
+        }
 
         string Columns() => string.Join(",", header.ColumnDefinitions.Select(column => column.Width.Value));
         double? FirstNameWidth() => page.GetVisualDescendants().OfType<Border>()
