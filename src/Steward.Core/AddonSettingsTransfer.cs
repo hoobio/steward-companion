@@ -253,7 +253,7 @@ public static class AddonSettingsExport
         ArgumentNullException.ThrowIfNull(account);
         ArgumentNullException.ThrowIfNull(addons);
         var installed = Directory.Exists(account.AddOnsPath)
-            ? Directory.EnumerateDirectories(account.AddOnsPath).Select(Path.GetFileName).OfType<string>().Order(StringComparer.OrdinalIgnoreCase).ToList()
+            ? Directory.EnumerateDirectories(account.AddOnsPath).Select(Path.GetFileName).OfType<string>().Where(name => LocalAddons.IsAddon(account.AddOnsPath, name)).Order(StringComparer.OrdinalIgnoreCase).ToList()
             : [];
         var values = new JsonObject();
         foreach (var source in addons.Where(source => source.Schema is not null))

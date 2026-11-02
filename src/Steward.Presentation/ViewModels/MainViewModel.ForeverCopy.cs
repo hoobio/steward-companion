@@ -219,7 +219,7 @@ public sealed partial class MainViewModel
             beta.FlavourPath,
             live.FlavourPath,
             CurseForgeVersionType(live),
-            folder => Directory.Exists(Path.Combine(live.AddOnsPath, folder)),
+            folder => LocalAddons.IsAddon(live.AddOnsPath, folder),
             id => catalogue.FirstOrDefault(addon => string.Equals(addon.Id, id, StringComparison.OrdinalIgnoreCase))?.FolderName));
         if (accountMap.Values.Any(target => target is not null && ForeverCopy.IsLegacyAccountName(target)) && result.SavedVariablesFiles + result.SettingsFiles > 0)
         {

@@ -162,7 +162,7 @@ public sealed partial class MainViewModel
             var adopted = CurseForgeAddons.Adopt(
                 matches,
                 versionType,
-                folder => Directory.Exists(Path.Combine(install.AddOnsPath, folder)),
+                folder => LocalAddons.IsAddon(install.AddOnsPath, folder),
                 folder => titles.GetValueOrDefault(folder));
 
             _logger.Info($"CurseForge match on {install.FlavourPath}: {folders.Count} folder(s) sent, {request.Declared.Count} declared, {matches.Count} match(es), {adopted.Count} addon(s) identified");
@@ -185,7 +185,7 @@ public sealed partial class MainViewModel
         var state = _stateStore.Load();
         var records = state.ProviderAddons.GetValueOrDefault(install.FlavourPath) ?? [];
         var busy = install.AddonRows.Where(row => row.IsBusy).Select(row => row.AddonId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var kept = records.Where(record => busy.Contains(record.Id) || Directory.Exists(Path.Combine(install.AddOnsPath, record.FolderName))).ToList();
+        var kept = records.Where(record => busy.Contains(record.Id) || LocalAddons.IsAddon(install.AddOnsPath, record.FolderName)).ToList();
         var added = identified.Where(record => !kept.Any(existing => string.Equals(existing.Id, record.Id, StringComparison.OrdinalIgnoreCase))).ToList();
         if (kept.Count == records.Count && added.Count == 0)
         {

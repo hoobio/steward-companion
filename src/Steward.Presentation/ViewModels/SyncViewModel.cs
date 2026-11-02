@@ -272,8 +272,7 @@ public sealed partial class SyncViewModel : ObservableObject
 
     private SyncInstallViewModel Build(WowInstallViewModel install)
     {
-        var addonMissing = !Directory.Exists(
-            Path.Combine(install.AddOnsPath, StewardSavedVariables.AddonName));
+        var addonMissing = !LocalAddons.IsAddon(install.AddOnsPath, StewardSavedVariables.AddonName);
 
         SavedVariablesSnapshot? snapshot = null;
         string? readError = null;

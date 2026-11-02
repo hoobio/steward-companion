@@ -91,6 +91,12 @@ public static class LocalAddons
         return results.OrderBy(addon => addon.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    public static bool IsAddon(string addOnsPath, string folderName)
+    {
+        var folderPath = Path.Combine(addOnsPath, folderName);
+        return Directory.Exists(folderPath) && TopLevelToc(folderPath, folderName) is not null;
+    }
+
     public static string? TopLevelToc(string folderPath, string folderName, int? clientInterface = null)
     {
         var exact = Path.Combine(folderPath, folderName + ".toc");

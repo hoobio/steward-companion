@@ -605,7 +605,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         var recordChanged = !Equals(record, _record);
         _record = record;
         var installedVersion = (File.Exists(TocPath) ? record?.Version : null) ?? TocFile.ReadVersion(TocPath)
-            ?? (_addon.IsCurseForge && Directory.Exists(AddonFolderPath) ? "unknown" : null);
+            ?? (_addon.IsCurseForge && TocPath is not null ? "unknown" : null);
         if (recordChanged && string.Equals(installedVersion, InstalledVersion, StringComparison.Ordinal))
         {
             NotifyDerived();

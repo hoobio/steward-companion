@@ -337,7 +337,7 @@ public static partial class AddonSettings
             return false;
         }
 
-        var installed = Directory.EnumerateDirectories(addOnsPath).Select(Path.GetFileName).OfType<string>().ToList();
+        var installed = Directory.EnumerateDirectories(addOnsPath).Select(Path.GetFileName).OfType<string>().Where(name => LocalAddons.IsAddon(addOnsPath, name)).ToList();
         return folders.Any(folder => folder.EndsWith('*')
             ? installed.Any(name => name.StartsWith(folder[..^1], StringComparison.OrdinalIgnoreCase))
             : installed.Any(name => string.Equals(name, folder, StringComparison.OrdinalIgnoreCase)));

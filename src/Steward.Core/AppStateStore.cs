@@ -218,7 +218,7 @@ public sealed class AppStateStore
         ProviderAddons = (state.ProviderAddons ?? []).ToDictionary(
             entry => entry.Key,
             entry => entry.Value.Select(record => CurseForgeAddons.WithPrimaryFolder(
-                record, folder => Directory.Exists(Path.Combine(entry.Key, "Interface", "AddOns", folder)))).ToList(),
+                record, folder => LocalAddons.IsAddon(Path.Combine(entry.Key, "Interface", "AddOns"), folder))).ToList(),
             StringComparer.OrdinalIgnoreCase),
         MissingSince = new Dictionary<string, DateTimeOffset>(state.MissingSince ?? [], StringComparer.OrdinalIgnoreCase),
         JourneyUploads = new Dictionary<string, JourneyUploadRecord>(state.JourneyUploads ?? [], StringComparer.OrdinalIgnoreCase),

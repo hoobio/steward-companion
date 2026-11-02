@@ -321,9 +321,9 @@ public sealed class AddonSettingsTests : IDisposable
     [Fact]
     public void AnyInstalled_MatchesNamesAndStarPrefixesIgnoringCase()
     {
-        var addOns = Path.Combine(_temp, "AddOns");
-        Directory.CreateDirectory(Path.Combine(addOns, "EllesmereUIForeverEssentials"));
-        Directory.CreateDirectory(Path.Combine(addOns, "RXPGuides"));
+        AddOn("EllesmereUIForeverEssentials", "## Title: Ellesmere\n");
+        var addOns = AddOn("RXPGuides", "## Title: RXPGuides\n");
+        Directory.CreateDirectory(Path.Combine(addOns, "Details", "Libs"));
 
         Assert.True(AddonSettings.AnyInstalled(addOns, ["Ellesmere*"]));
         Assert.True(AddonSettings.AnyInstalled(addOns, ["ellesmere*"]));

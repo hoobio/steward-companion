@@ -55,8 +55,7 @@ public sealed partial class MainViewModel
         var folder = addon.FolderName.Length > 0 ? addon.FolderName
             : release?.Folders is { Count: > 0 } folders ? CurseForgeAddons.PrimaryFolder(folders)
             : null;
-        var path = folder is null ? null : Path.Combine(install.AddOnsPath, folder);
-        return path is not null && Directory.Exists(path) && LocalAddons.TopLevelToc(path, folder!) is not null;
+        return folder is not null && LocalAddons.IsAddon(install.AddOnsPath, folder);
     }
 
     private async Task<(string Channel, AddonRelease Release)?> FetchRequirementAsync(ManagedAddon addon, string channel, CancellationToken cancellationToken)
