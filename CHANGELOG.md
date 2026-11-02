@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.31.1](https://github.com/hoobio/steward-companion/compare/v0.31.0...v0.31.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* 🐛 extract CurseForge zips that use backslash paths, and let an update replace an empty addon folder ([1cfe8b3](https://github.com/hoobio/steward-companion/commit/1cfe8b3ce9e6d7e36b5374155b20660f78563062))
+* 🐛 strip texture and atlas markup from addon titles ([0920630](https://github.com/hoobio/steward-companion/commit/09206305067579e9ac99e1196efe2ed12930db06))
+* 🐛 treat an AddOns folder without its own TOC as not installed, as the game does ([abb7f85](https://github.com/hoobio/steward-companion/commit/abb7f85ac879f00700321f978feb73f43df8f022))
+* 💄 keep the Addons toolbar and column headers in place while the table scrolls ([a98f8b5](https://github.com/hoobio/steward-companion/commit/a98f8b57f6ce8f61f80bd63743b47ab4435edf82))
+
 ## [0.31.0](https://github.com/hoobio/steward-companion/compare/v0.30.0...v0.31.0) (2026-10-31)
 
 
