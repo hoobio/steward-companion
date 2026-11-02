@@ -136,7 +136,7 @@ public static partial class ForeverCopy
         ArgumentNullException.ThrowIfNull(live);
         var managed = new HashSet<string>(managedFolders, StringComparer.OrdinalIgnoreCase);
         var folders = Directory.Exists(beta.AddOnsPath)
-            ? Directory.GetDirectories(beta.AddOnsPath).Select(Path.GetFileName).OfType<string>().ToList()
+            ? Directory.GetDirectories(beta.AddOnsPath).Where(folder => LocalAddons.TopLevelToc(folder, Path.GetFileName(folder)) is not null).Select(Path.GetFileName).OfType<string>().ToList()
             : [];
         var betaAccounts = Accounts(beta);
         var liveAccounts = LiveAccounts(beta, live);

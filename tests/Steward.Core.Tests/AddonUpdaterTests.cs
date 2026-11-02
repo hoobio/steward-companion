@@ -101,6 +101,35 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
+    public void RemoveExistingInstall_Deletes_AFolderHoldingOnlyEmptyFolders()
+    {
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        Directory.CreateDirectory(Path.Combine(addOnsPath, FolderName, "Libs"));
+
+        AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName);
+
+        Assert.False(Directory.Exists(Path.Combine(addOnsPath, FolderName)));
+    }
+
+    [Fact]
+    public void ExtractZip_Handles_BackslashSeparatorsAndDirectoryEntries()
+    {
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        Directory.CreateDirectory(addOnsPath);
+        var zipPath = CreateZip(a =>
+        {
+            a.CreateEntry(@"AtlasLootClassic\Libs\");
+            WriteEntry(a, @"AtlasLootClassic\AtlasLootClassic.toc", "## Version: 1.2.7");
+            WriteEntry(a, @"AtlasLootClassic\Libs\LibStub.lua", "x");
+        });
+
+        AddonUpdater.ExtractZip(zipPath, addOnsPath);
+
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "AtlasLootClassic", "AtlasLootClassic.toc")));
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "AtlasLootClassic", "Libs", "LibStub.lua")));
+    }
+
+    [Fact]
     public void RemoveExistingInstall_Deletes_AGitWorkingTreeWithReadOnlyFiles()
     {
         var addOnsPath = Path.Combine(_tempDir, "AddOns");

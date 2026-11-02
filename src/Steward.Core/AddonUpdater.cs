@@ -699,6 +699,7 @@ public sealed class AddonUpdater
     {
         var existingPath = Path.Combine(addOnsPath, folderName);
         return !Directory.Exists(existingPath) || LocalAddons.TopLevelToc(existingPath, folderName) is not null
+            || !Directory.EnumerateFiles(existingPath, "*", SearchOption.AllDirectories).Any()
             ? null
             : $"{existingPath} exists but has no {folderName}.toc or {folderName}_<flavour>.toc; refusing to delete it";
     }
@@ -708,16 +709,16 @@ public sealed class AddonUpdater
         var destinationRoot = Path.GetFullPath(Path.TrimEndingDirectorySeparator(addOnsPath) + Path.DirectorySeparatorChar);
 
         using var archive = ZipFile.OpenRead(zipPath);
-        var fileEntries = archive.Entries.Where(entry => !entry.FullName.EndsWith('/')).ToList();
+        // CurseForge zips since Oct 2026 use '\' separators, directory entries included (AtlasLoot Classic Forever 1.2.6).
+        var fileEntries = archive.Entries.Select(entry => (Entry: entry, Parts: EntryParts(entry.FullName))).Where(item => item.Parts[^1].Length > 0).ToList();
         var destinationPaths = new string[fileEntries.Count];
 
         for (var i = 0; i < fileEntries.Count; i++)
         {
-            EntryParts(fileEntries[i].FullName);
-            var destinationPath = Path.GetFullPath(Path.Combine(destinationRoot, fileEntries[i].FullName));
+            var destinationPath = Path.GetFullPath(Path.Combine([destinationRoot, .. fileEntries[i].Parts]));
             if (!destinationPath.StartsWith(destinationRoot, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException($"Zip entry {fileEntries[i].FullName} escapes {addOnsPath}");
+                throw new InvalidOperationException($"Zip entry {fileEntries[i].Entry.FullName} escapes {addOnsPath}");
             }
 
             destinationPaths[i] = destinationPath;
@@ -726,7 +727,7 @@ public sealed class AddonUpdater
         for (var i = 0; i < fileEntries.Count; i++)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(destinationPaths[i])!);
-            fileEntries[i].ExtractToFile(destinationPaths[i], overwrite: true);
+            fileEntries[i].Entry.ExtractToFile(destinationPaths[i], overwrite: true);
         }
     }
 }

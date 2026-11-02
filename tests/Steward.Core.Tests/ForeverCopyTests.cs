@@ -50,6 +50,7 @@ public sealed class ForeverCopyTests : IDisposable
         Write(Path.Combine(_live.AddOnsPath, "Bagnon", "Bagnon.toc"), New);
         Write(Path.Combine(_beta.AddOnsPath, "Steward", "Steward.toc"), New);
         Write(Path.Combine(_live.AddOnsPath, "Steward", "Steward.toc"), Old);
+        Directory.CreateDirectory(Path.Combine(_beta.AddOnsPath, "AtlasLootClassic", "Libs"));
 
         var plan = ForeverCopy.Plan(_beta, _live, ["Steward"]);
 
