@@ -4,11 +4,11 @@ namespace Steward.Core.Tests;
 
 public sealed class AddonSettingsTransferTests : IDisposable
 {
-    private const string ContractVector = "v1.PY2xasNAEAX_5bndQkoiB22ZNOkCdmlcrE-rWES5Pe5WFkbo34NwSDnD8N6CG7gmpGzdFByM2eYeBAnBpriJ5qV9bp_aZleDcJGi3WcE16_7ummqqqoI4SrxSwv4tEC6ziIYH2aX4RjykLyAUIIlBf_PEr71vvHkdtAkQwahz_YD7mUsSnADe550PROizu9XyRJc83ZzJqRRYgEvcBk1-p-V4IPFN3lU6_oL";
+    private const string ContractVector = "v1.NY2xDsIwDET_5VgzUKAgZYSFDQlGxGBSFypKHCUpFar677gCPJ2f784DXrCFQYhSdS7Dope-hgE5J52fQFkslqtyvZkViq-UuDp4zWzWRVnOdQzcnfyNE-x5AFWV6Bl7kWtzcrEJOWkuOQms-F9r8OD3tHdZjhyoiYrqKE_YmtrEBllgc-x4vBh47nd3iuQyx-mNotCSVzkgU8s-_6g6GvFb-rrG8QM";
 
-    private const string ContractJson = """{"v":1,"product":"wowf","account":"54939295#1","basedOn":1761550000,"changes":[{"addon":"HoobiScripts","scope":"account","key":"autoRepair","from":false,"to":true}],"newCharacters":[],"plans":{"talents":[],"actionBars":[]}}""";
+    private const string ContractJson = """{"v":1,"product":"wowf","account":"51234567#1","basedOn":1761550000,"changes":[{"addon":"HoobiScripts","scope":"account","key":"autoRepair","from":false,"to":true}],"newCharacters":[],"plans":{"talents":[],"actionBars":[]}}""";
 
-    private const string AccountName = "54939295#1";
+    private const string AccountName = "51234567#1";
 
     private const string CoreLua = """
         HoobiScriptsDB = {
@@ -17,18 +17,18 @@ public sealed class AddonSettingsTransferTests : IDisposable
         ["hideErrors"] = true,
         ["actionBars"] = 3,
         ["reenableEnemyNameplates"] = "5",
-        ["mailTradeGoodsTarget"] = "Grüg",
+        ["mailTradeGoodsTarget"] = "Görm",
         ["unknownKey"] = 7,
         },
         ["chars"] = {
-        ["Grug Aa-Nightslayer"] = {
+        ["Gorm Aa-Northmoor"] = {
         ["class"] = "WARRIOR",
         ["vendorPlainWater"] = false,
         },
-        ["Hoobi Drood-Classic Beta PvP"] = {
+        ["Hoobi Dorn-Classic Beta PvP"] = {
         ["class"] = "DRUID",
         },
-        ["Mage Ling-Nightslayer"] = {
+        ["Mage Ling-Northmoor"] = {
         ["class"] = "MAGE",
         },
         },
@@ -125,7 +125,7 @@ public sealed class AddonSettingsTransferTests : IDisposable
         ["DRUID"] = true,
         },
         ["chars"] = {
-        ["Grug Aa-Nightslayer"] = {
+        ["Gorm Aa-Northmoor"] = {
         ["applied"] = 1,
         },
         },
@@ -148,8 +148,8 @@ public sealed class AddonSettingsTransferTests : IDisposable
         File.WriteAllText(CoreFile, CoreLua);
         File.WriteAllText(BarsFile, BarsLua);
         Directory.CreateDirectory(Path.Combine(AccountFolder, "91", "Mage-Ling"));
-        Directory.CreateDirectory(Path.Combine(AccountFolder, "70", "Hoobi-Drood"));
-        var journey = Directory.CreateDirectory(Path.Combine(AccountFolder, "91", "Grug-Aa", "SavedVariables")).FullName;
+        Directory.CreateDirectory(Path.Combine(AccountFolder, "70", "Hoobi-Dorn"));
+        var journey = Directory.CreateDirectory(Path.Combine(AccountFolder, "91", "Gorm-Aa", "SavedVariables")).FullName;
         File.WriteAllText(Path.Combine(journey, "StewardJourney.lua"), "StewardJourneyDB = {\n[\"settings\"] = {\n[\"enabled\"] = false,\n},\n}\n");
     }
 
@@ -247,22 +247,22 @@ public sealed class AddonSettingsTransferTests : IDisposable
     [Fact]
     public void Export_ListsUnrecordedCharactersThatImportAsNewCharacters()
     {
-        Directory.CreateDirectory(Path.Combine(AccountFolder, "89", "Hoo-Bi"));
+        Directory.CreateDirectory(Path.Combine(AccountFolder, "89", "Hob-Ek"));
         Directory.CreateDirectory(Path.Combine(Flavour, "Logs"));
         File.WriteAllText(Path.Combine(Flavour, "Logs", "Connection.log"), """
-            10/29 14:47:54.446  [N][Connection] Battle.net last played character received code="ERROR_OK (0)" realmEntry="{"wowRealmAddress":1493172226,"name":"CAMWOW AU1 Realm 2 PvP"}"
+            10/29 14:47:54.446  [N][Connection] Battle.net last played character received code="ERROR_OK (0)" realmEntry="{"wowRealmAddress":1493172226,"name":"Cairn AU1 Realm 2 PvP"}"
             """);
 
         var export = JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "World of Warcraft: Forever", 1761550000))!;
         var import = Preview("""
-            "newCharacters":[{"first":"Hoo","last":"Bi","class":"MAGE","realm":"CAMWOW AU1 Realm 2 PvP"}],
+            "newCharacters":[{"first":"Hob","last":"Ek","class":"MAGE","realm":"Cairn AU1 Realm 2 PvP"}],
             "changes":[]
             """);
 
-        Assert.Equal("""[{"first":"Hoo","last":"Bi","realm":"CAMWOW AU1 Realm 2 PvP"}]""", export["unrecorded"]!.ToJsonString());
+        Assert.Equal("""[{"first":"Hob","last":"Ek","realm":"Cairn AU1 Realm 2 PvP"}]""", export["unrecorded"]!.ToJsonString());
         Assert.Equal(SettingsImportStatus.Ready, Assert.Single(import.Items).Status);
         Assert.Equal(1, Apply(import));
-        Assert.Equal("MAGE", AddonSettings.Load(CoreFile)["HoobiScriptsDB"].GetTable("chars")!.GetTable("Hoo Bi-CAMWOW AU1 Realm 2 PvP")!.GetString("class"));
+        Assert.Equal("MAGE", AddonSettings.Load(CoreFile)["HoobiScriptsDB"].GetTable("chars")!.GetTable("Hob Ek-Cairn AU1 Realm 2 PvP")!.GetString("class"));
         Assert.Null(JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "World of Warcraft: Forever", 1761550000))!["unrecorded"]);
     }
 
@@ -274,14 +274,14 @@ public sealed class AddonSettingsTransferTests : IDisposable
 
         var account = live["values"]!["HoobiScripts"]!["account"]!.AsObject();
         Assert.Equal(["autoRepair", "hideErrors", "reenableEnemyNameplates", "actionBars", "mailTradeGoodsTarget"], account.Select(entry => entry.Key));
-        Assert.Equal("Grüg", (string?)account["mailTradeGoodsTarget"]);
-        Assert.False((bool)live["values"]!["HoobiScripts"]!["character"]!["Grug Aa-Nightslayer"]!["vendorPlainWater"]!);
-        Assert.Null(live["values"]!["HoobiScripts"]!["character"]!["Mage Ling-Nightslayer"]);
+        Assert.Equal("Görm", (string?)account["mailTradeGoodsTarget"]);
+        Assert.False((bool)live["values"]!["HoobiScripts"]!["character"]!["Gorm Aa-Northmoor"]!["vendorPlainWater"]!);
+        Assert.Null(live["values"]!["HoobiScripts"]!["character"]!["Mage Ling-Northmoor"]);
         Assert.True((bool)live["values"]!["HoobiScripts_ActionBars"]!["class"]!["DRUID"]!["{class}"]!);
-        Assert.False((bool)live["values"]!["StewardJourney"]!["characterFile"]!["Grug Aa-Nightslayer"]!["enabled"]!);
-        Assert.Equal(["Grug Aa-Nightslayer", "Mage Ling-Nightslayer"], live["characters"]!.AsArray().Select(c => (string?)c!["key"]));
-        Assert.Equal(["Nightslayer"], live["realms"]!.AsArray().Select(r => (string?)r!["name"]));
-        Assert.Contains("Hoobi Drood-Classic Beta PvP", beta["characters"]!.AsArray().Select(c => (string?)c!["key"]));
+        Assert.False((bool)live["values"]!["StewardJourney"]!["characterFile"]!["Gorm Aa-Northmoor"]!["enabled"]!);
+        Assert.Equal(["Gorm Aa-Northmoor", "Mage Ling-Northmoor"], live["characters"]!.AsArray().Select(c => (string?)c!["key"]));
+        Assert.Equal(["Northmoor"], live["realms"]!.AsArray().Select(r => (string?)r!["name"]));
+        Assert.Contains("Hoobi Dorn-Classic Beta PvP", beta["characters"]!.AsArray().Select(c => (string?)c!["key"]));
         Assert.Contains("70", beta["realms"]!.AsArray().Select(r => (string?)r!["id"]));
     }
 
@@ -328,7 +328,7 @@ public sealed class AddonSettingsTransferTests : IDisposable
         Assert.Equal("own", settings.GetString("autoRepair"));
         Assert.Equal(7, settings.GetNumber("unknownKey"));
         Assert.False(settings.Get("questMobSparkles")!.Boolean);
-        Assert.Equal("Grüg", AddonSettings.FromFile(settings.GetString("mailTradeGoodsTarget")!));
+        Assert.Equal("Görm", AddonSettings.FromFile(settings.GetString("mailTradeGoodsTarget")!));
         Assert.Equal(3, AddonSettings.Characters(AddonSettings.Load(CoreFile)).Count);
     }
 
@@ -386,8 +386,8 @@ public sealed class AddonSettingsTransferTests : IDisposable
             "changes":[
               {{Change("threatMeter", "true", "false")}},
               {{Change("applyAccount", "false", "true", "HoobiScripts_ActionBars")}},
-              {{Change("enabled", "null", "false", "StewardJourney", "characterFile", ",\"character\":\"Mage Ling-Nightslayer\"")}},
-              {{Change("enabled", "null", "false", "StewardJourney", "characterFile", ",\"character\":\"Nobody Here-Nightslayer\"")}}
+              {{Change("enabled", "null", "false", "StewardJourney", "characterFile", ",\"character\":\"Mage Ling-Northmoor\"")}},
+              {{Change("enabled", "null", "false", "StewardJourney", "characterFile", ",\"character\":\"Nobody Here-Northmoor\"")}}
             ]
             """);
 
@@ -408,7 +408,7 @@ public sealed class AddonSettingsTransferTests : IDisposable
     {
         var before = File.ReadAllText(CoreFile);
         var import = Preview($$"""
-            "newCharacters":[{"first":"zug","last":"zug","class":"WARRIOR","realm":"Nightslayer"}],
+            "newCharacters":[{"first":"zug","last":"zug","class":"WARRIOR","realm":"Northmoor"}],
             "changes":[{{Change("hideErrors", "true", "false")}}]
             """);
 
@@ -425,16 +425,16 @@ public sealed class AddonSettingsTransferTests : IDisposable
     public void Import_AddsANewCharacterOnAKnownRealmWithItsSettings()
     {
         var import = Preview($$"""
-            "newCharacters":[{"first":"zug","last":"o'zug","class":"WARRIOR","realm":"nightslayer"}],
-            "changes":[{{Change("vendorPlainWater", "null", "false", scope: "character", extra: ",\"character\":\"Zug O'zug-Nightslayer\"")}}]
+            "newCharacters":[{"first":"zug","last":"o'zug","class":"WARRIOR","realm":"northmoor"}],
+            "changes":[{{Change("vendorPlainWater", "null", "false", scope: "character", extra: ",\"character\":\"Zug O'zug-Northmoor\"")}}]
             """);
 
         Assert.All(import.Items, item => Assert.Equal(SettingsImportStatus.Ready, item.Status));
-        Assert.Equal("Zug O'zug (Nightslayer)", import.Items[0].Label);
+        Assert.Equal("Zug O'zug (Northmoor)", import.Items[0].Label);
         Assert.Equal(2, Apply(import));
 
         Assert.True(Directory.Exists(Path.Combine(AccountFolder, "91", "Zug-O'zug")));
-        var entry = AddonSettings.Load(CoreFile)["HoobiScriptsDB"].GetTable("chars")!.GetTable("Zug O'zug-Nightslayer")!;
+        var entry = AddonSettings.Load(CoreFile)["HoobiScriptsDB"].GetTable("chars")!.GetTable("Zug O'zug-Northmoor")!;
         Assert.Equal("WARRIOR", entry.GetString("class"));
         Assert.False(entry.Get("vendorPlainWater")!.Boolean);
     }
@@ -444,12 +444,12 @@ public sealed class AddonSettingsTransferTests : IDisposable
     {
         var import = Preview($$"""
             "newCharacters":[
-              {"first":"Jean-Luc","last":"Aa","class":"WARRIOR","realm":"Nightslayer"},
+              {"first":"Jean-Luc","last":"Aa","class":"WARRIOR","realm":"Northmoor"},
               {"first":"Zug","last":"Zug","class":"WARRIOR","realm":"Classic Beta PvP"},
-              {"first":"grug","last":"aa","class":"WARRIOR","realm":"Nightslayer"},
-              {"first":"Zug","last":"Zug","class":"DEATHKNIGHT","realm":"Nightslayer"}
+              {"first":"gorm","last":"aa","class":"WARRIOR","realm":"Northmoor"},
+              {"first":"Zug","last":"Zug","class":"DEATHKNIGHT","realm":"Northmoor"}
             ],
-            "changes":[{{Change("vendorPlainWater", "null", "false", scope: "character", extra: ",\"character\":\"Zug Zug-Nightslayer\"")}}]
+            "changes":[{{Change("vendorPlainWater", "null", "false", scope: "character", extra: ",\"character\":\"Zug Zug-Northmoor\"")}}]
             """);
 
         Assert.Equal(
@@ -462,8 +462,8 @@ public sealed class AddonSettingsTransferTests : IDisposable
     {
         var import = Preview($$"""
             "changes":[
-              {{Change("{class}", "null", "false", "HoobiScripts_ActionBars", "class", ",\"character\":\"Grug Aa-Nightslayer\"")}},
-              {{Change("{class}", "true", "false", "HoobiScripts_ActionBars", "class", ",\"character\":\"Hoobi Drood-Classic Beta PvP\"")}},
+              {{Change("{class}", "null", "false", "HoobiScripts_ActionBars", "class", ",\"character\":\"Gorm Aa-Northmoor\"")}},
+              {{Change("{class}", "true", "false", "HoobiScripts_ActionBars", "class", ",\"character\":\"Hoobi Dorn-Classic Beta PvP\"")}},
               {{Change("{class}", "null", "false", "HoobiScripts_ActionBars", "class")}}
             ]
             """);
@@ -602,7 +602,7 @@ public sealed class AddonSettingsTransferTests : IDisposable
         Assert.NotNull(druid.GetTable("macros")!.GetTable("PowerShift"));
         Assert.Equal(warriorBefore, SettingsPlans.Canonical(SettingsPlans.PlanToJson(bars.GetTable("plans")!.GetTable("WARRIOR")!)));
         Assert.True(bars.GetTable("classEnabled")!.Get("DRUID")!.Boolean);
-        Assert.Equal(1, bars.GetTable("chars")!.GetTable("Grug Aa-Nightslayer")!.GetNumber("applied"));
+        Assert.Equal(1, bars.GetTable("chars")!.GetTable("Gorm Aa-Northmoor")!.GetNumber("applied"));
         Assert.Equal("y", bars.GetTable("stanceNames")!.GetString("x"));
         Assert.False(bars.Get("applyAccount")!.Boolean);
         Assert.Single(bars.GetTable("account")!.Table);
@@ -749,7 +749,7 @@ public sealed class AddonSettingsTransferTests : IDisposable
         var payload = AddonSettingsImport.Parse($$$"""
             {"v":1,
              "changes":[{{{Change("hideErrors", "true", "false")}}}],
-             "newCharacters":[{"first":"Zug","last":"Zug","class":"WARRIOR","realm":"Nightslayer"}],
+             "newCharacters":[{"first":"Zug","last":"Zug","class":"WARRIOR","realm":"Northmoor"}],
              "plans":{"talents":[{"class":"DRUID","group":1,"from":[9],"to":[7]}],
                       "actionBars":[{"target":"account","from":null,"to":{}}],
                       "spells":[{"class":"DRUID","from":null,"to":{"Wrath":30}}]}}

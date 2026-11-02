@@ -3,11 +3,11 @@ namespace Steward.Core.Tests;
 public sealed class ProfessionsPushSelectionTests
 {
     private const string HoobiGuid = "Player-4395-0A1B2C3D";
-    private const string GrugGuid = "Player-4395-11111111";
+    private const string GormGuid = "Player-4395-11111111";
     private const string MyUserId = "123";
 
-    private static readonly CharacterObservation Hoobi = new(HoobiGuid, "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
-    private static readonly CharacterObservation Grug = new(GrugGuid, "Grug", "Nightslayer", "Stormrage", 58, 7, 3, 2, null, null, false, null);
+    private static readonly CharacterObservation Hoobi = new(HoobiGuid, "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+    private static readonly CharacterObservation Gorm = new(GormGuid, "Gorm", "Northmoor", "Stormrage", 58, 7, 3, 2, null, null, false, null);
 
     private static CharacterProfessions Skills(int rank, long? observedAt = 1) =>
         new(observedAt, [new ProfessionSkill("Mining", rank, 300, false)], null, "fp");
@@ -15,7 +15,7 @@ public sealed class ProfessionsPushSelectionTests
     private static readonly Dictionary<string, CharacterProfessions> Professions = new()
     {
         [HoobiGuid] = Skills(150),
-        [GrugGuid] = Skills(75),
+        [GormGuid] = Skills(75),
     };
 
     private static readonly Dictionary<string, ProfessionCatalogue> Catalogue = new()
@@ -37,14 +37,14 @@ public sealed class ProfessionsPushSelectionTests
         CharacterPushRecord? last,
         IReadOnlyList<DirectoryCharacter>? roster = null,
         bool force = false) =>
-        ProfessionsPushSelection.Select([Hoobi, Grug], professions, Catalogue, last, roster, MyUserId, force);
+        ProfessionsPushSelection.Select([Hoobi, Gorm], professions, Catalogue, last, roster, MyUserId, force);
 
     [Fact]
     public void Select_SendsEverything_WhenThereIsNoPriorPush()
     {
         var plan = Select(Professions, null);
 
-        Assert.Equal([HoobiGuid, GrugGuid], plan.Characters.Select(c => c.CharacterGuid));
+        Assert.Equal([HoobiGuid, GormGuid], plan.Characters.Select(c => c.CharacterGuid));
         Assert.True(plan.SendCatalogue);
     }
 
@@ -67,7 +67,7 @@ public sealed class ProfessionsPushSelectionTests
         var restamped = new Dictionary<string, CharacterProfessions>
         {
             [HoobiGuid] = Skills(150, observedAt: 99),
-            [GrugGuid] = Skills(75, observedAt: 99),
+            [GormGuid] = Skills(75, observedAt: 99),
         };
 
         Assert.False(Select(restamped, last).HasWork);
@@ -77,11 +77,11 @@ public sealed class ProfessionsPushSelectionTests
     public void Select_SendsOnlyTheChangedCharacter()
     {
         var last = AllAccepted(Professions, CharacterSyncMapping.CatalogueFingerprint(Catalogue));
-        var changed = new Dictionary<string, CharacterProfessions>(Professions) { [GrugGuid] = Skills(76) };
+        var changed = new Dictionary<string, CharacterProfessions>(Professions) { [GormGuid] = Skills(76) };
 
         var plan = Select(changed, last);
 
-        Assert.Equal(GrugGuid, Assert.Single(plan.Characters).CharacterGuid);
+        Assert.Equal(GormGuid, Assert.Single(plan.Characters).CharacterGuid);
         Assert.False(plan.SendCatalogue);
     }
 
@@ -105,10 +105,10 @@ public sealed class ProfessionsPushSelectionTests
             Characters = new Dictionary<string, CharacterPushOutcome>
             {
                 [HoobiGuid] = new(true, Fingerprint: CharacterSyncMapping.ProfessionsFingerprint(Professions[HoobiGuid])),
-                [GrugGuid] = new(false, CharacterSyncRejectionCopy.NotLinkedReason, CharacterSyncMapping.ProfessionsFingerprint(Professions[GrugGuid])),
+                [GormGuid] = new(false, CharacterSyncRejectionCopy.NotLinkedReason, CharacterSyncMapping.ProfessionsFingerprint(Professions[GormGuid])),
             },
         };
-        var roster = new List<DirectoryCharacter> { new(GrugGuid, "Grug", 58, 7, "someone-else") };
+        var roster = new List<DirectoryCharacter> { new(GormGuid, "Gorm", 58, 7, "someone-else") };
 
         Assert.False(Select(Professions, last, roster).HasWork);
     }
@@ -121,12 +121,12 @@ public sealed class ProfessionsPushSelectionTests
             Characters = new Dictionary<string, CharacterPushOutcome>
             {
                 [HoobiGuid] = new(true, Fingerprint: CharacterSyncMapping.ProfessionsFingerprint(Professions[HoobiGuid])),
-                [GrugGuid] = new(false, CharacterSyncRejectionCopy.NotLinkedReason, CharacterSyncMapping.ProfessionsFingerprint(Professions[GrugGuid])),
+                [GormGuid] = new(false, CharacterSyncRejectionCopy.NotLinkedReason, CharacterSyncMapping.ProfessionsFingerprint(Professions[GormGuid])),
             },
         };
-        var roster = new List<DirectoryCharacter> { new(GrugGuid, "Grug", 58, 7, MyUserId) };
+        var roster = new List<DirectoryCharacter> { new(GormGuid, "Gorm", 58, 7, MyUserId) };
 
-        Assert.Equal(GrugGuid, Assert.Single(Select(Professions, last, roster).Characters).CharacterGuid);
+        Assert.Equal(GormGuid, Assert.Single(Select(Professions, last, roster).Characters).CharacterGuid);
     }
 
     [Fact]
@@ -137,12 +137,12 @@ public sealed class ProfessionsPushSelectionTests
             Characters = new Dictionary<string, CharacterPushOutcome>
             {
                 [HoobiGuid] = new(true, Fingerprint: CharacterSyncMapping.ProfessionsFingerprint(Professions[HoobiGuid])),
-                [GrugGuid] = new(false, "professions integrity check failed", CharacterSyncMapping.ProfessionsFingerprint(Professions[GrugGuid])),
+                [GormGuid] = new(false, "professions integrity check failed", CharacterSyncMapping.ProfessionsFingerprint(Professions[GormGuid])),
             },
         };
-        var changed = new Dictionary<string, CharacterProfessions>(Professions) { [GrugGuid] = Skills(80) };
+        var changed = new Dictionary<string, CharacterProfessions>(Professions) { [GormGuid] = Skills(80) };
 
-        Assert.Equal(GrugGuid, Assert.Single(Select(changed, last).Characters).CharacterGuid);
+        Assert.Equal(GormGuid, Assert.Single(Select(changed, last).Characters).CharacterGuid);
     }
 
     [Fact]
@@ -163,10 +163,10 @@ public sealed class ProfessionsPushSelectionTests
         var previous = new Dictionary<string, CharacterPushOutcome> { [HoobiGuid] = new(true, Fingerprint: hoobiFingerprint) };
         var plan = Select(Professions, AllAccepted(Professions, null) with { Characters = previous });
 
-        var merged = ProfessionsPushSelection.Merge(previous, plan, new Dictionary<string, string> { [GrugGuid] = "not linked to you" });
+        var merged = ProfessionsPushSelection.Merge(previous, plan, new Dictionary<string, string> { [GormGuid] = "not linked to you" });
 
         Assert.Equal(previous[HoobiGuid], merged[HoobiGuid]);
-        Assert.Equal(ProfessionsCharacterState.Rejected, ProfessionsPushSelection.StateOf(merged[GrugGuid], plan.Fingerprints[GrugGuid]));
+        Assert.Equal(ProfessionsCharacterState.Rejected, ProfessionsPushSelection.StateOf(merged[GormGuid], plan.Fingerprints[GormGuid]));
     }
 
     [Fact]
@@ -207,22 +207,22 @@ public sealed class ProfessionsPushSelectionTests
     public void StateOf_StaysRejected_WhenTheRosterNowLinksItToMe_UntilAnAcceptedPush()
     {
         var hoobiFingerprint = CharacterSyncMapping.ProfessionsFingerprint(Professions[HoobiGuid]);
-        var grugFingerprint = CharacterSyncMapping.ProfessionsFingerprint(Professions[GrugGuid]);
-        var rejected = new CharacterPushOutcome(false, CharacterSyncRejectionCopy.NotLinkedReason, grugFingerprint);
+        var gormFingerprint = CharacterSyncMapping.ProfessionsFingerprint(Professions[GormGuid]);
+        var rejected = new CharacterPushOutcome(false, CharacterSyncRejectionCopy.NotLinkedReason, gormFingerprint);
         var last = AllAccepted(Professions, CharacterSyncMapping.CatalogueFingerprint(Catalogue)) with
         {
             Characters = new Dictionary<string, CharacterPushOutcome>
             {
                 [HoobiGuid] = new(true, Fingerprint: hoobiFingerprint),
-                [GrugGuid] = rejected,
+                [GormGuid] = rejected,
             },
         };
-        var plan = Select(Professions, last, [new DirectoryCharacter(GrugGuid, "Grug", 58, 7, MyUserId)]);
+        var plan = Select(Professions, last, [new DirectoryCharacter(GormGuid, "Gorm", 58, 7, MyUserId)]);
 
-        Assert.Equal(ProfessionsCharacterState.Rejected, ProfessionsPushSelection.StateOf(rejected, grugFingerprint));
+        Assert.Equal(ProfessionsCharacterState.Rejected, ProfessionsPushSelection.StateOf(rejected, gormFingerprint));
 
         var merged = ProfessionsPushSelection.Merge(last.Characters, plan, new Dictionary<string, string>());
 
-        Assert.Equal(ProfessionsCharacterState.Synced, ProfessionsPushSelection.StateOf(merged[GrugGuid], grugFingerprint));
+        Assert.Equal(ProfessionsCharacterState.Synced, ProfessionsPushSelection.StateOf(merged[GormGuid], gormFingerprint));
     }
 }

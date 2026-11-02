@@ -8,7 +8,7 @@ public sealed class GuildAllowListTests
     private const string AltGuid = "Player-1-00000002";
 
     private static CharacterObservation Character(string guid, string guild) =>
-        new(guid, guid, "Nightslayer", guild, 60, 1, 2, 1, null, null, false, null);
+        new(guid, guid, "Northmoor", guild, 60, 1, 2, 1, null, null, false, null);
 
     private static SavedVariablesSnapshot Snapshot(GuildRanks? ranks = null, params CharacterObservation[] characters) => new(
         [], null, [], [], [], 0,
@@ -20,7 +20,7 @@ public sealed class GuildAllowListTests
         HasAccountData: true);
 
     private static GuildRanks Ranks(string guild) =>
-        new("Nightslayer", guild, null, new Dictionary<int, string> { [0] = "Guild Master" });
+        new("Northmoor", guild, null, new Dictionary<int, string> { [0] = "Guild Master" });
 
     [Fact]
     public void IsAllowedGuild_MatchesCaseInsensitivelyOnTheTrimmedName()

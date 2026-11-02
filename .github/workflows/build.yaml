@@ -520,7 +520,7 @@ jobs:
       actions: read
     env:
       STORE_PRODUCT_ID: 9PBKMZFKZHKX
-      KEY_VAULT: hbicfgkvtaus01
+      KEY_VAULT: ${{ vars.KEY_VAULT_NAME }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -638,7 +638,7 @@ jobs:
       actions: read
     env:
       STORE_PRODUCT_ID: 9PBKMZFKZHKX
-      KEY_VAULT: hbicfgkvtaus01
+      KEY_VAULT: ${{ vars.KEY_VAULT_NAME }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 

@@ -8,7 +8,7 @@ Status: built. Everything under "Verified API behaviour" was exercised against t
 
 ## Access
 
-- The key is a CurseForge 3rd-party API key, approved for the application "Steward" on 29 Sep 2026, and stored in Key Vault `hbicfgkvtaus01` as `curseforge-api-key`. It reaches the steward-integrations service as the `CURSEFORGE_API_KEY` environment variable, mapped from `curseforge-api-key` in `D:\hoobi-podman` (`operations/inventory/service-secrets.yaml`, `operations/pipelines/ci.yaml`).
+- The key is a CurseForge 3rd-party API key, approved for the application "Steward" on 29 Sep 2026, and stored in the `KEY_VAULT_NAME` Key Vault as `curseforge-api-key`. It reaches the steward-integrations service as the `CURSEFORGE_API_KEY` environment variable, mapped from `curseforge-api-key` in the private homelab deployment repo.
 - The key lives in steward-server only and never ships in the app. Terms section 2.2: the key "is non-transferable and may not be shared with any third party", and a key compiled into a .NET Store package is recoverable with any decompiler whatever the obfuscation, so embedding it in Steward was rejected. (WowUp ships its key in its client, `AppConfig.curseforge.apiKey`; its agreement with CurseForge is not known here, so it is not a precedent for Steward's key.)
 - Every CurseForge call goes `Steward -> steward-server -> api.curseforge.com` with the `x-api-key` header, except file downloads, which the app takes straight from the CDN URL steward-server returns (the CDN needs no key).
 
@@ -128,7 +128,7 @@ The Install button on a curseforge.com addon page (for example https://www.curse
 
 Search answers 200 with Steward's key since 29 Sep 2026, so the search question is dropped from the draft. The remaining questions go to the CurseForge API team before release, from Hoobi. A draft for Hoobi to review and send:
 
-> Hi, thanks for approving Steward's API key. Steward is a free Windows companion app for a World of Warcraft guild toolkit; it installs and updates the addons a guild uses on WoW Forever, calling the API from our own server with our key. Two questions: (1) Does 3.1(e) allow our server a short in-memory cache (a few minutes) of mod and file metadata, and does storing the mod id, file id and version of an addon the user installed count as caching? (2) We read 3.1 as allowing an addon manager inside a guild tool for one game; please tell us if you see it otherwise. Thanks, Alex
+> Hi, thanks for approving Steward's API key. Steward is a free Windows companion app for a World of Warcraft guild toolkit; it installs and updates the addons a guild uses on WoW Forever, calling the API from our own server with our key. Two questions: (1) Does 3.1(e) allow our server a short in-memory cache (a few minutes) of mod and file metadata, and does storing the mod id, file id and version of an addon the user installed count as caching? (2) We read 3.1 as allowing an addon manager inside a guild tool for one game; please tell us if you see it otherwise. Thanks, Hoobi
 
 ## Build order
 

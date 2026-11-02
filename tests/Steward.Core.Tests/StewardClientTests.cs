@@ -49,7 +49,7 @@ public sealed class StewardClientTests
         """;
 
     private const string MembersBody =
-        """{"members":[{"id":"1","name":"Grug","nick":"G","avatar_url":"https://example.com/a.png"}]}""";
+        """{"members":[{"id":"1","name":"Gorm","nick":"G","avatar_url":"https://example.com/a.png"}]}""";
 
     [Fact]
     public async Task GetGuildRosterAsync_Success_TrimsTheNoteAndDeserialises()
@@ -78,11 +78,11 @@ public sealed class StewardClientTests
     {
         const string body =
             """
-            {"members":[{"user_id":"1","name":"Grug","display_name":null,"discord_tag":null,
+            {"members":[{"user_id":"1","name":"Gorm","display_name":null,"discord_tag":null,
             "status":null,"origin":[],"flags":[],"rating":null,"notes":null,
             "notes_warning":false,"signups":0,"last_signup_at":0,
             "primary":null,"secondary":null,
-            "main":{"guid":"Player-4619-00B33CCD","name":"Hoobi Furry","level":60,"class_id":1}}]}
+            "main":{"guid":"Player-4619-00B33CCD","name":"Hoobi Fenn","level":60,"class_id":1}}]}
             """;
         var (client, _) = ClientFor(HttpStatusCode.OK, body);
 
@@ -90,7 +90,7 @@ public sealed class StewardClientTests
 
         var main = Assert.Single(members).Main;
         Assert.Equal("Player-4619-00B33CCD", main?.CharacterGuid);
-        Assert.Equal("Hoobi Furry", main?.Name);
+        Assert.Equal("Hoobi Fenn", main?.Name);
         Assert.Equal(60, main?.Level);
         Assert.Equal(1, main?.ClassId);
     }
@@ -137,7 +137,7 @@ public sealed class StewardClientTests
         Assert.Equal("https://api.example.com/guild/api/admin/1/members", handler.RequestUrl);
         var member = Assert.Single(members);
         Assert.Equal("1", member.Id);
-        Assert.Equal("Grug", member.Name);
+        Assert.Equal("Gorm", member.Name);
         Assert.Equal("G", member.Nick);
     }
 
@@ -167,7 +167,7 @@ public sealed class StewardClientTests
         var request = new CharacterSyncRequest(
             "batch-1",
             "1.0.0",
-            [new CharacterSyncEntry("guid-1", "Hoobi", "Nightslayer", "Grug's Guild", 60, 1, 1, 0, null, null, false, null)]);
+            [new CharacterSyncEntry("guid-1", "Hoobi", "Northmoor", "Gorm's Guild", 60, 1, 1, 0, null, null, false, null)]);
 
         await client.PostCharacterSyncAsync("1", request, TestContext.Current.CancellationToken);
 

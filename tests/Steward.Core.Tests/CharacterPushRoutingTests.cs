@@ -7,7 +7,7 @@ public sealed class CharacterPushRoutingTests
     private const string ThirdGuid = "Player-1-00000003";
 
     private static CharacterObservation Character(string guid, string guild) =>
-        new(guid, guid, "Nightslayer", guild, 60, 1, 2, 1, null, null, false, null);
+        new(guid, guid, "Northmoor", guild, 60, 1, 2, 1, null, null, false, null);
 
     private static SavedVariablesSnapshot Snapshot(GuildRanks? ranks, params CharacterObservation[] characters) => new(
         [], null, [], [], [], 0,
@@ -19,7 +19,7 @@ public sealed class CharacterPushRoutingTests
         HasAccountData: true);
 
     private static GuildRanks Ranks(string guild) =>
-        new("Nightslayer", guild, null, new Dictionary<int, string> { [0] = "Guild Master" });
+        new("Northmoor", guild, null, new Dictionary<int, string> { [0] = "Guild Master" });
 
     private static IEnumerable<string> Guids(CharacterPushRoute route) => route.Scope.Characters.Select(c => c.CharacterGuid);
 

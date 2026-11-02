@@ -77,9 +77,9 @@ public sealed class JourneyTests : IDisposable
         return Encoding.Latin1.GetBytes(text);
     }
 
-    private string WriteFile(byte[] bytes, string character = "Hoobi-Doofi")
+    private string WriteFile(byte[] bytes, string character = "Hoobi-Dask")
     {
-        var path = Path.Combine(_root, "WTF", "Account", "54939295#1", "70", character, "SavedVariables", JourneyFile.FileName);
+        var path = Path.Combine(_root, "WTF", "Account", "51234567#1", "70", character, "SavedVariables", JourneyFile.FileName);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, bytes);
         File.WriteAllBytes(path + ".bak", bytes);
@@ -120,7 +120,7 @@ public sealed class JourneyTests : IDisposable
     [Fact]
     public void AccountHash_IsTheFirst16HexOfSha256()
     {
-        Assert.Equal("18824df56be41b38", JourneyFile.AccountHash("54939295#1"));
+        Assert.Equal("2b1c433dd162ebf7", JourneyFile.AccountHash("51234567#1"));
     }
 
     [Fact]
@@ -208,7 +208,7 @@ public sealed class JourneyTests : IDisposable
         Assert.Equal(JourneyPassResult.Done, result);
         var (request, body) = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Put, request.Method);
-        Assert.Equal("https://api.example.com/guild/api/sync/journey/18824df56be41b38/70/Hoobi-Doofi", request.RequestUri!.ToString());
+        Assert.Equal("https://api.example.com/guild/api/sync/journey/2b1c433dd162ebf7/70/Hoobi-Dask", request.RequestUri!.ToString());
         Assert.Equal("application/octet-stream", request.Content!.Headers.ContentType!.MediaType);
         Assert.Equal(["gzip"], request.Content.Headers.ContentEncoding);
         Assert.Equal("12", request.Headers.GetValues("X-Journey-Rows").Single());
@@ -270,7 +270,7 @@ public sealed class JourneyTests : IDisposable
     public async Task Upload_NotFound_BlocksUntilUnblocked()
     {
         WriteFile(Fixture());
-        WriteFile(Fixture(), "Hoobi-Furry");
+        WriteFile(Fixture(), "Hoobi-Fenn");
         var (uploader, handler, _) = UploaderFor(HttpStatusCode.NotFound, "");
 
         await uploader.UploadAsync([_root], CancellationToken.None);
@@ -366,7 +366,7 @@ public sealed class JourneyTests : IDisposable
     public async Task Upload_Throttled_IsNoErrorWaitsOutRetryAfterAndLetsOtherCharactersThrough()
     {
         WriteFile(Fixture());
-        WriteFile(Fixture(routeGuid: false), "Hoobi-Furry");
+        WriteFile(Fixture(routeGuid: false), "Hoobi-Fenn");
         var now = DateTimeOffset.UnixEpoch;
         var (uploader, handler, store) = UploaderFor(HttpStatusCode.TooManyRequests, "", TimeSpan.FromSeconds(45), () => now);
 

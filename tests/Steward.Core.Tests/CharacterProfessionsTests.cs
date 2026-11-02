@@ -8,7 +8,7 @@ public sealed class CharacterProfessionsTests
     public void CharacterSyncEntry_OmitsProfessions_WhenNoneObserved()
     {
         var entry = new CharacterSyncEntry(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null);
 
         var json = JsonSerializer.Serialize(entry, CompanionJsonContext.Default.CharacterSyncEntry);
 
@@ -24,7 +24,7 @@ public sealed class CharacterProfessionsTests
             new Dictionary<string, IReadOnlyList<int>> { ["Alchemy"] = [11460, 11461] });
 
         var entry = new CharacterSyncEntry(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1,
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1,
             1758250000, "123456789012345678", true, 1758260000, professions);
 
         var json = JsonSerializer.Serialize(entry, CompanionJsonContext.Default.CharacterSyncEntry);
@@ -50,7 +50,7 @@ public sealed class CharacterProfessionsTests
     {
         var professions = new CharacterProfessions(null, [new ProfessionSkill("Cooking", null, null, null)], null);
         var entry = new CharacterSyncEntry(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null, professions);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null, professions);
 
         var json = JsonSerializer.Serialize(entry, CompanionJsonContext.Default.CharacterSyncEntry);
         using var doc = JsonDocument.Parse(json);
@@ -69,7 +69,7 @@ public sealed class CharacterProfessionsTests
     {
         var professions = new CharacterProfessions(null, null, null, "a1b2c3d4");
         var entry = new CharacterSyncEntry(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null, professions);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null, professions);
 
         var json = JsonSerializer.Serialize(entry, CompanionJsonContext.Default.CharacterSyncEntry);
         using var doc = JsonDocument.Parse(json);
@@ -82,7 +82,7 @@ public sealed class CharacterProfessionsTests
     {
         var professions = new CharacterProfessions(null, null, null);
         var entry = new CharacterSyncEntry(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null, professions);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null, professions);
 
         var json = JsonSerializer.Serialize(entry, CompanionJsonContext.Default.CharacterSyncEntry);
         using var doc = JsonDocument.Parse(json);
@@ -94,7 +94,7 @@ public sealed class CharacterProfessionsTests
     public void Fingerprint_IgnoresFp()
     {
         var observation = new CharacterObservation(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null);
 
         var withOneFp = CharacterSyncMapping.Fingerprint(
             [observation with { Fp = "11111111" }], new Dictionary<string, CharacterProfessions> { ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null, "a1b2c3d4") });
@@ -136,7 +136,7 @@ public sealed class CharacterProfessionsTests
     public void Fingerprint_IgnoresCatalogueFp()
     {
         var observation = new CharacterObservation(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null);
         var professions = new Dictionary<string, CharacterProfessions>
         {
             ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null),
@@ -154,7 +154,7 @@ public sealed class CharacterProfessionsTests
     public void ToEntry_AttachesProfessions_ByMatchingGuid()
     {
         var observation = new CharacterObservation(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null);
         var professions = new Dictionary<string, CharacterProfessions>
         {
             ["Player-4395-0A1B2C3D"] = new CharacterProfessions(1758260000, null, null),
@@ -171,7 +171,7 @@ public sealed class CharacterProfessionsTests
     public void ToEntry_LeavesProfessionsNull_WhenNoObservationMatchesTheGuid()
     {
         var observation = new CharacterObservation(
-            "Player-4395-11111111", "Grug", "Nightslayer", "Stormrage", 58, 7, 3, 2, null, null, false, null);
+            "Player-4395-11111111", "Gorm", "Northmoor", "Stormrage", 58, 7, 3, 2, null, null, false, null);
         var professions = new Dictionary<string, CharacterProfessions>
         {
             ["Player-4395-0A1B2C3D"] = new CharacterProfessions(1758260000, null, null),
@@ -186,12 +186,12 @@ public sealed class CharacterProfessionsTests
     public void ToSync_MapsGuildRanks_WithStringKeys()
     {
         var ranks = new GuildRanks(
-            "Nightslayer", "Stormrage", DateTimeOffset.FromUnixTimeSeconds(1758260000),
+            "Northmoor", "Stormrage", DateTimeOffset.FromUnixTimeSeconds(1758260000),
             new Dictionary<int, string> { [1] = "Guild Master", [2] = "Officer" });
 
         var sync = CharacterSyncMapping.ToSync(ranks);
 
-        Assert.Equal("Nightslayer", sync.Realm);
+        Assert.Equal("Northmoor", sync.Realm);
         Assert.Equal("Stormrage", sync.Guild);
         Assert.Equal(1758260000, sync.ObservedAt);
         Assert.Equal("Guild Master", sync.Ranks["1"]);
@@ -212,9 +212,9 @@ public sealed class CharacterProfessionsTests
     public void FilterToProfessionsOnly_KeepsOnlyCharactersWithAProfessionsEntry()
     {
         var linked = new CharacterObservation(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null);
         var unlinked = new CharacterObservation(
-            "Player-4395-11111111", "Grug", "Nightslayer", "Stormrage", 58, 7, 3, 2, null, null, false, null);
+            "Player-4395-11111111", "Gorm", "Northmoor", "Stormrage", 58, 7, 3, 2, null, null, false, null);
         var snapshot = new SavedVariablesSnapshot(
             [], null, [], [], [], 0,
             [linked, unlinked],
@@ -232,7 +232,7 @@ public sealed class CharacterProfessionsTests
     public void IsOwnCharacter_PrefersTheRosterPinOverTheSavedVariableLink()
     {
         var observation = new CharacterObservation(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, "999", false, null);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, "999", false, null);
         var roster = new[] { new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "123") };
 
         Assert.True(CharacterSyncMapping.IsOwnCharacter(observation, roster, "123"));
@@ -243,7 +243,7 @@ public sealed class CharacterProfessionsTests
     public void IsOwnCharacter_FallsBackToTheSavedVariableLink_WhenNoRosterPull()
     {
         var observation = new CharacterObservation(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, "123", false, null);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, "123", false, null);
 
         Assert.True(CharacterSyncMapping.IsOwnCharacter(observation, null, "123"));
         Assert.False(CharacterSyncMapping.IsOwnCharacter(observation, null, "999"));
@@ -253,7 +253,7 @@ public sealed class CharacterProfessionsTests
     public void Fingerprint_IgnoresCatalogueAndGuildRanks_WhenOmitted()
     {
         var observation = new CharacterObservation(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null);
         var professions = new Dictionary<string, CharacterProfessions>
         {
             ["Player-4395-0A1B2C3D"] = new CharacterProfessions(1758260000, null, null),
@@ -264,7 +264,7 @@ public sealed class CharacterProfessionsTests
             [observation],
             professions,
             new Dictionary<string, ProfessionCatalogue> { ["Alchemy"] = new ProfessionCatalogue(null, []) },
-            new GuildRanks("Nightslayer", "Stormrage", null, new Dictionary<int, string> { [1] = "Officer" }));
+            new GuildRanks("Northmoor", "Stormrage", null, new Dictionary<int, string> { [1] = "Officer" }));
 
         Assert.NotEqual(withoutExtras, withCatalogueAndRanks);
     }
@@ -273,9 +273,9 @@ public sealed class CharacterProfessionsTests
     public void Fingerprint_ChangesWhenTheFilteredCharacterSetChanges()
     {
         var one = new CharacterObservation(
-            "Player-4395-0A1B2C3D", "Hoobi", "Nightslayer", "Stormrage", 60, 1, 2, 1, null, null, false, null);
+            "Player-4395-0A1B2C3D", "Hoobi", "Northmoor", "Stormrage", 60, 1, 2, 1, null, null, false, null);
         var two = new CharacterObservation(
-            "Player-4395-11111111", "Grug", "Nightslayer", "Stormrage", 58, 7, 3, 2, null, null, false, null);
+            "Player-4395-11111111", "Gorm", "Northmoor", "Stormrage", 58, 7, 3, 2, null, null, false, null);
         var professions = new Dictionary<string, CharacterProfessions>
         {
             ["Player-4395-0A1B2C3D"] = new CharacterProfessions(null, null, null),
@@ -292,7 +292,7 @@ public sealed class CharacterProfessionsTests
     public void CharacterSyncRequest_SerialisesGuildRanks_WithCamelCaseStringKeys()
     {
         var ranks = new GuildRanks(
-            "Nightslayer", "Stormrage", DateTimeOffset.FromUnixTimeSeconds(1758260000),
+            "Northmoor", "Stormrage", DateTimeOffset.FromUnixTimeSeconds(1758260000),
             new Dictionary<int, string> { [1] = "Guild Master" });
         var request = new CharacterSyncRequest("batch-1", "1.0.0", [], null, CharacterSyncMapping.ToSync(ranks));
 
@@ -300,7 +300,7 @@ public sealed class CharacterProfessionsTests
         using var doc = JsonDocument.Parse(json);
         var guildRanks = doc.RootElement.GetProperty("guildRanks");
 
-        Assert.Equal("Nightslayer", guildRanks.GetProperty("realm").GetString());
+        Assert.Equal("Northmoor", guildRanks.GetProperty("realm").GetString());
         Assert.Equal("Stormrage", guildRanks.GetProperty("guild").GetString());
         Assert.Equal(1758260000, guildRanks.GetProperty("observedAt").GetInt64());
         Assert.Equal("Guild Master", guildRanks.GetProperty("ranks").GetProperty("1").GetString());

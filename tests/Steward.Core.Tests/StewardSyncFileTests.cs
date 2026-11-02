@@ -12,10 +12,10 @@ public sealed class StewardSyncFileTests : IDisposable
         [],
         [
             new LootEvent("loot-1", DateTimeOffset.FromUnixTimeSeconds(1758240000), "Hoobi", 19019, "Thunderfury", 5, "Ragnaros", "Molten Core"),
-            new LootEvent("loot-2", DateTimeOffset.FromUnixTimeSeconds(1758241000), "Grug", 17182, "Sulfuras", 5, null, null),
+            new LootEvent("loot-2", DateTimeOffset.FromUnixTimeSeconds(1758241000), "Gorm", 17182, "Sulfuras", 5, null, null),
         ],
         [
-            new AttendanceRecord("raid-1", DateTimeOffset.FromUnixTimeSeconds(1758230000), "Molten Core", ["Hoobi", "Grug"]),
+            new AttendanceRecord("raid-1", DateTimeOffset.FromUnixTimeSeconds(1758230000), "Molten Core", ["Hoobi", "Gorm"]),
         ],
         [],
         [],
@@ -32,7 +32,7 @@ public sealed class StewardSyncFileTests : IDisposable
         ],
         Discord =
         [
-            new DiscordMember("222", "Grug", null),
+            new DiscordMember("222", "Gorm", null),
         ],
     };
 
@@ -81,7 +81,7 @@ public sealed class StewardSyncFileTests : IDisposable
 
         var attendance = Assert.Single(table.GetTable("attendance")!.Items);
         Assert.Equal("Molten Core", attendance.GetString("instance"));
-        Assert.Equal(["Hoobi", "Grug"], attendance.GetTable("present")!.Items.Select(i => i.Text));
+        Assert.Equal(["Hoobi", "Gorm"], attendance.GetTable("present")!.Items.Select(i => i.Text));
 
         Assert.Empty(table.GetTable("members")!.Items);
         Assert.Empty(table.GetTable("discord")!.Items);
@@ -143,7 +143,7 @@ public sealed class StewardSyncFileTests : IDisposable
 
         var discord = Assert.Single(table.GetTable("discord")!.Items);
         Assert.Equal("222", discord.GetString("id"));
-        Assert.Equal("Grug", discord.GetString("name"));
+        Assert.Equal("Gorm", discord.GetString("name"));
         Assert.Null(discord.GetString("nick"));
     }
 
@@ -158,7 +158,7 @@ public sealed class StewardSyncFileTests : IDisposable
                     "111", "Hoobi", null, "hoobi#0001", "Raider", ["EU"], ["core"], null,
                     "Reliable", false, 12, 1758200000,
                     new GuildBuild("WARRIOR", "Fury", "Melee"), null,
-                    new GuildMain("Player-4619-00B33CCD", "Hoobi Furry", 60, 1)),
+                    new GuildMain("Player-4619-00B33CCD", "Hoobi Fenn", 60, 1)),
             ],
         };
         var rendered = StewardSyncFile.Render(payload);
@@ -169,7 +169,7 @@ public sealed class StewardSyncFileTests : IDisposable
 
         var main = Assert.Single(table.GetTable("members")!.Items).GetTable("main")!;
         Assert.Equal("Player-4619-00B33CCD", main.GetString("guid"));
-        Assert.Equal("Hoobi Furry", main.GetString("name"));
+        Assert.Equal("Hoobi Fenn", main.GetString("name"));
         Assert.Equal(60d, main.GetNumber("level"));
         Assert.Equal(1d, main.GetNumber("classID"));
     }
@@ -364,7 +364,7 @@ public sealed class StewardSyncFileTests : IDisposable
             [new DirectoryPerson("111", "Hoobi", "Player-4395-0A1B2C3D")],
             [
                 new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "111"),
-                new DirectoryCharacter("Player-9999-0A1B2C3D", "Grug", 60, 2, null),
+                new DirectoryCharacter("Player-9999-0A1B2C3D", "Gorm", 60, 2, null),
             ],
             null);
         var payload = SamplePayload() with { Directory = directory };

@@ -36,7 +36,7 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
     {
         var world = new UiPathWorld(session, area);
         File.Copy(Fixture("HoobiScripts.lua"), AddonSettings.FilePath(world.Beta, "1#1", "HoobiScripts"));
-        Directory.CreateDirectory(Path.Combine(world.Beta, "WTF", "Account", "1#1", "91", "Hoobi-Spellbook"));
+        Directory.CreateDirectory(Path.Combine(world.Beta, "WTF", "Account", "1#1", "91", "Hoobi-Sorrel"));
         var schema = SettingsSchema.Parse(File.ReadAllText(Fixture("hoobiscripts-settings-schema.json")));
         world.Main.AddonSettings.FetchSchema = (addon, _, _) => Task.FromResult(addon.Id == "hoobiscripts" ? schema : null);
         world.Main.AddonSettings.IsRunning = _ => false;

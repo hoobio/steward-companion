@@ -8,14 +8,14 @@ public sealed class StewardSavedVariablesTests : IDisposable
         StewardDB = {
         ["exportedAt"] = 1758260000,
         ["roster"] = {
-        { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["class"] = "WARRIOR", ["level"] = 60, ["rank"] = "Officer", ["rankIndex"] = 1, ["note"] = "", ["officerNote"] = "alt of Grug", ["lastOnline"] = 1758250000 }, -- [1]
-        { ["name"] = "Grug", ["realm"] = "Nightslayer", ["class"] = "SHAMAN", ["level"] = 58 }, -- [2]
+        { ["name"] = "Hoobi", ["realm"] = "Northmoor", ["class"] = "WARRIOR", ["level"] = 60, ["rank"] = "Officer", ["rankIndex"] = 1, ["note"] = "", ["officerNote"] = "alt of Gorm", ["lastOnline"] = 1758250000 }, -- [1]
+        { ["name"] = "Gorm", ["realm"] = "Northmoor", ["class"] = "SHAMAN", ["level"] = 58 }, -- [2]
         },
         ["loot"] = {
         { ["id"] = "loot-1", ["at"] = 1758240000, ["player"] = "Hoobi", ["itemId"] = 19019, ["item"] = "Thunderfury", ["quality"] = 5, ["source"] = "Ragnaros", ["instance"] = "Molten Core" }, -- [1]
         },
         ["attendance"] = {
-        { ["id"] = "raid-1", ["at"] = 1758230000, ["instance"] = "Molten Core", ["present"] = { "Hoobi", "Grug", }, }, -- [1]
+        { ["id"] = "raid-1", ["at"] = 1758230000, ["instance"] = "Molten Core", ["present"] = { "Hoobi", "Gorm", }, }, -- [1]
         },
         }
         """;
@@ -23,13 +23,13 @@ public sealed class StewardSavedVariablesTests : IDisposable
     private const string CharacterFile = """
         StewardCharDB = {
         ["exportedAt"] = 1758300000,
-        ["character"] = { ["name"] = "Grug", ["realm"] = "Nightslayer", ["class"] = "SHAMAN" },
+        ["character"] = { ["name"] = "Gorm", ["realm"] = "Northmoor", ["class"] = "SHAMAN" },
         ["roster"] = {
-        { ["name"] = "Ignored", ["realm"] = "Nightslayer" }, -- [1]
+        { ["name"] = "Ignored", ["realm"] = "Northmoor" }, -- [1]
         },
         ["loot"] = {
-        { ["id"] = "loot-1", ["at"] = 1758240000, ["player"] = "Grug", ["itemId"] = 19019, ["item"] = "Thunderfury", ["quality"] = 5 }, -- [1]
-        { ["id"] = "loot-2", ["at"] = 1758290000, ["player"] = "Grug", ["itemId"] = 17182, ["item"] = "Sulfuras", ["quality"] = 5 }, -- [2]
+        { ["id"] = "loot-1", ["at"] = 1758240000, ["player"] = "Gorm", ["itemId"] = 19019, ["item"] = "Thunderfury", ["quality"] = 5 }, -- [1]
+        { ["id"] = "loot-2", ["at"] = 1758290000, ["player"] = "Gorm", ["itemId"] = 17182, ["item"] = "Sulfuras", ["quality"] = 5 }, -- [2]
         },
         }
         """;
@@ -60,10 +60,10 @@ public sealed class StewardSavedVariablesTests : IDisposable
 
         var officer = snapshot.Roster[0];
         Assert.Equal("Hoobi", officer.Name);
-        Assert.Equal("Nightslayer", officer.Realm);
+        Assert.Equal("Northmoor", officer.Realm);
         Assert.Equal(60, officer.Level);
         Assert.Equal(1, officer.RankIndex);
-        Assert.Equal("alt of Grug", officer.OfficerNote);
+        Assert.Equal("alt of Gorm", officer.OfficerNote);
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758250000), officer.LastOnline);
         Assert.Equal(string.Empty, snapshot.Roster[1].Rank);
         Assert.Null(snapshot.Roster[1].LastOnline);
@@ -74,7 +74,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         Assert.Equal("Ragnaros", loot.Source);
 
         var raid = Assert.Single(snapshot.Attendance);
-        Assert.Equal("Hoobi,Grug", string.Join(',', raid.Present));
+        Assert.Equal("Hoobi,Gorm", string.Join(',', raid.Present));
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", AccountFile), ("character.lua", CharacterFile));
 
         Assert.Equal(2, snapshot.Loot.Count);
-        Assert.Equal("Grug", snapshot.Loot.Single(l => l.Id == "loot-1").Player);
+        Assert.Equal("Gorm", snapshot.Loot.Single(l => l.Id == "loot-1").Player);
         Assert.Equal("Sulfuras", snapshot.Loot.Single(l => l.Id == "loot-2").Item);
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758300000), snapshot.ExportedAt);
     }
@@ -95,7 +95,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
 
         Assert.Equal(2, snapshot.Roster.Count);
         Assert.DoesNotContain(snapshot.Roster, member => member.Name == "Ignored");
-        Assert.Equal("Grug", Assert.Single(snapshot.Files, f => f.Character is not null).Character);
+        Assert.Equal("Gorm", Assert.Single(snapshot.Files, f => f.Character is not null).Character);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["characters"] = {
-            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer" },
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Northmoor" },
             },
             }
             """));
@@ -167,7 +167,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["characters"] = {
-            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer" },
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Northmoor" },
             },
             }
             """));
@@ -182,13 +182,13 @@ public sealed class StewardSavedVariablesTests : IDisposable
             StewardDB = {
             ["loot"] = {
             { ["at"] = 1758240000, ["player"] = "Hoobi", ["item"] = "Thunderfury" }, -- [1]
-            { ["id"] = "loot-2", ["at"] = 1758290000, ["player"] = "Grug" }, -- [2]
+            { ["id"] = "loot-2", ["at"] = 1758290000, ["player"] = "Gorm" }, -- [2]
             },
             ["attendance"] = {
             { ["at"] = 1758230000, ["instance"] = "Molten Core" }, -- [1]
             },
             ["roster"] = {
-            { ["realm"] = "Nightslayer" }, -- [1]
+            { ["realm"] = "Northmoor" }, -- [1]
             },
             }
             """));
@@ -211,15 +211,15 @@ public sealed class StewardSavedVariablesTests : IDisposable
     [Fact]
     public void FindFiles_ReturnsAccountAndCharacterFiles_IgnoringBackups()
     {
-        var account = WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), AccountFile);
-        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), "stale", "Steward.lua.bak");
-        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), "other", "HoobiScripts.lua");
-        var grug = WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1", "Nightslayer", "Grug"), CharacterFile);
-        var hoobi = WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1", "Nightslayer", "Hoobi"), CharacterFile);
+        var account = WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#1"), AccountFile);
+        WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#1"), "stale", "Steward.lua.bak");
+        WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#1"), "other", "HoobiScripts.lua");
+        var gorm = WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#1", "Northmoor", "Gorm"), CharacterFile);
+        var hoobi = WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#1", "Northmoor", "Hoobi"), CharacterFile);
 
         var found = StewardSavedVariables.FindFiles(_root);
 
-        Assert.Equal(new[] { account, grug, hoobi }.OrderBy(p => p, StringComparer.OrdinalIgnoreCase), found);
+        Assert.Equal(new[] { account, gorm, hoobi }.OrderBy(p => p, StringComparer.OrdinalIgnoreCase), found);
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
             StewardDB = {
             ["characters"] = {
             ["Player-4395-0A1B2C3D"] = {
-                ["name"] = "Hoobi Furry", ["realm"] = "Nightslayer", ["guild"] = "Stormrage",
+                ["name"] = "Hoobi Fenn", ["realm"] = "Northmoor", ["guild"] = "Stormrage",
                 ["level"] = 60, ["classID"] = 1, ["raceID"] = 2, ["rankIndex"] = 1,
                 ["lastOnline"] = 1758250000, ["linkedUserId"] = "123456789012345678",
                 ["linkKnown"] = true, ["observedAt"] = 1758260000,
@@ -240,8 +240,8 @@ public sealed class StewardSavedVariablesTests : IDisposable
 
         var character = Assert.Single(snapshot.Characters);
         Assert.Equal("Player-4395-0A1B2C3D", character.CharacterGuid);
-        Assert.Equal("Hoobi Furry", character.Name);
-        Assert.Equal("Nightslayer", character.Realm);
+        Assert.Equal("Hoobi Fenn", character.Name);
+        Assert.Equal("Northmoor", character.Realm);
         Assert.Equal("Stormrage", character.Guild);
         Assert.Equal(60, character.Level);
         Assert.Equal(1, character.ClassId);
@@ -259,7 +259,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         ReadFiles(("account.lua", $$"""
             StewardDB = {
             ["characters"] = {
-            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["level"] = {{level}}, ["observedAt"] = {{observedAt}} },
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Northmoor", ["level"] = {{level}}, ["observedAt"] = {{observedAt}} },
             },
             ["professions"] = {
             ["Player-4395-0A1B2C3D"] = {
@@ -296,14 +296,14 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var older = """
             StewardDB = {
             ["characters"] = {
-            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["level"] = 55, ["observedAt"] = 1758200000 },
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Northmoor", ["level"] = 55, ["observedAt"] = 1758200000 },
             },
             }
             """;
         var newer = """
             StewardDB = {
             ["characters"] = {
-            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["level"] = 60, ["observedAt"] = 1758260000 },
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Northmoor", ["level"] = 60, ["observedAt"] = 1758260000 },
             },
             }
             """;
@@ -321,7 +321,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["characters"] = {
-            { ["name"] = "Orphan", ["realm"] = "Nightslayer" }, -- [1]
+            { ["name"] = "Orphan", ["realm"] = "Northmoor" }, -- [1]
             },
             }
             """));
@@ -336,7 +336,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["characters"] = {
-            ["Player-4395-0A1B2C3D"] = { ["realm"] = "Nightslayer" },
+            ["Player-4395-0A1B2C3D"] = { ["realm"] = "Northmoor" },
             },
             }
             """));
@@ -628,7 +628,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["guildRanks"] = {
-                ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["observedAt"] = 1758260000,
+                ["realm"] = "Northmoor", ["guild"] = "Stormrage", ["observedAt"] = 1758260000,
                 ["ranks"] = { [1] = "Guild Master", [2] = "Officer", [3] = "Member" },
             },
             }
@@ -636,7 +636,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
 
         Assert.Equal(0, snapshot.Skipped);
         var ranks = snapshot.GuildRanks!;
-        Assert.Equal("Nightslayer", ranks.Realm);
+        Assert.Equal("Northmoor", ranks.Realm);
         Assert.Equal("Stormrage", ranks.Guild);
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758260000), ranks.ObservedAt);
         Assert.Equal("Guild Master", ranks.Ranks[1]);
@@ -651,7 +651,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
             StewardDB = {
             ["characters"] = {
                 ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "ClassicBetaPvP2", ["realmName"] = "Classic Beta PvP 2", ["guild"] = "Stormrage" },
-                ["Player-4395-11111111"] = { ["name"] = "Grug", ["realm"] = "ClassicBetaPvP2", ["guild"] = "Stormrage" },
+                ["Player-4395-11111111"] = { ["name"] = "Gorm", ["realm"] = "ClassicBetaPvP2", ["guild"] = "Stormrage" },
             },
             ["guildRanks"] = {
                 ["realm"] = "ClassicBetaPvP2", ["realmName"] = "Classic Beta PvP 2", ["guild"] = "Stormrage",
@@ -661,7 +661,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
             """));
 
         Assert.Equal("Classic Beta PvP 2", snapshot.Characters.Single(c => c.Name == "Hoobi").RealmName);
-        Assert.Null(snapshot.Characters.Single(c => c.Name == "Grug").RealmName);
+        Assert.Null(snapshot.Characters.Single(c => c.Name == "Gorm").RealmName);
         Assert.Equal("Classic Beta PvP 2", snapshot.GuildRanks!.RealmName);
     }
 
@@ -671,9 +671,9 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["characters"] = {
-                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["fp"] = "10f9ae4a" },
+                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Northmoor", ["guild"] = "Stormrage", ["fp"] = "56804809" },
             },
-            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["ranks"] = { [1] = "Guild Master" }, ["fp"] = "5330ac56" },
+            ["guildRanks"] = { ["realm"] = "Northmoor", ["guild"] = "Stormrage", ["ranks"] = { [1] = "Guild Master" }, ["fp"] = "cfc4c190" },
             }
             """));
 
@@ -682,8 +682,8 @@ public sealed class StewardSavedVariablesTests : IDisposable
             CharacterSyncMapping.ToEntry(character, snapshot.Professions), CompanionJsonContext.Default.CharacterSyncEntry);
         var ranks = JsonSerializer.SerializeToElement(CharacterSyncMapping.ToSync(snapshot.GuildRanks!), CompanionJsonContext.Default.GuildRanksSync);
 
-        Assert.Equal("10f9ae4a", entry.GetProperty("fp").GetString());
-        Assert.Equal("5330ac56", ranks.GetProperty("fp").GetString());
+        Assert.Equal("56804809", entry.GetProperty("fp").GetString());
+        Assert.Equal("cfc4c190", ranks.GetProperty("fp").GetString());
         Assert.Equal(snapshot.CharactersFingerprint, CharacterSyncMapping.Fingerprint([character with { Fp = "deadbeef" }], snapshot.Professions, snapshot.Catalogue, snapshot.GuildRanks));
         Assert.Equal(snapshot.CharactersFingerprint, CharacterSyncMapping.Fingerprint(snapshot.Characters, snapshot.Professions, snapshot.Catalogue, snapshot.GuildRanks! with { Fp = "deadbeef" }));
     }
@@ -696,9 +696,9 @@ public sealed class StewardSavedVariablesTests : IDisposable
             StewardDB = {
             ["addonVersion"] = "0.9.0",
             ["characters"] = {
-                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["addonVersion"] = "0.9.0" },
+                ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Northmoor", ["guild"] = "Stormrage", ["addonVersion"] = "0.9.0" },
             },
-            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["ranks"] = { [1] = "Guild Master" }, ["addonVersion"] = "0.9.1" },
+            ["guildRanks"] = { ["realm"] = "Northmoor", ["guild"] = "Stormrage", ["ranks"] = { [1] = "Guild Master" }, ["addonVersion"] = "0.9.1" },
             ["professions"] = {
                 ["Player-4395-0A1B2C3D"] = { ["schema"] = 3, ["observedAt"] = 1758260000, ["addonVersion"] = "0.9.2" },
             },
@@ -759,7 +759,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["guildRanks"] = {
-                ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["observedAt"] = 1758260000,
+                ["realm"] = "Northmoor", ["guild"] = "Stormrage", ["observedAt"] = 1758260000,
                 ["ranks"] = {
                 "Guild Master", -- [1]
                 "Officer", -- [2]
@@ -782,7 +782,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
     {
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
-            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["ranks"] = {} },
+            ["guildRanks"] = { ["realm"] = "Northmoor", ["guild"] = "Stormrage", ["ranks"] = {} },
             }
             """));
 
@@ -812,7 +812,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
         var snapshot = ReadFiles(("account.lua", """
             StewardDB = {
             ["guildRanks"] = {
-                ["realm"] = "Nightslayer", ["guild"] = "Stormrage",
+                ["realm"] = "Northmoor", ["guild"] = "Stormrage",
                 ["ranks"] = { [1] = "Guild Master", ["notARank"] = "Officer" },
             },
             }
@@ -829,12 +829,12 @@ public sealed class StewardSavedVariablesTests : IDisposable
     {
         var older = """
             StewardDB = {
-            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["observedAt"] = 1758200000, ["ranks"] = { [1] = "Old Name" } },
+            ["guildRanks"] = { ["realm"] = "Northmoor", ["guild"] = "Stormrage", ["observedAt"] = 1758200000, ["ranks"] = { [1] = "Old Name" } },
             }
             """;
         var newer = """
             StewardDB = {
-            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["observedAt"] = 1758260000, ["ranks"] = { [1] = "Guild Master" } },
+            ["guildRanks"] = { ["realm"] = "Northmoor", ["guild"] = "Stormrage", ["observedAt"] = 1758260000, ["ranks"] = { [1] = "Guild Master" } },
             }
             """;
 
@@ -847,9 +847,9 @@ public sealed class StewardSavedVariablesTests : IDisposable
         ReadFiles(("account.lua", $$"""
             StewardDB = {
             ["characters"] = {
-            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Nightslayer", ["level"] = 60, ["observedAt"] = {{observedAt}} },
+            ["Player-4395-0A1B2C3D"] = { ["name"] = "Hoobi", ["realm"] = "Northmoor", ["level"] = 60, ["observedAt"] = {{observedAt}} },
             },
-            ["guildRanks"] = { ["realm"] = "Nightslayer", ["guild"] = "Stormrage", ["observedAt"] = {{observedAt}}, ["ranks"] = { [1] = "{{rank1Name}}" } },
+            ["guildRanks"] = { ["realm"] = "Northmoor", ["guild"] = "Stormrage", ["observedAt"] = {{observedAt}}, ["ranks"] = { [1] = "{{rank1Name}}" } },
             }
             """)).CharactersFingerprint;
 
@@ -909,8 +909,8 @@ public sealed class StewardSavedVariablesTests : IDisposable
     [Fact]
     public void Read_FromDisk_ParsesEveryFound()
     {
-        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), AccountFile);
-        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1", "Nightslayer", "Grug"), CharacterFile);
+        WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#1"), AccountFile);
+        WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#1", "Northmoor", "Gorm"), CharacterFile);
 
         var snapshot = StewardSavedVariables.Read(_root);
 
@@ -923,7 +923,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
     [Fact]
     public void Read_FromDisk_ReturnsTheCachedSnapshot_WhenNoFileChanged()
     {
-        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), AccountFile);
+        WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#1"), AccountFile);
 
         Assert.Same(StewardSavedVariables.Read(_root), StewardSavedVariables.Read(_root));
     }
@@ -931,7 +931,7 @@ public sealed class StewardSavedVariablesTests : IDisposable
     [Fact]
     public void Read_FromDisk_Reparses_WhenAFileIsWritten()
     {
-        var path = WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), AccountFile);
+        var path = WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#1"), AccountFile);
         var first = StewardSavedVariables.Read(_root);
 
         File.WriteAllText(path, CharacterFile);
@@ -945,10 +945,10 @@ public sealed class StewardSavedVariablesTests : IDisposable
     [Fact]
     public void Read_FromDisk_Reparses_WhenAnAccountFileIsAdded()
     {
-        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#1"), AccountFile);
+        WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#1"), AccountFile);
         var first = StewardSavedVariables.Read(_root);
 
-        WriteSavedVariables(Path.Combine("WTF", "Account", "54939295#2"), AccountFile);
+        WriteSavedVariables(Path.Combine("WTF", "Account", "51234567#2"), AccountFile);
         var second = StewardSavedVariables.Read(_root);
 
         Assert.Single(first!.Files);

@@ -5,7 +5,7 @@ namespace Steward.Core.Tests;
 
 public sealed class AddonSettingsTests : IDisposable
 {
-    private const string Character = "Hoobi Spellbook-Classic Beta PvP";
+    private const string Character = "Hoobi Sorrel-Classic Beta PvP";
 
     private readonly string _temp = Directory.CreateTempSubdirectory("steward-settings-").FullName;
 
@@ -62,7 +62,7 @@ public sealed class AddonSettingsTests : IDisposable
         AddonSettings.Write(file, AddonSettings.Load(file), () => false);
 
         var bytes = File.ReadAllBytes(file);
-        Assert.Contains("Gr\u00fcg Aa", Encoding.UTF8.GetString(bytes), StringComparison.Ordinal);
+        Assert.Contains("G\u00f6rm Aa", Encoding.UTF8.GetString(bytes), StringComparison.Ordinal);
         AssertSameGlobals(Globals(), AddonSettings.Load(file));
     }
 
@@ -99,10 +99,10 @@ public sealed class AddonSettingsTests : IDisposable
         var globals = Globals();
 
         Assert.Equal("all", AddonSettings.Resolve(globals, Row("autoRepair"), null, null).Text);
-        Assert.Equal("Gr\u00fcg Aa", AddonSettings.Resolve(globals, Row("mailTradeGoodsTarget"), null, null).Text);
+        Assert.Equal("G\u00f6rm Aa", AddonSettings.Resolve(globals, Row("mailTradeGoodsTarget"), null, null).Text);
         Assert.False(AddonSettings.Resolve(globals, Row("hideErrors") with { Key = "missing" }, null, null).Boolean);
-        Assert.True(AddonSettings.Resolve(globals, Row("vendorPlainWater"), "Gr\u00fcg Aa-Classic Beta PvP", "WARRIOR").Boolean);
-        Assert.False(AddonSettings.Resolve(globals, Row("vendorPlainWater"), "Hoobi Quester-Classic Beta PvP", "DRUID").Boolean);
+        Assert.True(AddonSettings.Resolve(globals, Row("vendorPlainWater"), "G\u00f6rm Aa-Classic Beta PvP", "WARRIOR").Boolean);
+        Assert.False(AddonSettings.Resolve(globals, Row("vendorPlainWater"), "Hoobi Quill-Classic Beta PvP", "DRUID").Boolean);
         Assert.False(AddonSettings.Resolve(globals, Row("vendorPlainWater"), Character, null).Boolean);
     }
 
@@ -111,18 +111,18 @@ public sealed class AddonSettingsTests : IDisposable
     {
         var globals = Globals();
 
-        Assert.Equal(["Gr\u00fcg Aa-Classic Beta PvP", "Hoobi Quester-Classic Beta PvP", Character], AddonSettings.Characters(globals));
-        Assert.Equal("WARRIOR", AddonSettings.ClassOf(globals, "Gr\u00fcg Aa-Classic Beta PvP"));
+        Assert.Equal(["G\u00f6rm Aa-Classic Beta PvP", "Hoobi Quill-Classic Beta PvP", Character], AddonSettings.Characters(globals));
+        Assert.Equal("WARRIOR", AddonSettings.ClassOf(globals, "G\u00f6rm Aa-Classic Beta PvP"));
         Assert.Null(AddonSettings.ClassOf(globals, Character));
-        Assert.Equal("Hoobi Spellbook (Classic Beta PvP)", AddonSettings.CharacterLabel(Character));
+        Assert.Equal("Hoobi Sorrel (Classic Beta PvP)", AddonSettings.CharacterLabel(Character));
     }
 
     [Fact]
     public void CharactersOn_LeavesOutTheBetaRealmOnTheLiveClientOnly()
     {
-        IReadOnlyList<string> characters = ["Grug Aa-classic beta pvp", Character, "Hoobi Drood-Nightslayer", "NoRealm"];
+        IReadOnlyList<string> characters = ["Gorm Aa-classic beta pvp", Character, "Hoobi Dorn-Northmoor", "NoRealm"];
 
-        Assert.Equal(["Hoobi Drood-Nightslayer", "NoRealm"], AddonSettings.CharactersOn(characters, ForeverLaunch.LiveProduct));
+        Assert.Equal(["Hoobi Dorn-Northmoor", "NoRealm"], AddonSettings.CharactersOn(characters, ForeverLaunch.LiveProduct));
         Assert.Equal(characters, AddonSettings.CharactersOn(characters, ForeverLaunch.BetaProduct));
         Assert.Equal(characters, AddonSettings.CharactersOn(characters, null));
     }
@@ -189,7 +189,7 @@ public sealed class AddonSettingsTests : IDisposable
     [Fact]
     public void Apply_RemovesAClassSeededKeyAtTheClassDefault()
     {
-        var quester = "Hoobi Quester-Classic Beta PvP";
+        var quester = "Hoobi Quill-Classic Beta PvP";
         var seeded = AddonSettings.Apply(Globals(), [new SettingChange(Row("vendorPlainWater"), quester, LuaValue.FromBoolean(true))], _ => "DRUID");
         var reset = AddonSettings.Apply(seeded, [new SettingChange(Row("vendorPlainWater"), quester, LuaValue.FromBoolean(false))], _ => "DRUID");
 
@@ -217,7 +217,7 @@ public sealed class AddonSettingsTests : IDisposable
     [Fact]
     public void AddCharacter_WritesTheEntryWithClassSeededKeysOnly()
     {
-        var character = "Grug Aa-Classic Beta PvP";
+        var character = "Gorm Aa-Classic Beta PvP";
         var rows = Schema().Pages!.SelectMany(p => p.Sections!).SelectMany(s => s.Rows!);
 
         var after = AddonSettings.AddCharacter(Globals(), character, null, rows);
@@ -231,7 +231,7 @@ public sealed class AddonSettingsTests : IDisposable
     [Fact]
     public void AddCharacter_WithAClassWritesOnlyTheClass()
     {
-        var character = "Grug Aa-Classic Beta PvP";
+        var character = "Gorm Aa-Classic Beta PvP";
         var rows = Schema().Pages!.SelectMany(p => p.Sections!).SelectMany(s => s.Rows!);
 
         var after = AddonSettings.AddCharacter(Globals(), character, "WARRIOR", rows);
@@ -245,9 +245,9 @@ public sealed class AddonSettingsTests : IDisposable
     [Fact]
     public void AddCharacter_CreatesTheTablesInAnEmptyFile()
     {
-        var after = AddonSettings.AddCharacter(new Dictionary<string, LuaValue>(), "Grug Aa-Realm", null, []);
+        var after = AddonSettings.AddCharacter(new Dictionary<string, LuaValue>(), "Gorm Aa-Realm", null, []);
 
-        Assert.Equal(["Grug Aa-Realm"], AddonSettings.Characters(after));
+        Assert.Equal(["Gorm Aa-Realm"], AddonSettings.Characters(after));
     }
 
     private static SettingsSchema RealSchema(string folder) =>
@@ -307,15 +307,15 @@ public sealed class AddonSettingsTests : IDisposable
     [Fact]
     public void CharacterFolder_FindsTheFolderOfAKnownRealm()
     {
-        var account = Account(Path.Combine("91", "Hoobi-Spellbook"));
+        var account = Account(Path.Combine("91", "Hoobi-Sorrel"));
         var realms = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Classic Beta PvP"] = "91" };
 
-        Assert.Equal(Path.Combine(account, "91", "Hoobi-Spellbook"), AddonSettings.CharacterFolder(account, Character, realms));
+        Assert.Equal(Path.Combine(account, "91", "Hoobi-Sorrel"), AddonSettings.CharacterFolder(account, Character, realms));
         Assert.Null(AddonSettings.CharacterFolder(account, "Other Person-Classic Beta PvP", realms));
-        Assert.Null(AddonSettings.CharacterFolder(account, "Hoobi Spellbook-Unknown", realms));
+        Assert.Null(AddonSettings.CharacterFolder(account, "Hoobi Sorrel-Unknown", realms));
         Assert.Equal(
-            Path.Combine(account, "91", "Hoobi-Spellbook", "SavedVariables", "StewardJourney.lua"),
-            AddonSettings.CharacterFilePath(Path.Combine(account, "91", "Hoobi-Spellbook"), "StewardJourney"));
+            Path.Combine(account, "91", "Hoobi-Sorrel", "SavedVariables", "StewardJourney.lua"),
+            AddonSettings.CharacterFilePath(Path.Combine(account, "91", "Hoobi-Sorrel"), "StewardJourney"));
     }
 
     [Fact]
@@ -405,9 +405,9 @@ public sealed class AddonSettingsTests : IDisposable
     }
 
     [Theory]
-    [InlineData("Gr\u00fcg Aa", null)]
+    [InlineData("G\u00f6rm Aa", null)]
     [InlineData("O'Neil", null)]
-    [InlineData("Grug2", "Enter a character name")]
+    [InlineData("Gorm2", "Enter a character name")]
     public void Check_AppliesTheCharacterNameRule(string input, string? error) =>
         Assert.Equal(error, AddonSettings.Check(Row("mailTradeGoodsTarget"), input, out _));
 
@@ -435,7 +435,7 @@ public sealed class AddonSettingsTests : IDisposable
 
     private string Account(params string[] characterFolders)
     {
-        var account = Path.Combine(_temp, "54939295#1");
+        var account = Path.Combine(_temp, "51234567#1");
         Directory.CreateDirectory(Path.Combine(account, "SavedVariables"));
         foreach (var folder in characterFolders)
         {
@@ -448,9 +448,9 @@ public sealed class AddonSettingsTests : IDisposable
     [Fact]
     public void KnownRealms_PairsACharacterFolderWithItsCharsKey()
     {
-        var account = Account(Path.Combine("91", "Hoobi-Spellbook"), Path.Combine("91", "Stray-Folder"));
+        var account = Account(Path.Combine("91", "Hoobi-Sorrel"), Path.Combine("91", "Stray-Folder"));
 
-        var realms = AddonSettings.KnownRealms(account, [Character, "Hoobi Quester-Other Realm"]);
+        var realms = AddonSettings.KnownRealms(account, [Character, "Hoobi Quill-Other Realm"]);
 
         Assert.Equal("91", Assert.Single(realms).Value);
         Assert.Equal("Classic Beta PvP", realms.Keys.Single());
@@ -468,9 +468,9 @@ public sealed class AddonSettingsTests : IDisposable
     [Fact]
     public void KnownRealms_KeepsHyphensInTheRealmAndIgnoresCase()
     {
-        var account = Account(Path.Combine("12", "hoobi-drood"), Path.Combine("7", "Grug-Aa"));
+        var account = Account(Path.Combine("12", "hoobi-dorn"), Path.Combine("7", "Gorm-Aa"));
 
-        var realms = AddonSettings.KnownRealms(account, ["Hoobi Drood-Azjol-Nerub", "Grug Aa-Classic Beta PvP"]);
+        var realms = AddonSettings.KnownRealms(account, ["Hoobi Dorn-Azjol-Nerub", "Gorm Aa-Classic Beta PvP"]);
 
         Assert.Equal("12", realms["azjol-nerub"]);
         Assert.Equal("7", realms["Classic Beta PvP"]);
@@ -479,32 +479,32 @@ public sealed class AddonSettingsTests : IDisposable
     [Fact]
     public void KnownRealms_SkipsANameOnTwoRealms()
     {
-        var account = Account(Path.Combine("91", "Hoobi-Drood"));
+        var account = Account(Path.Combine("91", "Hoobi-Dorn"));
 
-        Assert.Empty(AddonSettings.KnownRealms(account, ["Hoobi Drood-Realm A", "Hoobi Drood-Realm B"]));
+        Assert.Empty(AddonSettings.KnownRealms(account, ["Hoobi Dorn-Realm A", "Hoobi Dorn-Realm B"]));
     }
 
     [Fact]
     public void KnownRealms_SkipsARealmSeenUnderTwoIds()
     {
-        var account = Account(Path.Combine("91", "Hoobi-Drood"), Path.Combine("92", "Grug-Aa"));
+        var account = Account(Path.Combine("91", "Hoobi-Dorn"), Path.Combine("92", "Gorm-Aa"));
 
-        Assert.Empty(AddonSettings.KnownRealms(account, ["Hoobi Drood-Realm A", "Grug Aa-Realm A"]));
+        Assert.Empty(AddonSettings.KnownRealms(account, ["Hoobi Dorn-Realm A", "Gorm Aa-Realm A"]));
     }
 
     [Fact]
     public void KnownRealms_FallsBackToTheConnectionLog()
     {
-        var account = Account(Path.Combine("91", "Hoo-Bi"));
+        var account = Account(Path.Combine("91", "Hob-Ek"));
         var log = Path.Combine(_temp, "Connection.log");
         File.WriteAllText(log, """
-            10/29 14:47:54.446  [N][Connection] Battle.net last played character received code="ERROR_OK (0)" subRegion="91-1-89" selectedSubRegion="91-1-89" realmEntry="{"wowRealmAddress":1527316482,"useBleepChance":0.0,"version":{"versionMajor":1,"versionBuild":70399},"cfgRealmsID":6801,"name":"CAMWOW AU1 Realm 2 PvP","superDistrictID":1}"
+            10/29 14:47:54.446  [N][Connection] Battle.net last played character received code="ERROR_OK (0)" subRegion="91-1-89" selectedSubRegion="91-1-89" realmEntry="{"wowRealmAddress":1527316482,"useBleepChance":0.0,"version":{"versionMajor":1,"versionBuild":70399},"cfgRealmsID":6801,"name":"Cairn AU1 Realm 2 PvP","superDistrictID":1}"
             10/29 14:47:55.000  [N][Connection] realm join requested subRegion="91-1-89" realmAddress="91-9-2"
             """);
 
         Assert.Equal("91", Assert.Single(AddonSettings.KnownRealms(account, [], log)).Value);
-        Assert.Equal("CAMWOW AU1 Realm 2 PvP", AddonSettings.KnownRealms(account, [], log).Keys.Single());
-        Assert.Equal("Classic Beta PvP", Assert.Single(AddonSettings.KnownRealms(account, ["Hoo Bi-Classic Beta PvP"], log)).Key);
+        Assert.Equal("Cairn AU1 Realm 2 PvP", AddonSettings.KnownRealms(account, [], log).Keys.Single());
+        Assert.Equal("Classic Beta PvP", Assert.Single(AddonSettings.KnownRealms(account, ["Hob Ek-Classic Beta PvP"], log)).Key);
         Assert.Empty(AddonSettings.KnownRealms(account, [], Path.Combine(_temp, "missing.log")));
     }
 
@@ -513,11 +513,11 @@ public sealed class AddonSettingsTests : IDisposable
     {
         var account = Account();
 
-        var folder = AddonSettings.CreateCharacterFolder(account, "91", " grug", "aa ");
+        var folder = AddonSettings.CreateCharacterFolder(account, "91", " gorm", "aa ");
 
-        Assert.Equal(Path.Combine(account, "91", "Grug-Aa"), folder);
+        Assert.Equal(Path.Combine(account, "91", "Gorm-Aa"), folder);
         Assert.True(Directory.Exists(folder));
-        Assert.Equal("Grug Aa-Classic Beta PvP", AddonSettings.CharacterKey("grug", "aa", "Classic Beta PvP"));
+        Assert.Equal("Gorm Aa-Classic Beta PvP", AddonSettings.CharacterKey("gorm", "aa", "Classic Beta PvP"));
     }
 
     [Theory]
@@ -528,13 +528,13 @@ public sealed class AddonSettingsTests : IDisposable
     public void NamePart_CapitalisesOnlyTheFirstLetter(string typed, string expected) => Assert.Equal(expected, AddonSettings.NamePart(typed));
 
     [Theory]
-    [InlineData("Gr\u00fcg", null)]
+    [InlineData("G\u00f6rm", null)]
     [InlineData(" O'Neil ", null)]
     [InlineData("Jean-Luc", "Use letters and apostrophes only")]
     [InlineData("", "Enter a name")]
     [InlineData("   ", "Enter a name")]
-    [InlineData("Grug Aa", "Use letters and apostrophes only")]
-    [InlineData("Grug2", "Use letters and apostrophes only")]
+    [InlineData("Gorm Aa", "Use letters and apostrophes only")]
+    [InlineData("Gorm2", "Use letters and apostrophes only")]
     [InlineData("Abcdefghijklm", "Use 12 letters or fewer")]
     public void CheckNamePart_AllowsLettersAndApostrophesOnly(string typed, string? error) => Assert.Equal(error, AddonSettings.CheckNamePart(typed));
 
