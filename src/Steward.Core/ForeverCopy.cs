@@ -62,14 +62,6 @@ public static partial class ForeverCopy
         ["edit-mode-cache-account.txt"] = 5,
     };
 
-    public static bool IsGated(WowInstall install, IEnumerable<WowInstall> installs, IEnumerable<string> done)
-    {
-        ArgumentNullException.ThrowIfNull(install);
-        return install.ProductCode == ForeverLaunch.LiveProduct
-            && !done.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase)
-            && installs.Any(other => other.ProductCode == ForeverLaunch.BetaProduct && !other.IsMissing);
-    }
-
     public static IReadOnlyDictionary<string, string?> DefaultAccountMap(WowInstall beta, WowInstall live)
     {
         ArgumentNullException.ThrowIfNull(beta);

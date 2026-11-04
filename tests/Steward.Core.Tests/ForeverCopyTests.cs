@@ -31,16 +31,6 @@ public sealed class ForeverCopyTests : IDisposable
     }
 
     [Fact]
-    public void IsGated_LiveWithPresentBetaAndNotDone()
-    {
-        Assert.True(ForeverCopy.IsGated(_live, [_beta, _live], []));
-        Assert.False(ForeverCopy.IsGated(_live, [_beta, _live], [_live.FlavourPath.ToUpperInvariant()]));
-        Assert.False(ForeverCopy.IsGated(_live, [_live], []));
-        Assert.False(ForeverCopy.IsGated(_live, [_beta with { IsMissing = true }, _live], []));
-        Assert.False(ForeverCopy.IsGated(_beta, [_beta, _live], []));
-    }
-
-    [Fact]
     public void Plan_CopiesMissingFolders_UpdatesUnmanagedOlderOnes_SkipsManaged()
     {
         Write(Path.Combine(_beta.AddOnsPath, "Questie", "Questie.toc"), New);

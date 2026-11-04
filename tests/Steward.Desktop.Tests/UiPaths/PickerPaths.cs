@@ -91,28 +91,28 @@ public sealed class PickerPaths(AvaloniaSession session)
     });
 
     [Fact]
-    public void P049_P050_copy_from_the_beta() => session.Run(() =>
+    public void P049_P050_sync_from_the_beta() => session.Run(() =>
     {
         using var world = new UiPathWorld(session, "copy-wizard");
 
-        world.Step(49, "Copy from the beta wizard", () =>
+        world.Step(49, "the live install shows beside the beta, and Sync from beta opens the wizard", () =>
         {
             Directory.CreateDirectory(Path.Combine(world.Live!, "WTF", "Account", "JIMMYBOBOZ"));
-            Click(world.Find<Button>(button => button.Content as string == "Copy from beta"));
+            world.Main.SelectedInstall = world.Main.Installs.Single(install => install.FlavourPath == world.Live);
+            Pump();
+            Click(world.Find<Button>(button => button.Command == world.Main.SyncFromBetaCommand));
             var dialog = world.WaitForDialog();
             var text = Text(dialog);
-            Assert.Contains("Copy from the beta", text, StringComparison.Ordinal);
+            Assert.Contains("Sync from the beta", text, StringComparison.Ordinal);
             Assert.Contains("JIMMYBOBOZ copies from", text, StringComparison.Ordinal);
             Assert.Contains("1 file newer on the beta", text, StringComparison.Ordinal);
-            Assert.Equal("Copy", dialog.PrimaryButtonText);
+            Assert.Equal("Sync", dialog.PrimaryButtonText);
         });
 
-        world.Step(50, "Escape closes the wizard, the banner stays, nothing recorded", () =>
+        world.Step(50, "Escape closes the wizard, nothing copied", () =>
         {
             world.Press(Key.Escape);
             world.WaitForNoDialog();
-            Assert.NotNull(world.TryFind<Button>(button => button.Content as string == "Copy from beta"));
-            Assert.Empty(world.Store.Load().ForeverCopyDone);
             Assert.False(Directory.Exists(Path.Combine(world.Live!, "Interface", "AddOns", "Details")));
         });
     });

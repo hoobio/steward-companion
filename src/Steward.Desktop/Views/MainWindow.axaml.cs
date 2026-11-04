@@ -816,8 +816,7 @@ public sealed partial class MainWindow : Window
         return await AppDialogs.ShowAsync(dialog, this) == FAContentDialogResult.Primary && files.SelectedIndex >= 0 ? files.SelectedIndex : null;
     }
 
-    private async Task<bool?> ShowForeverCopyAsync(
-        bool firstRun,
+    private async Task ShowForeverCopyAsync(
         ForeverCopyPlan plan,
         Func<IReadOnlyDictionary<string, string?>, Task<ForeverCopyPlan>> replan,
         Func<bool, bool, bool, bool, IReadOnlyDictionary<string, string?>, Task> copy)
@@ -955,21 +954,20 @@ public sealed partial class MainWindow : Window
         var progress = new ProgressBar { IsIndeterminate = true, IsVisible = false };
         var dialog = new FAContentDialog
         {
-            Title = Wrapped(firstRun ? "Copy from the beta" : "Sync from the beta"),
+            Title = Wrapped("Sync from the beta"),
             Content = new StackPanel
             {
                 Spacing = 8,
                 Children = { Wrapped("Steward copies what is newer on the beta. Nothing on Forever is deleted."), addons, accountBlock, savedVariables, settings, clientSettings, progress },
             },
-            PrimaryButtonText = firstRun ? "Copy" : "Sync",
-            SecondaryButtonText = firstRun ? "I'll do it myself" : "",
-            CloseButtonText = firstRun ? "Not now" : "Cancel",
+            PrimaryButtonText = "Sync",
+            CloseButtonText = "Cancel",
             DefaultButton = FAContentDialogButton.Primary,
         };
         dialog.PrimaryButtonClick += async (_, args) =>
         {
             var deferral = args.GetDeferral();
-            addons.IsEnabled = savedVariables.IsEnabled = settings.IsEnabled = clientSettings.IsEnabled = dialog.IsPrimaryButtonEnabled = dialog.IsSecondaryButtonEnabled = false;
+            addons.IsEnabled = savedVariables.IsEnabled = settings.IsEnabled = clientSettings.IsEnabled = dialog.IsPrimaryButtonEnabled = false;
             accountBlock.IsEnabled = false;
             progress.IsVisible = true;
             try
@@ -981,12 +979,7 @@ public sealed partial class MainWindow : Window
                 deferral.Complete();
             }
         };
-        return await AppDialogs.ShowAsync(dialog, this) switch
-        {
-            FAContentDialogResult.Primary => true,
-            FAContentDialogResult.Secondary => false,
-            _ => null,
-        };
+        await AppDialogs.ShowAsync(dialog, this);
     }
 
     private async Task<GuildOptionViewModel?> ChooseGuildAsync(IReadOnlyList<GuildOptionViewModel> guilds, GuildOptionViewModel preselected)

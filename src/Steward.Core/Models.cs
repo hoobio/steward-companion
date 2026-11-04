@@ -403,9 +403,6 @@ public sealed record AppState(
     [JsonPropertyName("forever_selection_moved")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool ForeverSelectionMoved { get; init; }
-
-    [JsonPropertyName("forever_copy_done")]
-    public List<string> ForeverCopyDone { get; init; } = null!;
 }
 
 public sealed record AppUpdateCheck(

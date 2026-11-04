@@ -24,7 +24,7 @@ public sealed class StatePaths(AvaloniaSession session)
         {
             BannersPreview.Apply(world.Main);
             Pump();
-            var titles = world.Main.Banners.Select(banner => banner.Title).Where(title => !title.StartsWith("Copy your addons", StringComparison.Ordinal)).ToList();
+            var titles = world.Main.Banners.Select(banner => banner.Title).ToList();
             Assert.Equal(["Update required", "Addon manifest slow to respond", "Sync is healthy", "New in this release"], titles);
             var page = world.Window.CurrentPage!;
             Assert.Equal(3, page.GetVisualDescendants().OfType<Button>().Count(button => button.IsEffectivelyVisible && AutomationProperties.GetName(button) == "Dismiss"));
@@ -34,7 +34,7 @@ public sealed class StatePaths(AvaloniaSession session)
             var info = page.GetVisualDescendants().OfType<Border>().First(border => border.DataContext is BannerViewModel { Title: "New in this release" });
             Click(info.GetVisualDescendants().OfType<Button>().First(button => AutomationProperties.GetName(button) == "Dismiss"));
             WaitFor(() => world.Main.Banners.All(banner => banner.Title != "New in this release"));
-            Assert.Equal(4, world.Main.Banners.Count);
+            Assert.Equal(3, world.Main.Banners.Count);
         });
 
         world.Step(111, "update progress in the InfoBar and the About card", () =>

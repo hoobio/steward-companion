@@ -420,19 +420,14 @@ public sealed partial class MainViewModel
         ShowConfirmDialog is { } show
         && await show($"Uninstall {name}?", $"This deletes {folders} from {installLabel}'s AddOns folder.", "Uninstall").ConfigureAwait(true);
 
-    private IReadOnlyList<WowInstall> DiscoverInstalls(AppState state)
-    {
-        IReadOnlyList<WowInstall> discovered =
-        [
-            .. DiscoverWowInstalls(_supportedProducts, state.InstallProducts),
-            .. state.AddedInstalls
-                .Select(path => WowInstalls.FromFlavourPath(path, _supportedProducts, state.InstallProducts)
-                    ?? (_missingInstalls.Contains(path) ? WowInstalls.MissingFromPath(path, _supportedProducts, state.InstallProducts) : null))
-                .OfType<WowInstall>(),
-        ];
-        _heldLiveInstall = discovered.FirstOrDefault(install => ForeverCopy.IsGated(install, discovered, state.ForeverCopyDone));
-        return [.. discovered.Where(install => !ForeverCopy.IsGated(install, discovered, state.ForeverCopyDone))];
-    }
+    private IReadOnlyList<WowInstall> DiscoverInstalls(AppState state) =>
+    [
+        .. DiscoverWowInstalls(_supportedProducts, state.InstallProducts),
+        .. state.AddedInstalls
+            .Select(path => WowInstalls.FromFlavourPath(path, _supportedProducts, state.InstallProducts)
+                ?? (_missingInstalls.Contains(path) ? WowInstalls.MissingFromPath(path, _supportedProducts, state.InstallProducts) : null))
+            .OfType<WowInstall>(),
+    ];
 
     internal Func<IReadOnlyDictionary<string, string>, IReadOnlyDictionary<string, string>?, IReadOnlyList<WowInstall>> DiscoverWowInstalls { get; set; } = WowInstalls.Discover;
 

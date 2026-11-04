@@ -7,13 +7,10 @@ namespace Steward.App.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private const string ForeverCopyBannerId = "forever-copy";
     private const string ForeverInstallBannerId = "forever-install";
     private static readonly bool ForeverInstallPreview = Environment.GetCommandLineArgs().Contains("--forever-install-preview", StringComparer.OrdinalIgnoreCase);
 
-    private WowInstall? _heldLiveInstall;
-
-    public Func<bool, ForeverCopyPlan, Func<IReadOnlyDictionary<string, string?>, Task<ForeverCopyPlan>>, Func<bool, bool, bool, bool, IReadOnlyDictionary<string, string?>, Task>, Task<bool?>>? ShowForeverCopyDialog { get; set; }
+    public Func<ForeverCopyPlan, Func<IReadOnlyDictionary<string, string?>, Task<ForeverCopyPlan>>, Func<bool, bool, bool, bool, IReadOnlyDictionary<string, string?>, Task>, Task>? ShowForeverCopyDialog { get; set; }
 
     private WowInstallViewModel? BetaInstall => PresentInstalls.FirstOrDefault(install => install.Install.ProductCode == ForeverLaunch.BetaProduct);
 
@@ -22,41 +19,13 @@ public sealed partial class MainViewModel
 
     [RelayCommand]
     private Task SyncFromBetaAsync() =>
-        SelectedInstall is { } live ? OpenForeverCopyAsync(live.Install, firstRun: false) : Task.CompletedTask;
+        SelectedInstall is { } live ? OpenForeverCopyAsync(live.Install) : Task.CompletedTask;
 
-    private void ApplyForeverGate()
+    private void ApplyForeverBanners()
     {
         var state = _stateStore.Load();
-        if (_heldLiveInstall is { } held && !ForeverCopy.IsGated(held, [.. Installs.Select(install => install.Install), held], state.ForeverCopyDone))
-        {
-            _heldLiveInstall = null;
-            if (!Installs.Any(install => string.Equals(install.FlavourPath, held.FlavourPath, StringComparison.OrdinalIgnoreCase)))
-            {
-                _logger.Info($"Forever install {held.FlavourPath} released from the copy-from-beta gate");
-                AddInstall(held, state.AddedInstalls.Contains(held.FlavourPath, StringComparer.OrdinalIgnoreCase)).ApplyStatus(_status, background: false);
-                EnsureSelection();
-            }
-        }
-
-        var shown = _localBanners.Any(banner => banner.Id == ForeverCopyBannerId);
-        if (_heldLiveInstall is { } live && !shown)
-        {
-            ShowLocalInfoBanner(
-                "Copy your addons to World of Warcraft: Forever",
-                ForeverCopyBannerId,
-                "Copy from beta",
-                () => _ = OpenForeverCopyAsync(live, firstRun: true),
-                detail: "Steward can copy the beta's addons, and how Steward manages them, to the live client.",
-                dismissible: false);
-        }
-        else if (_heldLiveInstall is null && shown)
-        {
-            _localBanners.RemoveAll(banner => banner.Id == ForeverCopyBannerId);
-            RefreshBanners();
-        }
-
         var hintShown = _localBanners.Any(banner => banner.Id == ForeverInstallBannerId);
-        var hintWanted = ForeverInstallPreview || (_heldLiveInstall is null && BetaInstall is not null
+        var hintWanted = ForeverInstallPreview || (BetaInstall is not null
             && !Installs.Any(install => install.Install.ProductCode == ForeverLaunch.LiveProduct)
             && !(state.DismissedBanners ?? []).ContainsKey(ForeverInstallBannerId));
         if (hintWanted && !hintShown)
@@ -79,9 +48,8 @@ public sealed partial class MainViewModel
             RefreshBanners();
         }
 
-        var accountLive = _heldLiveInstall is null && BetaInstall is { } accountBeta
+        var accountLive = BetaInstall is { } accountBeta
             ? Installs.Select(install => install.Install).FirstOrDefault(install => install.ProductCode == ForeverLaunch.LiveProduct && !install.IsMissing
-                && state.ForeverCopyDone.Contains(install.FlavourPath, StringComparer.OrdinalIgnoreCase)
                 && ForeverCopy.NeedsAccountMigration(accountBeta.Install, install))
             : null;
         var accountBannerId = accountLive is null ? null : AccountNamesBannerId(accountLive.FlavourPath);
@@ -94,7 +62,7 @@ public sealed partial class MainViewModel
                 "Choose a beta account for your Forever settings",
                 accountBannerId,
                 "Sync from beta",
-                () => _ = OpenForeverCopyAsync(accountLive, firstRun: false),
+                () => _ = OpenForeverCopyAsync(accountLive),
                 () => RecordBannerDismissed(accountBannerId!),
                 $"Forever uses your classic account name ({name}), which the beta does not. Sync from the beta and choose which beta account to copy to {name}.");
         }
@@ -135,7 +103,7 @@ public sealed partial class MainViewModel
             : null;
     }
 
-    private async Task OpenForeverCopyAsync(WowInstall live, bool firstRun)
+    private async Task OpenForeverCopyAsync(WowInstall live)
     {
         if (BetaInstall is not { } beta || ShowForeverCopyDialog is not { } show)
         {
@@ -162,8 +130,7 @@ public sealed partial class MainViewModel
         }
 
         _logger.Info($"Forever copy offered: {plan.NewFolders.Count} folder(s) to copy, {plan.UpdatedFolders.Count} to update, {plan.SavedVariablesFiles.Count} saved variable file(s) and {plan.SettingsFiles.Count} settings file(s) newer on the beta, {plan.ClientSettings.Count} graphics and sound setting(s) differ");
-        var choice = await show(
-            firstRun,
+        await show(
             plan,
             async accountMap =>
             {
@@ -179,11 +146,6 @@ public sealed partial class MainViewModel
                 }
             },
             (addons, savedVariables, settings, clientSettings, accountMap) => RunForeverCopyAsync(beta, live, managed, addons, savedVariables, settings, clientSettings, accountMap)).ConfigureAwait(true);
-        if (choice is false)
-        {
-            _logger.Info($"Forever copy declined for {live.FlavourPath}; the user copies by hand");
-            MarkForeverCopyDone(live.FlavourPath);
-        }
     }
 
     private static Task<ForeverCopyPlan> ReplanForeverCopyAsync(WowInstallViewModel beta, WowInstall live, IReadOnlyList<string> managed, IReadOnlyDictionary<string, string?>? accountMap) =>
@@ -226,7 +188,7 @@ public sealed partial class MainViewModel
             RecordBannerDismissed(AccountNamesBannerId(live.FlavourPath));
         }
 
-        MarkForeverCopyDone(live.FlavourPath);
+        ApplyForeverBanners();
 
         if (Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, live.FlavourPath, StringComparison.OrdinalIgnoreCase)) is { } liveInstall)
         {
@@ -248,18 +210,6 @@ public sealed partial class MainViewModel
         {
             StatusMessage = $"{result.Failures} {(result.Failures == 1 ? "file" : "files")} could not be copied from the beta. The log names each one.";
         }
-    }
-
-    private void MarkForeverCopyDone(string flavourPath)
-    {
-        var state = _stateStore.Load();
-        if (!state.ForeverCopyDone.Contains(flavourPath, StringComparer.OrdinalIgnoreCase))
-        {
-            state.ForeverCopyDone.Add(flavourPath);
-            _stateStore.Save(state);
-        }
-
-        ApplyForeverGate();
     }
 
     private IReadOnlyList<string> ManagedFolders(string flavourPath)
