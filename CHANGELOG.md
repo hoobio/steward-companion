@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.2](https://github.com/hoobio/steward-companion/compare/v0.31.1...v0.31.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* 🐛 always show the live Forever client when the beta is installed, without the copy wizard gate ([9a12fb8](https://github.com/hoobio/steward-companion/commit/9a12fb8b6e2c66036e8f343408148e03bad62617))
+
 ## [0.31.1](https://github.com/hoobio/steward-companion/compare/v0.31.0...v0.31.1) (2026-11-02)
 
 
