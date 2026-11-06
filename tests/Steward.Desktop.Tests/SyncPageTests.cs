@@ -65,8 +65,8 @@ public sealed class SyncPageTests(AvaloniaSession session)
         sync.IsUnreachable = false;
         main.JourneyError = null;
         main.SelectedInstall = added;
-        UiPaths.UiPathWorld.WaitFor(() => sync.NotReleasedVisibility == (DateTimeOffset.Now < ForeverSchedule.Launch.Start) && !sync.CardsVisibility == sync.NotReleasedVisibility);
-        Save(window, "sync-not-released");
+        UiPaths.UiPathWorld.WaitFor(() => !sync.NotReleasedVisibility && sync.AddonMissingVisibility);
+        Save(window, "sync-addon-missing");
 
         window.Content = null;
         window.Close();
