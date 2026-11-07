@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.31.3](https://github.com/hoobio/steward-companion/compare/v0.31.2...v0.31.3) (2026-11-07)
+
+
+### Bug Fixes
+
+* 🐛 a journey upload leaves out the chunks the server holds and names its stored file once ([d1bde68](https://github.com/hoobio/steward-companion/commit/d1bde68ba7b375438177bd5d86d8be2cebef7a2b))
+* 🐛 a journey upload sends only the chunks the server does not hold yet, so a long journey keeps uploading ([f94d7de](https://github.com/hoobio/steward-companion/commit/f94d7de7870e39f04a8e2264c9b2db6bdf70ed8b))
+
 ## [0.31.2](https://github.com/hoobio/steward-companion/compare/v0.31.1...v0.31.2) (2026-11-04)
 
 
