@@ -92,7 +92,101 @@ public sealed class JourneyTests : IDisposable
         var handler = new RecordingHandler(status, body, retryAfter);
         var client = new StewardClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
         var store = new AppStateStore([], Path.Combine(_root, "state", "state.json"));
-        return (new JourneyUploader(client, store, clock, anyLength ? _ => true : null), handler, store);
+        return (new JourneyUploader(client, store, clock, anyLength ? _ => true : null, launch: 0), handler, store);
+    }
+
+    private static string Ungzip(byte[] body)
+    {
+        using var gzip = new GZipStream(new MemoryStream(body), CompressionMode.Decompress);
+        using var output = new MemoryStream();
+        gzip.CopyTo(output);
+        return Encoding.Latin1.GetString(output.ToArray());
+    }
+
+    private static byte[] TwoChunks(string extra = "")
+    {
+        static string Chunk(int to) =>
+            "\t\t{\r\n\t\t\t[\"rows\"] = 1,\r\n\t\t\t[\"from\"] = " + to + ",\r\n\t\t\t[\"to\"] = " + to + ",\r\n\t\t\t[\"data\"] = \"" + LuaEscape(Gzip("[{\"ev\":\"pos\",\"t\":" + to + "}]")) + "\",\r\n\t\t},\r\n";
+        return Encoding.Latin1.GetBytes(
+            "StewardJourneyDB = {\r\n\t[\"jumps\"] = 7,\r\n\t[\"route\"] = {\r\n\t\t{\r\n\t\t\t[\"ev\"] = \"pos\",\r\n\t\t\t[\"sub\"] = \"TeldÃ¢\",\r\n\t\t\t[\"t\"] = 300,\r\n\t\t},\r\n" + extra + "\t},\r\n"
+            + "\t[\"packed\"] = {\r\n" + Chunk(100) + Chunk(200) + "\t},\r\n}\r\n");
+    }
+
+    private static string[] ChunkHashes(byte[] bytes) =>
+        [.. LuaSavedVariables.Parse(Encoding.Latin1.GetString(bytes))["StewardJourneyDB"].GetTable("packed")!.Items.Select(chunk => JourneyFile.ChunkHash(chunk.GetString("data")!))];
+
+    [Fact]
+    public async Task Upload_SendsChunksTheServerListedByHashOnTheNextUpload()
+    {
+        var first = TwoChunks();
+        var hashes = ChunkHashes(first);
+        var path = WriteFile(first);
+        var clock = DateTimeOffset.UtcNow;
+        var (uploader, handler, store) = UploaderFor(HttpStatusCode.OK, $$"""{"result":"added","sha256":"x","chunks":["{{hashes[0]}}"]}""", clock: () => clock);
+
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.False(handler.Requests[0].Request.Headers.Contains("X-Journey-Refs"));
+        Assert.Equal(first.Length, Ungzip(handler.Requests[0].Body).Length);
+        Assert.Equal(hashes[..1], store.Load().JourneyUploads[path].Chunks);
+
+        File.WriteAllBytes(path, TwoChunks("\t\t{\r\n\t\t\t[\"t\"] = 310,\r\n\t\t},\r\n"));
+        clock = clock.AddMinutes(1);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+
+        Assert.Equal("1", handler.Requests[1].Request.Headers.GetValues("X-Journey-Refs").Single());
+        Assert.Equal("4", handler.Requests[1].Request.Headers.GetValues("X-Journey-Rows").Single());
+        var sent = Ungzip(handler.Requests[1].Body);
+        Assert.Contains($"[\"ref\"] = \"{hashes[0]}\"", sent);
+        Assert.Single(LuaSavedVariables.Parse(sent)["StewardJourneyDB"].GetTable("packed")!.Items, chunk => chunk.GetString("data") is not null);
+        Assert.Equal(7, LuaSavedVariables.Parse(sent)["StewardJourneyDB"].GetNumber("jumps"));
+        Assert.Equal("TeldÃ¢", LuaSavedVariables.Parse(sent)["StewardJourneyDB"].GetTable("route")!.Items[0].GetString("sub"));
+    }
+
+    [Fact]
+    public async Task Upload_Resend_ForgetsTheHashesAndSendsTheWholeFileNext()
+    {
+        var bytes = TwoChunks();
+        var hash = ChunkHashes(bytes)[0];
+        var path = WriteFile(bytes);
+        var clock = DateTimeOffset.UtcNow;
+        var (uploader, handler, store) = UploaderFor(HttpStatusCode.OK, """{"result":"resend"}""", clock: () => clock);
+        var state = store.Load();
+        state.JourneyUploads[path] = new JourneyUploadRecord("old", 1, default, "added", null, Chunks: [hash]);
+        store.Save(state);
+
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.Equal("1", handler.Requests[0].Request.Headers.GetValues("X-Journey-Refs").Single());
+        Assert.Equal("old", store.Load().JourneyUploads[path].Sha256);
+        Assert.Null(store.Load().JourneyUploads[path].Chunks);
+
+        clock = clock.AddMinutes(1);
+        await uploader.UploadAsync([_root], CancellationToken.None);
+        Assert.False(handler.Requests[1].Request.Headers.Contains("X-Journey-Refs"));
+    }
+
+    [Fact]
+    public void FromLaunch_DropsChunksThatEndBeforeTheLaunch()
+    {
+        var bytes = TwoChunks();
+        Assert.Same(bytes, JourneyFile.FromLaunch(bytes, 100));
+
+        var trimmed = JourneyFile.FromLaunch(bytes, 101);
+        Assert.Equal(new JourneySummary(2, 200, 300, null), JourneyFile.Summarise(trimmed));
+        Assert.Single(LuaSavedVariables.Parse(Encoding.Latin1.GetString(trimmed))["StewardJourneyDB"].GetTable("packed")!.Items);
+    }
+
+    [Fact]
+    public async Task Upload_FileOfOnlyPreLaunchChunks_IsNotSent()
+    {
+        var path = WriteFile(Encoding.Latin1.GetBytes("StewardJourneyDB = {\r\n\t[\"packed\"] = {\r\n\t\t{\r\n\t\t\t[\"to\"] = 100,\r\n\t\t\t[\"rows\"] = 1,\r\n\t\t\t[\"data\"] = \"x\",\r\n\t\t},\r\n\t},\r\n}\r\n"));
+        var handler = new RecordingHandler(HttpStatusCode.OK, """{"result":"added"}""", null);
+        var store = new AppStateStore([], Path.Combine(_root, "state", "state.json"));
+        var uploader = new JourneyUploader(new StewardClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)"), store, launch: 101);
+
+        await uploader.UploadAsync([_root], CancellationToken.None);
+
+        Assert.Empty(handler.Requests);
+        Assert.Equal(JourneyUploader.TooShort, store.Load().JourneyUploads[path].Result);
     }
 
     [Theory]
