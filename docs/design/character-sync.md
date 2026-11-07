@@ -170,7 +170,7 @@ After verification steward-server rejects a character whose signed data cannot b
 | skill rank at most its max | `<Skill> skill above its max` |
 | max skill at most 300 | `<Skill> max skill above 300` |
 | max skill a Classic tier: 75, 150, 225 or 300 | `<Skill> max skill <n> is not a skill tier` |
-| the tier allowed by the level: 150 from 10, 225 from 20, 300 from 35 (75 from 1); secondary skills alike | `<Skill> max skill <n> needs level <level>` |
+| the tier allowed by the level: 150 from 10, 225 from 20, 300 from 35 (75 from 1), Cooking and First Aid alike; Skinning, Herbalism and Mining 225 from 10 and 300 from 25; Fishing 150, 225 and 300 from 10 | `<Skill> max skill <n> needs level <level>` |
 | every known recipe id in the guild catalogue (stored plus this push's verified catalogue; the client-data catalogue from Recipe catalogue rollout step 1) for a profession the catalogue holds | `<Profession> recipe <id> is not in the guild catalogue` |
 | the character's `observedAt` and the professions' `observedAt` at most 5 minutes ahead of the server clock | `observed in the future` |
 
