@@ -136,7 +136,8 @@ public sealed class JourneyTests : IDisposable
         Assert.Equal("1", handler.Requests[1].Request.Headers.GetValues("X-Journey-Refs").Single());
         Assert.Equal("4", handler.Requests[1].Request.Headers.GetValues("X-Journey-Rows").Single());
         var sent = Ungzip(handler.Requests[1].Body);
-        Assert.Contains($"[\"ref\"] = \"{hashes[0]}\"", sent);
+        Assert.Contains("[\"ref\"] = \"x\"", sent);
+        Assert.Equal(2, LuaSavedVariables.Parse(sent)["StewardJourneyDB"].GetTable("packed")!.Items.Count);
         Assert.Single(LuaSavedVariables.Parse(sent)["StewardJourneyDB"].GetTable("packed")!.Items, chunk => chunk.GetString("data") is not null);
         Assert.Equal(7, LuaSavedVariables.Parse(sent)["StewardJourneyDB"].GetNumber("jumps"));
         Assert.Equal("TeldÃ¢", LuaSavedVariables.Parse(sent)["StewardJourneyDB"].GetTable("route")!.Items[0].GetString("sub"));
@@ -151,7 +152,7 @@ public sealed class JourneyTests : IDisposable
         var clock = DateTimeOffset.UtcNow;
         var (uploader, handler, store) = UploaderFor(HttpStatusCode.OK, """{"result":"resend"}""", clock: () => clock);
         var state = store.Load();
-        state.JourneyUploads[path] = new JourneyUploadRecord("old", 1, default, "added", null, Chunks: [hash]);
+        state.JourneyUploads[path] = new JourneyUploadRecord("old", 1, default, "added", null, Chunks: [hash], StoredSha256: "stored");
         store.Save(state);
 
         await uploader.UploadAsync([_root], CancellationToken.None);
@@ -162,6 +163,22 @@ public sealed class JourneyTests : IDisposable
         clock = clock.AddMinutes(1);
         await uploader.UploadAsync([_root], CancellationToken.None);
         Assert.False(handler.Requests[1].Request.Headers.Contains("X-Journey-Refs"));
+    }
+
+    [Fact]
+    public void WithRef_LeavesOutHeldChunksAndSendsAWholeFileWhenOneIsGone()
+    {
+        var bytes = TwoChunks();
+        var hashes = ChunkHashes(bytes);
+
+        var (all, refs) = JourneyFile.WithRef(bytes, hashes.ToHashSet(), "stored");
+        var packed = LuaSavedVariables.Parse(Encoding.Latin1.GetString(all))["StewardJourneyDB"].GetTable("packed")!.Items;
+        Assert.Equal(1, refs);
+        Assert.Equal("stored", Assert.Single(packed).GetString("ref"));
+
+        var (whole, none) = JourneyFile.WithRef(bytes, new HashSet<string> { hashes[0], "gone" }, "stored");
+        Assert.Same(bytes, whole);
+        Assert.Equal(0, none);
     }
 
     [Fact]

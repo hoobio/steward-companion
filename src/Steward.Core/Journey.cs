@@ -42,7 +42,8 @@ public sealed record JourneyUploadRecord(
     [property: JsonPropertyName("error"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Error = null,
     [property: JsonPropertyName("error_at"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? ErrorAt = null,
     [property: JsonPropertyName("rejected_sha256"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RejectedSha256 = null,
-    [property: JsonPropertyName("chunks"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string[]? Chunks = null);
+    [property: JsonPropertyName("chunks"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string[]? Chunks = null,
+    [property: JsonPropertyName("stored_sha256"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? StoredSha256 = null);
 
 public sealed record JourneyUploadsState(
     [property: JsonPropertyName("journey_uploads")] Dictionary<string, JourneyUploadRecord> JourneyUploads);
@@ -116,12 +117,34 @@ public static partial class JourneyFile
     public static byte[] FromLaunch(byte[] bytes, long launch) =>
         RewriteChunks(bytes, chunk => chunk.GetNumber("to") < launch ? null : chunk).Bytes;
 
-    public static (byte[] Bytes, int Refs) WithRefs(byte[] bytes, IReadOnlySet<string> held) =>
-        RewriteChunks(bytes, chunk => chunk.GetString("data") is { } data && held.Contains(ChunkHash(data))
-            ? LuaValue.FromTable([.. chunk.Table.Select(entry => entry.Key is { Kind: LuaKind.Text, Text: "data" }
-                ? new LuaEntry(LuaValue.FromString("ref"), LuaValue.FromString(ChunkHash(data)))
-                : entry)])
-            : chunk);
+    // The server puts back every chunk of the stored file, so one that a merge or clear removed here would return; such a file goes whole.
+    public static (byte[] Bytes, int Refs) WithRef(byte[] bytes, IReadOnlySet<string> held, string storedSha)
+    {
+        var inFile = LuaSavedVariables.Parse(Encoding.Latin1.GetString(bytes)).GetValueOrDefault("StewardJourneyDB")?.GetTable("packed")?.Items
+            .Select(chunk => chunk.GetString("data")).OfType<string>().Select(ChunkHash).ToHashSet(StringComparer.Ordinal) ?? [];
+        if (!held.IsSubsetOf(inFile))
+        {
+            return (bytes, 0);
+        }
+
+        var placed = false;
+        var (body, changed) = RewriteChunks(bytes, chunk =>
+        {
+            if (chunk.GetString("data") is not { } data || !held.Contains(ChunkHash(data)))
+            {
+                return chunk;
+            }
+
+            if (placed)
+            {
+                return null;
+            }
+
+            placed = true;
+            return LuaValue.FromTable(new LuaEntry(LuaValue.FromString("ref"), LuaValue.FromString(storedSha)));
+        });
+        return (body, changed > 0 ? 1 : 0);
+    }
 
     // Latin1 maps each char back to its byte, so the gzip chunks and the UTF-8 route strings leave as they arrived.
     private static (byte[] Bytes, int Refs) RewriteChunks(byte[] bytes, Func<LuaValue, LuaValue?> rewrite)
@@ -374,7 +397,9 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
         var spacing = MinInterval;
         try
         {
-            var (body, refs) = last?.Chunks is { Length: > 0 } held ? JourneyFile.WithRefs(live, held.ToHashSet(StringComparer.Ordinal)) : (live, 0);
+            var (body, refs) = last is { Chunks: { Length: > 0 } held, StoredSha256: { } storedSha }
+                ? JourneyFile.WithRef(live, held.ToHashSet(StringComparer.Ordinal), storedSha)
+                : (live, 0);
             var response = await client.PutJourneyAsync(
                 JourneyFile.AccountHash(file.Account),
                 file.Realm,
@@ -387,11 +412,11 @@ public sealed class JourneyUploader(StewardClient client, AppStateStore store, F
                 cancellationToken).ConfigureAwait(false);
             if (response.Result == Resend)
             {
-                Save(file.Path, record => record with { Chunks = null });
+                Save(file.Path, record => record with { Chunks = null, StoredSha256 = null });
                 return FileResult.Next;
             }
 
-            Save(file.Path, _ => new JourneyUploadRecord(sha, info.Length, info.LastWriteTimeUtc, response.Result, _now(), Chunks: response.Chunks));
+            Save(file.Path, _ => new JourneyUploadRecord(sha, info.Length, info.LastWriteTimeUtc, response.Result, _now(), Chunks: response.Chunks, StoredSha256: response.Sha256));
             return FileResult.Next;
         }
         catch (SessionExpiredException)
