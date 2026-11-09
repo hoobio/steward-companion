@@ -219,6 +219,49 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
+    public void Render_WritesKosSortedByName_WithTheNoteOmittedWhenEmpty_AndOmitsTheKeyWhenTheServerSentNone()
+    {
+        var payload = SamplePayload() with
+        {
+            Kos = new KosList(
+                [new("Zed", "last"), new("gankface", "camps the flight path"), new("Quiet", null)],
+                [new("Red Rage", "")]),
+        };
+
+        var rendered = StewardSyncFile.Render(payload);
+
+        const string Expected =
+            "\t[\"kos\"] = {\n"
+            + "\t\t[\"players\"] = {\n"
+            + "\t\t\t{\n\t\t\t\t[\"name\"] = \"gankface\",\n\t\t\t\t[\"note\"] = \"camps the flight path\",\n\t\t\t},\n"
+            + "\t\t\t{\n\t\t\t\t[\"name\"] = \"Quiet\",\n\t\t\t},\n"
+            + "\t\t\t{\n\t\t\t\t[\"name\"] = \"Zed\",\n\t\t\t\t[\"note\"] = \"last\",\n\t\t\t},\n"
+            + "\t\t},\n"
+            + "\t\t[\"guilds\"] = {\n"
+            + "\t\t\t{\n\t\t\t\t[\"name\"] = \"Red Rage\",\n\t\t\t},\n"
+            + "\t\t},\n"
+            + "\t},";
+        Assert.Contains(Expected, rendered, StringComparison.Ordinal);
+        Assert.Contains("\t},\n\t[\"kos\"]", StewardSyncFile.Render(payload with { RankLocked = [5] }), StringComparison.Ordinal);
+        Assert.DoesNotContain("kos", StewardSyncFile.Render(SamplePayload()), StringComparison.Ordinal);
+        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
+    }
+
+    [Fact]
+    public void Render_WritesEmptyKosTables_SoAClearedListReachesTheAddon()
+    {
+        var payload = SamplePayload() with { Kos = new KosList([], []) };
+
+        var rendered = StewardSyncFile.Render(payload);
+
+        Assert.Contains("\t[\"kos\"] = {\n\t\t[\"players\"] = {\n\t\t},\n\t\t[\"guilds\"] = {\n\t\t},\n\t},", rendered, StringComparison.Ordinal);
+        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
+        Assert.NotEqual(
+            StewardSyncFile.Fingerprint(payload),
+            StewardSyncFile.Fingerprint(payload with { Kos = new KosList([new("Gankface")], []) }));
+    }
+
+    [Fact]
     public void Render_ProducesAnEmptyOriginsTable_WhenThePayloadCarriesNone()
     {
         var rendered = StewardSyncFile.Render(SamplePayload());

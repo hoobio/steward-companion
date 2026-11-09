@@ -258,8 +258,29 @@ public static class StewardSyncFile
             entries.Add(new(LuaValue.FromString("rankLocked"), LuaValue.Array(rankLocked.Order().Select(order => LuaValue.FromNumber(order)))));
         }
 
+        if (payload.Kos is { } kos)
+        {
+            entries.Add(new(LuaValue.FromString("kos"), LuaValue.FromTable(
+            [
+                new(LuaValue.FromString("players"), KosToLua(kos.Players)),
+                new(LuaValue.FromString("guilds"), KosToLua(kos.Guilds)),
+            ])));
+        }
+
         return LuaValue.FromTable(entries);
     }
+
+    private static LuaValue KosToLua(IReadOnlyList<KosEntry>? entries) => LuaValue.Array(
+        (entries ?? []).OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase).Select(entry =>
+        {
+            var fields = new List<LuaEntry> { new(LuaValue.FromString("name"), LuaValue.FromString(entry.Name)) };
+            if (!string.IsNullOrEmpty(entry.Note))
+            {
+                fields.Add(new(LuaValue.FromString("note"), LuaValue.FromString(entry.Note)));
+            }
+
+            return LuaValue.FromTable(fields);
+        }));
 
     private static LuaValue DirectoryToLua(SyncDirectory directory, IReadOnlySet<string>? avatarIds)
     {

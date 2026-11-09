@@ -51,7 +51,16 @@ public sealed record GuildRosterResponse(
     [property: JsonPropertyName("statuses")] IReadOnlyList<RosterStatusDef>? Statuses,
     [property: JsonPropertyName("origins")] IReadOnlyList<OriginDef>? Origins,
     [property: JsonPropertyName("rank_targets")] IReadOnlyDictionary<string, int>? RankTargets = null,
-    [property: JsonPropertyName("rank_locked")] IReadOnlyList<int>? RankLocked = null);
+    [property: JsonPropertyName("rank_locked")] IReadOnlyList<int>? RankLocked = null,
+    [property: JsonPropertyName("kos")] KosList? Kos = null);
+
+public sealed record KosEntry(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("note")] string? Note = null);
+
+public sealed record KosList(
+    [property: JsonPropertyName("players")] IReadOnlyList<KosEntry>? Players = null,
+    [property: JsonPropertyName("guilds")] IReadOnlyList<KosEntry>? Guilds = null);
 
 public sealed record DiscordMembersResponse(
     [property: JsonPropertyName("members")] IReadOnlyList<DiscordMember> Members);
@@ -733,5 +742,7 @@ public sealed record SyncPayload(
     public IReadOnlyDictionary<string, int>? RankTargets { get; init; }
 
     public IReadOnlyList<int>? RankLocked { get; init; }
+
+    public KosList? Kos { get; init; }
 }
 
