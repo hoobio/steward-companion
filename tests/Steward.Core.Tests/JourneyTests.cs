@@ -63,6 +63,20 @@ public sealed class JourneyTests : IDisposable
         return output.ToArray();
     }
 
+    [Fact]
+    public void Quality_ExpandsTrackRows()
+    {
+        using var fixture = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "journey-tracks.json")));
+        var packed = fixture.RootElement.GetProperty("packed").GetRawText();
+        var text = "\r\nStewardJourneyDB = {\r\n\t[\"packed\"] = {\r\n\t\t{\r\n\t\t\t[\"to\"] = 172,\r\n\t\t\t[\"data\"] = \"" + LuaEscape(Gzip(packed)) + "\",\r\n\t\t\t[\"rows\"] = 11,\r\n\t\t\t[\"from\"] = 100,\r\n\t\t},\r\n\t},\r\n}\r\n";
+
+        var quality = JourneyFile.Quality(Encoding.Latin1.GetBytes(text));
+
+        Assert.Equal(9, quality.Positions);
+        Assert.Equal(72, quality.ActiveSeconds);
+        Assert.Equal(1, quality.Subzones);
+    }
+
     private static byte[] Fixture(bool routeGuid = true)
     {
         var packed = LuaEscape(Gzip("""[{"ev":"login","guid":"Player-5-OLD","t":100},{"ev":"login","guid":"Player-5-PACKED","t":150},{"ev":"pos","t":190}]"""));

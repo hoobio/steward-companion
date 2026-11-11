@@ -222,9 +222,36 @@ public static partial class JourneyFile
             using var json = JsonDocument.Parse(gzip);
             string? Text(JsonElement row, string name) => row.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
             bool Has(JsonElement row, string name) => row.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number;
-            return json.RootElement.EnumerateArray().Where(row => row.ValueKind == JsonValueKind.Object).Select(row => new QualityRow(
-                row.TryGetProperty("t", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetDouble() : null,
-                Text(row, "ev"), Text(row, "sub"), Has(row, "x") && Has(row, "y"), Text(row, "addon"))).ToList();
+            var rows = new List<QualityRow>();
+            foreach (var row in json.RootElement.EnumerateArray().Where(row => row.ValueKind == JsonValueKind.Object))
+            {
+                var t = row.TryGetProperty("t", out var tv) && tv.ValueKind == JsonValueKind.Number ? tv.GetDouble() : (double?)null;
+                var sub = Text(row, "sub");
+                rows.Add(new QualityRow(t, Text(row, "ev"), sub, Has(row, "x") && Has(row, "y"), Text(row, "addon")));
+                if (Text(row, "ev") != "pos" || Text(row, "trk") is not { } trk || t is null || !Has(row, "x") || !Has(row, "y"))
+                {
+                    continue;
+                }
+
+                var time = t.Value;
+                var ux = Math.Round(row.GetProperty("x").GetDouble() * 10000);
+                var uy = Math.Round(row.GetProperty("y").GetDouble() * 10000);
+                foreach (var step in trk.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var parts = step.Split(',');
+                    if (parts.Length != 3 || !double.TryParse(parts[0], CultureInfo.InvariantCulture, out var dt) || !double.TryParse(parts[1], CultureInfo.InvariantCulture, out var dx) || !double.TryParse(parts[2], CultureInfo.InvariantCulture, out var dy))
+                    {
+                        break;
+                    }
+
+                    time += dt;
+                    ux += dx;
+                    uy += dy;
+                    rows.Add(new QualityRow(time, "pos", sub, true, null));
+                }
+            }
+
+            return rows;
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or JsonException or InvalidOperationException)
         {
