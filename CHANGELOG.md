@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.32.0](https://github.com/hoobio/steward-companion/compare/v0.31.3...v0.32.0) (2026-11-12)
+
+
+### Features
+
+* ✨ a failed addon row says Update failed, with a Details link to the full error ([4f06f2e](https://github.com/hoobio/steward-companion/commit/4f06f2e26023cb34c5635e90f047afd40d805fd9))
+
+
+### Bug Fixes
+
+* 🐛 an update replaces an addon's folder whatever it holds, refusing only a name that is not one folder ([da5ecb3](https://github.com/hoobio/steward-companion/commit/da5ecb3cd23f2961fad259e57593c29e5a90477b))
+* 🐛 expand journey track rows when scoring a file for upload ([e51ef89](https://github.com/hoobio/steward-companion/commit/e51ef896a6a17c800f9c3caa3d7d01e07105f0c6))
+* 🐛 the officer roster pull carries the guild's kill on sight list into StewardSync.lua ([a20e8b0](https://github.com/hoobio/steward-companion/commit/a20e8b0e5f76ffe64839a8519b5a3f74f6623024))
+* 🐛 treat Folder-&lt;flavour&gt;.toc as an addon's own TOC, so QuestieTrace installs ([d532460](https://github.com/hoobio/steward-companion/commit/d5324600b4b946fe39e825ddbcefcc6838eab8ce))
+
 ## [0.31.3](https://github.com/hoobio/steward-companion/compare/v0.31.2...v0.31.3) (2026-11-07)
 
 
