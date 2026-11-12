@@ -676,15 +676,15 @@ public sealed class AddonUpdater
 
     public static void RemoveExistingInstall(string addOnsPath, string folderName)
     {
+        if (RemovalRefusal(addOnsPath, folderName) is { } refusal)
+        {
+            throw new InvalidOperationException(refusal);
+        }
+
         var existingPath = Path.Combine(addOnsPath, folderName);
         if (!Directory.Exists(existingPath))
         {
             return;
-        }
-
-        if (RemovalRefusal(addOnsPath, folderName) is { } refusal)
-        {
-            throw new InvalidOperationException(refusal);
         }
 
         foreach (var file in Directory.EnumerateFiles(existingPath, "*", SearchOption.AllDirectories))
@@ -697,11 +697,9 @@ public sealed class AddonUpdater
 
     public static string? RemovalRefusal(string addOnsPath, string folderName)
     {
-        var existingPath = Path.Combine(addOnsPath, folderName);
-        return !Directory.Exists(existingPath) || LocalAddons.TopLevelToc(existingPath, folderName) is not null
-            || !Directory.EnumerateFiles(existingPath, "*", SearchOption.AllDirectories).Any()
-            ? null
-            : $"{existingPath} exists but has no {folderName}.toc or {folderName}_<flavour>.toc or {folderName}-<flavour>.toc; refusing to delete it";
+        return string.IsNullOrWhiteSpace(folderName) || folderName is "." or ".." || folderName.IndexOfAny(['/', '\\', ':']) >= 0
+            ? $"refusing to delete '{folderName}' under {addOnsPath}: not a single folder name"
+            : null;
     }
 
     internal static void ExtractZip(string zipPath, string addOnsPath)

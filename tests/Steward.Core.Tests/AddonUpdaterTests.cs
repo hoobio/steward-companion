@@ -90,14 +90,28 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
-    public void RemoveExistingInstall_Throws_WhenExistingFolderHasNoToc()
+    public void RemoveExistingInstall_Deletes_WhenExistingFolderHasNoToc()
     {
         var addOnsPath = Path.Combine(_tempDir, "AddOns");
         Directory.CreateDirectory(Path.Combine(addOnsPath, FolderName));
         File.WriteAllText(Path.Combine(addOnsPath, FolderName, "notes.txt"), "hi");
 
-        Assert.Throws<InvalidOperationException>(() => AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName));
-        Assert.True(Directory.Exists(Path.Combine(addOnsPath, FolderName)));
+        AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName);
+
+        Assert.False(Directory.Exists(Path.Combine(addOnsPath, FolderName)));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("..")]
+    [InlineData(@"a\b")]
+    public void RemoveExistingInstall_Throws_OnAnUnsafeFolderName(string folderName)
+    {
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        File.WriteAllText(Path.Combine(Directory.CreateDirectory(addOnsPath).FullName, "keep.txt"), "hi");
+
+        Assert.Throws<InvalidOperationException>(() => AddonUpdater.RemoveExistingInstall(addOnsPath, folderName));
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "keep.txt")));
     }
 
     [Fact]
@@ -183,19 +197,6 @@ public sealed class AddonUpdaterTests : IDisposable
         AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName);
 
         Assert.False(Directory.Exists(existing));
-    }
-
-    [Fact]
-    public void RemoveExistingInstall_Throws_WhenOnlyAnotherFoldersTocPresent()
-    {
-        var addOnsPath = Path.Combine(_tempDir, "AddOns");
-        var existing = Path.Combine(addOnsPath, FolderName);
-        Directory.CreateDirectory(existing);
-        File.WriteAllText(Path.Combine(existing, "Other_Forever.toc"), "## Version: 0.9.0");
-        File.WriteAllText(Path.Combine(existing, "Other.toc"), "## Version: 0.9.0");
-
-        Assert.Throws<InvalidOperationException>(() => AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName));
-        Assert.True(Directory.Exists(existing));
     }
 
     private sealed class ZipBytesStubHandler(Uri expectedUri, byte[] zipBytes) : HttpMessageHandler
@@ -463,12 +464,12 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
-    public async Task InstallAsync_OneFolderFailsTocGuard_DeletesNone()
+    public async Task InstallAsync_OneUnsafeFolderName_DeletesNone()
     {
         var (updater, _, addOnsPath, sha256) = await QuestieSetupAsync("QuestieDB/QuestieDB.toc", "Questie/Questie.toc");
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
         WriteInstalled(addOnsPath, "QuestieDB", "notes.txt");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Folders: ["Questie", "QuestieDB"]);
+        var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Folders: ["Questie", "QuestieDB", ".."]);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken));
@@ -535,13 +536,13 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
-    public void Uninstall_AnyFolderFailingTocGuard_DeletesNone()
+    public void Uninstall_AnyUnsafeFolderName_DeletesNone()
     {
         var addOnsPath = Path.Combine(_tempDir, "AddOns");
         WriteInstalled(addOnsPath, "Questie", "Questie.toc");
         WriteInstalled(addOnsPath, "QuestieDB", "Questie_Forever.toc");
 
-        Assert.Throws<InvalidOperationException>(() => AddonUpdater.Uninstall(addOnsPath, ["Questie", "QuestieDB"]));
+        Assert.Throws<InvalidOperationException>(() => AddonUpdater.Uninstall(addOnsPath, ["Questie", "QuestieDB", ".."]));
 
         Assert.True(Directory.Exists(Path.Combine(addOnsPath, "Questie")));
         Assert.True(Directory.Exists(Path.Combine(addOnsPath, "QuestieDB")));

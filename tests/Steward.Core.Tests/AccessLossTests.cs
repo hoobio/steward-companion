@@ -361,22 +361,6 @@ public sealed class AccessLossTests : IDisposable
     }
 
     [Fact]
-    public void RemoveDue_FolderWithoutItsOwnToc_IsRefusedAndForgotten()
-    {
-        var folder = MakeAddon("HoobiScripts", withToc: false);
-        var state = StateWith("hoobiscripts");
-        state = state with { LostAccess = AccessLoss.Revoke(state, [Addon("hoobiscripts", "Protected")], Now) };
-        Exception? failure = null;
-
-        var removed = AccessLoss.RemoveDue(state, _ => false, (_, ex) => failure = ex);
-
-        Assert.Empty(removed);
-        Assert.IsType<InvalidOperationException>(failure);
-        Assert.True(Directory.Exists(folder));
-        Assert.Empty(state.LostAccess);
-    }
-
-    [Fact]
     public void LostAccess_SerialisesUnderItsOwnKey()
     {
         var state = StateWith("hoobiscripts");
