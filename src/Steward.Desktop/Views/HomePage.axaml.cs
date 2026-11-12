@@ -54,7 +54,6 @@ public sealed partial class HomePage : UserControl
     private const string CompactColumnId = "channel";
     private const int VersionIndex = 2;
     private const double VersionLineSpacing = 4;
-    private const double WidePageMinWidth = 900;
 
     private readonly Dictionary<Border, INotifyPropertyChanged?> _tableRows = [];
     private readonly TextBlock _versionMeasure = new() { TextWrapping = TextWrapping.NoWrap };
@@ -66,16 +65,12 @@ public sealed partial class HomePage : UserControl
     private double _sourceNeed;
     private double _statusWidth;
     private bool _needsQueued;
-    private bool _isWidePage = true;
 
     public HomePage(MainViewModel viewModel)
     {
         ViewModel = viewModel;
         DataContext = viewModel;
         InitializeComponent();
-        viewModel.PropertyChanged += OnViewModelPropertyChanged;
-        SizeChanged += (_, _) => UpdateWidePage();
-        UpdateCheckedLabel();
     }
 
     public MainViewModel ViewModel { get; }
@@ -140,25 +135,6 @@ public sealed partial class HomePage : UserControl
 
         return need;
     }
-
-    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(MainViewModel.CheckedStaleVisibility) or null)
-        {
-            UpdateCheckedLabel();
-        }
-    }
-
-    private void UpdateWidePage()
-    {
-        if (TopLevel.GetTopLevel(this) is { } top)
-        {
-            _isWidePage = top.ClientSize.Width >= WidePageMinWidth;
-            UpdateCheckedLabel();
-        }
-    }
-
-    private void UpdateCheckedLabel() => CheckedLabel.IsVisible = _isWidePage && ViewModel.CheckedStaleVisibility;
 
     private IEnumerable<Border> AllRows() => _tableRows.Keys.Append(TableHeader);
 

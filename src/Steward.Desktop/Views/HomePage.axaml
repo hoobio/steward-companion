@@ -228,13 +228,6 @@
                         IsVisible="{Binding DefaultOrderVisibility}" />
 
                     <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock
-                            x:Name="CheckedLabel"
-                            Text="{Binding CheckedText}"
-                            FontSize="12"
-                            VerticalAlignment="Center"
-                            Foreground="{DynamicResource SystemFillColorCautionBrush}" />
-
                         <Button
                             Width="32"
                             Height="32"
@@ -243,11 +236,23 @@
                             Command="{Binding RefreshCommand}"
                             AutomationProperties.Name="Check for updates"
                             ToolTip.Tip="{Binding CheckedText}">
-                            <TextBlock
-                                Classes="Glyph"
-                                Text="{StaticResource Glyph.Refresh}"
-                                FontSize="14"
-                                views:Spinner.IsSpinning="{Binding RefreshCommand.IsRunning}" />
+                            <Panel Width="32" Height="32">
+                                <TextBlock
+                                    Classes="Glyph"
+                                    Text="{StaticResource Glyph.Refresh}"
+                                    FontSize="14"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    views:Spinner.IsSpinning="{Binding RefreshCommand.IsRunning}" />
+                                <Ellipse
+                                    Width="7"
+                                    Height="7"
+                                    Margin="0,6,6,0"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Fill="{DynamicResource SystemFillColorCautionBrush}"
+                                    IsVisible="{Binding CheckedStaleVisibility}" />
+                            </Panel>
                         </Button>
 
                         <StackPanel
