@@ -14,7 +14,7 @@ public static class TocTime
         {
             var toc = File.Exists(exact)
                 ? exact
-                : Directory.Exists(folder) ? Directory.EnumerateFiles(folder, folderName + "_*.toc").Order(StringComparer.Ordinal).FirstOrDefault() : null;
+                : Directory.Exists(folder) ? LocalAddons.FlavourTocs(folder, folderName).FirstOrDefault() : null;
             return toc is null ? null : new DateTimeOffset(File.GetLastWriteTimeUtc(toc), TimeSpan.Zero);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

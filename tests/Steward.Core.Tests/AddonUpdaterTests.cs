@@ -173,6 +173,19 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
+    public void RemoveExistingInstall_Deletes_WhenOnlyAHyphenFlavourTocPresent()
+    {
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        var existing = Path.Combine(addOnsPath, FolderName);
+        Directory.CreateDirectory(existing);
+        File.WriteAllText(Path.Combine(existing, $"{FolderName}-Camelot.toc"), "## Version: 0.9.0");
+
+        AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName);
+
+        Assert.False(Directory.Exists(existing));
+    }
+
+    [Fact]
     public void RemoveExistingInstall_Throws_WhenOnlyAnotherFoldersTocPresent()
     {
         var addOnsPath = Path.Combine(_tempDir, "AddOns");

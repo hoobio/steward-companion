@@ -701,7 +701,7 @@ public sealed class AddonUpdater
         return !Directory.Exists(existingPath) || LocalAddons.TopLevelToc(existingPath, folderName) is not null
             || !Directory.EnumerateFiles(existingPath, "*", SearchOption.AllDirectories).Any()
             ? null
-            : $"{existingPath} exists but has no {folderName}.toc or {folderName}_<flavour>.toc; refusing to delete it";
+            : $"{existingPath} exists but has no {folderName}.toc or {folderName}_<flavour>.toc or {folderName}-<flavour>.toc; refusing to delete it";
     }
 
     internal static void ExtractZip(string zipPath, string addOnsPath)

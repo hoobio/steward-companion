@@ -16,7 +16,7 @@ public static class GeneratedAddonIcon
     public static IReadOnlyList<string> TopLevelTocs(string folderPath, string folderName) =>
     [
         .. new[] { Path.Combine(folderPath, folderName + ".toc") }.Where(File.Exists),
-        .. Directory.EnumerateFiles(folderPath, folderName + "_*.toc").Order(StringComparer.Ordinal),
+        .. LocalAddons.FlavourTocs(folderPath, folderName),
     ];
 
     public static AddonIconPlan? Plan(string addOnsPath, string folderName)

@@ -61,9 +61,7 @@ public static class AddonIcon
             return directive;
         }
 
-        var fallback = Directory.GetFiles(addonDir, $"{folderName}_*.toc")
-            .OrderBy(path => Path.GetFileName(path), StringComparer.Ordinal)
-            .FirstOrDefault();
+        var fallback = LocalAddons.FlavourTocs(addonDir, folderName).FirstOrDefault();
 
         return fallback is null ? null : TocFile.ReadDirective(fallback, "IconTexture");
     }

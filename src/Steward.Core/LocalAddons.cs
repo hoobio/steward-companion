@@ -97,12 +97,16 @@ public static class LocalAddons
         return Directory.Exists(folderPath) && TopLevelToc(folderPath, folderName) is not null;
     }
 
+    // The client takes both separators: QuestieTrace ships only QuestieTrace-Camelot.toc.
+    public static List<string> FlavourTocs(string folderPath, string folderName) =>
+        [.. Directory.EnumerateFiles(folderPath, folderName + "_*.toc")
+            .Concat(Directory.EnumerateFiles(folderPath, folderName + "-*.toc"))
+            .OrderBy(Path.GetFileName, StringComparer.Ordinal)];
+
     public static string? TopLevelToc(string folderPath, string folderName, int? clientInterface = null)
     {
         var exact = Path.Combine(folderPath, folderName + ".toc");
-        var suffixed = Directory.EnumerateFiles(folderPath, folderName + "_*.toc")
-            .OrderBy(Path.GetFileName, StringComparer.Ordinal)
-            .ToList();
+        var suffixed = FlavourTocs(folderPath, folderName);
 
         if (clientInterface is { } client)
         {
