@@ -526,12 +526,37 @@
                                                     TextWrapping="Wrap"
                                                     Foreground="{DynamicResource SystemFillColorSuccessBrush}"
                                                     IsVisible="{Binding ReloadHintVisibility}" />
-                                                <TextBlock
-                                                    Classes="Caption"
-                                                    Text="{Binding StatusMessage}"
-                                                    TextWrapping="Wrap"
-                                                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
-                                                    IsVisible="{Binding FailedMessageVisibility}" />
+                                                <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding FailedMessageVisibility}">
+                                                    <TextBlock
+                                                        Classes="Caption"
+                                                        Text="{Binding StatusMessage}"
+                                                        TextWrapping="Wrap"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                                                    <HyperlinkButton
+                                                        Padding="0"
+                                                        MinHeight="0"
+                                                        FontSize="12"
+                                                        VerticalAlignment="Center"
+                                                        Content="Details"
+                                                        AutomationProperties.Name="Show the full error"
+                                                        IsVisible="{Binding HasFailureDetail}">
+                                                        <HyperlinkButton.Flyout>
+                                                            <Flyout Placement="Bottom" FlyoutPresenterClasses="Tinted">
+                                                                <TextBox
+                                                                    Text="{Binding FailureDetail, Mode=OneWay}"
+                                                                    IsReadOnly="True"
+                                                                    AcceptsReturn="True"
+                                                                    TextWrapping="Wrap"
+                                                                    FontFamily="{StaticResource MonoFontFamily}"
+                                                                    FontSize="11"
+                                                                    Width="560"
+                                                                    MaxHeight="320"
+                                                                    ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                                                            </Flyout>
+                                                        </HyperlinkButton.Flyout>
+                                                    </HyperlinkButton>
+                                                </StackPanel>
                                                 <TextBlock
                                                     Classes="Caption"
                                                     Text="{Binding UninstallError}"

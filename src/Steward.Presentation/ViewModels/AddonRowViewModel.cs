@@ -326,6 +326,12 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public partial string? StatusMessage { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFailureDetail))]
+    public partial string? FailureDetail { get; set; }
+
+    public bool HasFailureDetail => !string.IsNullOrEmpty(FailureDetail);
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ReloadHintVisibility))]
     public partial bool NeedsReload { get; set; }
 
@@ -684,7 +690,15 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     partial void OnIsBusyChanged(bool value) => NotifyDerived();
 
-    partial void OnHasFailedChanged(bool value) => NotifyDerived();
+    partial void OnHasFailedChanged(bool value)
+    {
+        if (!value)
+        {
+            FailureDetail = null;
+        }
+
+        NotifyDerived();
+    }
 
     partial void OnStatusMessageChanged(string? value) => NotifyDerived();
 
@@ -740,6 +754,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             {
                 HasFailed = true;
                 StatusMessage = $"{child.DisplayName}: {child.StatusMessage}";
+                FailureDetail = child.FailureDetail;
                 return;
             }
 
@@ -808,7 +823,8 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         catch (Exception ex)
         {
             HasFailed = true;
-            StatusMessage = $"Update failed: {ex.Message}";
+            StatusMessage = "Update failed.";
+            FailureDetail = ex.ToString();
         }
         finally
         {
