@@ -52,7 +52,8 @@ public sealed record GuildRosterResponse(
     [property: JsonPropertyName("origins")] IReadOnlyList<OriginDef>? Origins,
     [property: JsonPropertyName("rank_targets")] IReadOnlyDictionary<string, int>? RankTargets = null,
     [property: JsonPropertyName("rank_locked")] IReadOnlyList<int>? RankLocked = null,
-    [property: JsonPropertyName("kos")] KosList? Kos = null);
+    [property: JsonPropertyName("kos")] KosList? Kos = null,
+    [property: JsonPropertyName("attunements")] IReadOnlyDictionary<string, IReadOnlyList<string>>? Attunements = null);
 
 public sealed record KosEntry(
     [property: JsonPropertyName("name")] string Name,
@@ -744,5 +745,7 @@ public sealed record SyncPayload(
     public IReadOnlyList<int>? RankLocked { get; init; }
 
     public KosList? Kos { get; init; }
+
+    public IReadOnlyDictionary<string, IReadOnlyList<string>>? Attunements { get; init; }
 }
 

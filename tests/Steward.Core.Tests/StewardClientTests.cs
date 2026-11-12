@@ -46,7 +46,8 @@ public sealed class StewardClientTests
         {"name":"Raider","color":"#00ff00","role_id":null,"position":1}],
         "origins":[{"name":"EU","color":"#1d7fd6","position":0}],
         "rank_targets":{"Player-4395-0A1B2C3D":4},"rank_locked":[5,7],
-        "kos":{"players":[{"name":"Gankface","note":"camps the flight path"},{"name":"Quiet","note":null}],"guilds":null}}
+        "kos":{"players":[{"name":"Gankface","note":"camps the flight path"},{"name":"Quiet","note":null}],"guilds":null},
+        "attunements":{"onyxia":["Player-4395-0A1B2C3D"]}}
         """;
 
     private const string MembersBody =
@@ -57,7 +58,7 @@ public sealed class StewardClientTests
     {
         var (client, handler) = ClientFor(HttpStatusCode.OK, RosterBody);
 
-        var (members, statuses, origins, rankTargets, rankLocked, kos) = await client.GetGuildRosterAsync("1", CancellationToken.None);
+        var (members, statuses, origins, rankTargets, rankLocked, kos, attunements) = await client.GetGuildRosterAsync("1", CancellationToken.None);
 
         Assert.Equal("https://api.example.com/guild/api/admin/1/roster", handler.RequestUrl);
         var member = Assert.Single(members);
@@ -76,6 +77,7 @@ public sealed class StewardClientTests
         Assert.Equal("camps the flight path", kos.Players![0].Note);
         Assert.Null(kos.Players[1].Note);
         Assert.Empty(kos.Guilds ?? []);
+        Assert.Equal(["Player-4395-0A1B2C3D"], Assert.Contains("onyxia", attunements!));
     }
 
     [Fact]
@@ -91,7 +93,7 @@ public sealed class StewardClientTests
             """;
         var (client, _) = ClientFor(HttpStatusCode.OK, body);
 
-        var (members, _, _, _, _, _) = await client.GetGuildRosterAsync("1", CancellationToken.None);
+        var (members, _, _, _, _, _, _) = await client.GetGuildRosterAsync("1", CancellationToken.None);
 
         var main = Assert.Single(members).Main;
         Assert.Equal("Player-4619-00B33CCD", main?.CharacterGuid);
@@ -105,13 +107,14 @@ public sealed class StewardClientTests
     {
         var (client, _) = ClientFor(HttpStatusCode.OK, """{"members":[]}""");
 
-        var (_, statuses, origins, rankTargets, rankLocked, kos) = await client.GetGuildRosterAsync("1", CancellationToken.None);
+        var (_, statuses, origins, rankTargets, rankLocked, kos, attunements) = await client.GetGuildRosterAsync("1", CancellationToken.None);
 
         Assert.Empty(statuses);
         Assert.Empty(origins);
         Assert.Null(rankTargets);
         Assert.Null(rankLocked);
         Assert.Null(kos);
+        Assert.Null(attunements);
     }
 
     [Fact]

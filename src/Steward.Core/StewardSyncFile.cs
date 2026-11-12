@@ -267,6 +267,13 @@ public static class StewardSyncFile
             ])));
         }
 
+        if (payload.Attunements is { } attunements)
+        {
+            entries.Add(new(LuaValue.FromString("attunements"), LuaValue.FromTable(
+                [.. attunements.OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                    .Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(LuaValue.FromString))))])));
+        }
+
         return LuaValue.FromTable(entries);
     }
 

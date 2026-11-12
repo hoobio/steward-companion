@@ -248,6 +248,34 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
+    public void Render_WritesAttunementsAfterKos_KeysSorted_GuidsInServerOrder_AndOmitsTheKeyWhenTheServerSentNone()
+    {
+        var payload = SamplePayload() with
+        {
+            Kos = new KosList([], []),
+            Attunements = new Dictionary<string, IReadOnlyList<string>>
+            {
+                ["onyxia"] = ["Player-1-0000000B", "Player-1-0000000A"],
+                ["blackwing"] = [],
+            },
+        };
+
+        var rendered = StewardSyncFile.Render(payload);
+
+        const string Expected =
+            "\t[\"attunements\"] = {\n"
+            + "\t\t[\"blackwing\"] = {\n\t\t},\n"
+            + "\t\t[\"onyxia\"] = {\n\t\t\t\"Player-1-0000000B\",\n\t\t\t\"Player-1-0000000A\",\n\t\t},\n"
+            + "\t},";
+        Assert.Contains("\t\t[\"guilds\"] = {\n\t\t},\n\t},\n" + Expected, rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("attunements", StewardSyncFile.Render(SamplePayload()), StringComparison.Ordinal);
+        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
+        Assert.NotEqual(
+            StewardSyncFile.Fingerprint(payload),
+            StewardSyncFile.Fingerprint(payload with { Attunements = new Dictionary<string, IReadOnlyList<string>> { ["onyxia"] = [] } }));
+    }
+
+    [Fact]
     public void Render_WritesEmptyKosTables_SoAClearedListReachesTheAddon()
     {
         var payload = SamplePayload() with { Kos = new KosList([], []) };
