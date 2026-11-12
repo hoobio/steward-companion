@@ -525,12 +525,6 @@
                                                         <TextBlock Text="{Binding ExtraFoldersText}" />
                                                     </HyperlinkButton>
                                                 </Grid>
-                                                <TextBlock
-                                                    Classes="Caption"
-                                                    Text="/reload in-game to update"
-                                                    TextWrapping="Wrap"
-                                                    Foreground="{DynamicResource SystemFillColorSuccessBrush}"
-                                                    IsVisible="{Binding ReloadHintVisibility}" />
                                                 <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding FailedMessageVisibility}">
                                                     <TextBlock
                                                         Classes="Caption"

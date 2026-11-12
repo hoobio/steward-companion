@@ -274,14 +274,6 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         }
 
         Client = client;
-        foreach (var row in AddonRows)
-        {
-            row.IsClientRunning = IsClientRunning;
-            if (row.NeedsReload && (!IsClientRunning || SavedVariablesFreshness.WrittenSince(Install.FlavourPath, row.ReloadPendingSince)))
-            {
-                row.NeedsReload = false;
-            }
-        }
     }
 
     public void Dispose() => StopWatching();

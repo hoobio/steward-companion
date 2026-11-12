@@ -332,10 +332,6 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public bool HasFailureDetail => !string.IsNullOrEmpty(FailureDetail);
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ReloadHintVisibility))]
-    public partial bool NeedsReload { get; set; }
-
-    [ObservableProperty]
     public partial bool IsHidden { get; set; }
 
     [ObservableProperty]
@@ -354,12 +350,6 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public bool RestedXpSignInVisibility =>
         NeedsRestedXpSignIn && IsInstalled && !IsHidden && HasGuidesFeature
         && !ActionVisibility && State != AddonRowState.Failed;
-
-    public bool IsClientRunning { get; set; }
-
-    public DateTimeOffset ReloadPendingSince { get; private set; }
-
-    public bool ReloadHintVisibility => NeedsReload;
 
     public bool CanAutoApply => IsAdmin && IsDistributable
         && (State == AddonRowState.UpdateAvailable || (State == AddonRowState.Missing && _addon.AutoInstall));
@@ -757,9 +747,6 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
                 FailureDetail = child.FailureDetail;
                 return;
             }
-
-            ReloadPendingSince = child.ReloadPendingSince;
-            NeedsReload = child.NeedsReload;
         }
     }
 
@@ -811,8 +798,6 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             WriteThemeFile();
 
             RefreshInstalledVersion();
-            ReloadPendingSince = DateTimeOffset.Now;
-            NeedsReload = IsClientRunning;
 
             if (string.Equals(AddonId, StewardSavedVariables.AddonName, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(AddonId, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase))
@@ -885,7 +870,6 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             foreach (var member in members)
             {
                 member.IsIgnored = false;
-                member.NeedsReload = false;
                 member.HasFailed = false;
                 member.UninstallError = null;
                 member.RefreshInstalledVersion();

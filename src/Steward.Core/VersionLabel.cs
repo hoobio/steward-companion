@@ -2,7 +2,14 @@ namespace Steward.Core;
 
 public static class VersionLabel
 {
-    public static string? For(string? version, string folderName)
+    public const int MaxLength = 16;
+
+    public static string? For(string? version, string folderName) => Shorten(Strip(version, folderName));
+
+    private static string? Shorten(string? label) =>
+        label is { Length: > MaxLength } ? $"{label[..9]}…{label[^6..]}" : label;
+
+    private static string? Strip(string? version, string folderName)
     {
         if (version is null)
         {

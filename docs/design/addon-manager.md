@@ -78,7 +78,7 @@ Source for a configured addon comes from a new `Source` field on its `Addons` en
 
 ### Version cell
 
-Versions are shown through `VersionLabel.For`, display only: `-pre-release.` reads as `-`, a trailing `.zip` is dropped, and a version starting with the addon's folder name is shown from its first digit (`BetterForeverChat-0.12.6-alpha.zip` reads `0.12.6-alpha`). The changelog button's tooltip carries each original version that was shortened, above "Changelog".
+Versions are shown through `VersionLabel.For`, display only: `-pre-release.` reads as `-`, a trailing `.zip` is dropped, and a version starting with the addon's folder name is shown from its first digit (`BetterForeverChat-0.12.6-alpha.zip` reads `0.12.6-alpha`), and a label over 16 characters (`VersionLabel.MaxLength`) keeps its first 9 and last 6 around an ellipsis. The changelog button's tooltip carries each original version that was shortened, above "Changelog".
 
 | State | Version cell | Status cell |
 | --- | --- | --- |
