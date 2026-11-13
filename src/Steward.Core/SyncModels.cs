@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Steward.Core;
@@ -116,6 +118,8 @@ public sealed record SavedVariablesSnapshot(
 {
     public IReadOnlyDictionary<string, CharacterGear> Gear { get; init; } = new Dictionary<string, CharacterGear>();
 
+    public IReadOnlyDictionary<string, JsonObject> Forwarded { get; init; } = new Dictionary<string, JsonObject>();
+
     public bool HasExportedData => Characters.Count > 0 || Professions.Count > 0 || Catalogue.Count > 0 || GuildRanks is not null;
 
     public SyncExportState ExportState => true switch
@@ -180,7 +184,11 @@ public sealed record CharacterSyncEntry(
     [property: JsonPropertyName("gender"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Gender = null,
     [property: JsonPropertyName("gear"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CharacterGear? Gear = null,
     [property: JsonPropertyName("fp"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Fp = null,
-    [property: JsonPropertyName("addonVersion"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AddonVersion = null);
+    [property: JsonPropertyName("addonVersion"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? AddonVersion = null)
+{
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Forwarded { get; set; }
+}
 
 public static class ProfessionsSchema
 {
@@ -499,7 +507,8 @@ public static class CharacterSyncMapping
     public static CharacterSyncEntry ToEntry(
         CharacterObservation observation,
         IReadOnlyDictionary<string, CharacterProfessions> professions,
-        IReadOnlyDictionary<string, CharacterGear>? gear = null) => new(
+        IReadOnlyDictionary<string, CharacterGear>? gear = null,
+        IReadOnlyDictionary<string, JsonObject>? forwarded = null) => new(
         observation.CharacterGuid,
         observation.Name,
         observation.Realm,
@@ -517,7 +526,16 @@ public static class CharacterSyncMapping
         observation.Gender,
         gear?.GetValueOrDefault(observation.CharacterGuid),
         observation.Fp,
-        observation.AddonVersion);
+        observation.AddonVersion)
+    {
+        Forwarded = forwarded?.GetValueOrDefault(observation.CharacterGuid)?.ToDictionary(record => record.Key, record => ToElement(record.Value), StringComparer.Ordinal),
+    };
+
+    private static JsonElement ToElement(JsonNode? node)
+    {
+        using var document = JsonDocument.Parse(node?.ToJsonString() ?? "null");
+        return document.RootElement.Clone();
+    }
 
     public static GuildRanksSync ToSync(GuildRanks ranks) => new(
         ranks.Realm,
@@ -544,7 +562,7 @@ public static class CharacterSyncMapping
             : snapshot.GuildRanks;
         var fingerprint = !snapshot.HasAccountData || (allowedGuilds is not null && characters.Count == 0) ? null
             : allowedGuilds is null && !professionsOnly ? snapshot.CharactersFingerprint
-            : Fingerprint(characters, snapshot.Professions, snapshot.Catalogue, guildRanks, snapshot.Gear);
+            : Fingerprint(characters, snapshot.Professions, snapshot.Catalogue, guildRanks, snapshot.Gear, snapshot.Forwarded);
         return new CharacterPushScope(characters, guildRanks, fingerprint);
     }
 
@@ -564,26 +582,33 @@ public static class CharacterSyncMapping
         IReadOnlyDictionary<string, CharacterProfessions> professions,
         IReadOnlyDictionary<string, ProfessionCatalogue>? catalogue = null,
         GuildRanks? guildRanks = null,
-        IReadOnlyDictionary<string, CharacterGear>? gear = null)
+        IReadOnlyDictionary<string, CharacterGear>? gear = null,
+        IReadOnlyDictionary<string, JsonObject>? forwarded = null)
     {
         var canonicalProfessions = professions.ToDictionary(entry => entry.Key, entry => Canonical(entry.Value), StringComparer.Ordinal);
         var canonicalGear = gear?.ToDictionary(entry => entry.Key, entry => Canonical(entry.Value), StringComparer.Ordinal);
+        var canonicalForwarded = forwarded?.ToDictionary(entry => entry.Key, entry => Canonical(entry.Value), StringComparer.Ordinal);
         var canonical = new CharacterSyncRequest(
             string.Empty,
             string.Empty,
             [.. characters.OrderBy(c => c.CharacterGuid, StringComparer.Ordinal)
-                .Select(c => ToEntry(c with { ObservedAt = null, Fp = null, AddonVersion = null }, canonicalProfessions, canonicalGear))],
+                .Select(c => ToEntry(c with { ObservedAt = null, Fp = null, AddonVersion = null }, canonicalProfessions, canonicalGear, canonicalForwarded))],
             catalogue is null or { Count: 0 } ? null : Sorted(catalogue, entry => entry with { ScannedAt = null, Fp = null, AddonVersion = null }),
             guildRanks is null ? null : ToSync(guildRanks) with { ObservedAt = null, Fp = null, AddonVersion = null });
         return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonical, CompanionJsonContext.Default.CharacterSyncRequest)));
     }
 
-    public static string ProfessionsFingerprint(CharacterProfessions professions, CharacterGear? gear = null)
+    public static string ProfessionsFingerprint(CharacterProfessions professions, CharacterGear? gear = null, JsonObject? forwarded = null)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(Canonical(professions), CompanionJsonContext.Default.CharacterProfessions);
         if (gear is not null)
         {
             bytes = [.. bytes, .. JsonSerializer.SerializeToUtf8Bytes(Canonical(gear), CompanionJsonContext.Default.CharacterGear)];
+        }
+
+        if (forwarded is not null)
+        {
+            bytes = [.. bytes, .. Encoding.UTF8.GetBytes(Canonical(forwarded).ToJsonString())];
         }
 
         return Convert.ToHexString(SHA256.HashData(bytes));
@@ -608,6 +633,19 @@ public static class CharacterSyncMapping
         AddonVersion = null,
         Bank = gear.Bank is null ? null : gear.Bank with { ObservedAt = null, Fp = null },
     };
+
+    private static JsonObject Canonical(JsonObject forwarded)
+    {
+        var clone = (JsonObject)forwarded.DeepClone();
+        foreach (var record in clone.Select(entry => entry.Value).OfType<JsonObject>().ToList())
+        {
+            record.Remove("observedAt");
+            record.Remove("fp");
+            record.Remove("addonVersion");
+        }
+
+        return clone;
+    }
 
     private static SortedDictionary<string, T> Sorted<T>(IReadOnlyDictionary<string, T> source, Func<T, T> canonicalise) =>
         new(source.ToDictionary(entry => entry.Key, entry => canonicalise(entry.Value), StringComparer.Ordinal), StringComparer.Ordinal);
@@ -652,11 +690,12 @@ public static class ProfessionsPushSelection
         IReadOnlyList<DirectoryCharacter>? rosterCharacters,
         string? myUserId,
         bool force,
-        IReadOnlyDictionary<string, CharacterGear>? gear = null)
+        IReadOnlyDictionary<string, CharacterGear>? gear = null,
+        IReadOnlyDictionary<string, JsonObject>? forwarded = null)
     {
         var fingerprints = characters.ToDictionary(
             c => c.CharacterGuid,
-            c => CharacterSyncMapping.ProfessionsFingerprint(professions[c.CharacterGuid], gear?.GetValueOrDefault(c.CharacterGuid)),
+            c => CharacterSyncMapping.ProfessionsFingerprint(professions[c.CharacterGuid], gear?.GetValueOrDefault(c.CharacterGuid), forwarded?.GetValueOrDefault(c.CharacterGuid)),
             StringComparer.Ordinal);
         var catalogueFingerprint = catalogue.Count == 0 ? null : CharacterSyncMapping.CatalogueFingerprint(catalogue);
         var selected = characters

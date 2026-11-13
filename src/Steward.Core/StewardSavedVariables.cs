@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Text.Json.Nodes;
 
 namespace Steward.Core;
 
@@ -9,6 +10,8 @@ public static class StewardSavedVariables
 
     private const string AccountGlobal = "StewardDB";
     private const string CharacterGlobal = "StewardCharDB";
+
+    private static readonly string[] ForwardedKeys = ["talents"];
 
     public static IReadOnlyList<string> FindFiles(string flavourPath)
     {
@@ -74,6 +77,7 @@ public static class StewardSavedVariables
         var professions = new List<(string Id, DateTimeOffset Rank, CharacterProfessions Item)>();
         var catalogue = new List<(string Id, DateTimeOffset Rank, ProfessionCatalogue Item)>();
         var gear = new List<(string Id, DateTimeOffset Rank, CharacterGear Item)>();
+        var forwarded = ForwardedKeys.ToDictionary(key => key, _ => new List<(string Id, DateTimeOffset Rank, JsonObject Item)>(), StringComparer.Ordinal);
         var scans = new List<FileScan>();
         GuildRanks? guildRanks = null;
         var hasAccount = false;
@@ -107,9 +111,15 @@ public static class StewardSavedVariables
                     .Select(p => (p.Guid, ToTimestamp(p.Professions.ObservedAt) ?? DateTimeOffset.MinValue, p.Professions)));
                 gear.AddRange(fileGear
                     .Select(g => (g.Guid, ToTimestamp(g.Gear.ObservedAt) ?? DateTimeOffset.MinValue, g.Gear)));
+                var fileForwarded = ForwardedKeys.ToDictionary(key => key, key => MapForwardedByGuid(WithNested(account.GetTable(key), characterTable, key)), StringComparer.Ordinal);
+                foreach (var (key, records) in fileForwarded)
+                {
+                    forwarded[key].AddRange(records);
+                }
+
                 scans.Add(new FileScan(
                     fileCharacters,
-                    [.. fileProfessions.Select(p => p.Guid), .. fileGear.Select(g => g.Guid)],
+                    [.. fileProfessions.Select(p => p.Guid), .. fileGear.Select(g => g.Guid), .. fileForwarded.Values.SelectMany(records => records.Select(r => r.Id))],
                     MapGuildRanks(account.GetTable("guildRanks"), ref skipped)));
                 catalogue.AddRange(MapCatalogueByProfession(account.GetTable("catalogue"), ref skipped)
                     .Select(c => (c.Profession, ToTimestamp(c.Catalogue.ScannedAt) ?? DateTimeOffset.MinValue, c.Catalogue)));
@@ -137,6 +147,15 @@ public static class StewardSavedVariables
         var dedupedProfessions = DedupeByKey(professions);
         var dedupedCatalogue = DedupeByKey(catalogue);
         var dedupedGear = DedupeByKey(gear);
+        var forwardedByGuid = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
+        foreach (var (key, records) in forwarded)
+        {
+            foreach (var (guid, record) in DedupeByKey(records))
+            {
+                (forwardedByGuid.TryGetValue(guid, out var container) ? container : forwardedByGuid[guid] = new JsonObject())[key] = record;
+            }
+        }
+
         return new SavedVariablesSnapshot(
             descriptors,
             descriptors.Select(f => f.ExportedAt).Max(),
@@ -145,7 +164,7 @@ public static class StewardSavedVariables
             Dedupe(attendance),
             skipped,
             dedupedCharacters,
-            hasAccount ? CharacterSyncMapping.Fingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue, guildRanks, dedupedGear) : null,
+            hasAccount ? CharacterSyncMapping.Fingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue, guildRanks, dedupedGear, forwardedByGuid) : null,
             dedupedProfessions,
             dedupedCatalogue,
             guildRanks,
@@ -153,6 +172,7 @@ public static class StewardSavedVariables
             outdatedProfessions)
         {
             Gear = dedupedGear,
+            Forwarded = forwardedByGuid,
         };
     }
 
@@ -311,7 +331,7 @@ public static class StewardSavedVariables
             var record = entry.Key is { Kind: LuaKind.Text } key && entry.Value.Kind is LuaKind.Table
                 ? MapCharacter(key.Text!, entry.Value)
                 : null;
-            if (record is null && entry.Value.Get("name") is null && (entry.Value.Get("professions") ?? entry.Value.Get("gear")) is not null)
+            if (record is null && entry.Value.Get("name") is null && (entry.Value.Get("professions") ?? entry.Value.Get("gear") ?? ForwardedKeys.Select(entry.Value.Get).FirstOrDefault(v => v is not null)) is not null)
             {
                 continue;
             }
@@ -466,6 +486,49 @@ public static class StewardSavedVariables
         }
 
         return mapped;
+    }
+
+    private static List<(string Id, DateTimeOffset Rank, JsonObject Item)> MapForwardedByGuid(LuaValue table)
+    {
+        var mapped = new List<(string, DateTimeOffset, JsonObject)>();
+        foreach (var entry in table.Table)
+        {
+            if (entry.Key is { Kind: LuaKind.Text } key && entry.Value.Kind is LuaKind.Table && ToJson(entry.Value) is JsonObject record)
+            {
+                mapped.Add((key.Text!, ToTimestamp(entry.Value.GetNumber("observedAt")) ?? DateTimeOffset.MinValue, record));
+            }
+        }
+
+        return mapped;
+    }
+
+    private static JsonNode? ToJson(LuaValue value)
+    {
+        switch (value.Kind)
+        {
+            case LuaKind.Boolean:
+                return JsonValue.Create(value.Boolean);
+            case LuaKind.Number:
+                return value.Number == Math.Floor(value.Number) && Math.Abs(value.Number) < 1e15 ? JsonValue.Create((long)value.Number) : JsonValue.Create(value.Number);
+            case LuaKind.Text:
+                return JsonValue.Create(value.Text);
+            case LuaKind.Table:
+                var entries = value.Table;
+                if (entries.Select((e, i) => e.Key is null || (e.Key is { Kind: LuaKind.Number } k && k.Number == i + 1)).All(isItem => isItem))
+                {
+                    return new JsonArray([.. entries.Select(e => ToJson(e.Value))]);
+                }
+
+                var result = new JsonObject();
+                foreach (var e in entries.Where(e => e.Key is { Kind: LuaKind.Text or LuaKind.Number }))
+                {
+                    result[e.Key!.Kind is LuaKind.Text ? e.Key.Text! : e.Key.Number.ToString(CultureInfo.InvariantCulture)] = ToJson(e.Value);
+                }
+
+                return result;
+            default:
+                return null;
+        }
     }
 
     private static List<(string Guid, CharacterGear Gear)> MapGearByGuid(LuaValue? table, ref int skipped)
