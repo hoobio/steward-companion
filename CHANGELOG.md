@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.33.0](https://github.com/hoobio/steward-companion/compare/v0.32.0...v0.33.0) (2026-11-13)
+
+
+### Features
+
+* ✨ forward the addon's signed talents record to the character sync ([e54fd79](https://github.com/hoobio/steward-companion/commit/e54fd79aa4ecae6b9dd993bdb5cb1bd37ab1b7da))
+* ✨ the officer roster pull carries each attunement's holders into StewardSync.lua ([10d6e28](https://github.com/hoobio/steward-companion/commit/10d6e28612e256b9521091b8e6c0100236ec87cd))
+
+
+### Bug Fixes
+
+* 🐛 drop the /reload in-game hint and shorten long version labels ([e8d05d5](https://github.com/hoobio/steward-companion/commit/e8d05d52c34eb3332f7db6aded44366ba1d5a26c))
+* 🐛 stale check shows as a dot on the refresh button, not text that pushed Update all off screen ([a0b1eb8](https://github.com/hoobio/steward-companion/commit/a0b1eb8cc86bd4bd92e55cc06bde228cc865ac57))
+
 ## [0.32.0](https://github.com/hoobio/steward-companion/compare/v0.31.3...v0.32.0) (2026-11-12)
 
 
