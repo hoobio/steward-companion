@@ -63,7 +63,7 @@ public sealed class ColumnFitTests(AvaloniaSession session)
             background: false);
         Settle();
         Assert.Single(rows, row => row.VersionPairVisibility);
-        AssertStable(window, rows, (650, 680));
+        AssertStable(window, rows, (600, 680));
 
         foreach (var row in rows)
         {

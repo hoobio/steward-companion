@@ -8,7 +8,13 @@
     CloseButtonText="Close"
     DefaultButton="Close">
 
-    <ScrollViewer MaxHeight="320">
-        <views:ChangelogView Blocks="{Binding Blocks}" />
-    </ScrollViewer>
+    <StackPanel Spacing="12">
+        <TextBlock
+            Text="{Binding Dates}"
+            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+            IsVisible="{Binding HasDates}" />
+        <ScrollViewer MaxHeight="320">
+            <views:ChangelogView Blocks="{Binding Blocks}" />
+        </ScrollViewer>
+    </StackPanel>
 </ui:FAContentDialog>

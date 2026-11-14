@@ -394,7 +394,7 @@ public sealed partial class HomePage : UserControl
             while (dialog.ChangelogRequest is { } folder)
             {
                 dialog.ClearChangelogRequest();
-                await AppDialogs.ShowAsync(new ChangelogDialog(folder.ChangelogTitle ?? folder.Folder, folder.Changelog!), Owner);
+                await AppDialogs.ShowAsync(new ChangelogDialog(folder.ChangelogTitle ?? folder.Folder, folder.Changelog!, folder.ReleasedTip), Owner);
                 await AppDialogs.ShowAsync(dialog, Owner);
             }
         }
@@ -404,7 +404,7 @@ public sealed partial class HomePage : UserControl
     {
         if (DataItem<AddonRowViewModel>(sender, nameof(OnChangelogClick)) is { } row)
         {
-            await AppDialogs.ShowAsync(new ChangelogDialog(row.ChangelogTitle, row.Changelog), Owner);
+            await AppDialogs.ShowAsync(new ChangelogDialog(row.ChangelogTitle, row.Changelog, row.ReleasedTip), Owner);
         }
     }
 

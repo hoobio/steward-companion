@@ -431,6 +431,6 @@ public sealed class AddonTablePaths(AvaloniaSession session)
     {
         var dialog = world.Find<AddonFoldersDialog>(_ => true);
         var row = dialog.GetVisualDescendants().OfType<Grid>().First(grid => grid.Children.OfType<Grid>().Any(title => Text(title) == addon));
-        return row.GetVisualDescendants().OfType<TextBlock>().First(text => ToolTip.GetTip(text) is string tip && tip.Length > 0 && text.Text?.StartsWith("Released", StringComparison.Ordinal) == true);
+        return row.GetVisualDescendants().OfType<TextBlock>().First(text => ToolTip.GetTip(text) is string tip && tip.Length > 0 && (text.Text?.StartsWith("Released", StringComparison.Ordinal) == true || text.Text?.StartsWith("Updated", StringComparison.Ordinal) == true));
     }
 }

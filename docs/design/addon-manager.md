@@ -93,7 +93,7 @@ Versions are shown through `VersionLabel.For`, display only: `-pre-release.` rea
 | Updating | the target version, the 3px bar under the name | `Updating` |
 | Failed | the failure line under the folder name | `Retry` |
 
-Every state with a release carries the same "Released {relative}" line beneath the version (the installed build's date when up to date), with the local date and time as its tooltip; a manifest without a date shows none. Relative times read in minutes under an hour.
+Every state with a release carries a "Released {relative}" line beneath the version (the installed build's date when up to date), which reads "Updated {relative}" when the install is newer than that release and no other version is offered; its tooltip, and the changelog dialog above the notes, give the local release and update date and time; a manifest without a date shows none. Relative times read in minutes under an hour.
 
 The cell is a focus stop with a tooltip: "Updated {relative} ({d MMM yyyy})" from the install record's `InstalledAt`, or "Installed {relative} ({date})" from the last write time of the addon's `<Folder>.toc` (or its flavour-suffixed TOC) when there is no record, which is the manual install case and every Local row. A row that is not installed has no tooltip. The time is read when the installed version is refreshed, with the file stat on a background thread, never in a getter.
 

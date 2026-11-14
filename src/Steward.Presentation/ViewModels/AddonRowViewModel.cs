@@ -401,11 +401,21 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
 
     public DateTimeOffset? ReleasedAt => _status?.Release?.Released is { } released && released != default ? released : null;
 
-    public string ReleasedText => ReleasedAt is { } released
-        ? $"Released {RelativeTime.Describe(released, DateTimeOffset.Now)}"
-        : "";
+    private DateTimeOffset? UpdatedAfterRelease =>
+        !ShowsVersionPair && LastUpdated is { } updated && ReleasedAt is { } released && updated > released ? updated : null;
 
-    public string ReleasedTip => ReleasedAt?.ToLocalTime().ToString("f", CultureInfo.CurrentCulture) ?? "";
+    public string ReleasedText => (UpdatedAfterRelease, ReleasedAt) switch
+    {
+        ({ } updated, _) => $"Updated {RelativeTime.Describe(updated, DateTimeOffset.Now)}",
+        (_, { } released) => $"Released {RelativeTime.Describe(released, DateTimeOffset.Now)}",
+        _ => "",
+    };
+
+    private static string? Local(DateTimeOffset? at) => at?.ToLocalTime().ToString("f", CultureInfo.CurrentCulture);
+
+    public string ReleasedTip =>
+        string.Join("\n", new[] { ReleasedAt is { } released ? $"Released {Local(released)}" : null, LastUpdated is { } updated ? $"Updated {Local(updated)}" : null }
+            .Where(line => line is not null));
 
     public string NewVersionBrush => IsIgnoredUpdate ? "TextFillColorTertiaryBrush" : "AvailableVersionBrush";
 
@@ -507,6 +517,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
     public string ChangelogTitle => $"{DisplayName} {AvailableVersionShort}";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReleasedText), nameof(ReleasedTip), nameof(VersionCellTip), nameof(HasVersionCellTip))]
     public partial DateTimeOffset? LastUpdated { get; private set; }
 
     [ObservableProperty]
@@ -527,7 +538,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
         : null;
 
     public string? VersionCellTip =>
-        string.Join("\n", new[] { VersionTip, (IsCompact || IsStacked) && ShowsReleased ? $"{ReleasedText} ({ReleasedTip})" : null, TipChannelLine }
+        string.Join("\n", new[] { VersionTip, (IsCompact || IsStacked) && ShowsReleased ? $"{ReleasedText} ({Local(UpdatedAfterRelease ?? ReleasedAt)})" : null, TipChannelLine }
             .Where(line => !string.IsNullOrEmpty(line))) is { Length: > 0 } tip ? tip : null;
 
     public bool HasVersionCellTip => VersionCellTip is not null;
