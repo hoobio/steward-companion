@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.0](https://github.com/hoobio/steward-companion/compare/v0.33.0...v0.34.0) (2026-11-14)
+
+
+### Features
+
+* ✨ addon rows read Updated when the install is newer than its release, and release notes show both times ([38b75c8](https://github.com/hoobio/steward-companion/commit/38b75c86e075d7605aa6c5f22aa608cc5a72e7fb))
+
 ## [0.33.0](https://github.com/hoobio/steward-companion/compare/v0.32.0...v0.33.0) (2026-11-13)
 
 
