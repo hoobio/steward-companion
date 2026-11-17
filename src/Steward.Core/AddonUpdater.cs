@@ -326,17 +326,18 @@ public sealed class AddonUpdater
         string addOnsPath,
         IProgress<double>? progress,
         CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? foreignFolders = null)
+        IReadOnlyCollection<string>? foreignFolders = null,
+        IReadOnlyCollection<string>? recordedFolders = null)
     {
         ArgumentNullException.ThrowIfNull(release);
         if (release.Direct && DirectSkipped)
         {
-            return await InstallRefetchingOn404Async(addon, channel, await ProxyReleaseAsync(addon, channel, cancellationToken).ConfigureAwait(false), addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false);
+            return await InstallRefetchingOn404Async(addon, channel, await ProxyReleaseAsync(addon, channel, cancellationToken).ConfigureAwait(false), addOnsPath, progress, cancellationToken, foreignFolders, recordedFolders).ConfigureAwait(false);
         }
 
         try
         {
-            return (await InstallAsync(addon, channel, release, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false), release);
+            return (await InstallAsync(addon, channel, release, addOnsPath, progress, cancellationToken, foreignFolders, recordedFolders).ConfigureAwait(false), release);
         }
         catch (Exception ex) when (release.Direct && !cancellationToken.IsCancellationRequested)
         {
@@ -347,7 +348,7 @@ public sealed class AddonUpdater
                 throw;
             }
 
-            var installed = await InstallRefetchingOn404Async(addon, channel, proxied, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false);
+            var installed = await InstallRefetchingOn404Async(addon, channel, proxied, addOnsPath, progress, cancellationToken, foreignFolders, recordedFolders).ConfigureAwait(false);
             if (!IsNetworkLevel(ex) || !string.Equals(installed.Release.Version, release.Version, StringComparison.Ordinal))
             {
                 _badDirectFiles.TryAdd(release.DirectFileId, 0);
@@ -365,7 +366,7 @@ public sealed class AddonUpdater
             }
 
             _logger.Info($"Zip for {addon.Id} {release.Version} returned 404; retrying with {fresh.Version}");
-            return (await InstallAsync(addon, channel, fresh, addOnsPath, progress, cancellationToken, foreignFolders).ConfigureAwait(false), fresh);
+            return (await InstallAsync(addon, channel, fresh, addOnsPath, progress, cancellationToken, foreignFolders, recordedFolders).ConfigureAwait(false), fresh);
         }
     }
 
@@ -376,7 +377,8 @@ public sealed class AddonUpdater
         string addOnsPath,
         IProgress<double>? progress,
         CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? foreignFolders = null)
+        IReadOnlyCollection<string>? foreignFolders = null,
+        IReadOnlyCollection<string>? recordedFolders = null)
     {
         _logger.Info($"Installing {addon.Id} {channel} {release.Version} into {addOnsPath}");
         var tempZipPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.zip");
@@ -437,9 +439,15 @@ public sealed class AddonUpdater
                 }
 
                 RefuseForeignFolders(tempZipPath, folders);
+                var dropped = (recordedFolders ?? [])
+                    .Where(folder => !folders.Contains(folder, StringComparer.OrdinalIgnoreCase)
+                        && !(foreignFolders ?? []).Contains(folder, StringComparer.OrdinalIgnoreCase)
+                        && RemovalRefusal(addOnsPath, folder) is null
+                        && !IsLink(Path.Combine(addOnsPath, folder)))
+                    .ToList();
                 lock (AddOnsWriteLock)
                 {
-                    Uninstall(addOnsPath, folders);
+                    Uninstall(addOnsPath, [.. folders, .. dropped]);
                     ExtractZip(tempZipPath, addOnsPath);
                 }
             }
@@ -694,6 +702,10 @@ public sealed class AddonUpdater
 
         Directory.Delete(existingPath, recursive: true);
     }
+
+    // RemoveExistingInstall walks and clears attributes through a junction or symlink before deleting it, so a link is never removed.
+    public static bool IsLink(string path) =>
+        Directory.Exists(path) && new DirectoryInfo(path).Attributes.HasFlag(FileAttributes.ReparsePoint);
 
     public static string? RemovalRefusal(string addOnsPath, string folderName)
     {

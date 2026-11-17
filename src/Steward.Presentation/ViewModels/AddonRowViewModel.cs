@@ -799,7 +799,7 @@ public sealed partial class AddonRowViewModel : ObservableObject, IAddonTableRow
             await _installRequirements(_addon, channel, release, text => StatusMessage = text, progress).ConfigureAwait(true);
             StatusMessage = null;
             UpdateProgress = 0;
-            (var folders, release) = await _updater.InstallRefetchingOn404Async(_addon, channel, release, _install.AddOnsPath, progress, CancellationToken.None, _foreignFolders())
+            (var folders, release) = await _updater.InstallRefetchingOn404Async(_addon, channel, release, _install.AddOnsPath, progress, CancellationToken.None, _foreignFolders(), _stateStore.Load().Installs.GetValueOrDefault(Key)?.Folders)
                 .ConfigureAwait(true);
 
             var state = _stateStore.Load();
