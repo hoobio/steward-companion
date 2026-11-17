@@ -256,7 +256,6 @@ public sealed class AddonSettingsTests : IDisposable
     [Theory]
     [InlineData("HoobiScripts")]
     [InlineData("HoobiScripts_ActionBars")]
-    [InlineData("HoobiScripts_GamerGuides")]
     [InlineData("HoobiScripts_Sniper")]
     [InlineData("StewardAuctioning")]
     [InlineData("StewardBuffManager")]
@@ -596,7 +595,7 @@ public sealed class AddonSettingsTests : IDisposable
     [Fact]
     public void Refusal_AcceptsEveryRealSchema()
     {
-        foreach (var folder in new[] { "HoobiScripts", "HoobiScripts_ActionBars", "HoobiScripts_GamerGuides", "HoobiScripts_Sniper", "StewardAuctioning", "StewardBuffManager", "StewardJourney" })
+        foreach (var folder in new[] { "HoobiScripts", "HoobiScripts_ActionBars","HoobiScripts_Sniper", "StewardAuctioning", "StewardBuffManager", "StewardJourney" })
         {
             Assert.Null(RealSchema(folder).Refusal(folder));
         }

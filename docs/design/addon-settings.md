@@ -4,7 +4,7 @@ Addon settings, talent plans and action bar plans are edited on the Steward webs
 
 ## Scope
 
-Every addon folder in `hoobio/HoobiScripts` with a settings page: HoobiScripts core (General, Quests, Items, Social, Mail, Beta) and each sub-addon page (Action Bars, GamerGuides, Sniper, Auctioning, Buff Manager, Journey). The website shows a page only for an addon the export lists as installed. Buttons, help text and commands are not settings; the schema carries help text as `note` rows and leaves buttons out.
+Every addon folder in `hoobio/HoobiScripts` with a settings page: HoobiScripts core (General, Quests, Items, Social, Mail, Beta) and each sub-addon page (Action Bars, Sniper, Auctioning, Buff Manager, Journey). The website shows a page only for an addon the export lists as installed. Buttons, help text and commands are not settings; the schema carries help text as `note` rows and leaves buttons out.
 
 Talent plans (`HoobiScriptsDB.talentPlans`) and action bar plans (`HoobiScripts_ActionBarsDB`) are datasets beside the settings in the same export and import, edited in the website's builder (talents) and a new action bar planner. Their formats are in "Plan datasets" below.
 
@@ -76,7 +76,7 @@ The app refuses a whole schema, exports that addon's rows as unavailable and log
 The schema is stored per addon version, because the installed version can be behind the channel and a default can change between versions.
 
 - Protected addons (`hoobiscripts*`, `steward-buffmanager`): `operations/scripts/publish-protected.sh` sends the schema as an optional `schema` part of the existing `PUT /api/addons/protected/{id}/{channel}/{version}`, with the same bearer token. steward-server keeps it per id and version and serves it at `GET /api/addons/protected/{id}/settings-schema/{version}.json`, inside the session group with the same `Visible` filter as the manifest, with an `ETag`.
-- Public addons (Journey, Auctioning, GamerGuides and any other addon `hoobio/addons` builds): `hoobio/addons`' build runs the harness from the tagged HoobiScripts tree, when it has one, and writes `settings-schema/{version}.json` beside `latest-{channel}.json`.
+- Public addons (Journey, Auctioning and any other addon `hoobio/addons` builds): `hoobio/addons`' build runs the harness from the tagged HoobiScripts tree, when it has one, and writes `settings-schema/{version}.json` beside `latest-{channel}.json`.
 - The app derives the URL as `{manifest_base_url}settings-schema/{version}.json` for both, fetched with the same client as the manifest (`ManifestNeedsSession`), through the `ManifestCache` revalidation. `{version}` is the installed version from the install record, else the TOC. A 404 leaves that addon out of the export.
 - The website fetches the same schema for the version the export names, with the signed-in user's session (protected) or from addon.hoobi.io (public).
 

@@ -415,6 +415,18 @@
           "rows": [
             {
               "default": true,
+              "key": "nodeSkillTooltip",
+              "label": "Gathering skill on minimap nodes",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Adds the Mining or Herbalism skill a node needs, in its skill-up colour (red when too high for you), and what it drops to its minimap tooltip.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
               "key": "tooltipIDs",
               "label": "Show item and spell IDs",
               "path": [
@@ -427,6 +439,18 @@
             },
             {
               "default": true,
+              "key": "tooltipGuideSteps",
+              "label": "Show the guide step of a quest",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "On a quest tooltip (map, quest log, quest links), names the RestedXP steps of the loaded guide that accept, complete or turn in the quest, from the current step on.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
               "key": "questItemTooltip",
               "label": "Show which quest needs an item",
               "path": [
@@ -435,6 +459,31 @@
               ],
               "scope": "account",
               "tooltip": "Names the quests in your log that need the item and your progress, or says no quest in your log needs a quest item.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "partyItemsTooltip",
+              "label": "Show party copies of tracked items",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "On a tracked item such as a Green Hills of Stranglethorn page, lists how many copies you and each party member running HoobiScripts hold, bank included, whether or not they have the quest, with a name in red when that person has none and a green Completed once they have handed its quest in. Your addon still answers party members who ask with this off.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "partyItemsTradeAlert",
+              "label": "Warn when a spare copy can be traded",
+              "parent": "partyItemsTooltip",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "When you hold more copies of a tracked item than its quest still needs, none once it is handed in, shows a raid warning and a chat line naming the party members who are short.",
               "type": "checkbox"
             },
             {
@@ -495,6 +544,19 @@
               ],
               "scope": "account",
               "tooltip": "Hides the red error text in the middle of the screen, such as out of range and not enough mana. Bags full and quest log full still show.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "hideErrorsMining",
+              "label": "Show them at a mining node",
+              "parent": "hideErrors",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Lets every error through while a mining node is your interact target, so a node above your skill says which Mining rank it needs.",
               "type": "checkbox"
             }
           ],
@@ -613,27 +675,78 @@
               "scope": "account",
               "tooltip": "Which kinds of pin to show on the world map.",
               "type": "bitmask"
-            }
-          ],
-          "title": "World map"
-        },
-        {
-          "column": 1,
-          "rows": [
+            },
             {
-              "default": true,
-              "key": "instanceTracker",
-              "label": "Instance tracker",
+              "default": false,
+              "key": "mapBorders",
+              "label": "Zone border lines",
+              "lockedWhenLoaded": [
+                "Leatrix_Maps"
+              ],
               "path": [
                 "HoobiScriptsDB",
                 "settings"
               ],
               "scope": "account",
-              "tooltip": "Counts the dungeons and raids you enter each hour against the hourly cap, prints the count on entering and warns with a raid warning when the cap is close. /hs instances lists them.",
+              "tooltip": "Draws the stretches of each zone border you can walk across on the world map, the same lines the travel planner crosses at.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "mapPaths",
+              "label": "Hidden paths",
+              "lockedWhenLoaded": [
+                "Leatrix_Maps"
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Draws in light blue the hidden paths and shortcuts between zones that the travel planner can take.",
+              "type": "checkbox"
+            },
+            {
+              "default": false,
+              "key": "mapDroppedBorders",
+              "label": "Show rejected crossings",
+              "lockedWhenLoaded": [
+                "Leatrix_Maps"
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Draws in red the border stretches the border extractor rejected: no exit pin, open sea or a swim. The travel planner never crosses at them.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "felwoodNodes",
+              "label": "Felwood songflowers and herbs",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Marks the Felwood songflowers, Whipper Root Tubers and Night Dragon's Breath on the world map. Click a pin to track it.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "corpseTrackEntrance",
+              "label": "Track the entrance after a dungeon death",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "After you die in a dungeon or raid and release, the waypoint marker goes to that instance's entrance. The game's own corpse marker can sit far from it.",
               "type": "checkbox"
             }
           ],
-          "title": "Instances"
+          "title": "World map"
         },
         {
           "column": 1,
@@ -666,7 +779,7 @@
                 "settings"
               ],
               "scope": "account",
-              "tooltip": "Lets Edit Mode elements and chat windows sit at or past the screen edge instead of being pushed back on. Select an element and press the arrow keys to move it 1 pixel, or 10 with Shift held.",
+              "tooltip": "Lets Edit Mode elements and chat windows sit at or past the screen edge instead of being pushed back on. At least 4 pixels of each stays on screen, and anything further off is moved back. Select an element and press the arrow keys to move it 1 pixel, or 10 with Shift held. Right-click an element's checkbox in Edit Mode to reset its position if it is lost off screen.",
               "type": "checkbox"
             },
             {
@@ -697,7 +810,7 @@
           "title": "Edit Mode"
         },
         {
-          "column": 2,
+          "column": 1,
           "rows": [
             {
               "default": true,
@@ -788,12 +901,24 @@
               "scope": "account",
               "tooltip": "Turns Find Herbs, Find Minerals and any other tracking spell you had on back on when you come back to life.",
               "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "catTrackHumanoids",
+              "label": "Track Humanoids in Cat Form",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Druids: turns on Track Humanoids whenever you enter Cat Form, retrying until it takes, and puts back Find Herbs or Find Minerals when you leave it.",
+              "type": "checkbox"
             }
           ],
           "title": "Minimap"
         },
         {
-          "column": 1,
+          "column": 2,
           "rows": [
             {
               "default": true,
@@ -828,7 +953,7 @@
                 "settings"
               ],
               "scope": "account",
-              "tooltip": "From level 10, learns every spell rank in your spell plan that the trainer has for you, one a moment, while you can pay for it. Every spell starts on Never train.A GamerGuides step that lists its own training takes over that visit.",
+              "tooltip": "From level 10, learns every spell rank in your spell plan that the trainer has for you, one a moment, while you can pay for it. Every spell starts on Never train.",
               "type": "checkbox"
             },
             {
@@ -861,7 +986,7 @@
           "title": "Spells"
         },
         {
-          "column": 2,
+          "column": 1,
           "rows": [
             {
               "default": true,
@@ -873,6 +998,19 @@
               ],
               "scope": "account",
               "tooltip": "Keeps the HoobiWater macro on your best usable drink.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "waterMacroConjured",
+              "label": "Always prefer conjured",
+              "parent": "waterMacro",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Prefers conjured water even if worse than the best water.",
               "type": "checkbox"
             },
             {
@@ -938,6 +1076,24 @@
             }
           ],
           "title": "Macros"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": true,
+              "key": "travelGhettoHearth",
+              "label": "Plan ghetto hearths",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Travel routes may send you to a dungeon entrance: enter it and close the game on the loading screen, and you log back in at your hearth with the hearthstone unused.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Travel"
         }
       ],
       "title": "General"
@@ -962,13 +1118,13 @@
             {
               "default": true,
               "key": "autoStartItemQuests",
-              "label": "Auto start quests from items",
+              "label": "Show quest starting items",
               "path": [
                 "HoobiScriptsDB",
                 "settings"
               ],
               "scope": "account",
-              "tooltip": "Starts quests from items in your bags, out of combat.",
+              "tooltip": "Out of combat, shows an item in your bags that starts a quest as a button in the middle of the screen. Click it to start the quest, right-click to hide it until you log in again.",
               "type": "checkbox"
             },
             {
@@ -1059,7 +1215,7 @@
                 "settings"
               ],
               "scope": "account",
-              "tooltip": "Shares each quest you accept with your party.",
+              "tooltip": "Shares each quest you accept with your party. Off at max level.",
               "type": "checkbox"
             },
             {
@@ -1071,7 +1227,7 @@
                 "settings"
               ],
               "scope": "account",
-              "tooltip": "Accepts quests shared by party members running HoobiScripts.",
+              "tooltip": "Accepts quests shared by party members running HoobiScripts. Off at max level.",
               "type": "checkbox"
             },
             {
@@ -1083,7 +1239,7 @@
                 "settings"
               ],
               "scope": "account",
-              "tooltip": "Needs RestedXP. Every 30 seconds, and on any quest pickup or level up, asks party members running HoobiScripts to share the quests in your current or a later guide that they have and you lack, and accepts them whatever Auto accept shared quests says. Grey quests and ones you abandoned or completed are skipped. A quest refused for prerequisites is asked for again after your next hand-in, one refused for level after you level, and one refused for class, race or faction never. A quest you abandon is not synced or shared automatically for the session until you accept it again; Abandon Forever on the map's quest details declines it when shared, unless a guide ahead of you needs it.",
+              "tooltip": "Needs RestedXP. Every 30 seconds, and on any quest pickup or level up, asks party members running HoobiScripts to share the quests in your current or a later guide that they have and you lack, and accepts them whatever Auto accept shared quests says. Grey quests and ones you abandoned or completed are skipped. A quest refused for prerequisites is asked for again after your next hand-in, one refused for level after you level, and one refused for class, race or faction never. A quest you abandon is not synced or shared automatically for the session until you accept it again; Abandon Forever on the map's quest details declines it when shared, unless a guide ahead of you needs it. Off at max level.",
               "type": "checkbox",
               "visibleWhenLoaded": [
                 "RXPGuides"
@@ -1099,6 +1255,18 @@
               ],
               "scope": "account",
               "tooltip": "When you loot an item that starts a quest, or fills a 1/1 item objective, says so in party chat with a map pin. Party members running HoobiScripts within 1000 yards who still need it get a warning and a tracked pin on the spot, which goes once they loot it or accept the quest.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "partyQuestDone",
+              "label": "Say when the party finishes a quest",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Party leader only. When every party member on a quest with objectives (0/1, 0/5 and so on) has finished them, says so in party chat. Members not running HoobiScripts who are on the quest hold it back, since their progress cannot be read.",
               "type": "checkbox"
             }
           ],
@@ -1334,6 +1502,18 @@
             },
             {
               "default": true,
+              "key": "questXPBar",
+              "label": "Show hand-in XP on the XP bar",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Shades the XP bar past your current XP with what your completed quests give when handed in. Hover the bar for each quest.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
               "key": "completeVendorSteps",
               "label": "Finish vendor steps on close",
               "path": [
@@ -1385,6 +1565,50 @@
               "scope": "account",
               "tooltip": "On a level 1 character with no guide loaded, loads RestedXP's starting guide for your race, once per character, without the RestedXP setup wizard.",
               "type": "checkbox",
+              "visibleWhenLoaded": [
+                "RXPGuides"
+              ]
+            },
+            {
+              "default": true,
+              "key": "removeRetiredGuides",
+              "label": "Remove the retired party guides",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "At each login, removes the retired Hoobi party levelling guides (Trio, Druids and Quintet) and their progress from RestedXP. Guides of your own are kept.",
+              "type": "checkbox",
+              "visibleWhenLoaded": [
+                "RXPGuides"
+              ]
+            },
+            {
+              "default": "dynamic",
+              "key": "guideStepAnchor",
+              "label": "Current step position",
+              "options": [
+                {
+                  "label": "Dynamic",
+                  "value": "dynamic"
+                },
+                {
+                  "label": "Above",
+                  "value": "TOP"
+                },
+                {
+                  "label": "Below",
+                  "value": "BOTTOM"
+                }
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Where RestedXP's current step box sits against its guide window. Dynamic leaves it to RestedXP, which moves it to the other side when it would run off the screen. Above and Below keep it there, even at the edge of the screen.",
+              "type": "dropdown",
               "visibleWhenLoaded": [
                 "RXPGuides"
               ]
@@ -1901,6 +2125,55 @@
             },
             {
               "default": true,
+              "key": "mountSpeedSwap",
+              "label": "Mount speed gear",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "While mounted, shows a button in the middle of the screen when your bags hold mount speed gear you are not wearing (Carrot on a Stick, Desert Rose, Mithril Spurs or Riding Skill enchants). It puts the gear on, and what it replaced goes back on when you dismount, or after combat.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "mountSpeedAuto",
+              "label": "Equip without asking",
+              "parent": "mountSpeedSwap",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Puts mount speed gear on as soon as you mount, with no button.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "argentDawnSwap",
+              "label": "Argent Dawn trinket",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Out of the saddle in Western or Eastern Plaguelands or Stratholme, shows a button in the middle of the screen when your bags hold an Argent Dawn trinket (the Commission, Seal or Rune of the Dawn, or any trinket that gathers Scourgestones) and you are not wearing one. It puts the trinket on in place of your weaker one, and that one goes back on when you leave.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "miningGearSwap",
+              "label": "Mining gear",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "While a mining node is your interact target and you are not mounted, puts on gear from your bags that adds Mining skill (a Mining enchant on gloves, for example). What it replaced goes back on when you leave the node.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
               "key": "arrangeBags",
               "label": "Arrange bags",
               "path": [
@@ -1933,6 +2206,18 @@
               ],
               "scope": "account",
               "tooltip": "Adds the gear score and the gain over what you wear to item tooltips.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "gearList",
+              "label": "Gear list",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Keeps the items on the gear list you import from the Steward gear builder: they show in tooltips, are never sold, mailed or deleted, and auto equip leaves a slot alone once it wears its list item.",
               "type": "checkbox"
             }
           ],
@@ -1980,7 +2265,19 @@
                 "settings"
               ],
               "scope": "account",
-              "tooltip": "Warns 60, 30 and 15 minutes before the Cozy Sleeping Bag's Well-Rested buff ends, then every minute from 10, and shows a button in the middle of the screen out of combat that uses the bag. Below level 60 only.",
+              "tooltip": "Warns 60, 30 and 15 minutes before the Cozy Sleeping Bag's Well-Rested buff ends, then every minute from 10, and shows a button in the middle of the screen out of combat that uses the bag. Not at max level.",
+              "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "magicalAwarenessReminder",
+              "label": "Magical Awareness reminder",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "While an Arcane Censer is in your bags, warns before its Magical Awareness buff ends, the same way as the Well-Rested reminder, and shows a button that uses the censer.",
               "type": "checkbox"
             }
           ],
@@ -2168,6 +2465,18 @@
               "type": "checkbox"
             },
             {
+              "default": true,
+              "key": "vendorBagFlag",
+              "label": "Coin on items to vendor",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Marks every bag item the next merchant visit would sell, silently or ticked in the sell window, with a gold coin in place of the mail flag.",
+              "type": "checkbox"
+            },
+            {
               "default": false,
               "key": "keepBagSlotFree",
               "label": "Keep a bag slot free",
@@ -2191,18 +2500,6 @@
               "scope": "account",
               "tooltip": "The most a stack may sell for and still be deleted.",
               "type": "money"
-            },
-            {
-              "default": false,
-              "key": "alwaysDelete",
-              "label": "Always delete button",
-              "path": [
-                "HoobiScriptsDB",
-                "settings"
-              ],
-              "scope": "account",
-              "tooltip": "Adds Always delete under the delete item confirmation. It deletes the item and marks it, and a marked item reaching your bags is deleted on your next click or key press. Items RestedXP needs are kept.",
-              "type": "checkbox"
             },
             {
               "default": true,
@@ -2351,6 +2648,42 @@
           "rows": [
             {
               "default": true,
+              "key": "announceInstanceReset",
+              "label": "Announce instance resets",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Says \"Instances have been reset\" in party or raid chat when you reset your instances.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Instances"
+        },
+        {
+          "column": 2,
+          "rows": [
+            {
+              "default": false,
+              "key": "autoMarkParty",
+              "label": "Party marker button",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Shows a button while a party member's raid marker is not the planned one: Circle for a druid, Triangle for a hunter, Diamond for a priest, paladin or shaman, then Square and Star, by name where two want the same one. Cross, Skull and Moon are never used. Click it until every member is marked.",
+              "type": "checkbox"
+            }
+          ],
+          "title": "Party markers"
+        },
+        {
+          "column": 1,
+          "rows": [
+            {
+              "default": true,
               "key": "partyXPBar",
               "label": "Party XP on the XP bar",
               "path": [
@@ -2414,6 +2747,44 @@
               "scope": "account",
               "tooltip": "Puts the recent chat lines back after /reload. A normal login starts with empty chat.",
               "type": "checkbox"
+            },
+            {
+              "default": true,
+              "key": "chatUrlLinks",
+              "label": "Clickable links in chat",
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Web addresses in chat become links. Click one to open it in a window you can copy from.",
+              "type": "checkbox"
+            },
+            {
+              "default": "none",
+              "key": "chatCongrats",
+              "label": "Congrats and greetings",
+              "options": [
+                {
+                  "label": "None",
+                  "value": "none"
+                },
+                {
+                  "label": "Hide",
+                  "value": "hide"
+                },
+                {
+                  "label": "Combine",
+                  "value": "combine"
+                }
+              ],
+              "path": [
+                "HoobiScriptsDB",
+                "settings"
+              ],
+              "scope": "account",
+              "tooltip": "Gz, hi and bye lines in guild and party chat. Combine shows the first line as usual and turns it into \"3 people congratulated Soup Soup\" as more arrive, with the names on hover.",
+              "type": "dropdown"
             }
           ],
           "title": "Chat"
@@ -2466,7 +2837,7 @@
                 "settings"
               ],
               "scope": "account",
-              "tooltip": "Says gz, grats or congrats when someone says ding in guild or party chat.",
+              "tooltip": "Says gz, grats or congrats when someone says ding in guild or party chat, or announces a fresh guild achievement from the Steward addon.",
               "type": "checkbox"
             },
             {
