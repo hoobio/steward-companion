@@ -39,7 +39,11 @@ public sealed class StatePaths(AvaloniaSession session)
                 "RXP Author (folder RXPAuthor, Forever - Beta) was not uninstalled and is still in the AddOns folder: the Recycle Bin could not take it",
                 Assert.Single(world.Main.Banners, banner => banner.Id == "retired-addons-failed").Title);
             Assert.True(File.Exists(Path.Combine(retired, "RXPAuthor.toc")));
-            world.Main.RecycleAddonFolder = (addOns, folder) => Directory.Delete(Path.Combine(addOns, folder), recursive: true);
+            world.Main.RecycleAddonFolder = (addOns, folder) =>
+            {
+                Directory.Delete(Path.Combine(addOns, folder), recursive: true);
+                return Task.CompletedTask;
+            };
             WaitFor(() => world.Main.Banners.Any(banner => banner.Id == "retired-addons"));
             Pump();
             Click(world.Window.CurrentPage!.GetVisualDescendants().OfType<Button>().First(button => button.IsEffectivelyVisible && button.Content as string == "Uninstall"));

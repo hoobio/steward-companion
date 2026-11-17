@@ -75,37 +75,40 @@ public static class RetiredAddons
         return found;
     }
 
-    public static (IReadOnlyList<RetiredFolder> Removed, IReadOnlyList<RetiredFolder> Deferred) Remove(
-        IReadOnlyList<RetiredFolder> found, Func<string, bool> blocked, Action<RetiredFolder, Exception>? failed = null, Action<string, string>? recycle = null)
+    public static Task<(IReadOnlyList<RetiredFolder> Removed, IReadOnlyList<RetiredFolder> Deferred)> RemoveAsync(
+        IReadOnlyList<RetiredFolder> found, Func<string, bool> blocked, Action<RetiredFolder, Exception>? failed = null, Func<string, string, Task>? recycle = null)
     {
         ArgumentNullException.ThrowIfNull(found);
         ArgumentNullException.ThrowIfNull(blocked);
-        var removed = new List<RetiredFolder>();
-        var deferred = new List<RetiredFolder>();
-        foreach (var entry in found)
+        return Task.Run<(IReadOnlyList<RetiredFolder>, IReadOnlyList<RetiredFolder>)>(() =>
         {
-            try
+            var removed = new List<RetiredFolder>();
+            var deferred = new List<RetiredFolder>();
+            foreach (var entry in found)
             {
-                lock (AddonUpdater.AddOnsWriteLock)
+                try
                 {
-                    if (blocked(entry.FlavourPath))
+                    lock (AddonUpdater.AddOnsWriteLock)
                     {
-                        deferred.Add(entry);
-                        continue;
+                        if (blocked(entry.FlavourPath))
+                        {
+                            deferred.Add(entry);
+                            continue;
+                        }
+
+                        (recycle ?? AddonRecycler.RecycleAsync)(AccessLoss.AddOnsPath(entry.FlavourPath), entry.Folder).GetAwaiter().GetResult();
                     }
 
-                    (recycle ?? AddonRecycler.Recycle)(AccessLoss.AddOnsPath(entry.FlavourPath), entry.Folder);
+                    removed.Add(entry);
                 }
-
-                removed.Add(entry);
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+                {
+                    failed?.Invoke(entry, ex);
+                }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-            {
-                failed?.Invoke(entry, ex);
-            }
-        }
 
-        return (removed, deferred);
+            return (removed, deferred);
+        });
     }
 
     public static List<string> PruneDeclines(List<string> declines, IReadOnlyList<RetiredAddon>? listed) =>

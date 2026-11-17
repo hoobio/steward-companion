@@ -4,6 +4,15 @@ using System.Runtime.Versioning;
 
 namespace Steward.Core;
 
+public sealed record RecycleOutcome(IReadOnlyList<string> Moved, IReadOnlyList<string> Left, string? Error)
+{
+    public string? Failure => Left.Count == 0
+        ? null
+        : Moved.Count == 0
+            ? $"Uninstall failed, nothing was moved: {Error}"
+            : $"Uninstall partly failed: {string.Join(", ", Moved)} moved to {AddonRecycler.Destination}, {string.Join(", ", Left)} still in the AddOns folder: {Error}";
+}
+
 public static class AddonRecycler
 {
     private const uint NoUiAllowUndo = 0x614 | 0x40;
@@ -15,7 +24,7 @@ public static class AddonRecycler
 
     public static string RemovedFolder => Path.Combine(LocalData.Folder, "Removed addons");
 
-    public static void Recycle(string addOnsPath, string folder)
+    public static async Task RecycleAsync(string addOnsPath, string folder)
     {
         if (AddonUpdater.RemovalRefusal(addOnsPath, folder) is { } refusal)
         {
@@ -35,12 +44,12 @@ public static class AddonRecycler
 
         if (OperatingSystem.IsWindows())
         {
-            RecycleOnWindows(path);
+            await RecycleOnWindowsAsync(path).ConfigureAwait(false);
         }
         else
         {
             var dated = Directory.CreateDirectory(Path.Combine(RemovedFolder, DateTime.Now.ToString("yyyy-MM-dd HHmmss", CultureInfo.InvariantCulture))).FullName;
-            Directory.Move(path, Path.Combine(dated, folder));
+            MoveFolder(path, Path.Combine(dated, folder));
         }
 
         if (Directory.Exists(path))
@@ -49,37 +58,111 @@ public static class AddonRecycler
         }
     }
 
-    [SupportedOSPlatform("windows")]
-    private static void RecycleOnWindows(string path)
+    public static Task<RecycleOutcome> RecycleFoldersAsync(string addOnsPath, IReadOnlyList<string> folders, Func<bool> wowRunning, Func<string, string, Task>? recycle = null)
     {
-        Exception? error = null;
+        ArgumentNullException.ThrowIfNull(folders);
+        ArgumentNullException.ThrowIfNull(wowRunning);
+        return Task.Run(() =>
+        {
+            var moved = new List<string>();
+            var left = new List<string>();
+            string? error = null;
+            lock (AddonUpdater.AddOnsWriteLock)
+            {
+                if (wowRunning())
+                {
+                    return new RecycleOutcome([], folders, "World of Warcraft is running from this install. Close it and try again.");
+                }
+
+                foreach (var folder in folders)
+                {
+                    try
+                    {
+                        (recycle ?? RecycleAsync)(addOnsPath, folder).GetAwaiter().GetResult();
+                        moved.Add(folder);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+                    {
+                        left.Add(folder);
+                        error ??= ex.Message;
+                    }
+                }
+            }
+
+            return new RecycleOutcome(moved, left, error);
+        });
+    }
+
+    internal static void MoveFolder(string source, string destination, Action<string, string>? move = null)
+    {
+        try
+        {
+            (move ?? Directory.Move)(source, destination);
+            return;
+        }
+        catch (IOException) when (Directory.Exists(source) && !Directory.Exists(destination))
+        {
+        }
+
+        var walk = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint };
+        foreach (var directory in Directory.EnumerateDirectories(source, "*", walk))
+        {
+            Directory.CreateDirectory(Path.Combine(destination, Path.GetRelativePath(source, directory)));
+        }
+
+        Directory.CreateDirectory(destination);
+        foreach (var file in Directory.EnumerateFiles(source, "*", walk))
+        {
+            File.Copy(file, Path.Combine(destination, Path.GetRelativePath(source, file)));
+        }
+
+        if (Measure(source, walk) != Measure(destination, walk))
+        {
+            Directory.Delete(destination, recursive: true);
+            throw new IOException($"the copy of {source} did not match it, so it was left in place");
+        }
+
+        Directory.Delete(source, recursive: true);
+    }
+
+    private static (int Files, long Bytes) Measure(string folder, EnumerationOptions walk)
+    {
+        var files = new DirectoryInfo(folder).GetFiles("*", walk);
+        return (files.Length, files.Sum(file => file.Length));
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static Task RecycleOnWindowsAsync(string path)
+    {
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
         {
             try
             {
                 SendToRecycleBin(path);
+                done.SetResult();
             }
             catch (Exception ex)
             {
-                error = ex;
+                done.SetException(new IOException($"Could not move {path} to the Recycle Bin, so it was left in place: {ex.Message}", ex));
             }
-        });
+        })
+        {
+            IsBackground = true,
+        };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
-        thread.Join();
-        if (error is not null)
-        {
-            throw new IOException($"Could not move {path} to the Recycle Bin, so it was left in place: {error.Message}", error);
-        }
+        return done.Task;
     }
 
     [SupportedOSPlatform("windows")]
     private static void SendToRecycleBin(string path)
     {
         var operation = (IFileOperation)new FileOperation();
+        IShellItem? item = null;
         try
         {
-            Marshal.ThrowExceptionForHR(SHCreateItemFromParsingName(path, IntPtr.Zero, typeof(IShellItem).GUID, out var item));
+            Marshal.ThrowExceptionForHR(SHCreateItemFromParsingName(path, IntPtr.Zero, typeof(IShellItem).GUID, out item));
             Marshal.ThrowExceptionForHR(operation.SetOperationFlags(NoUiAllowUndo | RecycleOnDelete));
             Marshal.ThrowExceptionForHR(operation.DeleteItem(item, new RecycleOnlySink()));
             var result = operation.PerformOperations();
@@ -91,9 +174,17 @@ public static class AddonRecycler
         }
         finally
         {
+            if (item is not null)
+            {
+                Marshal.ReleaseComObject(item);
+            }
+
             Marshal.ReleaseComObject(operation);
         }
     }
+
+    // Without the recycle flag the shell is about to delete the item permanently (volume without a bin, or too large for it).
+    internal static int PreDeleteResult(uint flags) => (flags & RecycleIfPossible) != 0 ? 0 : Aborted;
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern int SHCreateItemFromParsingName(string path, IntPtr bindContext, [In] in Guid riid, out IShellItem item);
@@ -161,10 +252,7 @@ public static class AddonRecycler
         public int PostMoveItem(uint flags, IntPtr item, IntPtr destination, IntPtr newName, int result, IntPtr newItem) => 0;
         public int PreCopyItem(uint flags, IntPtr item, IntPtr destination, IntPtr newName) => 0;
         public int PostCopyItem(uint flags, IntPtr item, IntPtr destination, IntPtr newName, int result, IntPtr newItem) => 0;
-
-        // Without the recycle flag the shell is about to delete the item permanently (volume without a bin, or too large for it).
-        public int PreDeleteItem(uint flags, IntPtr item) => (flags & RecycleIfPossible) != 0 ? 0 : Aborted;
-
+        public int PreDeleteItem(uint flags, IntPtr item) => PreDeleteResult(flags);
         public int PostDeleteItem(uint flags, IntPtr item, int result, IntPtr newItem) => 0;
         public int PreNewItem(uint flags, IntPtr destination, IntPtr newName) => 0;
         public int PostNewItem(uint flags, IntPtr destination, IntPtr newName, IntPtr template, uint attributes, int result, IntPtr newItem) => 0;

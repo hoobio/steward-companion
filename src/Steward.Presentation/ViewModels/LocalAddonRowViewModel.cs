@@ -190,20 +190,17 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
             return;
         }
 
-        try
+        var outcome = await AddonRecycler.RecycleFoldersAsync(_install.AddOnsPath, all, () => WowClient.IsRunning(_install)).ConfigureAwait(true);
+        FailureMessage = outcome.Failure;
+        LeftFolders = outcome.Left;
+        if (outcome.Moved.Count > 0)
         {
-            foreach (var folder in all)
-            {
-                AddonRecycler.Recycle(_install.AddOnsPath, folder);
-            }
+            _removed(this);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-        {
-            FailureMessage = $"Uninstall failed: {ex.Message}";
-            return;
-        }
-
-        FailureMessage = null;
-        _removed(this);
     }
+
+    internal IReadOnlyList<string> LeftFolders { get; private set; } = [];
+
+    internal bool HasFolder(string folder) =>
+        string.Equals(_addon.FolderName, folder, StringComparison.OrdinalIgnoreCase) || _addon.FoldedFolders.Contains(folder, StringComparer.OrdinalIgnoreCase);
 }

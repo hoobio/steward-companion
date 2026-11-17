@@ -613,12 +613,29 @@ public sealed class AddonUpdaterTests : IDisposable
         File.SetAttributes(kept, FileAttributes.Normal);
         Assert.True(attributes.HasFlag(FileAttributes.ReadOnly));
         Assert.True(File.Exists(kept));
-        if (topLevel)
-        {
-            Assert.Null(thrown);
-            Assert.False(Directory.Exists(Path.Combine(addOnsPath, FolderName)));
-        }
+        Assert.Null(thrown);
+        Assert.False(Directory.Exists(Path.Combine(addOnsPath, FolderName)));
     }
+
+    [Fact]
+    public void RemovalRefusal_ShortNameAlias_IsRefusedAndTheFolderSurvives()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "8.3 short names exist only on Windows");
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        var folder = Directory.CreateDirectory(Path.Combine(addOnsPath, "StewardLongFolderName")).FullName;
+        File.WriteAllText(Path.Combine(folder, "kept.toc"), "x");
+        var buffer = new char[1024];
+        var length = GetShortPathName(folder, buffer, buffer.Length);
+        var shortName = Path.GetFileName(new string(buffer, 0, length));
+        Assert.SkipWhen(length == 0 || shortName == "StewardLongFolderName", "8.3 short names are off on this volume");
+
+        Assert.NotNull(AddonUpdater.RemovalRefusal(addOnsPath, shortName));
+        Assert.Throws<InvalidOperationException>(() => AddonUpdater.RemoveExistingInstall(addOnsPath, shortName));
+        Assert.True(File.Exists(Path.Combine(folder, "kept.toc")));
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", EntryPoint = "GetShortPathNameW", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int GetShortPathName(string longPath, [System.Runtime.InteropServices.Out] char[] shortPath, int length);
 
     internal static void Junction(string link, string target)
     {

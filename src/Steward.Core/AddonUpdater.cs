@@ -692,6 +692,7 @@ public sealed class AddonUpdater
 
         if (!IsLink(existingPath))
         {
+            RemoveNestedLinks(existingPath);
             var walk = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = false };
             foreach (var file in Directory.EnumerateFiles(existingPath, "*", walk))
             {
@@ -700,6 +701,21 @@ public sealed class AddonUpdater
         }
 
         Directory.Delete(existingPath, recursive: true);
+    }
+
+    private static void RemoveNestedLinks(string folder)
+    {
+        foreach (var directory in new DirectoryInfo(folder).GetDirectories("*", new EnumerationOptions { AttributesToSkip = 0 }))
+        {
+            if (directory.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                directory.Delete();
+            }
+            else
+            {
+                RemoveNestedLinks(directory.FullName);
+            }
+        }
     }
 
     public static bool IsLink(string path) =>

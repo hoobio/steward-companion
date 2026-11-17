@@ -28,7 +28,11 @@ public sealed class RetiredAddonsTests : IDisposable
         ProviderAddons = new(StringComparer.OrdinalIgnoreCase),
     };
 
-    private static void Delete(string addOnsPath, string folder) => Directory.Delete(Path.Combine(addOnsPath, folder), recursive: true);
+    private static Task Delete(string addOnsPath, string folder)
+    {
+        Directory.Delete(Path.Combine(addOnsPath, folder), recursive: true);
+        return Task.CompletedTask;
+    }
 
     private static string Seed(string flavour, string folder)
     {
@@ -182,7 +186,7 @@ public sealed class RetiredAddonsTests : IDisposable
     }
 
     [Fact]
-    public void Remove_DeletesOnlyTheRetiredFolder_SiblingAndWtfSurvive()
+    public async Task Remove_DeletesOnlyTheRetiredFolder_SiblingAndWtfSurvive()
     {
         Seed(Flavour, "RXPAuthor");
         Seed(Flavour, "RXPGuides");
@@ -191,7 +195,7 @@ public sealed class RetiredAddonsTests : IDisposable
         File.WriteAllText(savedVariables, "RXPAuthorDB = {}");
         var found = RetiredAddons.Find(State(RxpAuthor), [Install(Flavour)]);
 
-        var (removed, deferred) = RetiredAddons.Remove(found, _ => false, recycle: Delete);
+        var (removed, deferred) = await RetiredAddons.RemoveAsync(found, _ => false, recycle: Delete);
 
         Assert.Single(removed);
         Assert.Empty(deferred);
@@ -201,13 +205,13 @@ public sealed class RetiredAddonsTests : IDisposable
     }
 
     [Fact]
-    public void Remove_FlavourWithWowRunning_IsDeferredAndLeftOnDisk()
+    public async Task Remove_FlavourWithWowRunning_IsDeferredAndLeftOnDisk()
     {
         Seed(Flavour, "RXPAuthor");
         Seed(Beta, "RXPAuthor");
         var found = RetiredAddons.Find(State(RxpAuthor), [Install(Flavour), Install(Beta)]);
 
-        var (removed, deferred) = RetiredAddons.Remove(found, flavour => flavour == Flavour, recycle: Delete);
+        var (removed, deferred) = await RetiredAddons.RemoveAsync(found, flavour => flavour == Flavour, recycle: Delete);
 
         Assert.Equal(Beta, Assert.Single(removed).FlavourPath);
         Assert.Equal(Flavour, Assert.Single(deferred).FlavourPath);
@@ -217,13 +221,13 @@ public sealed class RetiredAddonsTests : IDisposable
     }
 
     [Fact]
-    public void Remove_RecycleFails_LeavesTheFolderAndReportsIt()
+    public async Task Remove_RecycleFails_LeavesTheFolderAndReportsIt()
     {
         Seed(Flavour, "RXPAuthor");
         var found = RetiredAddons.Find(State(RxpAuthor), [Install(Flavour)]);
         var failures = new List<RetiredFolder>();
 
-        var (removed, _) = RetiredAddons.Remove(found, _ => false, (entry, _) => failures.Add(entry), (_, _) => throw new IOException("no Recycle Bin"));
+        var (removed, _) = await RetiredAddons.RemoveAsync(found, _ => false, (entry, _) => failures.Add(entry), (_, _) => throw new IOException("no Recycle Bin"));
 
         Assert.Empty(removed);
         Assert.Single(failures);
@@ -231,20 +235,99 @@ public sealed class RetiredAddonsTests : IDisposable
     }
 
     [Fact]
-    public void Remove_ChecksWowInsideTheWriteLockBeforeEachFolder()
+    public async Task Remove_ChecksWowInsideTheWriteLockBeforeEachFolder()
     {
         Seed(Flavour, "RXPAuthor");
         Seed(Beta, "RXPAuthor");
         var found = RetiredAddons.Find(State(RxpAuthor), [Install(Flavour), Install(Beta)]);
         var checks = new List<bool>();
 
-        RetiredAddons.Remove(found, _ =>
+        await RetiredAddons.RemoveAsync(found, _ =>
         {
             checks.Add(AddonUpdater.AddOnsWriteLock.IsHeldByCurrentThread);
             return false;
         }, recycle: Delete);
 
         Assert.Equal([true, true], checks);
+    }
+
+    [Fact]
+    public async Task Remove_ReturnsToTheCallerAndHoldsTheWriteLockUntilTheRecycleFinishes()
+    {
+        Seed(Flavour, "RXPAuthor");
+        var found = RetiredAddons.Find(State(RxpAuthor), [Install(Flavour)]);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var removing = RetiredAddons.RemoveAsync(found, _ => false, recycle: (_, _) =>
+        {
+            started.SetResult();
+            return gate.Task;
+        });
+        await started.Task;
+        var entered = AddonUpdater.AddOnsWriteLock.TryEnter();
+        if (entered)
+        {
+            AddonUpdater.AddOnsWriteLock.Exit();
+        }
+
+        Assert.False(entered);
+        Assert.False(removing.IsCompleted);
+        gate.SetResult();
+        Assert.Single((await removing).Removed);
+    }
+
+    [Fact]
+    public async Task RecycleFolders_WowRunning_MovesNothingAndSaysWhy()
+    {
+        var calls = 0;
+
+        var outcome = await AddonRecycler.RecycleFoldersAsync(AddOns(Flavour), ["RXPAuthor", "RXPAuthor_Data"], () => AddonUpdater.AddOnsWriteLock.IsHeldByCurrentThread, (_, _) =>
+        {
+            calls++;
+            return Task.CompletedTask;
+        });
+
+        Assert.Equal(0, calls);
+        Assert.Equal(["RXPAuthor", "RXPAuthor_Data"], outcome.Left);
+        Assert.Equal("Uninstall failed, nothing was moved: World of Warcraft is running from this install. Close it and try again.", outcome.Failure);
+    }
+
+    [Fact]
+    public async Task RecycleFolders_OneFolderFails_ReportsWhichMovedAndWhichDidNot()
+    {
+        var outcome = await AddonRecycler.RecycleFoldersAsync(AddOns(Flavour), ["RXPAuthor", "RXPAuthor_Data", "RXPAuthor_Media"], () => false, (_, folder) =>
+            folder == "RXPAuthor_Data" ? throw new IOException("the Recycle Bin could not take it") : Task.CompletedTask);
+
+        Assert.Equal(["RXPAuthor", "RXPAuthor_Media"], outcome.Moved);
+        Assert.Equal(["RXPAuthor_Data"], outcome.Left);
+        Assert.Equal($"Uninstall partly failed: RXPAuthor, RXPAuthor_Media moved to {AddonRecycler.Destination}, RXPAuthor_Data still in the AddOns folder: the Recycle Bin could not take it", outcome.Failure);
+        Assert.Null((await AddonRecycler.RecycleFoldersAsync(AddOns(Flavour), ["RXPAuthor"], () => false, (_, _) => Task.CompletedTask)).Failure);
+    }
+
+    [Fact]
+    public void PreDeleteResult_AbortsUnlessTheShellWillRecycle()
+    {
+        Assert.Equal(0, AddonRecycler.PreDeleteResult(0x80));
+        Assert.Equal(0, AddonRecycler.PreDeleteResult(0x80 | 0x614));
+        Assert.Equal(unchecked((int)0x80004004), AddonRecycler.PreDeleteResult(0));
+        Assert.Equal(unchecked((int)0x80004004), AddonRecycler.PreDeleteResult(~0x80u));
+    }
+
+    [Fact]
+    public void MoveFolder_MoveThrows_CopiesVerifiesThenRemovesTheSource()
+    {
+        var source = Seed(Flavour, "Moved");
+        Directory.CreateDirectory(Path.Combine(source, "Libs", "Empty"));
+        File.WriteAllText(Path.Combine(source, "Libs", "lib.lua"), "local x = 1");
+        var destination = Path.Combine(_root, "removed", "Moved");
+
+        AddonRecycler.MoveFolder(source, destination, (_, _) => throw new IOException("Invalid cross-device link"));
+
+        Assert.False(Directory.Exists(source));
+        Assert.Equal("## Title: x", File.ReadAllText(Path.Combine(destination, "Moved.toc")));
+        Assert.Equal("local x = 1", File.ReadAllText(Path.Combine(destination, "Libs", "lib.lua")));
+        Assert.True(Directory.Exists(Path.Combine(destination, "Libs", "Empty")));
     }
 
     [Fact]
@@ -279,6 +362,19 @@ public sealed class RetiredAddonsTests : IDisposable
         Assert.Equal(declines, RetiredAddons.PruneDeclines(declines, null));
     }
 
+    [Theory]
+    [InlineData("", 2)]
+    [InlineData(""","retired_addons":null""", 2)]
+    [InlineData(""","retired_addons":[]""", 0)]
+    [InlineData(""","retired_addons":[{"folder_name":"HoobiScripts_GamerGuides","name":"Gamer Guides"}]""", 1)]
+    public void PruneDeclines_KeepsDeclinesOnlyWhenTheListIsMissingOrNull(string retiredField, int kept)
+    {
+        var me = JsonSerializer.Deserialize($$"""{"user":{"id":"1","name":"A","username":null,"avatar_url":null,"role":null},"guilds":[]{{retiredField}}}""", CompanionJsonContext.Default.AdminMe)!;
+        List<string> declines = [AppStateStore.Key(Flavour, "RXPAuthor"), AppStateStore.Key(Beta, "HoobiScripts_GamerGuides")];
+
+        Assert.Equal(kept, RetiredAddons.PruneDeclines(declines, RetiredAddons.Listed(me.RetiredAddons)).Count);
+    }
+
     [Fact]
     public void Prompt_NamesEachFolderAndFlavour()
     {
@@ -293,32 +389,29 @@ public sealed class RetiredAddonsTests : IDisposable
     }
 
     [Fact]
-    public void Recycle_MovesTheFolderOutOfAddOns()
+    public async Task Recycle_MovesTheFolderOutOfAddOns()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
+        Assert.SkipUnless(OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true", "Sends a real folder to the Recycle Bin, so it runs only on the Windows CI runner");
 
         var folder = $"StewardRecycleTest{Guid.NewGuid():N}";
         Seed(Flavour, folder);
         Seed(Flavour, "Sibling");
 
-        AddonRecycler.Recycle(AddOns(Flavour), folder);
+        await AddonRecycler.RecycleAsync(AddOns(Flavour), folder);
 
         Assert.False(Directory.Exists(Path.Combine(AddOns(Flavour), folder)));
         Assert.True(Directory.Exists(Path.Combine(AddOns(Flavour), "Sibling")));
     }
 
     [Fact]
-    public void Recycle_LinkOrUnsafeName_IsRefusedAndLeftInPlace()
+    public async Task Recycle_LinkOrUnsafeName_IsRefusedAndLeftInPlace()
     {
         var target = Seed(Path.Combine(_root, "elsewhere"), "Real");
         var link = Path.Combine(Directory.CreateDirectory(AddOns(Flavour)).FullName, "Linked");
         AddonUpdaterTests.Junction(link, target);
 
-        Assert.Throws<IOException>(() => AddonRecycler.Recycle(AddOns(Flavour), "Linked"));
-        Assert.Throws<IOException>(() => AddonRecycler.Recycle(AddOns(Flavour), "..."));
+        await Assert.ThrowsAsync<IOException>(() => AddonRecycler.RecycleAsync(AddOns(Flavour), "Linked"));
+        await Assert.ThrowsAsync<IOException>(() => AddonRecycler.RecycleAsync(AddOns(Flavour), "..."));
         Assert.True(Directory.Exists(link));
         Assert.True(Directory.Exists(AddOns(Flavour)));
         Assert.True(File.Exists(Path.Combine(target, "Real.toc")));

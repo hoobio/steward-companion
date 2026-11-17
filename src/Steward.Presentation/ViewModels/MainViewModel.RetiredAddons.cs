@@ -12,7 +12,7 @@ public sealed partial class MainViewModel
     private readonly HashSet<string> _retiredDeferred = new(StringComparer.OrdinalIgnoreCase);
     private string? _retiredShown;
 
-    internal Action<string, string> RecycleAddonFolder { get; set; } = AddonRecycler.Recycle;
+    internal Func<string, string, Task> RecycleAddonFolder { get; set; } = AddonRecycler.RecycleAsync;
 
     private string InstallLabel(string flavourPath) =>
         Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, flavourPath, StringComparison.OrdinalIgnoreCase))?.Label ?? flavourPath;
@@ -62,7 +62,7 @@ public sealed partial class MainViewModel
             RetiredAddons.Prompt(found, InstallLabel),
             RetiredBannerId,
             "Uninstall",
-            () => UninstallRetiredAddons(keys),
+            () => _ = UninstallRetiredAddonsAsync(keys),
             () =>
             {
                 var state = _stateStore.Load();
@@ -72,12 +72,12 @@ public sealed partial class MainViewModel
             RetiredAddons.Reasons(found));
     }
 
-    private void UninstallRetiredAddons(HashSet<string> keys)
+    private async Task UninstallRetiredAddonsAsync(HashSet<string> keys)
     {
         _localBanners.RemoveAll(banner => banner.Id is RetiredBannerId or RetiredDeferredBannerId or RetiredFailedBannerId);
         var running = new List<WowClientProcess>();
-        var failures = new List<string>();
-        var (removed, deferred) = RetiredAddons.Remove(
+        var errors = new List<(RetiredFolder Entry, Exception Error)>();
+        var (removed, deferred) = await RetiredAddons.RemoveAsync(
             [.. FindRetiredAddons().Where(entry => keys.Contains(RetiredAddons.DeclineKey(entry)))],
             flavourPath =>
             {
@@ -89,12 +89,14 @@ public sealed partial class MainViewModel
 
                 return false;
             },
-            (entry, ex) =>
-            {
-                _logger.Warn(ex, $"Could not uninstall retired {entry.Folder} from {entry.FlavourPath}");
-                failures.Add(RetiredAddons.Failed(entry, InstallLabel(entry.FlavourPath), ex));
-            },
-            RecycleAddonFolder);
+            (entry, ex) => errors.Add((entry, ex)),
+            RecycleAddonFolder).ConfigureAwait(true);
+        var failures = new List<string>();
+        foreach (var (entry, ex) in errors)
+        {
+            _logger.Warn(ex, $"Could not uninstall retired {entry.Folder} from {entry.FlavourPath}");
+            failures.Add(RetiredAddons.Failed(entry, InstallLabel(entry.FlavourPath), ex));
+        }
 
         foreach (var entry in removed)
         {
@@ -143,7 +145,7 @@ public sealed partial class MainViewModel
 
         if (_retiredDeferred.Count > 0)
         {
-            UninstallRetiredAddons(_retiredDeferred.ToHashSet(StringComparer.OrdinalIgnoreCase));
+            await UninstallRetiredAddonsAsync(_retiredDeferred.ToHashSet(StringComparer.OrdinalIgnoreCase)).ConfigureAwait(true);
         }
     }
 }

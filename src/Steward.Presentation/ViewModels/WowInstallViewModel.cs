@@ -51,6 +51,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     private CancellationTokenSource? _watchCts;
     private int _scanGeneration;
+    private LocalAddonRowViewModel? _failedUninstall;
     private bool _rescanAfterBusy;
 
     public WowInstallViewModel(
@@ -463,7 +464,13 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         foreach (var row in wanted)
         {
             row.IsHidden = IsHiddenRow(row, hidden);
+            if (_failedUninstall is { } failed && failed != row && failed.LeftFolders.Any(row.HasFolder))
+            {
+                row.FailureMessage = failed.FailureMessage;
+            }
         }
+
+        _failedUninstall = null;
 
         foreach (var row in LocalRows)
         {
@@ -484,7 +491,11 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
 
     private Task<bool> ConfirmRecycleAsync(string name, string folders) => _confirmUninstall(name, folders, Label, true);
 
-    private void OnLocalRemoved(LocalAddonRowViewModel row) => _ = RescanLocalAsync();
+    private void OnLocalRemoved(LocalAddonRowViewModel row)
+    {
+        _failedUninstall = row.LeftFolders.Count > 0 ? row : null;
+        _ = RescanLocalAsync();
+    }
 
     public IReadOnlyList<LocalAddonRowViewModel> AdoptableRows => [.. LocalRows.Where(row => row.CanAdopt && !row.IsHidden)];
 
