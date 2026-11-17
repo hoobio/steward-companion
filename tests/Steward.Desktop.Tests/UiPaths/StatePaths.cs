@@ -30,7 +30,7 @@ public sealed class StatePaths(AvaloniaSession session)
             var recheck = (Task)typeof(MainViewModel).GetMethod("RecheckAuthorizationAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(world.Main, [CancellationToken.None])!;
             WaitFor(() => recheck.IsCompleted);
             WaitFor(() => world.Main.Banners.Any(banner => banner.Id == "retired-addons"));
-            Assert.Equal("This addon was retired: RXP Author (folder RXPAuthor, Forever - Beta, now part of Steward Guides). Uninstall it? Its folder is moved to the Recycle Bin.", Assert.Single(world.Main.Banners, banner => banner.Id == "retired-addons").Title);
+            Assert.Equal($"This addon was retired: RXP Author (folder RXPAuthor, Forever - Beta, now part of Steward Guides). Uninstall it? Its folder is moved to {AddonRecycler.Destination}.",Assert.Single(world.Main.Banners, banner => banner.Id == "retired-addons").Title);
             world.Main.RecycleAddonFolder = (_, _) => throw new IOException("the Recycle Bin could not take it");
             Pump();
             Click(world.Window.CurrentPage!.GetVisualDescendants().OfType<Button>().First(button => button.IsEffectivelyVisible && button.Content as string == "Uninstall"));

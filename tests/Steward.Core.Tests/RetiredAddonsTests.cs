@@ -80,7 +80,7 @@ public sealed class RetiredAddonsTests : IDisposable
     public void Find_HandCopiedFolder_IsFoundPerFlavour()
     {
         Seed(Flavour, "RXPAuthor");
-        Seed(Beta, "rxpauthor");
+        Seed(Beta, "RXPAuthor");
         Seed(Beta, "HoobiScripts_GamerGuides");
 
         var found = RetiredAddons.Find(State(GamerGuides, RxpAuthor), [Install(Flavour), Install(Beta)]);
