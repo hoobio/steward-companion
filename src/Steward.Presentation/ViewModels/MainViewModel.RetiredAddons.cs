@@ -7,9 +7,15 @@ public sealed partial class MainViewModel
 {
     private const string RetiredBannerId = "retired-addons";
     private const string RetiredDeferredBannerId = "retired-addons-deferred";
+    private const string RetiredFailedBannerId = "retired-addons-failed";
     private readonly HashSet<int> _retiredWaits = [];
     private readonly HashSet<string> _retiredDeferred = new(StringComparer.OrdinalIgnoreCase);
     private string? _retiredShown;
+
+    internal Action<string, string> RecycleAddonFolder { get; set; } = AddonRecycler.Recycle;
+
+    private string InstallLabel(string flavourPath) =>
+        Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, flavourPath, StringComparison.OrdinalIgnoreCase))?.Label ?? flavourPath;
 
     private void SaveRetiredAddons(IReadOnlyList<RetiredAddon>? retired)
     {
@@ -53,7 +59,7 @@ public sealed partial class MainViewModel
 
         var keys = found.Select(RetiredAddons.DeclineKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
         ShowLocalInfoBanner(
-            RetiredAddons.Prompt(found, flavourPath => Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, flavourPath, StringComparison.OrdinalIgnoreCase))?.Label ?? flavourPath),
+            RetiredAddons.Prompt(found, InstallLabel),
             RetiredBannerId,
             "Uninstall",
             () => UninstallRetiredAddons(keys),
@@ -68,8 +74,9 @@ public sealed partial class MainViewModel
 
     private void UninstallRetiredAddons(HashSet<string> keys)
     {
-        _localBanners.RemoveAll(banner => banner.Id is RetiredBannerId or RetiredDeferredBannerId);
+        _localBanners.RemoveAll(banner => banner.Id is RetiredBannerId or RetiredDeferredBannerId or RetiredFailedBannerId);
         var running = new List<WowClientProcess>();
+        var failures = new List<string>();
         var (removed, deferred) = RetiredAddons.Remove(
             [.. FindRetiredAddons().Where(entry => keys.Contains(RetiredAddons.DeclineKey(entry)))],
             flavourPath =>
@@ -82,7 +89,12 @@ public sealed partial class MainViewModel
 
                 return false;
             },
-            (entry, ex) => _logger.Warn(ex, $"Could not uninstall retired {entry.Folder} from {entry.FlavourPath}"));
+            (entry, ex) =>
+            {
+                _logger.Warn(ex, $"Could not uninstall retired {entry.Folder} from {entry.FlavourPath}");
+                failures.Add(RetiredAddons.Failed(entry, InstallLabel(entry.FlavourPath), ex));
+            },
+            RecycleAddonFolder);
 
         foreach (var entry in removed)
         {
@@ -94,6 +106,11 @@ public sealed partial class MainViewModel
         if (deferred.Count > 0)
         {
             ShowLocalInfoBanner(RetiredAddons.Deferred(deferred), RetiredDeferredBannerId);
+        }
+
+        if (failures.Count > 0)
+        {
+            ShowLocalInfoBanner(string.Join(" ", failures), RetiredFailedBannerId);
         }
 
         foreach (var install in Installs.Where(install => removed.Any(entry => string.Equals(entry.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase))))

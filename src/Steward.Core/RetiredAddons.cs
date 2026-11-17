@@ -121,8 +121,8 @@ public static class RetiredAddons
             ? $"{entry.Addon.DisplayName} (folder {entry.Folder}, {flavourLabel(entry.FlavourPath)})"
             : $"{entry.Addon.DisplayName} (folder {entry.Folder}, {flavourLabel(entry.FlavourPath)}, now part of {entry.Addon.ReplacedBy})").ToList();
         return labels.Count == 1
-            ? $"This addon was retired: {labels[0]}. Move it to {AddonRecycler.Destination}?"
-            : $"These addons were retired: {string.Join(", ", labels)}. Move them to {AddonRecycler.Destination}?";
+            ? $"This addon was retired: {labels[0]}. Uninstall it? Its folder is moved to {AddonRecycler.Destination}."
+            : $"These addons were retired: {string.Join(", ", labels)}. Uninstall them? Their folders are moved to {AddonRecycler.Destination}.";
     }
 
     public static string? Reasons(IReadOnlyList<RetiredFolder> found)
@@ -134,6 +134,13 @@ public static class RetiredAddons
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         return reasons.Count == 0 ? null : string.Join(" ", reasons);
+    }
+
+    public static string Failed(RetiredFolder entry, string installLabel, Exception error)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(error);
+        return $"{entry.Addon.DisplayName} (folder {entry.Folder}, {installLabel}) was not uninstalled and is still in the AddOns folder: {error.Message}";
     }
 
     public static string Deferred(IReadOnlyList<RetiredFolder> deferred)

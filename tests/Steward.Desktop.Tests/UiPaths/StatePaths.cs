@@ -30,7 +30,17 @@ public sealed class StatePaths(AvaloniaSession session)
             var recheck = (Task)typeof(MainViewModel).GetMethod("RecheckAuthorizationAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(world.Main, [CancellationToken.None])!;
             WaitFor(() => recheck.IsCompleted);
             WaitFor(() => world.Main.Banners.Any(banner => banner.Id == "retired-addons"));
-            Assert.Equal("This addon was retired: RXP Author (folder RXPAuthor, Forever - Beta, now part of Steward Guides). Move it to the Recycle Bin?", Assert.Single(world.Main.Banners, banner => banner.Id == "retired-addons").Title);
+            Assert.Equal("This addon was retired: RXP Author (folder RXPAuthor, Forever - Beta, now part of Steward Guides). Uninstall it? Its folder is moved to the Recycle Bin.", Assert.Single(world.Main.Banners, banner => banner.Id == "retired-addons").Title);
+            world.Main.RecycleAddonFolder = (_, _) => throw new IOException("the Recycle Bin could not take it");
+            Pump();
+            Click(world.Window.CurrentPage!.GetVisualDescendants().OfType<Button>().First(button => button.IsEffectivelyVisible && button.Content as string == "Uninstall"));
+            WaitFor(() => world.Main.Banners.Any(banner => banner.Id == "retired-addons-failed"));
+            Assert.Equal(
+                "RXP Author (folder RXPAuthor, Forever - Beta) was not uninstalled and is still in the AddOns folder: the Recycle Bin could not take it",
+                Assert.Single(world.Main.Banners, banner => banner.Id == "retired-addons-failed").Title);
+            Assert.True(File.Exists(Path.Combine(retired, "RXPAuthor.toc")));
+            world.Main.RecycleAddonFolder = (addOns, folder) => Directory.Delete(Path.Combine(addOns, folder), recursive: true);
+            WaitFor(() => world.Main.Banners.Any(banner => banner.Id == "retired-addons"));
             Pump();
             Click(world.Window.CurrentPage!.GetVisualDescendants().OfType<Button>().First(button => button.IsEffectivelyVisible && button.Content as string == "Uninstall"));
             WaitFor(() => !Directory.Exists(retired));

@@ -286,9 +286,9 @@ public sealed class RetiredAddonsTests : IDisposable
         string Label(string flavour) => flavour == Flavour ? "Forever" : "Beta";
 
         Assert.Equal(
-            $"These addons were retired: Gamer Guides (folder HoobiScripts_GamerGuides, Forever, now part of Steward Guides), Gamer Guides (folder HoobiScripts_GamerGuides, Beta, now part of Steward Guides), RXP Author (folder RXPAuthor, Forever). Move them to {AddonRecycler.Destination}?",
+            $"These addons were retired: Gamer Guides (folder HoobiScripts_GamerGuides, Forever, now part of Steward Guides), Gamer Guides (folder HoobiScripts_GamerGuides, Beta, now part of Steward Guides), RXP Author (folder RXPAuthor, Forever). Uninstall them? Their folders are moved to {AddonRecycler.Destination}.",
             RetiredAddons.Prompt(found, Label));
-        Assert.Equal($"This addon was retired: RXP Author (folder RXPAuthor, Forever). Move it to {AddonRecycler.Destination}?", RetiredAddons.Prompt([new RetiredFolder(Flavour, RxpAuthor)], Label));
+        Assert.Equal($"This addon was retired: RXP Author (folder RXPAuthor, Forever). Uninstall it? Its folder is moved to {AddonRecycler.Destination}.", RetiredAddons.Prompt([new RetiredFolder(Flavour, RxpAuthor)], Label));
         Assert.Equal("Gamer Guides: Guides moved to Steward Guides.", RetiredAddons.Reasons(found));
     }
 

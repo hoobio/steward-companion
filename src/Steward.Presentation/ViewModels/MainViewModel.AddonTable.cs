@@ -421,7 +421,7 @@ public sealed partial class MainViewModel
         && await show(
             $"Uninstall {name}?",
             recycle
-                ? $"This moves {folders} from {installLabel}'s AddOns folder to {AddonRecycler.Destination}."
+                ? $"This removes {folders} from {installLabel}'s AddOns folder. Removed folders are moved to {AddonRecycler.Destination}."
                 : $"This deletes {folders} from {installLabel}'s AddOns folder.",
             "Uninstall").ConfigureAwait(true);
 
