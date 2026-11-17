@@ -189,6 +189,8 @@ CurseForge addons are persisted in `provider_addons.json` beside `state.json` (s
 | `missing_since` | flavour path to timestamp | When an added install's folder was first seen missing; cleared when it returns. |
 | `ignored_addons` | list of `AppStateStore.Key` | Per-install ignored addons. |
 | `kept_local_addons` | list of `AppStateStore.Key` (flavour path plus primary folder) | CurseForge matches the user chose to keep as Local rows through `Adopt none`. |
+| `retired_addons` | list of `RetiredAddon` | The last `/api/me` `retired_addons` list (see docs/design/desktop-auth.md). |
+| `declined_retired_addons` | list of `AppStateStore.Key` (flavour path plus folder) | Retired addon folders the user chose to keep by dismissing the retired banner. |
 | `hidden_addons` | unchanged | |
 | `channels` | unchanged | Written from the channel dialog. |
 | `provider_addons` | flavour path to a list of `ProviderAddonRecord` | CurseForge addons installed through Get addons or adopted from a matched Local folder on that install. Held in memory on `AppState` but saved to `provider_addons.json`, not `state.json`. |

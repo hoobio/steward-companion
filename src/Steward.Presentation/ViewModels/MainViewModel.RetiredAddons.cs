@@ -1,0 +1,132 @@
+using Steward.Core;
+using Steward.Core.Diagnostics;
+
+namespace Steward.App.ViewModels;
+
+public sealed partial class MainViewModel
+{
+    private const string RetiredBannerId = "retired-addons";
+    private const string RetiredDeferredBannerId = "retired-addons-deferred";
+    private readonly HashSet<int> _retiredWaits = [];
+    private readonly HashSet<string> _retiredDeferred = new(StringComparer.OrdinalIgnoreCase);
+    private string? _retiredShown;
+
+    private void SaveRetiredAddons(IReadOnlyList<RetiredAddon>? retired)
+    {
+        var state = _stateStore.Load();
+        var listed = RetiredAddons.Listed(retired);
+        if (!(state.RetiredAddons ?? []).SequenceEqual(listed ?? []))
+        {
+            _stateStore.Save(state with { RetiredAddons = listed });
+        }
+    }
+
+    private List<RetiredFolder> FindRetiredAddons() =>
+    [
+        .. RetiredAddons.Find(
+            _stateStore.Load(),
+            Installs.Where(install => !install.Install.IsMissing).Select(install => new RetiredInstall(
+                install.FlavourPath,
+                [
+                    .. ExcludedFoldersForOthers(install, string.Empty),
+                    .. _addons.Concat(_addonCatalogue ?? []).SelectMany(addon => (addon.Folders ?? []).Append(addon.FolderName)),
+                ]))),
+    ];
+
+    private void ShowRetiredAddons()
+    {
+        var found = FindRetiredAddons().Where(entry => !_retiredDeferred.Contains(RetiredAddons.DeclineKey(entry))).ToList();
+        var shown = string.Join("\n", found.Select(RetiredAddons.DeclineKey));
+        if (shown == _retiredShown)
+        {
+            return;
+        }
+
+        _retiredShown = shown;
+        _localBanners.RemoveAll(banner => banner.Id == RetiredBannerId);
+        if (found.Count == 0)
+        {
+            RefreshBanners();
+            return;
+        }
+
+        var keys = found.Select(RetiredAddons.DeclineKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        ShowLocalInfoBanner(
+            RetiredAddons.Prompt(found),
+            RetiredBannerId,
+            "Uninstall",
+            () => UninstallRetiredAddons(keys),
+            () =>
+            {
+                var state = _stateStore.Load();
+                _stateStore.Save(state with { DeclinedRetiredAddons = [.. (state.DeclinedRetiredAddons ?? []).Union(keys, StringComparer.OrdinalIgnoreCase)] });
+                _retiredShown = null;
+            },
+            RetiredAddons.Reasons(found));
+    }
+
+    private void UninstallRetiredAddons(HashSet<string> keys)
+    {
+        _localBanners.RemoveAll(banner => banner.Id is RetiredBannerId or RetiredDeferredBannerId);
+        var clients = WowClient.Snapshot();
+        var running = new List<WowClientProcess>();
+        var (removed, deferred) = RetiredAddons.Remove(
+            [.. FindRetiredAddons().Where(entry => keys.Contains(RetiredAddons.DeclineKey(entry)))],
+            flavourPath =>
+            {
+                if (WowClient.Find(flavourPath, clients) is { } client)
+                {
+                    running.Add(client);
+                    return true;
+                }
+
+                return false;
+            },
+            (entry, ex) => _logger.Warn(ex, $"Could not uninstall retired {entry.Folder} from {entry.FlavourPath}"));
+
+        foreach (var entry in removed)
+        {
+            _logger.Info($"Uninstalled retired {entry.Folder} from {entry.FlavourPath}");
+        }
+
+        _retiredDeferred.ExceptWith(keys);
+        _retiredDeferred.UnionWith(deferred.Select(RetiredAddons.DeclineKey));
+        if (deferred.Count > 0)
+        {
+            ShowLocalInfoBanner(RetiredAddons.Deferred(deferred), RetiredDeferredBannerId);
+        }
+
+        foreach (var install in Installs.Where(install => removed.Any(entry => string.Equals(entry.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase))))
+        {
+            _ = install.RescanLocalAsync();
+        }
+
+        foreach (var client in running.Distinct())
+        {
+            if (_retiredWaits.Add(client.ProcessId))
+            {
+                _ = UninstallRetiredAfterExitAsync(client.ProcessId);
+            }
+        }
+
+        _retiredShown = null;
+        ShowRetiredAddons();
+    }
+
+    private async Task UninstallRetiredAfterExitAsync(int processId)
+    {
+        try
+        {
+            await WowClient.WaitForExitAsync(processId, CancellationToken.None).ConfigureAwait(true);
+        }
+        finally
+        {
+            _retiredWaits.Remove(processId);
+        }
+
+        if (_retiredDeferred.Count > 0)
+        {
+            UninstallRetiredAddons(_retiredDeferred.ToHashSet(StringComparer.OrdinalIgnoreCase));
+        }
+    }
+}

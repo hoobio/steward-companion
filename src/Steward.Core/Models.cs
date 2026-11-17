@@ -236,7 +236,8 @@ public sealed record AdminGuild(
 public sealed record AdminMe(
     [property: JsonPropertyName("user")] AdminUser User,
     [property: JsonPropertyName("guilds")] IReadOnlyList<AdminGuild> Guilds,
-    [property: JsonPropertyName("addons")] IReadOnlyList<CatalogueAddon>? Addons = null)
+    [property: JsonPropertyName("addons")] IReadOnlyList<CatalogueAddon>? Addons = null,
+    [property: JsonPropertyName("retired_addons")] IReadOnlyList<RetiredAddon>? RetiredAddons = null)
 {
     public AdminGuild? ResolveGuild(string? guildId) =>
         Guilds.FirstOrDefault(guild => string.Equals(guild.Id, guildId, StringComparison.Ordinal))
@@ -399,6 +400,13 @@ public sealed record AppState(
 
     [JsonPropertyName("lost_access")]
     public Dictionary<string, LostAccessAddon> LostAccess { get; init; } = null!;
+
+    [JsonPropertyName("retired_addons")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<RetiredAddon>? RetiredAddons { get; init; }
+
+    [JsonPropertyName("declined_retired_addons")]
+    public List<string> DeclinedRetiredAddons { get; init; } = null!;
 
     [JsonPropertyName("forever_selection_moved")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

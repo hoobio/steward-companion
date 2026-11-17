@@ -3296,7 +3296,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             UpdateGuildFeatures();
             var previousCatalogue = _addonCatalogue;
             var catalogueChanged = SetAddonCatalogue(me.Addons);
+            SaveRetiredAddons(me.RetiredAddons);
             TrackLostAccess(previousCatalogue, me.Addons);
+            ShowRetiredAddons();
             if (catalogueChanged || !previousFeatures.SetEquals(_features))
             {
                 ReconcileFeatureGating();

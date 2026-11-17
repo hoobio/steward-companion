@@ -88,13 +88,14 @@ public sealed partial class MainViewModel
         foreach (var entry in removed)
         {
             _logger.Info($"Removed {entry.Id} ({string.Join(", ", entry.Folders)}) from {entry.FlavourPath}: access ended");
+            var notice = AccessLoss.Notice(entry, state.RetiredAddons);
             if (IsSignedIn)
             {
-                ShowLocalInfoBanner(AccessLoss.Notice(entry));
+                ShowLocalInfoBanner(notice);
             }
             else
             {
-                AccessRemovedNotice = AccessRemovedNotice is { } earlier ? $"{earlier}\n{AccessLoss.Notice(entry)}" : AccessLoss.Notice(entry);
+                AccessRemovedNotice = AccessRemovedNotice is { } earlier ? $"{earlier}\n{notice}" : notice;
             }
         }
 

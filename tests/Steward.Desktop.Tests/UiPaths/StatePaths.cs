@@ -16,6 +16,30 @@ public sealed class StatePaths(AvaloniaSession session)
     private const ulong UpdateSize = 30_513_561;
 
     [Fact]
+    public void X9_retired_addon_banner() => session.Run(() =>
+    {
+        using var world = new UiPathWorld(session, "retired");
+        var retired = Path.Combine(world.BetaAddOns, "RXPAuthor");
+        Directory.CreateDirectory(retired);
+        File.WriteAllText(Path.Combine(retired, "RXPAuthor.toc"), "## Title: RXP Author");
+        var me = FakeApi.Me("steward", "sync", "roster", "addons", "guides");
+        world.Api.MeBody = me[..me.LastIndexOf('}')] + ""","retired_addons":[{"folder_name":"RXPAuthor","name":"RXP Author","reason":null,"replaced_by":"Steward Guides"}]}""";
+
+        world.Step("X9", "a retired addon's hand-copied folder shows one banner and Uninstall removes only that folder", () =>
+        {
+            var recheck = (Task)typeof(MainViewModel).GetMethod("RecheckAuthorizationAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(world.Main, [CancellationToken.None])!;
+            WaitFor(() => recheck.IsCompleted);
+            WaitFor(() => world.Main.Banners.Any(banner => banner.Id == "retired-addons"));
+            Assert.Equal("This addon was retired: RXP Author (now part of Steward Guides). Uninstall it?", Assert.Single(world.Main.Banners, banner => banner.Id == "retired-addons").Title);
+            Pump();
+            Click(world.Window.CurrentPage!.GetVisualDescendants().OfType<Button>().First(button => button.IsEffectivelyVisible && button.Content as string == "Uninstall"));
+            WaitFor(() => !Directory.Exists(retired));
+            Assert.True(Directory.Exists(world.BetaAddOns));
+            Assert.DoesNotContain(world.Main.Banners, banner => banner.Id == "retired-addons");
+        });
+    });
+
+    [Fact]
     public void P110_P112_previews() => session.Run(() =>
     {
         using var world = new UiPathWorld(session, "previews");

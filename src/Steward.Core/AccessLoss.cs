@@ -17,10 +17,17 @@ public static class AccessLoss
 {
     public static readonly TimeSpan Grace = TimeSpan.FromMinutes(30);
 
-    public static string Notice(LostAccessAddon addon)
+    public static string Notice(LostAccessAddon addon, IReadOnlyList<RetiredAddon>? retired = null)
     {
         ArgumentNullException.ThrowIfNull(addon);
-        return $"{addon.Name} was removed because your access ended";
+        if (RetiredAddons.For(retired, addon.Folders) is not { } match)
+        {
+            return $"{addon.Name} was removed because your access ended";
+        }
+
+        var reason = string.IsNullOrWhiteSpace(match.Reason) ? string.Empty : $": {match.Reason.Trim().TrimEnd('.')}";
+        var replacement = string.IsNullOrWhiteSpace(match.ReplacedBy) ? string.Empty : $" (now part of {match.ReplacedBy})";
+        return $"{addon.Name} was removed because it was retired{reason}{replacement}";
     }
 
     public static bool IsDistributed(ManagedAddon addon)

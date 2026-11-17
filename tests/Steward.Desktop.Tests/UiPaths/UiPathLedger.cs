@@ -184,6 +184,7 @@ public static class UiPathLedger
         ("X6", "a search for elv puts TukUI's ElvUI first", null),
         ("X7", "Settings page exports an account's addon settings to the website", null),
         ("X8", "Paste from website confirms each change and writes the account file", null),
+        ("X9", "a retired addon's hand-copied folder shows one banner and Uninstall removes only that folder", null),
     ];
 
     private static readonly string? ResultsFile = Environment.GetEnvironmentVariable("STEWARD_UIPATHS_PNG_DIR") is { Length: > 0 } directory
