@@ -70,9 +70,7 @@ public sealed partial class MainViewModel
     private async Task InstallRequirementAsync(
         WowInstallViewModel install, ManagedAddon addon, string channel, AddonRelease release, IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var folders = await _addonUpdater.InstallAsync(
-            addon, channel, release, install.AddOnsPath, progress, cancellationToken, ExcludedFoldersForOthers(install, addon.Id),
-            _stateStore.Load().Installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, addon.Id))?.Folders).ConfigureAwait(true);
+        var folders = await _addonUpdater.InstallAsync(addon, channel, release, install.AddOnsPath, progress, cancellationToken, ExcludedFoldersForOthers(install, addon.Id)).ConfigureAwait(true);
         var state = _stateStore.Load();
         state.Installs[AppStateStore.Key(install.FlavourPath, addon.Id)] = new InstalledAddonRecord(release.Version, channel, release.Sha256, DateTimeOffset.Now, folders, release.Requires);
         var records = state.ProviderAddons.GetValueOrDefault(install.FlavourPath) ?? [];

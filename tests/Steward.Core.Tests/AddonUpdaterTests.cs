@@ -388,26 +388,13 @@ public sealed class AddonUpdaterTests : IDisposable
     }
 
     [Fact]
-    public async Task InstallAsync_RenamedFolder_RemovesTheRecordedFolderTheReleaseNoLongerShips()
+    public async Task InstallAsync_KeepsEveryFolderTheReleaseDoesNotShip()
     {
         var (updater, _, addOnsPath, sha256) = await QuestieSetupAsync("Questie/Questie.toc");
         WriteInstalled(addOnsPath, "QuestieOld", "QuestieOld.toc");
         var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Folders: ["Questie"]);
 
-        await updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken, recordedFolders: ["QuestieOld", "Questie"]);
-
-        Assert.True(File.Exists(Path.Combine(addOnsPath, "Questie", "Questie.toc")));
-        Assert.False(Directory.Exists(Path.Combine(addOnsPath, "QuestieOld")));
-    }
-
-    [Fact]
-    public async Task InstallAsync_RenamedFolder_KeepsARecordedFolderAnotherAddonNowOwns()
-    {
-        var (updater, _, addOnsPath, sha256) = await QuestieSetupAsync("Questie/Questie.toc");
-        WriteInstalled(addOnsPath, "QuestieOld", "QuestieOld.toc");
-        var release = new AddonRelease("v2", QuestieZip.ToString(), sha256, 0, DateTimeOffset.UtcNow, Folders: ["Questie"]);
-
-        await updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken, ["QuestieOld"], ["QuestieOld", "..", "a/b"]);
+        await updater.InstallAsync(Questie, "release", release, addOnsPath, null, TestContext.Current.CancellationToken);
 
         Assert.True(File.Exists(Path.Combine(addOnsPath, "Questie", "Questie.toc")));
         Assert.True(File.Exists(Path.Combine(addOnsPath, "QuestieOld", "stale.lua")));
