@@ -10,7 +10,7 @@ public sealed record RecycleOutcome(IReadOnlyList<string> Moved, IReadOnlyList<s
         ? null
         : Moved.Count == 0
             ? $"Uninstall failed, nothing was moved: {Error}"
-            : $"Uninstall partly failed: {string.Join(", ", Moved)} moved to {AddonRecycler.Destination}, {string.Join(", ", Left)} still in the AddOns folder: {Error}";
+            : $"Uninstall did not finish:{string.Join(", ", Moved)} moved to {AddonRecycler.Destination}, {string.Join(", ", Left)} still in the AddOns folder: {Error}";
 }
 
 public static class AddonRecycler
@@ -104,7 +104,7 @@ public static class AddonRecycler
         {
         }
 
-        var walk = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint };
+        var walk = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = false };
         foreach (var directory in Directory.EnumerateDirectories(source, "*", walk))
         {
             Directory.CreateDirectory(Path.Combine(destination, Path.GetRelativePath(source, directory)));

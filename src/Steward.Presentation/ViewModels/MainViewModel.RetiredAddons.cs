@@ -75,6 +75,7 @@ public sealed partial class MainViewModel
     private async Task UninstallRetiredAddonsAsync(HashSet<string> keys)
     {
         _localBanners.RemoveAll(banner => banner.Id is RetiredBannerId or RetiredDeferredBannerId or RetiredFailedBannerId);
+        RefreshBanners();
         var running = new List<WowClientProcess>();
         var errors = new List<(RetiredFolder Entry, Exception Error)>();
         var (removed, deferred) = await RetiredAddons.RemoveAsync(

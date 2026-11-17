@@ -301,7 +301,7 @@ public sealed class RetiredAddonsTests : IDisposable
 
         Assert.Equal(["RXPAuthor", "RXPAuthor_Media"], outcome.Moved);
         Assert.Equal(["RXPAuthor_Data"], outcome.Left);
-        Assert.Equal($"Uninstall partly failed: RXPAuthor, RXPAuthor_Media moved to {AddonRecycler.Destination}, RXPAuthor_Data still in the AddOns folder: the Recycle Bin could not take it", outcome.Failure);
+        Assert.Equal($"Uninstall did not finish:RXPAuthor, RXPAuthor_Media moved to {AddonRecycler.Destination}, RXPAuthor_Data still in the AddOns folder: the Recycle Bin could not take it", outcome.Failure);
         Assert.Null((await AddonRecycler.RecycleFoldersAsync(AddOns(Flavour), ["RXPAuthor"], () => false, (_, _) => Task.CompletedTask)).Failure);
     }
 
