@@ -49,6 +49,9 @@ public sealed class AddonUpdater
     // The Windows client reads AddOns (natively or under Wine), so a folder name follows Windows' file name rules on every OS.
     private static readonly char[] InvalidFolderChars = [.. "\"<>|:*?\\/", .. Enumerable.Range(0, 32).Select(code => (char)code)];
 
+    private static readonly string[] DeviceNames =
+        ["CON", "PRN", "AUX", "NUL", .. "0123456789¹²³".SelectMany(digit => new[] { $"COM{digit}", $"LPT{digit}" })];
+
     private readonly HttpClient _httpClient;
     private readonly HttpClient? _sessionClient;
     private readonly ILogger _logger;
@@ -624,7 +627,7 @@ public sealed class AddonUpdater
     {
         foreach (var folder in folders)
         {
-            if (string.IsNullOrWhiteSpace(folder) || folder is "." or ".." || folder.IndexOfAny(InvalidFolderChars) >= 0)
+            if (!IsSafeFolderName(folder))
             {
                 throw new InvalidOperationException($"{addonId} lists an invalid folder name '{folder}'");
             }
@@ -687,24 +690,45 @@ public sealed class AddonUpdater
             return;
         }
 
-        foreach (var file in Directory.EnumerateFiles(existingPath, "*", SearchOption.AllDirectories))
+        if (!IsLink(existingPath))
         {
-            File.SetAttributes(file, FileAttributes.Normal);
+            var walk = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = false };
+            foreach (var file in Directory.EnumerateFiles(existingPath, "*", walk))
+            {
+                File.SetAttributes(file, FileAttributes.Normal);
+            }
         }
 
         Directory.Delete(existingPath, recursive: true);
     }
 
-    // RemoveExistingInstall walks and clears attributes through a junction or symlink before deleting it, so a link is never removed.
     public static bool IsLink(string path) =>
         Directory.Exists(path) && new DirectoryInfo(path).Attributes.HasFlag(FileAttributes.ReparsePoint);
 
     public static string? RemovalRefusal(string addOnsPath, string folderName)
     {
-        return string.IsNullOrWhiteSpace(folderName) || folderName is "." or ".." || folderName.IndexOfAny(['/', '\\', ':']) >= 0
-            ? $"refusing to delete '{folderName}' under {addOnsPath}: not a single folder name"
-            : null;
+        var refusal = $"refusing to delete '{folderName}' under {addOnsPath}: not a single folder name";
+        if (!IsSafeFolderName(folderName))
+        {
+            return refusal;
+        }
+
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(addOnsPath));
+        var full = Path.GetFullPath(Path.Combine(root, folderName));
+        return string.Equals(Path.GetFileName(full), folderName, StringComparison.Ordinal)
+            && string.Equals(Path.GetDirectoryName(full), root, StringComparison.OrdinalIgnoreCase)
+                ? null
+                : refusal;
     }
+
+    private static bool IsSafeFolderName(string folderName) =>
+        !string.IsNullOrWhiteSpace(folderName)
+        && folderName is not ("." or "..")
+        && !folderName.EndsWith('.')
+        && !folderName.EndsWith(' ')
+        && !folderName.StartsWith(' ')
+        && folderName.IndexOfAny(InvalidFolderChars) < 0
+        && !DeviceNames.Contains(folderName.Split('.')[0].TrimEnd(' '), StringComparer.OrdinalIgnoreCase);
 
     internal static void ExtractZip(string zipPath, string addOnsPath)
     {

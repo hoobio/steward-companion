@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
@@ -559,6 +560,79 @@ public sealed class AddonUpdaterTests : IDisposable
 
         Assert.True(Directory.Exists(Path.Combine(addOnsPath, "Questie")));
         Assert.True(Directory.Exists(Path.Combine(addOnsPath, "QuestieDB")));
+    }
+
+    [Theory]
+    [InlineData("...")]
+    [InlineData("....")]
+    [InlineData(". .")]
+    [InlineData(".. ")]
+    [InlineData("Foo.")]
+    [InlineData("Foo ")]
+    [InlineData(" Foo")]
+    [InlineData("Fo*")]
+    [InlineData("F?o")]
+    [InlineData("CON")]
+    [InlineData("nul")]
+    [InlineData("COM1")]
+    [InlineData("LPT9.txt")]
+    public void Uninstall_NameWindowsNormalises_IsRefusedAndTheSiblingAndAddOnsSurvive(string folder)
+    {
+        var addOnsPath = Path.Combine(_tempDir, "outer", "Interface", "AddOns");
+        WriteInstalled(addOnsPath, "Foo", "Foo.toc");
+
+        var thrown = Record.Exception(() => AddonUpdater.Uninstall(addOnsPath, [folder]));
+
+        Assert.True(File.Exists(Path.Combine(addOnsPath, "Foo", "Foo.toc")));
+        Assert.IsType<InvalidOperationException>(thrown);
+        Assert.NotNull(AddonUpdater.RemovalRefusal(addOnsPath, folder));
+        Assert.Throws<InvalidOperationException>(() => AddonUpdater.InstallFolders(Questie, new AddonRelease("v", "z", "s", 0, DateTimeOffset.UtcNow, Folders: [folder])));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RemoveExistingInstall_Junction_LeavesTheTargetAndItsAttributes(bool topLevel)
+    {
+        var addOnsPath = Path.Combine(_tempDir, "AddOns");
+        var target = Directory.CreateDirectory(Path.Combine(_tempDir, "outside")).FullName;
+        var kept = Path.Combine(target, "kept.lua");
+        File.WriteAllText(kept, "x");
+        File.SetAttributes(kept, FileAttributes.ReadOnly);
+        Directory.CreateDirectory(addOnsPath);
+        if (!topLevel)
+        {
+            Directory.CreateDirectory(Path.Combine(addOnsPath, FolderName));
+        }
+
+        Junction(topLevel ? Path.Combine(addOnsPath, FolderName) : Path.Combine(addOnsPath, FolderName, "Libs"), target);
+
+        var thrown = Record.Exception(() => AddonUpdater.RemoveExistingInstall(addOnsPath, FolderName));
+
+        var attributes = File.GetAttributes(kept);
+        File.SetAttributes(kept, FileAttributes.Normal);
+        Assert.True(attributes.HasFlag(FileAttributes.ReadOnly));
+        Assert.True(File.Exists(kept));
+        if (topLevel)
+        {
+            Assert.Null(thrown);
+            Assert.False(Directory.Exists(Path.Combine(addOnsPath, FolderName)));
+        }
+    }
+
+    internal static void Junction(string link, string target)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            using var mklink = Process.Start(new ProcessStartInfo("cmd.exe", ["/c", "mklink", "/J", link, target]) { CreateNoWindow = true, UseShellExecute = false })!;
+            mklink.WaitForExit();
+        }
+        else
+        {
+            Directory.CreateSymbolicLink(link, target);
+        }
+
+        Assert.True(Directory.Exists(link));
     }
 
     private sealed class StatusHandler(HttpStatusCode status) : HttpMessageHandler
