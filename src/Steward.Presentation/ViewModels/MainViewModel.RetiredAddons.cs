@@ -15,9 +15,10 @@ public sealed partial class MainViewModel
     {
         var state = _stateStore.Load();
         var listed = RetiredAddons.Listed(retired);
-        if (!(state.RetiredAddons ?? []).SequenceEqual(listed ?? []))
+        var declines = RetiredAddons.PruneDeclines(state.DeclinedRetiredAddons ?? [], listed);
+        if (!(state.RetiredAddons ?? []).SequenceEqual(listed ?? []) || declines.Count != (state.DeclinedRetiredAddons?.Count ?? 0))
         {
-            _stateStore.Save(state with { RetiredAddons = listed });
+            _stateStore.Save(state with { RetiredAddons = listed, DeclinedRetiredAddons = declines });
         }
     }
 
@@ -52,7 +53,7 @@ public sealed partial class MainViewModel
 
         var keys = found.Select(RetiredAddons.DeclineKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
         ShowLocalInfoBanner(
-            RetiredAddons.Prompt(found),
+            RetiredAddons.Prompt(found, flavourPath => Installs.FirstOrDefault(install => string.Equals(install.FlavourPath, flavourPath, StringComparison.OrdinalIgnoreCase))?.Label ?? flavourPath),
             RetiredBannerId,
             "Uninstall",
             () => UninstallRetiredAddons(keys),
@@ -68,13 +69,12 @@ public sealed partial class MainViewModel
     private void UninstallRetiredAddons(HashSet<string> keys)
     {
         _localBanners.RemoveAll(banner => banner.Id is RetiredBannerId or RetiredDeferredBannerId);
-        var clients = WowClient.Snapshot();
         var running = new List<WowClientProcess>();
         var (removed, deferred) = RetiredAddons.Remove(
             [.. FindRetiredAddons().Where(entry => keys.Contains(RetiredAddons.DeclineKey(entry)))],
             flavourPath =>
             {
-                if (WowClient.Find(flavourPath, clients) is { } client)
+                if (WowClient.Find(flavourPath, WowClient.Snapshot()) is { } client)
                 {
                     running.Add(client);
                     return true;

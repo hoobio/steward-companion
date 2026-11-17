@@ -107,7 +107,7 @@ public sealed class ShellTests(AvaloniaSession session)
         return new WowInstallViewModel(
             install, "Forever", label, [], (_, _) => [], (_, _) => Task.FromResult<IReadOnlyList<ProviderAddonRecord>>([]), (_, _) => false, (_, _) => { },
             _ => Task.FromResult(true), services.GetRequiredService<AddonUpdater>(), services.GetRequiredService<AppStateStore>(), (_, _) => Task.FromResult(true),
-            () => false, _ => { }, (_, _, _) => Task.FromResult(true), _ => { }, _ => { }, (_, _) => Task.CompletedTask, (_, _, _, _, _, _) => Task.CompletedTask,
+            () => false, _ => { }, (_, _, _, _) => Task.FromResult(true), _ => { }, _ => { }, (_, _) => Task.CompletedTask, (_, _, _, _, _, _) => Task.CompletedTask,
             () => null, services.GetRequiredService<AvaloniaPlatform>(), NullLogger.Instance);
     }
 

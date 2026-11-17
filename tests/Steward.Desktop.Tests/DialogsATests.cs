@@ -213,7 +213,7 @@ public sealed class DialogsATests(AvaloniaSession session)
             (_, _) => Task.FromResult(true),
             () => false,
             _ => { },
-            (_, _, _) => Task.FromResult(true),
+            (_, _, _, _) => Task.FromResult(true),
             _ => { },
             _ => { },
             (_, _) => Task.CompletedTask,

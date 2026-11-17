@@ -416,9 +416,14 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task<bool> ConfirmUninstallAsync(string name, string folders, string installLabel) =>
+    private async Task<bool> ConfirmUninstallAsync(string name, string folders, string installLabel, bool recycle) =>
         ShowConfirmDialog is { } show
-        && await show($"Uninstall {name}?", $"This deletes {folders} from {installLabel}'s AddOns folder.", "Uninstall").ConfigureAwait(true);
+        && await show(
+            $"Uninstall {name}?",
+            recycle
+                ? $"This moves {folders} from {installLabel}'s AddOns folder to {AddonRecycler.Destination}."
+                : $"This deletes {folders} from {installLabel}'s AddOns folder.",
+            "Uninstall").ConfigureAwait(true);
 
     private IReadOnlyList<WowInstall> DiscoverInstalls(AppState state) =>
     [

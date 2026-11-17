@@ -41,7 +41,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
     private readonly Func<ManagedAddon, CancellationToken, Task<bool>> _ensureAuthorized;
     private readonly Func<bool> _isCurseForgeEnabled;
     private readonly Action<string> _changeChannelRequested;
-    private readonly Func<string, string, string, Task<bool>> _confirmUninstall;
+    private readonly Func<string, string, string, bool, Task<bool>> _confirmUninstall;
     private readonly Func<string, WowInstall, Task> _afterStewardInstalled;
     private readonly Func<WowInstallViewModel, ManagedAddon, string, AddonRelease, Action<string>, IProgress<double>, Task> _installRequirements;
     private readonly Func<string?> _themeId;
@@ -68,7 +68,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         Func<ManagedAddon, CancellationToken, Task<bool>> ensureAuthorized,
         Func<bool> isCurseForgeEnabled,
         Action<string> changeChannelRequested,
-        Func<string, string, string, Task<bool>> confirmUninstall,
+        Func<string, string, string, bool, Task<bool>> confirmUninstall,
         Action<WowInstallViewModel> remove,
         Action<WowInstallViewModel> clientExited,
         Func<string, WowInstall, Task> afterStewardInstalled,
@@ -452,7 +452,7 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
                     addon,
                     _stateStore,
                     OutOfDateTip(addon.Interface),
-                    ConfirmUninstallAsync,
+                    ConfirmRecycleAsync,
                     OnLocalRemoved,
                     matches,
                     match is not null && kept.Contains(CurseForgeAddons.KeptLocalKey(FlavourPath, match)),
@@ -480,7 +480,9 @@ public sealed partial class WowInstallViewModel : ObservableObject, IDisposable
         RaiseRowsChanged();
     }
 
-    private Task<bool> ConfirmUninstallAsync(string name, string folders) => _confirmUninstall(name, folders, Label);
+    private Task<bool> ConfirmUninstallAsync(string name, string folders) => _confirmUninstall(name, folders, Label, false);
+
+    private Task<bool> ConfirmRecycleAsync(string name, string folders) => _confirmUninstall(name, folders, Label, true);
 
     private void OnLocalRemoved(LocalAddonRowViewModel row) => _ = RescanLocalAsync();
 

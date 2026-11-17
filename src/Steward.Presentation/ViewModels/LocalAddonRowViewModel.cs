@@ -194,7 +194,7 @@ public sealed partial class LocalAddonRowViewModel : ObservableObject, IAddonTab
         {
             foreach (var folder in all)
             {
-                AddonUpdater.RemoveExistingInstall(_install.AddOnsPath, folder);
+                AddonRecycler.Recycle(_install.AddOnsPath, folder);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
