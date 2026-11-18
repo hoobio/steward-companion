@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.34.0](https://github.com/hoobio/steward-companion/compare/v0.33.0...v0.34.0) (2026-11-18)
+
+
+### Features
+
+* ✨ addon rows read Updated when the install is newer than its release, and release notes show both times ([38b75c8](https://github.com/hoobio/steward-companion/commit/38b75c86e075d7605aa6c5f22aa608cc5a72e7fb))
+* ✨ retired addons found in any AddOns folder show one banner offering to uninstall them, and the lost-access notice gives the retirement reason ([afd09ac](https://github.com/hoobio/steward-companion/commit/afd09acb6946f6fd6369663f52b64c1f0dfb9432))
+
+
+### Bug Fixes
+
+* 🐛 a retired addon the Recycle Bin cannot take shows a banner, and removal text says folders are moved to the Recycle Bin ([7fbdd22](https://github.com/hoobio/steward-companion/commit/7fbdd2248d01dde3f4dcdb220e0c8bbcaa85ebbd))
+* 🐛 addon removal never blocks the window, a Local uninstall waits for WoW to close and names folders it could not move, and a folder with a nested junction is removed in one pass ([4dbd6e4](https://github.com/hoobio/steward-companion/commit/4dbd6e401631ef505bbc4cdc8cfb79c3288039c0))
+* 🐛 addon removal refuses folder names Windows resolves to another folder and leaves files behind a junction untouched ([ae20840](https://github.com/hoobio/steward-companion/commit/ae2084026f2e8c99da614c40759bf6610be65224))
+* 🐛 an addon update deletes the old folders a renamed addon no longer ships ([de4a460](https://github.com/hoobio/steward-companion/commit/de4a46082e37f5edff556f1b5d4f9d0d3bbad03b))
+* 🐛 an addon update no longer deletes recorded folders the new release does not ship ([fd03687](https://github.com/hoobio/steward-companion/commit/fd0368738f372e3243f3e7ce52763f13d8ae74d2))
+* 🐛 folders a managed addon's zip installs beside its main folder are no longer listed as Local addons ([0e89b2d](https://github.com/hoobio/steward-companion/commit/0e89b2d382fcfe5573a9f9019ac52b06d3955a53))
+* 🐛 retired and Local addons go to the Recycle Bin, the retired banner names each folder and install and skips every recorded folder ([ec96bf0](https://github.com/hoobio/steward-companion/commit/ec96bf0b2e43509cd772cc4104ac85b54f36993c))
+* 🐛 the removed-addons copy fallback stops on an unreadable folder, the retired banner hides while its removal runs, and a Local uninstall that stops part way says it did not finish ([c526a6f](https://github.com/hoobio/steward-companion/commit/c526a6fff192e8af18ffb88adee6022398167377))
+
 ## [0.33.0](https://github.com/hoobio/steward-companion/compare/v0.32.0...v0.33.0) (2026-11-13)
 
 
