@@ -334,6 +334,19 @@ public sealed class AccessLossTests : IDisposable
     }
 
     [Fact]
+    public void Notices_ListsEachAddonOnceAcrossFlavoursAndPasses()
+    {
+        var other = Path.Combine(Path.GetDirectoryName(Flavour)!, "_other_");
+        LostAccessAddon Entry(string flavour, string id, string name) => new(flavour, id, name, "Protected", [name], Now);
+        var removed = new[] { Entry(Flavour, "a", "Alpha"), Entry(other, "a", "Alpha"), Entry(Flavour, "b", "Beta") };
+
+        var notices = AccessLoss.Notices(removed);
+
+        Assert.Equal(["Alpha was removed because your access ended", "Beta was removed because your access ended"], notices);
+        Assert.Empty(AccessLoss.Notices(removed, null, string.Join('\n', notices)));
+    }
+
+    [Fact]
     public void RemoveDue_WhileWowRuns_KeepsEverythingForTheNextPass()
     {
         var folder = MakeAddon("HoobiScripts");

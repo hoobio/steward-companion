@@ -30,6 +30,14 @@ public static class AccessLoss
         return $"{addon.Name} was removed because it was retired{reason}{replacement}";
     }
 
+    public static IReadOnlyList<string> Notices(
+        IEnumerable<LostAccessAddon> removed, IReadOnlyList<RetiredAddon>? retired = null, string? earlier = null)
+    {
+        ArgumentNullException.ThrowIfNull(removed);
+        var shown = (earlier ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+        return [.. removed.Select(entry => Notice(entry, retired)).Where(shown.Add)];
+    }
+
     public static bool IsDistributed(ManagedAddon addon)
     {
         ArgumentNullException.ThrowIfNull(addon);
