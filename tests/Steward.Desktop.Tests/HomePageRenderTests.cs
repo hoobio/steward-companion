@@ -55,7 +55,7 @@ public sealed class HomePageRenderTests(AvaloniaSession session)
 
         main.FilterIndex = 2;
         Pump();
-        Assert.Equal(5, main.TableRows.Count);
+        Assert.Equal(2, main.TableRows.Count);
         Save(window, "home-hidden");
         main.FilterIndex = 0;
 

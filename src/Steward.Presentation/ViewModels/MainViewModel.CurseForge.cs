@@ -648,9 +648,11 @@ public sealed partial class MainViewModel
     private IReadOnlyList<string> ExcludedFoldersForOthers(WowInstallViewModel install, string id)
     {
         var installs = _stateStore.Load().Installs;
+        var others = _addons.Concat(_addonCatalogue ?? []).Where(addon => (CurseForgeEnabled || !addon.IsCurseForge) && addon.RunsOn(install.Install.ProductCode) && !string.Equals(addon.Id, id, StringComparison.OrdinalIgnoreCase)).ToList();
         return
         [
-            .. _addons.Concat(_addonCatalogue ?? []).Where(addon => (CurseForgeEnabled || !addon.IsCurseForge) && addon.RunsOn(install.Install.ProductCode) && !string.Equals(addon.Id, id, StringComparison.OrdinalIgnoreCase)).Select(addon => addon.FolderName),
+            .. others.Select(addon => addon.FolderName),
+            .. others.SelectMany(addon => (addon.Folders ?? []).Concat(_status.GetValueOrDefault(addon.Id)?.Release?.Folders ?? []).Concat(installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, addon.Id))?.Folders ?? [])),
             .. new[] { StewardGuidesAddon.FolderName }.Where(_ => !string.Equals(id, StewardGuidesAddon.AddonId, StringComparison.OrdinalIgnoreCase)),
             .. ProviderRecords(install.FlavourPath).Where(record => CurseForgeEnabled && record.Id != id).SelectMany(record =>
                 CurseForgeAddons.Folders(record).Concat(installs.GetValueOrDefault(AppStateStore.Key(install.FlavourPath, record.Id))?.Folders ?? [])),
