@@ -197,7 +197,7 @@ public sealed class StewardSyncFileTests : IDisposable
     [Fact]
     public void SignedOut_DropMe_KeepsEveryKeyButMe()
     {
-        var signedOut = SyncPayload.SignedOut(SamplePayload(), DateTimeOffset.FromUnixTimeSeconds(1758280000))!;
+        var signedOut = SyncPayload.SignedOut(SamplePayload(), DateTimeOffset.FromUnixTimeSeconds(1758280000), heldStewardFeature: true)!;
 
         Assert.Equal(["writtenAt", "statuses"], Parse(StewardSyncFile.Render(signedOut)).Table.Select(entry => entry.Key!.Text));
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758280000), signedOut.WrittenAt);
@@ -213,7 +213,7 @@ public sealed class StewardSyncFileTests : IDisposable
             Avatar = SampleAvatar(),
         };
 
-        var signedOut = SyncPayload.SignedOut(last, DateTimeOffset.FromUnixTimeSeconds(1758280000))!;
+        var signedOut = SyncPayload.SignedOut(last, DateTimeOffset.FromUnixTimeSeconds(1758280000), heldStewardFeature: true)!;
 
         Assert.Empty(signedOut.Entries);
         Assert.Null(signedOut.Avatar);
@@ -222,8 +222,17 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
-    public void SignedOut_WithNoLastDocument_WritesNothing()
+    public void SignedOut_WithNoLastDocumentForAnOfficer_WritesNothing()
     {
-        Assert.Null(SyncPayload.SignedOut(null, DateTimeOffset.UnixEpoch));
+        Assert.Null(SyncPayload.SignedOut(null, DateTimeOffset.UnixEpoch, heldStewardFeature: true));
+    }
+
+    [Fact]
+    public void SignedOut_WithNoLastDocumentForANonOfficer_WritesTheOverlayOnly()
+    {
+        var signedOut = SyncPayload.SignedOut(null, DateTimeOffset.UnixEpoch, heldStewardFeature: false)!;
+
+        Assert.Empty(signedOut.Entries);
+        Assert.Equal(["writtenAt"], Parse(StewardSyncFile.Render(signedOut)).Table.Select(entry => entry.Key!.Text));
     }
 }

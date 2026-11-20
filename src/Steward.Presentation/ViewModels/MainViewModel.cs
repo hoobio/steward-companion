@@ -1779,6 +1779,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (!IsSignedIn || !IsApiReachable || _userId is not { } userId)
         {
+            _lastDirectorySync = default;
             return null;
         }
 
@@ -1806,6 +1807,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         // The file on disk is kept and nothing is retried here: a wrong or partial document must never overwrite good data, and the next trigger asks again.
         catch (Exception ex) when (ex is StewardRequestException or HttpRequestException or TaskCanceledException or FormatException)
         {
+            if (TransientHttp.IsTransient(ex))
+            {
+                _lastDirectorySync = default;
+            }
+
             var message = $"Could not pull the sync document: {ex.Message}";
             if (message != _lastSyncFailure)
             {
@@ -1841,8 +1847,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var payload = await _guildSyncApi.LoadImagesAsync(last, [install], last, CancellationToken.None).ConfigureAwait(true);
-        GuildRosterSync.WriteIfChanged(install, payload, _stateStore, force: false, _logger);
-        return null;
+        await _syncFileGate.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            if (!ReferenceEquals(_lastSync, last) || _lastSyncGuild != _guildId)
+            {
+                return null;
+            }
+
+            GuildRosterSync.WriteIfChanged(install, payload, _stateStore, force: false, _logger);
+            return null;
+        }
+        finally
+        {
+            _syncFileGate.Release();
+        }
     }
 
     private async Task SyncBannersAsync()
@@ -3315,7 +3334,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         QueueRevokedRemovals();
         var installs = Installs.Select(install => install.Install).ToList();
-        var signedOut = SyncPayload.SignedOut(_lastSync, DateTimeOffset.Now);
+        var signedOut = SyncPayload.SignedOut(_lastSync, DateTimeOffset.Now, HasStewardFeature);
         _sessionService.ClearSession();
         _addonUpdater.ManifestCache.Clear();
         SetAddonCatalogue(null);

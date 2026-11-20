@@ -100,9 +100,10 @@ The app keeps the last document. On sign-out it rewrites the file from that docu
 | --- | --- |
 | `dropMe` | The last payload without the top-level `me` key. The images stay. |
 | `clear` | The overlay only. The avatar files are deleted. |
-| No last document | The file is not written. |
+| No last document, the user held the `steward` feature | The file is not written. |
+| No last document, the user did not hold the `steward` feature | The overlay only. |
 
-The server sends `dropMe` when the caller gets the officer parts, so an officer keeps the roster data in game after sign-out.
+The server sends `dropMe` when the caller gets the officer parts, so an officer keeps the roster data in game after sign-out. A non-officer with no document this session (a failed or 403 pull) loses any `me` and gear sets left from an earlier session.
 
 ## Keys the app reads
 
