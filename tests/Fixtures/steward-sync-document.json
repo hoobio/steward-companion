@@ -1,0 +1,83 @@
+{
+  "me": { "id": "700000000000000007", "role": "admin", "features": ["addons", "curseforge", "professions", "roster", "steward", "sync"] },
+  "icon": "https://cdn.discordapp.com/icons/123456789012345678/a_1f2e.png?size=64",
+  "adminRoster": {
+    "members": [
+      {
+        "user_id": "300000000000000003", "name": "Peer", "display_name": "Peer \"the\" Druid", "discord_tag": "peer#0", "status": "Raider",
+        "origin": ["Ascension", "Forever"], "flags": ["Bench"], "rating": 4, "notes": "Y\r\nGood healer\\tank\nn\nwatch ✦ gear\u0007",
+        "notes_warning": true, "signups": 12, "last_signup_at": 1760000000123,
+        "primary": { "class": "Druid", "spec": "Restoration", "role": "Healer" }, "secondary": null,
+        "main": { "guid": "Player-5826-0A1B2C3D", "name": "Leafy", "level": 60, "class_id": 11 }
+      },
+      {
+        "user_id": "400000000000000004", "name": "Outsider", "display_name": null, "discord_tag": null, "status": null,
+        "origin": [], "flags": [], "rating": null, "notes": null, "notes_warning": false, "signups": 0, "last_signup_at": 0,
+        "primary": null, "secondary": { "class": "Mage", "spec": "Frost", "role": "Damage" }
+      }
+    ],
+    "statuses": [ { "name": "Raider" }, { "name": "Trial" } ],
+    "origins": [ { "name": "Ascension", "color": "#aa3300" }, { "name": "Forever", "color": "#0055ff" } ],
+    "rank_targets": { "Player-5826-0A1B2C3E": 6, "Player-5826-0A1B2C3D": 4 },
+    "rank_locked": [ 7, 5 ],
+    "kos": {
+      "players": [ { "name": "gankface", "note": "camps the flight path" }, { "name": "Gankface", "note": "" }, { "name": "Abe", "note": null } ],
+      "guilds": [ { "name": "Red Rage", "note": null } ]
+    },
+    "attunements": { "onyxia": [ "Player-5826-0A1B2C3E", "Player-5826-0A1B2C3D" ], "blackwing": [] }
+  },
+  "adminMembers": {
+    "members": [
+      { "id": "300000000000000003", "name": "peer", "nick": "Peer", "avatar_url": "https://cdn.discordapp.com/avatars/300000000000000003/abcd.png" },
+      { "id": "400000000000000004", "name": "outsider", "nick": null, "avatar_url": "https://cdn.discordapp.com/embed/avatars/1.png" }
+    ]
+  },
+  "adminCatalogue": {
+    "catalogue": {
+      "Alchemy": [
+        { "recipe_id": 2330, "name": "Minor Healing Potion", "difficulty": "trivial", "header": "Potions", "item_id": 118, "tools": null,
+          "reagents": [ { "item_id": 2447, "name": "Peacebloom", "count": 1 }, { "item_id": 765, "name": null, "count": null } ],
+          "order": 1, "grey": 55, "orange_to": 1, "yellow_from": 25, "yellow_to": 40, "green_from": 41 },
+        { "recipe_id": 3170, "name": "Weak Troll's Blood Potion", "difficulty": null, "header": null, "item_id": null, "tools": "Alchemy Lab", "reagents": null }
+      ]
+    }
+  },
+  "memberRoster": {
+    "people": [
+      { "id": "300000000000000003", "name": "Peer", "main_guid": "Player-5826-0A1B2C3D", "avatar_url": "https://cdn.discordapp.com/avatars/300000000000000003/abcd.webp?size=128" },
+      { "id": "400000000000000004", "name": "Outsider", "main_guid": null, "avatar_url": null }
+    ],
+    "characters": [
+      { "guid": "Player-5826-0A1B2C3D", "name": "Leafy", "level": 60, "class_id": 11, "linked_user_id": "300000000000000003" },
+      { "guid": "Player-5826-0A1B2C3E", "name": "Twiggy", "level": 12, "class_id": 8, "linked_user_id": null }
+    ]
+  },
+  "memberProfessions": {
+    "professions": [
+      { "guid": "Player-5826-0A1B2C3D", "name": "Leafy", "class_id": 11,
+        "skills": [ { "name": "Alchemy", "rank": 150, "max_rank": 225, "secondary": false }, { "name": "Cooking", "rank": 1, "max_rank": 75, "secondary": true } ],
+        "recipes": { "Alchemy": [2330, 3170], "Cooking": [] } }
+    ],
+    "catalogue": {
+      "Cooking": [ { "recipe_id": 2538, "name": "Charred Wolf Meat", "difficulty": null, "header": null, "item_id": 2679, "tools": null, "reagents": [ { "item_id": 2672, "name": "Stringy Wolf Meat", "count": 1 } ] } ]
+    }
+  },
+  "gearSets": {
+    "sets": [
+      {
+        "id": "a1b2c3d4e5f6", "ownerId": "700000000000000007", "name": "Fury", "class": "WARRIOR", "spec": "Fury", "character": "Player-5826-0A1B2C3D",
+        "slots": {
+          "MainHand": { "item": 19019, "enchant": 1900, "suffix": null },
+          "Head": { "item": 12640, "enchant": 1506 },
+          "Neck": null,
+          "Back": { "item": 13340, "enchant": null },
+          "Finger1": { "item": 17063 },
+          "Shoulder": { "enchant": 2606 },
+          "head": { "item": 1 }
+        },
+        "createdAt": 1760000000000, "updatedAt": 1760000000500
+      },
+      { "id": "f6e5d4c3b2a1", "ownerId": "700000000000000007", "name": "Empty", "class": null, "spec": null, "character": null, "slots": {} }
+    ]
+  }
+}
