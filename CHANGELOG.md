@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.35.0](https://github.com/hoobio/steward-companion/compare/v0.34.0...v0.35.0) (2026-11-20)
+
+
+### Features
+
+* ✨ a Not for this client guide row can be forced on from its context menu and written to the game ([be6284f](https://github.com/hoobio/steward-companion/commit/be6284fc837d3107aa88cb3156484c09279da065))
+* ✨ the Steward sync file carries the signed-in user's gear builder sets as gearSets ([24c8c30](https://github.com/hoobio/steward-companion/commit/24c8c300e089efa6323f80ea1c2e2b9e43474f36))
+* ✨ the Steward sync file comes from one server sync document, converted from JSON to Lua with no knowledge of its keys ([062b55e](https://github.com/hoobio/steward-companion/commit/062b55e3074dadaa3e3497d151c24d763d0169b9))
+
+
+### Bug Fixes
+
+* 🐛 a failed first sync pull is retried at once, an install restore skips a stale document, and a non-officer sign-out with no document clears the file ([9bb4c18](https://github.com/hoobio/steward-companion/commit/9bb4c18c49ab289eb7ad995e8b5ca589c8677de2))
+* 🐛 members without the steward feature get their gear builder sets in the Steward sync file ([9ec78f6](https://github.com/hoobio/steward-companion/commit/9ec78f604be2a50a9b3be5c44f6e4793947d606c))
+* 🐛 right-clicking a guide row that has no menu item opens no empty popup ([9fec67c](https://github.com/hoobio/steward-companion/commit/9fec67ccd0c7d58932c925282195c2c98e7e79f9))
+* 🐛 sync document pulls run one at a time, a sign-out with no last document leaves the file alone, and client_outdated on a pull keeps the file ([f85765f](https://github.com/hoobio/steward-companion/commit/f85765f30e8c880b8783fed989b946d38534565f))
+* 🐛 The access-ended notices list each addon once when it was removed from several game folders or in several passes ([698b80c](https://github.com/hoobio/steward-companion/commit/698b80c57e17683d934bd4a2144bb0a5941f0026))
+* 🐛 the RestedXP Trailblazer Classic Era build is valid on the Forever client ([03ce20c](https://github.com/hoobio/steward-companion/commit/03ce20ca6f296dc5f2798970f0250ecef7c4c612))
+
 ## [0.34.0](https://github.com/hoobio/steward-companion/compare/v0.33.0...v0.34.0) (2026-11-18)
 
 
