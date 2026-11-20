@@ -115,6 +115,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly List<BannerViewModel> _localBanners = [];
     private SyncDirectory? _lastDirectory;
     private IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? _lastMemberCatalogue;
+    private IReadOnlyList<GearSetDto>? _lastMemberGearSets;
     private SyncPayload? _lastOfficerPayload;
     private string? _lastOfficerPayloadGuild;
     private CancellationTokenSource? _eventsCts;
@@ -1857,6 +1858,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return null;
     }
 
+    private async Task RefreshMemberGearSetsAsync(string guildId)
+    {
+        try
+        {
+            _lastMemberGearSets = await _stewardClient.GetGearSetsAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is StewardRequestException or HttpRequestException or TaskCanceledException or JsonException or SessionExpiredException)
+        {
+            _logger.Warn(ex, $"Gear sets pull failed for {guildId}, keeping the last known sets");
+        }
+    }
+
     private async Task SyncDirectoryAsync()
     {
         if (!IsSignedIn || !IsApiReachable || _guildId is not { } guildId)
@@ -1864,11 +1877,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        var memberGearSets = !HasStewardFeature;
+        if (memberGearSets)
+        {
+            await RefreshMemberGearSetsAsync(guildId).ConfigureAwait(true);
+        }
+
         var pullRoster = HasRosterFeature;
         var pullProfessions = HasProfessionsFeature;
         var pullCatalogue = pullProfessions || HasSyncFeature;
         if (!pullRoster && !pullProfessions && !pullCatalogue)
         {
+            if (memberGearSets && WriteMe(Installs.Select(install => install.Install), new SyncMe(_userId!, Role, [.. _features])))
+            {
+                await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
+            }
+
             return;
         }
 
@@ -3443,22 +3467,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RemoveLostAccessAddons();
     }
 
-    private void WriteMe(IEnumerable<WowInstall> installs, SyncMe? me, bool force = false)
+    private bool WriteMe(IEnumerable<WowInstall> installs, SyncMe? me, bool force = false)
     {
         var catalogue = me is null ? null : _lastMemberCatalogue;
-        // ponytail: gear sets are fetched only in PullAsync, so a user without the steward feature gets none; add a gear-set fetch to the directory sync if that user needs them.
         var payload = new SyncPayload(DateTimeOffset.Now, null, [], [], [], [], [], [])
         {
             Me = me,
+            GearSets = me is null ? null : _lastMemberGearSets,
             Directory = me is null ? null : _lastDirectory,
             Catalogue = catalogue is null
                 ? new Dictionary<string, IReadOnlyList<CatalogueRecipe>>()
                 : MemberCatalogueMapping.ToCatalogue(catalogue),
         };
+        var changed = false;
         foreach (var install in installs)
         {
-            GuildRosterSync.WriteIfChanged(install, payload, _stateStore, force, _logger);
+            changed |= GuildRosterSync.WriteIfChanged(install, payload, _stateStore, force, _logger);
         }
+
+        return changed;
     }
 
     private void ResetInstalls()
@@ -3473,6 +3500,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _meGuilds = [];
         _lastDirectory = null;
         _lastMemberCatalogue = null;
+        _lastMemberGearSets = null;
         _lastDirectorySync = default;
         _lastOfficerPayload = null;
         _lastOfficerPayloadGuild = null;
