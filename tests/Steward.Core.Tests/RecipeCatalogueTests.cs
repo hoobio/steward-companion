@@ -1,5 +1,3 @@
-using System.Net;
-using System.Text;
 using System.Text.Json;
 
 namespace Steward.Core.Tests;
@@ -38,56 +36,5 @@ public sealed class RecipeCatalogueTests
         Assert.Equal(11460, recipe.GetProperty("recipeId").GetInt32());
         Assert.False(recipe.TryGetProperty("difficulty", out _));
         Assert.Equal(2, recipe.GetProperty("reagents").EnumerateArray().Single().GetProperty("count").GetInt32());
-    }
-
-    private sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
-    {
-        public string? RequestUrl { get; private set; }
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            RequestUrl = request.RequestUri?.ToString();
-            return Task.FromResult(new HttpResponseMessage(status)
-            {
-                Content = new StringContent(body, Encoding.UTF8, "application/json"),
-            });
-        }
-    }
-
-    [Fact]
-    public async Task GetRecipeCatalogueAsync_Success_Deserialises()
-    {
-        // Steward API serves snake_case (recipe_id/item_id), not the camelCase CatalogueRecipe shape the app pushes back.
-        var handler = new StubHandler(HttpStatusCode.OK, """
-            {"catalogue":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","header":"Potions","item_id":13446,"tools":"","reagents":[{"item_id":13464,"name":"Golden Sansam","count":2}],"order":3,"grey":320,"orange_to":289,"yellow_from":290,"yellow_to":300,"green_from":310}]}}
-            """);
-        var client = new StewardClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
-
-        var catalogue = await client.GetRecipeCatalogueAsync("1", CancellationToken.None);
-
-        Assert.Equal("https://api.example.com/guild/api/admin/1/recipes/catalogue", handler.RequestUrl);
-        var recipe = Assert.Single(catalogue["Alchemy"]);
-        Assert.Equal("Major Healing Potion", recipe.Name);
-        Assert.Equal(11460, recipe.RecipeId);
-        Assert.Equal(13446, recipe.ItemId);
-        Assert.Equal(13464, Assert.Single(recipe.Reagents!).ItemId);
-        Assert.Equal<(int?, int?, int?, int?, int?, int?)>((3, 320, 289, 290, 300, 310), (recipe.Order, recipe.Grey, recipe.OrangeTo, recipe.YellowFrom, recipe.YellowTo, recipe.GreenFrom));
-    }
-
-    [Fact]
-    public async Task GetRecipeCatalogueAsync_Unauthorized_ThrowsSessionExpired()
-    {
-        var client = new StewardClient(new HttpClient(new StubHandler(HttpStatusCode.Unauthorized, "{}")), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
-
-        await Assert.ThrowsAsync<SessionExpiredException>(() => client.GetRecipeCatalogueAsync("1", CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task GetRecipeCatalogueAsync_NotFound_ThrowsHttpRequestException()
-    {
-        var client = new StewardClient(new HttpClient(new StubHandler(HttpStatusCode.NotFound, "{}")), "https://api.example.com/guild", "Steward/1.0.0 (dev)");
-
-        var exception = await Assert.ThrowsAsync<HttpRequestException>(() => client.GetRecipeCatalogueAsync("1", CancellationToken.None));
-        Assert.Contains("404", exception.Message, StringComparison.Ordinal);
     }
 }

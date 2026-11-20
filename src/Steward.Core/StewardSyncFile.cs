@@ -25,17 +25,12 @@ public static class StewardSyncFile
         "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload, withAvatar, fingerprint, avatarIds)) + ")" + Environment.NewLine;
 
     public static string Fingerprint(SyncPayload payload) =>
-        HashUtf8(Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }), payload.Avatar?.SourceUrl, PersonAvatarUrls(payload), DiscordAvatarUrls(payload));
+        HashUtf8(LuaWriter.Serialize(LuaValue.FromTable(payload.Entries)), payload.Avatar?.SourceUrl, ImageUrls(payload.Images.People), ImageUrls(payload.Images.Discord));
 
-    private static string PersonAvatarUrls(SyncPayload payload) => string.Concat(
-        (payload.Directory?.People ?? []).Where(PersonAvatars.IsEligible)
-            .OrderBy(person => person.Id, StringComparer.Ordinal)
-            .Select(person => $"{person.Id}={person.AvatarUrl}\n"));
-
-    private static string DiscordAvatarUrls(SyncPayload payload) => string.Concat(
-        payload.Discord.Where(PersonAvatars.IsEligible)
-            .OrderBy(member => member.Id, StringComparer.Ordinal)
-            .Select(member => $"{member.Id}={member.AvatarUrl}\n"));
+    private static string ImageUrls(IReadOnlyDictionary<string, string> urls) => string.Concat(
+        urls.Where(PersonAvatars.IsSafe)
+            .OrderBy(entry => entry.Key, StringComparer.Ordinal)
+            .Select(entry => $"{entry.Key}={entry.Value}\n"));
 
     private static string HashUtf8(params string?[] parts)
     {
@@ -113,7 +108,7 @@ public static class StewardSyncFile
     private static HashSet<string> SyncPersonAvatars(string addOnsPath, SyncPayload payload, IReadOnlyDictionary<string, string>? index)
     {
         var wanted = PersonAvatars.Wanted(payload);
-        foreach (var (userId, image) in PersonAvatars.Images(payload))
+        foreach (var (userId, image) in payload.Avatars)
         {
             if (!wanted.Contains(userId) || !PersonAvatars.NeedsWrite(addOnsPath, userId, image, index))
             {
@@ -206,321 +201,29 @@ public static class StewardSyncFile
             entries.Add(new(LuaValue.FromString("fingerprint"), LuaValue.FromString(fingerprint)));
         }
 
-        if (payload.ExportedAt is { } exportedAt)
-        {
-            entries.Add(new(LuaValue.FromString("exportedAt"), LuaValue.FromNumber(exportedAt.ToUnixTimeSeconds())));
-        }
-
         if (withAvatar)
         {
             // GetTexture() echoes back any path it was given and a texture that failed to load draws solid green, so the key's presence is the addon's only signal the file is really there.
             entries.Add(new(LuaValue.FromString("avatar"), LuaValue.FromString(AvatarTexturePath)));
         }
 
-        entries.Add(new(LuaValue.FromString("roster"), LuaValue.Array(payload.Roster.Select(RosterToLua))));
-        entries.Add(new(LuaValue.FromString("loot"), LuaValue.Array(payload.Loot.Select(LootToLua))));
-        entries.Add(new(LuaValue.FromString("attendance"), LuaValue.Array(payload.Attendance.Select(AttendanceToLua))));
-        entries.Add(new(LuaValue.FromString("members"), LuaValue.Array(payload.Members.Select(MemberToLua))));
-        entries.Add(new(LuaValue.FromString("discord"), LuaValue.Array(payload.Discord.Select(member => DiscordToLua(member, avatarIds)))));
-        entries.Add(new(LuaValue.FromString("statuses"), LuaValue.Array(payload.Statuses.Select(LuaValue.FromString))));
-        entries.Add(new(LuaValue.FromString("origins"), LuaValue.Array(payload.Origins.Select(OriginToLua))));
-
-        if (payload.Catalogue.Count > 0)
-        {
-            entries.Add(new(LuaValue.FromString("catalogue"), LuaValue.FromTable(
-                [.. payload.Catalogue.Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(CatalogueRecipeToLua)))) ])));
-        }
-
-        if (payload.Me is { } me)
-        {
-            entries.Add(new(LuaValue.FromString("me"), MeToLua(me)));
-        }
-
-        if (payload.Directory is { People: not null } or { Professions: not null })
-        {
-            entries.Add(new(LuaValue.FromString("directory"), DirectoryToLua(payload.Directory!, avatarIds)));
-        }
-
-        if (payload.Directory?.Characters is { } linkedCharacters)
-        {
-            entries.Add(new(LuaValue.FromString("links"), LinksToLua(linkedCharacters)));
-        }
-
-        if (payload.RankTargets is { } rankTargets)
-        {
-            entries.Add(new(LuaValue.FromString("rankTargets"), LuaValue.FromTable(
-                [.. rankTargets.OrderBy(kv => kv.Key, StringComparer.Ordinal)
-                    .Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.FromNumber(kv.Value)))])));
-        }
-
-        if (payload.RankLocked is { } rankLocked)
-        {
-            entries.Add(new(LuaValue.FromString("rankLocked"), LuaValue.Array(rankLocked.Order().Select(order => LuaValue.FromNumber(order)))));
-        }
-
-        if (payload.Kos is { } kos)
-        {
-            entries.Add(new(LuaValue.FromString("kos"), LuaValue.FromTable(
-            [
-                new(LuaValue.FromString("players"), KosToLua(kos.Players)),
-                new(LuaValue.FromString("guilds"), KosToLua(kos.Guilds)),
-            ])));
-        }
-
-        if (payload.Attunements is { } attunements)
-        {
-            entries.Add(new(LuaValue.FromString("attunements"), LuaValue.FromTable(
-                [.. attunements.OrderBy(kv => kv.Key, StringComparer.Ordinal)
-                    .Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(LuaValue.FromString))))])));
-        }
-
-        if (payload.GearSets is { } gearSets)
-        {
-            entries.Add(new(LuaValue.FromString("gearSets"), LuaValue.Array(gearSets.Select(GearSetToLua))));
-        }
-
+        entries.AddRange(avatarIds is { Count: > 0 } ? payload.Entries.Select(entry => WithAvatars(entry, avatarIds)) : payload.Entries);
         return LuaValue.FromTable(entries);
     }
 
-    private static readonly string[] GearSlots =
-    [
-        "Head", "Neck", "Shoulder", "Back", "Chest", "Wrist", "Hands", "Waist", "Legs", "Feet",
-        "Finger1", "Finger2", "Trinket1", "Trinket2", "MainHand", "OffHand", "Ranged",
-    ];
-
-    private static LuaValue GearSetToLua(GearSetDto set)
+    private static LuaEntry WithAvatars(LuaEntry entry, IReadOnlySet<string> avatarIds) => entry.Key?.Text switch
     {
-        var items = new List<LuaEntry>();
-        for (var i = 0; i < GearSlots.Length; i++)
+        "discord" => entry with { Value = AvatarsOn(entry.Value, avatarIds) },
+        "directory" when entry.Value.Kind == LuaKind.Table => entry with
         {
-            if (set.Slots is null || !set.Slots.TryGetValue(GearSlots[i], out var pick) || pick?.Item is not { } item)
-            {
-                continue;
-            }
+            Value = LuaValue.FromTable([.. entry.Value.Table.Select(field => field.Key?.Text == "people" ? field with { Value = AvatarsOn(field.Value, avatarIds) } : field)]),
+        },
+        _ => entry,
+    };
 
-            var fields = new List<LuaEntry> { new(LuaValue.FromString("id"), LuaValue.FromNumber(item)) };
-            if (pick.Enchant is { } enchant)
-            {
-                fields.Add(new(LuaValue.FromString("enchant"), LuaValue.FromNumber(enchant)));
-            }
-
-            items.Add(new(LuaValue.FromNumber(i + 1), LuaValue.FromTable(fields)));
-        }
-
-        var entries = new List<LuaEntry> { new(LuaValue.FromString("name"), LuaValue.FromString(set.Name)) };
-        if (set.ClassName is not null)
-        {
-            entries.Add(new(LuaValue.FromString("class"), LuaValue.FromString(set.ClassName)));
-        }
-
-        if (set.Character is not null)
-        {
-            entries.Add(new(LuaValue.FromString("character"), LuaValue.FromString(set.Character)));
-        }
-
-        entries.Add(new(LuaValue.FromString("items"), LuaValue.FromTable(items)));
-        return LuaValue.FromTable(entries);
-    }
-
-    private static LuaValue KosToLua(IReadOnlyList<KosEntry>? entries) => LuaValue.Array(
-        (entries ?? []).OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase).Select(entry =>
-        {
-            var fields = new List<LuaEntry> { new(LuaValue.FromString("name"), LuaValue.FromString(entry.Name)) };
-            if (!string.IsNullOrEmpty(entry.Note))
-            {
-                fields.Add(new(LuaValue.FromString("note"), LuaValue.FromString(entry.Note)));
-            }
-
-            return LuaValue.FromTable(fields);
-        }));
-
-    private static LuaValue DirectoryToLua(SyncDirectory directory, IReadOnlySet<string>? avatarIds)
-    {
-        var entries = new List<LuaEntry>();
-        if (directory.People is { } people && directory.Characters is { } characters)
-        {
-            entries.Add(new(LuaValue.FromString("people"), LuaValue.Array(people.Select(person => DirectoryPersonToLua(person, avatarIds)))));
-            entries.Add(new(LuaValue.FromString("characters"), LuaValue.Array(characters.Select(DirectoryCharacterToLua))));
-        }
-
-        if (directory.Professions is { } professions)
-        {
-            entries.Add(new(LuaValue.FromString("professions"), LuaValue.Array(professions.Select(DirectoryProfessionsToLua))));
-        }
-
-        return LuaValue.FromTable(entries);
-    }
-
-    private static LuaValue DirectoryPersonToLua(DirectoryPerson person, IReadOnlySet<string>? avatarIds)
-    {
-        var entries = new List<LuaEntry>
-        {
-            new(LuaValue.FromString("id"), LuaValue.FromString(person.Id)),
-            new(LuaValue.FromString("name"), LuaValue.FromString(person.Name)),
-            new(LuaValue.FromString("mainGuid"), OrNil(person.MainGuid)),
-        };
-
-        if (avatarIds?.Contains(person.Id) == true)
-        {
-            entries.Add(new(LuaValue.FromString("avatar"), LuaValue.FromString(PersonAvatars.TexturePathFor(person.Id))));
-        }
-
-        return LuaValue.FromTable(entries);
-    }
-
-    private static LuaValue LinksToLua(IReadOnlyList<DirectoryCharacter> characters) => LuaValue.FromTable(
-        [.. characters.Where(c => c.LinkedUserId is not null)
-            .Select(c => new LuaEntry(LuaValue.FromString(c.CharacterGuid), LuaValue.FromString(c.LinkedUserId!)))]);
-
-    private static LuaValue DirectoryCharacterToLua(DirectoryCharacter character) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("guid"), LuaValue.FromString(character.CharacterGuid)),
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(character.Name)),
-        new LuaEntry(LuaValue.FromString("level"), LuaValue.FromNumber(character.Level)),
-        new LuaEntry(LuaValue.FromString("classId"), LuaValue.FromNumber(character.ClassId)),
-        new LuaEntry(LuaValue.FromString("linkedUserId"), OrNil(character.LinkedUserId)));
-
-    private static LuaValue DirectoryProfessionsToLua(DirectoryProfessions professions) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("guid"), LuaValue.FromString(professions.CharacterGuid)),
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(professions.Name)),
-        new LuaEntry(LuaValue.FromString("classId"), LuaValue.FromNumber(professions.ClassId)),
-        new LuaEntry(LuaValue.FromString("skills"), LuaValue.Array(professions.Skills.Select(DirectorySkillToLua))),
-        new LuaEntry(LuaValue.FromString("recipes"), LuaValue.FromTable(
-            [.. professions.Recipes.Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(id => LuaValue.FromNumber(id)))))])));
-
-    private static LuaValue DirectorySkillToLua(DirectorySkill skill) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(skill.Name)),
-        new LuaEntry(LuaValue.FromString("rank"), LuaValue.FromNumber(skill.Rank)),
-        new LuaEntry(LuaValue.FromString("maxRank"), LuaValue.FromNumber(skill.MaxRank)),
-        new LuaEntry(LuaValue.FromString("secondary"), LuaValue.FromBoolean(skill.Secondary)));
-
-    private static LuaValue MeToLua(SyncMe me)
-    {
-        var entries = new List<LuaEntry>
-        {
-            new(LuaValue.FromString("id"), LuaValue.FromString(me.Id)),
-        };
-
-        if (me.Role is not null)
-        {
-            entries.Add(new(LuaValue.FromString("role"), LuaValue.FromString(me.Role)));
-        }
-
-        entries.Add(new(LuaValue.FromString("features"), LuaValue.Array(me.Features.Select(LuaValue.FromString))));
-        return LuaValue.FromTable(entries);
-    }
-
-    private static LuaValue RosterToLua(RosterMember member) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(member.Name)),
-        new LuaEntry(LuaValue.FromString("realm"), LuaValue.FromString(member.Realm)),
-        new LuaEntry(LuaValue.FromString("class"), LuaValue.FromString(member.Class)),
-        new LuaEntry(LuaValue.FromString("level"), LuaValue.FromNumber(member.Level)),
-        new LuaEntry(LuaValue.FromString("rank"), LuaValue.FromString(member.Rank)),
-        new LuaEntry(LuaValue.FromString("rankIndex"), LuaValue.FromNumber(member.RankIndex)),
-        new LuaEntry(LuaValue.FromString("note"), LuaValue.FromString(member.Note)),
-        new LuaEntry(LuaValue.FromString("officerNote"), LuaValue.FromString(member.OfficerNote)),
-        new LuaEntry(LuaValue.FromString("lastOnline"), OrNilTimestamp(member.LastOnline)));
-
-    private static LuaValue LootToLua(LootEvent loot) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("id"), LuaValue.FromString(loot.Id)),
-        new LuaEntry(LuaValue.FromString("at"), LuaValue.FromNumber(loot.At.ToUnixTimeSeconds())),
-        new LuaEntry(LuaValue.FromString("player"), LuaValue.FromString(loot.Player)),
-        new LuaEntry(LuaValue.FromString("itemId"), LuaValue.FromNumber(loot.ItemId)),
-        new LuaEntry(LuaValue.FromString("item"), LuaValue.FromString(loot.Item)),
-        new LuaEntry(LuaValue.FromString("quality"), LuaValue.FromNumber(loot.Quality)),
-        new LuaEntry(LuaValue.FromString("source"), OrNil(loot.Source)),
-        new LuaEntry(LuaValue.FromString("instance"), OrNil(loot.Instance)));
-
-    private static LuaValue AttendanceToLua(AttendanceRecord attendance) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("id"), LuaValue.FromString(attendance.Id)),
-        new LuaEntry(LuaValue.FromString("at"), LuaValue.FromNumber(attendance.At.ToUnixTimeSeconds())),
-        new LuaEntry(LuaValue.FromString("instance"), LuaValue.FromString(attendance.Instance)),
-        new LuaEntry(LuaValue.FromString("present"), LuaValue.Array(attendance.Present.Select(LuaValue.FromString))));
-
-    private static LuaValue MemberToLua(GuildRosterMember member)
-    {
-        var entries = new List<LuaEntry>
-        {
-            new(LuaValue.FromString("userId"), LuaValue.FromString(member.UserId)),
-            new(LuaValue.FromString("name"), LuaValue.FromString(member.Name)),
-            new(LuaValue.FromString("displayName"), OrNil(member.DisplayName)),
-            new(LuaValue.FromString("discordTag"), OrNil(member.DiscordTag)),
-            new(LuaValue.FromString("status"), OrNil(member.Status)),
-            new(LuaValue.FromString("origin"), LuaValue.Array(member.Origin.Select(LuaValue.FromString))),
-            new(LuaValue.FromString("flags"), LuaValue.Array(member.Flags.Select(LuaValue.FromString))),
-            new(LuaValue.FromString("rating"), member.Rating is { } rating ? LuaValue.FromNumber(rating) : LuaValue.Nil),
-            new(LuaValue.FromString("notes"), OrNil(member.Notes)),
-            new(LuaValue.FromString("notesWarning"), LuaValue.FromBoolean(member.NotesWarning)),
-            new(LuaValue.FromString("signups"), LuaValue.FromNumber(member.Signups)),
-            new(LuaValue.FromString("lastSignupAt"), LuaValue.FromNumber(member.LastSignupAt)),
-            new(LuaValue.FromString("primary"), BuildToLua(member.Primary)),
-            new(LuaValue.FromString("secondary"), BuildToLua(member.Secondary)),
-        };
-
-        if (member.Main is { } main)
-        {
-            entries.Add(new(LuaValue.FromString("main"), MainToLua(main)));
-        }
-
-        return LuaValue.FromTable(entries);
-    }
-
-    private static LuaValue MainToLua(GuildMain main) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("guid"), LuaValue.FromString(main.CharacterGuid)),
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(main.Name)),
-        new LuaEntry(LuaValue.FromString("level"), LuaValue.FromNumber(main.Level)),
-        new LuaEntry(LuaValue.FromString("classID"), LuaValue.FromNumber(main.ClassId)));
-
-    private static LuaValue BuildToLua(GuildBuild? build) => build is null
-        ? LuaValue.Nil
-        : LuaValue.FromTable(
-            new LuaEntry(LuaValue.FromString("class"), LuaValue.FromString(build.Class)),
-            new LuaEntry(LuaValue.FromString("spec"), LuaValue.FromString(build.Spec)),
-            new LuaEntry(LuaValue.FromString("role"), LuaValue.FromString(build.Role)));
-
-    private static LuaValue OriginToLua(OriginDef origin) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(origin.Name)),
-        new LuaEntry(LuaValue.FromString("color"), LuaValue.FromString(origin.Color)));
-
-    private static LuaValue DiscordToLua(DiscordMember member, IReadOnlySet<string>? avatarIds)
-    {
-        var entries = new List<LuaEntry>
-        {
-            new(LuaValue.FromString("id"), LuaValue.FromString(member.Id)),
-            new(LuaValue.FromString("name"), LuaValue.FromString(member.Name)),
-            new(LuaValue.FromString("nick"), OrNil(member.Nick)),
-        };
-
-        if (avatarIds?.Contains(member.Id) == true)
-        {
-            entries.Add(new(LuaValue.FromString("avatar"), LuaValue.FromString(PersonAvatars.TexturePathFor(member.Id))));
-        }
-
-        return LuaValue.FromTable(entries);
-    }
-
-    private static LuaValue CatalogueRecipeToLua(CatalogueRecipe recipe) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("recipeId"), OrNilNumber(recipe.RecipeId)),
-        new LuaEntry(LuaValue.FromString("name"), LuaValue.FromString(recipe.Name)),
-        new LuaEntry(LuaValue.FromString("header"), OrNil(recipe.Header)),
-        new LuaEntry(LuaValue.FromString("itemId"), OrNilNumber(recipe.ItemId)),
-        new LuaEntry(LuaValue.FromString("tools"), OrNil(recipe.Tools)),
-        new LuaEntry(LuaValue.FromString("reagents"), LuaValue.Array((recipe.Reagents ?? []).Select(ReagentToLua))),
-        new LuaEntry(LuaValue.FromString("order"), OrNilNumber(recipe.Order)),
-        new LuaEntry(LuaValue.FromString("grey"), OrNilNumber(recipe.Grey)),
-        new LuaEntry(LuaValue.FromString("orangeTo"), OrNilNumber(recipe.OrangeTo)),
-        new LuaEntry(LuaValue.FromString("yellowFrom"), OrNilNumber(recipe.YellowFrom)),
-        new LuaEntry(LuaValue.FromString("yellowTo"), OrNilNumber(recipe.YellowTo)),
-        new LuaEntry(LuaValue.FromString("greenFrom"), OrNilNumber(recipe.GreenFrom)));
-
-    private static LuaValue ReagentToLua(ProfessionReagent reagent) => LuaValue.FromTable(
-        new LuaEntry(LuaValue.FromString("itemId"), OrNilNumber(reagent.ItemId)),
-        new LuaEntry(LuaValue.FromString("name"), OrNil(reagent.Name)),
-        new LuaEntry(LuaValue.FromString("count"), OrNilNumber(reagent.Count)));
-
-    private static LuaValue OrNilNumber(int? value) => value is null ? LuaValue.Nil : LuaValue.FromNumber(value.Value);
-
-    private static LuaValue OrNil(string? value) => value is null ? LuaValue.Nil : LuaValue.FromString(value);
-
-    private static LuaValue OrNilTimestamp(DateTimeOffset? value) =>
-        value is null ? LuaValue.Nil : LuaValue.FromNumber(value.Value.ToUnixTimeSeconds());
+    private static LuaValue AvatarsOn(LuaValue list, IReadOnlySet<string> avatarIds) => list.Kind != LuaKind.Table
+        ? list
+        : LuaValue.FromTable([.. list.Table.Select(item => item.Key is null && item.Value.GetString("id") is { } id && avatarIds.Contains(id)
+            ? item with { Value = LuaValue.FromTable([.. item.Value.Table, new LuaEntry(LuaValue.FromString("avatar"), LuaValue.FromString(PersonAvatars.TexturePathFor(id)))]) }
+            : item)]);
 }

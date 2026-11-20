@@ -105,10 +105,10 @@ public sealed class StewardClient
         return AppProducts.Parse(json);
     }
 
-    public async Task<MemberRoster> GetMemberRosterAsync(string guildId, CancellationToken cancellationToken)
+    public async Task<SyncPayload> GetSyncDocumentAsync(string? guildId, CancellationToken cancellationToken)
     {
         using var response = await _httpClient
-            .GetAsync($"{_baseUrl}/api/guild/{guildId}/roster", cancellationToken)
+            .GetAsync(guildId is null ? $"{_baseUrl}/api/addons/sync" : $"{_baseUrl}/api/addons/sync/{guildId}", cancellationToken)
             .ConfigureAwait(false);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -121,138 +121,7 @@ public sealed class StewardClient
             throw new StewardRequestException(response.StatusCode, null);
         }
 
-        var roster = await response.Content
-            .ReadFromJsonAsync(CompanionJsonContext.Default.MemberRoster, cancellationToken)
-            .ConfigureAwait(false);
-
-        return roster ?? throw new HttpRequestException($"GET /api/guild/{guildId}/roster returned an empty body");
-    }
-
-    public async Task<IReadOnlyList<GearSetDto>> GetGearSetsAsync(string guildId, CancellationToken cancellationToken)
-    {
-        using var response = await _httpClient
-            .GetAsync($"{_baseUrl}/api/guild/{guildId}/gear/sets", cancellationToken)
-            .ConfigureAwait(false);
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            throw new SessionExpiredException();
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new StewardRequestException(response.StatusCode, null);
-        }
-
-        var sets = await response.Content
-            .ReadFromJsonAsync(CompanionJsonContext.Default.GearSetsResponse, cancellationToken)
-            .ConfigureAwait(false);
-
-        return sets?.Sets ?? throw new HttpRequestException($"GET /api/guild/{guildId}/gear/sets returned an empty body");
-    }
-
-    public async Task<MemberProfessions> GetMemberProfessionsAsync(string guildId, CancellationToken cancellationToken)
-    {
-        using var response = await _httpClient
-            .GetAsync($"{_baseUrl}/api/guild/{guildId}/professions", cancellationToken)
-            .ConfigureAwait(false);
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            throw new SessionExpiredException();
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new StewardRequestException(response.StatusCode, null);
-        }
-
-        var professions = await response.Content
-            .ReadFromJsonAsync(CompanionJsonContext.Default.MemberProfessions, cancellationToken)
-            .ConfigureAwait(false);
-
-        return professions ?? throw new HttpRequestException($"GET /api/guild/{guildId}/professions returned an empty body");
-    }
-
-    public async Task<IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>> GetMemberCatalogueAsync(string guildId, CancellationToken cancellationToken)
-    {
-        using var response = await _httpClient
-            .GetAsync($"{_baseUrl}/api/guild/{guildId}/recipes/catalogue", cancellationToken)
-            .ConfigureAwait(false);
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            throw new SessionExpiredException();
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new StewardRequestException(response.StatusCode, null);
-        }
-
-        var catalogue = await response.Content
-            .ReadFromJsonAsync(CompanionJsonContext.Default.MemberCatalogue, cancellationToken)
-            .ConfigureAwait(false);
-
-        return catalogue?.Catalogue ?? throw new HttpRequestException($"GET /api/guild/{guildId}/recipes/catalogue returned an empty body");
-    }
-
-    public async Task<(IReadOnlyList<GuildRosterMember> Members, IReadOnlyList<string> Statuses, IReadOnlyList<OriginDef> Origins, IReadOnlyDictionary<string, int>? RankTargets, IReadOnlyList<int>? RankLocked, KosList? Kos, IReadOnlyDictionary<string, IReadOnlyList<string>>? Attunements)> GetGuildRosterAsync(string guildId, CancellationToken cancellationToken)
-    {
-        using var response = await _httpClient
-            .GetAsync($"{_baseUrl}/api/admin/{guildId}/roster", cancellationToken)
-            .ConfigureAwait(false);
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            throw new SessionExpiredException();
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new HttpRequestException(
-                $"GET /api/admin/{guildId}/roster returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
-        }
-
-        var roster = await response.Content
-            .ReadFromJsonAsync(CompanionJsonContext.Default.GuildRosterResponse, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (roster is null)
-        {
-            throw new HttpRequestException($"GET /api/admin/{guildId}/roster returned an empty body");
-        }
-
-        IReadOnlyList<GuildRosterMember> members =
-            [.. roster.Members.Select(member => member with { Notes = RosterNotes.Trim(member.Notes) })];
-        IReadOnlyList<string> statuses = roster.Statuses is null ? [] : [.. roster.Statuses.Select(status => status.Name)];
-        IReadOnlyList<OriginDef> origins = roster.Origins ?? [];
-        return (members, statuses, origins, roster.RankTargets, roster.RankLocked, roster.Kos, roster.Attunements);
-    }
-
-    public async Task<IReadOnlyList<DiscordMember>> GetDiscordMembersAsync(string guildId, CancellationToken cancellationToken)
-    {
-        using var response = await _httpClient
-            .GetAsync($"{_baseUrl}/api/admin/{guildId}/members", cancellationToken)
-            .ConfigureAwait(false);
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            throw new SessionExpiredException();
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new HttpRequestException(
-                $"GET /api/admin/{guildId}/members returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
-        }
-
-        var members = await response.Content
-            .ReadFromJsonAsync(CompanionJsonContext.Default.DiscordMembersResponse, cancellationToken)
-            .ConfigureAwait(false);
-
-        return members?.Members
-            ?? throw new HttpRequestException($"GET /api/admin/{guildId}/members returned an empty body");
+        return SyncDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false), DateTimeOffset.Now);
     }
 
     private static readonly TimeSpan EventStreamIdleTimeout = TimeSpan.FromSeconds(60);
@@ -540,33 +409,6 @@ public sealed class StewardClient
 
         return await response.Content.ReadFromJsonAsync(typeInfo, cancellationToken).ConfigureAwait(false)
             ?? throw new HttpRequestException($"{request.Method} {request.RequestUri?.AbsolutePath} returned an empty body");
-    }
-
-    public async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> GetRecipeCatalogueAsync(
-        string guildId, CancellationToken cancellationToken)
-    {
-        using var response = await _httpClient
-            .GetAsync($"{_baseUrl}/api/admin/{guildId}/recipes/catalogue", cancellationToken)
-            .ConfigureAwait(false);
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            throw new SessionExpiredException();
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new HttpRequestException(
-                $"GET /api/admin/{guildId}/recipes/catalogue returned {(int)response.StatusCode} {response.StatusCode}", null, response.StatusCode);
-        }
-
-        var body = await response.Content
-            .ReadFromJsonAsync(CompanionJsonContext.Default.RecipeCatalogueResponse, cancellationToken)
-            .ConfigureAwait(false);
-
-        return body?.Catalogue is { } catalogue
-            ? MemberCatalogueMapping.ToCatalogue(catalogue)
-            : new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
     }
 
     public async Task<CharacterSyncResponse> PostCharacterSyncAsync(

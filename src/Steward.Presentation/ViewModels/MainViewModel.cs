@@ -113,11 +113,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private DateTimeOffset _clientOutdatedAt;
     private IReadOnlyList<Banner> _allBanners = [];
     private readonly List<BannerViewModel> _localBanners = [];
-    private SyncDirectory? _lastDirectory;
-    private IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? _lastMemberCatalogue;
-    private IReadOnlyList<GearSetDto>? _lastMemberGearSets;
-    private SyncPayload? _lastOfficerPayload;
-    private string? _lastOfficerPayloadGuild;
+    private SyncPayload? _lastSync;
+    private string? _lastSyncGuild;
+    private string? _lastSyncFailure;
     private CancellationTokenSource? _eventsCts;
     private string? _eventsGuildId;
     private bool _eventsUnsupported;
@@ -227,7 +225,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
         AddonSettings = new AddonSettingsViewModel(this, addonUpdater, platform, logger);
         SavedVariablesChanged = Sync.ReloadAsync;
-        AfterStewardInstalled = install => HasStewardFeature ? Sync.WriteGeneratedFileAsync(install) : WriteMeAfterInstallAsync();
+        AfterStewardInstalled = install => Sync.WriteGeneratedFileAsync(install);
         ShellOpen.Failed += OnShellOpenFailed;
         UpdateCountdown();
     }
@@ -245,16 +243,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _logger.Warn(null, $"Could not open {shown}: {failure}");
         StatusMessage = $"Could not open {shown}: {failure}.{(_updateHint is { } hint && hint.Target == target ? $" {hint.Hint}" : "")}";
     });
-
-    private Task WriteMeAfterInstallAsync()
-    {
-        if (IsSignedIn && _userId is { } userId)
-        {
-            WriteMe(Installs.Select(install => install.Install), new SyncMe(userId, Role, [.. _features]));
-        }
-
-        return Task.CompletedTask;
-    }
 
     public SyncViewModel Sync { get; }
 
@@ -513,11 +501,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasProfessionsFeature => _guildFeatures.Contains(StewardClient.ProfessionsFeature);
 
-    public SyncDirectory? LastDirectory => _lastDirectory;
-
-    public IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? LastMemberCatalogue => _lastMemberCatalogue;
-
-    public SyncPayload? LastOfficerPayload => _lastOfficerPayload;
+    public SyncDirectory? LastDirectory => _lastSync?.Directory;
 
     public string? UserId => _userId;
 
@@ -915,7 +899,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             EnsureInGameIcons();
             await PushCharacterSyncAsync().ConfigureAwait(true);
             _lastDirectorySync = DateTimeOffset.Now;
-            await SyncDirectoryAsync().ConfigureAwait(true);
+            await SyncFileAsync().ConfigureAwait(true);
             await CheckAppUpdateAsync(forceStoreScan: true).ConfigureAwait(true);
             await CheckGuidesAsync().ConfigureAwait(true);
 
@@ -1086,7 +1070,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             EnsureInGameIcons();
             await PushCharacterSyncAsync().ConfigureAwait(true);
             _lastDirectorySync = DateTimeOffset.Now;
-            await SyncDirectoryAsync().ConfigureAwait(true);
+            await SyncFileAsync().ConfigureAwait(true);
             await CheckAppUpdateAsync().ConfigureAwait(true);
             await CheckGuidesAsync().ConfigureAwait(true);
         }
@@ -1542,7 +1526,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task CheckAsync(bool background, CancellationToken cancellationToken, bool pullGuildRoster = true, bool noCache = false)
+    private async Task CheckAsync(bool background, CancellationToken cancellationToken, bool noCache = false)
     {
         var succeeded = true;
         var state = _stateStore.Load();
@@ -1589,11 +1573,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 await AutoApplyAsync().ConfigureAwait(true);
                 return true;
             });
-        }
-
-        if (pullGuildRoster)
-        {
-            await SyncRosterAsync().ConfigureAwait(true);
         }
 
         await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
@@ -1736,7 +1715,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            await SyncRosterAsync().ConfigureAwait(true);
+            await SyncFileAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -1780,181 +1759,71 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             .Select(guild => new CharacterPushTarget(guild.Id, !guild.Features.Contains(StewardClient.StewardFeature), guild.SyncGuildNames)),
     ];
 
-    public async Task<string?> RewriteGuildDataAsync()
-    {
-        await SyncDirectoryAsync().ConfigureAwait(true);
-        if (HasStewardFeature)
-        {
-            return await SyncRosterAsync(force: true).ConfigureAwait(true);
-        }
+    public Task<string?> RewriteGuildDataAsync() => SyncFileAsync(force: true);
 
-        if (!IsSignedIn || _userId is null)
+    public async Task<string?> SyncFileAsync(bool force = false)
+    {
+        if (!IsSignedIn || !IsApiReachable || _userId is not { } userId)
         {
             return null;
         }
 
-        WriteMe(Installs.Select(install => install.Install), new SyncMe(_userId, Role, [.. _features]), force: true);
-        return null;
-    }
-
-    public async Task<string?> SyncRosterAsync(bool force = false)
-    {
-        if (!IsSignedIn || !IsApiReachable || !HasStewardFeature || _guildId is not { } guildId)
-        {
-            return null;
-        }
-
+        var guildId = _guildId;
         SyncPayload payload;
         try
         {
-            payload = await _guildSyncApi.PullAsync(guildId, CancellationToken.None).ConfigureAwait(true);
+            payload = await _guildSyncApi.PullAsync(guildId, [.. Installs.Select(install => install.Install)], _lastSync, CancellationToken.None).ConfigureAwait(true);
         }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or SessionExpiredException)
+        catch (SessionExpiredException)
         {
-            _logger.Warn(ex, $"Guild roster pull failed for {guildId}");
-            var message = $"Could not pull the guild roster: {ex.Message}";
-            ReportFailure(ex, "roster", async () => await SyncRosterAsync().ConfigureAwait(true) is null);
-            if (!TransientHttp.IsRetryable(ex))
+            _logger.Info($"Sync document for {guildId}: 401, session expired");
+            SignOutTo(GateFailure.SessionExpired);
+            return null;
+        }
+        catch (StewardRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return null;
+        }
+        // The file on disk is kept and nothing is retried here: a wrong or partial document must never overwrite good data, and the next trigger asks again.
+        catch (Exception ex) when (ex is StewardRequestException or HttpRequestException or TaskCanceledException or FormatException)
+        {
+            var message = $"Could not pull the sync document: {ex.Message}";
+            if (message != _lastSyncFailure)
             {
-                StatusMessage = message;
+                _logger.Warn(ex, $"Sync document for {guildId} failed, StewardSync.lua kept");
+                _lastSyncFailure = message;
             }
 
             return message;
         }
 
-        ResolveApiRetry("roster");
-        payload = payload with
+        if (_userId != userId || _guildId != guildId)
         {
-            Directory = _lastDirectory,
-            DiscordAvatars = await _guildSyncApi.LoadDiscordAvatarsAsync(payload.Discord, _lastDirectory?.People, [.. Installs.Select(install => install.Install)], _lastOfficerPayload?.DiscordAvatars, CancellationToken.None).ConfigureAwait(true),
-        };
-        _lastOfficerPayload = payload;
-        _lastOfficerPayloadGuild = guildId;
+            return null;
+        }
+
+        _lastSyncFailure = null;
+        _lastSync = payload;
+        _lastSyncGuild = guildId;
         foreach (var install in Installs)
         {
             GuildRosterSync.WriteIfChanged(install.Install, payload, _stateStore, force, _logger);
         }
 
-        return null;
-    }
-
-    public async Task<string?> RestoreRosterAfterInstallAsync(WowInstall install)
-    {
-        if (_lastOfficerPayload is not { } payload || _lastOfficerPayloadGuild != _guildId)
-        {
-            return await SyncRosterAsync().ConfigureAwait(true);
-        }
-
-        if (_lastDirectory is { People: { } people } directory)
-        {
-            _lastDirectory = directory with
-            {
-                Avatars = await _guildSyncApi.LoadPersonAvatarsAsync(people, [install], directory.Avatars, CancellationToken.None).ConfigureAwait(true),
-            };
-        }
-
-        var discordAvatars = await _guildSyncApi.LoadDiscordAvatarsAsync(payload.Discord, _lastDirectory?.People, [install], payload.DiscordAvatars, CancellationToken.None).ConfigureAwait(true);
-        GuildRosterSync.WriteIfChanged(install, payload with { Directory = _lastDirectory, DiscordAvatars = discordAvatars }, _stateStore, force: false, _logger);
-        return null;
-    }
-
-    private async Task RefreshMemberGearSetsAsync(string guildId)
-    {
-        try
-        {
-            _lastMemberGearSets = await _stewardClient.GetGearSetsAsync(guildId, CancellationToken.None).ConfigureAwait(true);
-        }
-        catch (Exception ex) when (ex is StewardRequestException or HttpRequestException or TaskCanceledException or JsonException or SessionExpiredException)
-        {
-            _logger.Warn(ex, $"Gear sets pull failed for {guildId}, keeping the last known sets");
-        }
-    }
-
-    private async Task SyncDirectoryAsync()
-    {
-        if (!IsSignedIn || !IsApiReachable || _guildId is not { } guildId)
-        {
-            return;
-        }
-
-        var memberGearSets = !HasStewardFeature;
-        if (memberGearSets)
-        {
-            await RefreshMemberGearSetsAsync(guildId).ConfigureAwait(true);
-        }
-
-        var pullRoster = HasRosterFeature;
-        var pullProfessions = HasProfessionsFeature;
-        var pullCatalogue = pullProfessions || HasSyncFeature;
-        if (!pullRoster && !pullProfessions && !pullCatalogue)
-        {
-            if (memberGearSets && WriteMe(Installs.Select(install => install.Install), new SyncMe(_userId!, Role, [.. _features])))
-            {
-                await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
-            }
-
-            return;
-        }
-
-        try
-        {
-            IReadOnlyList<DirectoryPerson>? people = null;
-            IReadOnlyList<DirectoryCharacter>? characters = null;
-            IReadOnlyList<DirectoryProfessions>? professions = null;
-            IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>>? catalogue = null;
-
-            if (pullRoster)
-            {
-                var roster = await _stewardClient.GetMemberRosterAsync(guildId, CancellationToken.None).ConfigureAwait(true);
-                people = roster.People;
-                characters = roster.Characters;
-            }
-
-            if (pullProfessions)
-            {
-                var response = await _stewardClient.GetMemberProfessionsAsync(guildId, CancellationToken.None).ConfigureAwait(true);
-                professions = response.Professions;
-                catalogue = response.Catalogue;
-            }
-            else if (pullCatalogue)
-            {
-                catalogue = await _stewardClient.GetMemberCatalogueAsync(guildId, CancellationToken.None).ConfigureAwait(true);
-            }
-
-            var avatars = people is null
-                ? null
-                : await _guildSyncApi.LoadPersonAvatarsAsync(people, [.. Installs.Select(install => install.Install)], _lastDirectory?.Avatars, CancellationToken.None).ConfigureAwait(true);
-            _lastDirectory = new SyncDirectory(people, characters, professions) { Avatars = avatars };
-            _lastMemberCatalogue = catalogue;
-            _logger.Info(
-                $"Directory sync for {guildId}: {people?.Count} people, {characters?.Count} characters, {professions?.Count} professions, {catalogue?.Count} catalogue recipe(s)");
-        }
-        catch (SessionExpiredException)
-        {
-            _logger.Info($"Directory sync for {guildId}: 401, session expired");
-            SignOutTo(GateFailure.SessionExpired);
-            return;
-        }
-        // A 403/404 means the guild's features do not allow that route, or an older Steward API; handled quietly like the events stream, with no error bar.
-        catch (Exception ex) when (ex is StewardRequestException or HttpRequestException or TaskCanceledException or JsonException)
-        {
-            var status = (ex as StewardRequestException)?.StatusCode;
-            _logger.Warn(ex, $"Directory sync for {guildId} failed, status={status}");
-            if (TransientHttp.IsTransient(ex))
-            {
-                _lastDirectorySync = default;
-            }
-
-            return;
-        }
-
-        if (HasStewardFeature)
-        {
-            return;
-        }
-
-        WriteMe(Installs.Select(install => install.Install), new SyncMe(_userId!, Role, [.. _features]));
         await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
+        return null;
+    }
+
+    public async Task<string?> RestoreSyncFileAfterInstallAsync(WowInstall install)
+    {
+        if (_lastSync is not { } last || _lastSyncGuild != _guildId)
+        {
+            return await SyncFileAsync().ConfigureAwait(true);
+        }
+
+        var payload = await _guildSyncApi.LoadImagesAsync(last, [install], last, CancellationToken.None).ConfigureAwait(true);
+        GuildRosterSync.WriteIfChanged(install, payload, _stateStore, force: false, _logger);
+        return null;
     }
 
     private async Task SyncBannersAsync()
@@ -2254,6 +2123,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                         _logger.Info("Access event stream: bannersChanged");
                         QueueBannerRefresh();
                     }
+                    else if (eventType == "syncChanged")
+                    {
+                        _logger.Info("Access event stream: syncChanged");
+                        QueueGuildPull();
+                    }
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -2419,8 +2293,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 _guildPullPending = false;
                 try
                 {
-                    await SyncRosterAsync().ConfigureAwait(true);
-                    await NotifySavedVariablesChangedAsync().ConfigureAwait(true);
+                    await SyncFileAsync().ConfigureAwait(true);
                 }
                 catch (Exception ex)
                 {
@@ -2543,8 +2416,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         reason == CharacterSyncRejectionCopy.NotLinkedReason && guildId == _guildId
             ? CharacterSyncRejectionCopy.DescribeNotLinked(
                 characterGuid,
-                HasRosterFeature ? _lastDirectory?.Characters : null,
-                _lastDirectory?.People,
+                HasRosterFeature ? LastDirectory?.Characters : null,
+                LastDirectory?.People,
                 _userId)
             : CharacterSyncRejectionCopy.Describe(reason);
 
@@ -2651,7 +2524,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (posted)
         {
             _lastDirectorySync = DateTimeOffset.Now;
-            await SyncDirectoryAsync().ConfigureAwait(true);
+            await SyncFileAsync().ConfigureAwait(true);
         }
 
         return false;
@@ -2677,7 +2550,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 snapshot.Professions,
                 snapshot.Catalogue,
                 last,
-                guildId == _guildId ? _lastDirectory?.Characters : null,
+                guildId == _guildId ? LastDirectory?.Characters : null,
                 _userId,
                 force,
                 snapshot.Gear,
@@ -3208,7 +3081,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (result == AuthCheckResult.Authorized)
             {
                 var guildSyncDue = !_isEventStreamLive || IsDue(_lastGuildSync, GuildSyncFallbackInterval);
-                await CheckAsync(background: true, CancellationToken.None, guildSyncDue).ConfigureAwait(true);
+                await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
                 if (guildSyncDue)
                 {
                     _lastGuildSync = DateTimeOffset.Now;
@@ -3217,7 +3090,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 if (IsDue(_lastDirectorySync, GuildSyncFallbackInterval))
                 {
                     _lastDirectorySync = DateTimeOffset.Now;
-                    await SyncDirectoryAsync().ConfigureAwait(true);
+                    await SyncFileAsync().ConfigureAwait(true);
                 }
                 if (IsDue(_lastBannersSync, GuildSyncFallbackInterval))
                 {
@@ -3227,7 +3100,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             else if (result == AuthCheckResult.Unreachable && _addonCatalogue is not null)
             {
-                await CheckAsync(background: true, CancellationToken.None, pullGuildRoster: false).ConfigureAwait(true);
+                await CheckAsync(background: true, CancellationToken.None).ConfigureAwait(true);
             }
 
             // The update check uses no route behind /api/me, and a client_outdated build needs the update most.
@@ -3368,7 +3241,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (!HasStewardFeature
                 && (!previousFeatures.SetEquals(_features) || previousRole != Role || previousUserId != _userId))
             {
-                WriteMe(Installs.Select(install => install.Install), new SyncMe(_userId, Role, [.. _features]));
+                QueueGuildPull();
             }
 
             PropagateAuthorized();
@@ -3422,9 +3295,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void SignOutTo(GateFailure failure)
     {
         QueueRevokedRemovals();
-        var wasOfficer = HasStewardFeature;
         var installs = Installs.Select(install => install.Install).ToList();
-        var lastOfficerPayload = _lastOfficerPayload;
+        var signedOut = SyncPayload.SignedOut(_lastSync, DateTimeOffset.Now);
         _sessionService.ClearSession();
         _addonUpdater.ManifestCache.Clear();
         SetAddonCatalogue(null);
@@ -3444,48 +3316,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsSignedIn = false;
         Failure = failure;
         _ = EvaluateCurseForgeDefaultHandlerAsync();
-        if (wasOfficer)
+        foreach (var install in installs)
         {
-            // An officer's file carries the full roster payload; rewriting it minus me keeps that data instead of wiping it with a roster-less skeleton.
-            if (lastOfficerPayload is { Me: not null })
-            {
-                var cleared = lastOfficerPayload with { Me = null };
-                foreach (var install in installs)
-                {
-                    GuildRosterSync.WriteIfChanged(install, cleared, _stateStore, logger: _logger);
-                }
-            }
-        }
-        else
-        {
-            WriteMe(installs, null);
+            GuildRosterSync.WriteIfChanged(install, signedOut, _stateStore, logger: _logger);
         }
 
         PropagateAuthorized();
         UpdateEventStream();
         UpdateAccessEventStream();
         RemoveLostAccessAddons();
-    }
-
-    private bool WriteMe(IEnumerable<WowInstall> installs, SyncMe? me, bool force = false)
-    {
-        var catalogue = me is null ? null : _lastMemberCatalogue;
-        var payload = new SyncPayload(DateTimeOffset.Now, null, [], [], [], [], [], [])
-        {
-            Me = me,
-            GearSets = me is null ? null : _lastMemberGearSets,
-            Directory = me is null ? null : _lastDirectory,
-            Catalogue = catalogue is null
-                ? new Dictionary<string, IReadOnlyList<CatalogueRecipe>>()
-                : MemberCatalogueMapping.ToCatalogue(catalogue),
-        };
-        var changed = false;
-        foreach (var install in installs)
-        {
-            changed |= GuildRosterSync.WriteIfChanged(install, payload, _stateStore, force, _logger);
-        }
-
-        return changed;
     }
 
     private void ResetInstalls()
@@ -3498,12 +3337,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _features.Clear();
         _guildFeatures.Clear();
         _meGuilds = [];
-        _lastDirectory = null;
-        _lastMemberCatalogue = null;
-        _lastMemberGearSets = null;
         _lastDirectorySync = default;
-        _lastOfficerPayload = null;
-        _lastOfficerPayloadGuild = null;
+        _lastSync = null;
+        _lastSyncGuild = null;
+        _lastSyncFailure = null;
         OnPropertyChanged(nameof(IsCurseForgeEnabled));
         OnPropertyChanged(nameof(CurseForgeSettingVisibility));
         OnPropertyChanged(nameof(GetAddonsVisibility));

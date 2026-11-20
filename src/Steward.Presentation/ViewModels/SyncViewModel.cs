@@ -266,7 +266,7 @@ public sealed partial class SyncViewModel : ObservableObject
 
     public async Task WriteGeneratedFileAsync(WowInstall? installed = null)
     {
-        GeneratedFileError = await (installed is null ? _main.SyncRosterAsync() : _main.RestoreRosterAfterInstallAsync(installed)).ConfigureAwait(true);
+        GeneratedFileError = await (installed is null ? _main.SyncFileAsync() : _main.RestoreSyncFileAfterInstallAsync(installed)).ConfigureAwait(true);
         Recompute();
     }
 
@@ -372,20 +372,20 @@ public sealed partial class SyncViewModel : ObservableObject
 
         var written = _main.IsGuildDataWritten(install.FlavourPath, install.AddOnsPath);
         var directory = _main.LastDirectory;
-        var officerPayload = _main.HasStewardFeature ? _main.LastOfficerPayload : null;
+        var officerDirectory = _main.HasStewardFeature ? directory : null;
         if (_main.HasRosterFeature || _main.HasStewardFeature)
         {
             var guildRoster = Dataset(
                 GuildRosterDatasetKey,
                 "Guild roster",
                 $"people, {directory?.Characters?.Count ?? 0} characters",
-                directory?.People?.Count ?? officerPayload?.Members.Count ?? 0,
+                directory?.People?.Count ?? officerDirectory?.Members ?? 0,
                 StewardSyncFileName,
                 "",
                 false,
                 isFirst: true);
             guildRoster.IconSource = GuildRosterIcon;
-            AddPullDataset(view, guildRoster, directory?.People is not null || officerPayload is not null, written);
+            AddPullDataset(view, guildRoster, directory?.People is not null || officerDirectory is not null, written);
         }
 
         if (_main.HasProfessionsFeature || _main.HasStewardFeature)
@@ -393,14 +393,14 @@ public sealed partial class SyncViewModel : ObservableObject
             var guildProfessions = Dataset(
                 GuildProfessionsDatasetKey,
                 "Guild professions",
-                $"characters, {_main.LastMemberCatalogue?.Count ?? officerPayload?.Catalogue.Count ?? 0} professions",
-                directory?.Professions?.Count ?? 0,
+                $"characters, {directory?.Catalogue ?? 0} professions",
+                directory?.Professions ?? 0,
                 StewardSyncFileName,
                 "",
                 false,
                 isFirst: view.PullDatasets.Count == 0);
             guildProfessions.IconSource = GuildProfessionsIcon;
-            AddPullDataset(view, guildProfessions, directory?.Professions is not null || officerPayload?.Catalogue.Count > 0, written);
+            AddPullDataset(view, guildProfessions, directory?.Professions is not null || officerDirectory?.Catalogue > 0, written);
         }
 
         return view;

@@ -134,24 +134,14 @@ public sealed class FakeApi
                 """);
         }
 
-        if (path.EndsWith("/api/admin/1/roster", StringComparison.Ordinal))
+        if (path.EndsWith("/api/addons/sync/1", StringComparison.Ordinal))
         {
-            return (HttpStatusCode.OK, """{"members":[],"statuses":[],"origins":[]}""");
-        }
-
-        if (path.EndsWith("/api/admin/1/members", StringComparison.Ordinal))
-        {
-            return (HttpStatusCode.OK, """{"members":[]}""");
+            return (HttpStatusCode.OK, """{"version":1,"signOut":"dropMe","payload":{"members":[],"discord":[],"statuses":[],"origins":[],"directory":{"people":[],"characters":[]}},"images":{"guild":null,"people":{},"discord":{}}}""");
         }
 
         if (path.EndsWith("/api/sync/1/characters", StringComparison.Ordinal))
         {
             return (HttpStatusCode.OK, """{"accepted":1,"rejected":[]}""");
-        }
-
-        if (path.EndsWith("/api/guild/1/roster", StringComparison.Ordinal))
-        {
-            return (HttpStatusCode.OK, """{"people":[],"characters":[]}""");
         }
 
         return null;

@@ -7,67 +7,6 @@ using System.Text.Json.Serialization;
 
 namespace Steward.Core;
 
-public sealed record GuildBuild(
-    [property: JsonPropertyName("class")] string Class,
-    [property: JsonPropertyName("spec")] string Spec,
-    [property: JsonPropertyName("role")] string Role);
-
-public sealed record GuildMain(
-    [property: JsonPropertyName("guid")] string CharacterGuid,
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("level")] int Level,
-    [property: JsonPropertyName("class_id")] int ClassId);
-
-public sealed record GuildRosterMember(
-    [property: JsonPropertyName("user_id")] string UserId,
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("display_name")] string? DisplayName,
-    [property: JsonPropertyName("discord_tag")] string? DiscordTag,
-    [property: JsonPropertyName("status")] string? Status,
-    [property: JsonPropertyName("origin")] IReadOnlyList<string> Origin,
-    [property: JsonPropertyName("flags")] IReadOnlyList<string> Flags,
-    [property: JsonPropertyName("rating")] int? Rating,
-    [property: JsonPropertyName("notes")] string? Notes,
-    [property: JsonPropertyName("notes_warning")] bool NotesWarning,
-    [property: JsonPropertyName("signups")] int Signups,
-    [property: JsonPropertyName("last_signup_at")] long LastSignupAt,
-    [property: JsonPropertyName("primary")] GuildBuild? Primary,
-    [property: JsonPropertyName("secondary")] GuildBuild? Secondary,
-    [property: JsonPropertyName("main")] GuildMain? Main = null);
-
-public sealed record DiscordMember(
-    [property: JsonPropertyName("id")] string Id,
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("nick")] string? Nick,
-    [property: JsonPropertyName("avatar_url")] string? AvatarUrl = null);
-
-public sealed record RosterStatusDef(
-    [property: JsonPropertyName("name")] string Name);
-
-public sealed record OriginDef(
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("color")] string Color);
-
-public sealed record GuildRosterResponse(
-    [property: JsonPropertyName("members")] IReadOnlyList<GuildRosterMember> Members,
-    [property: JsonPropertyName("statuses")] IReadOnlyList<RosterStatusDef>? Statuses,
-    [property: JsonPropertyName("origins")] IReadOnlyList<OriginDef>? Origins,
-    [property: JsonPropertyName("rank_targets")] IReadOnlyDictionary<string, int>? RankTargets = null,
-    [property: JsonPropertyName("rank_locked")] IReadOnlyList<int>? RankLocked = null,
-    [property: JsonPropertyName("kos")] KosList? Kos = null,
-    [property: JsonPropertyName("attunements")] IReadOnlyDictionary<string, IReadOnlyList<string>>? Attunements = null);
-
-public sealed record KosEntry(
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("note")] string? Note = null);
-
-public sealed record KosList(
-    [property: JsonPropertyName("players")] IReadOnlyList<KosEntry>? Players = null,
-    [property: JsonPropertyName("guilds")] IReadOnlyList<KosEntry>? Guilds = null);
-
-public sealed record DiscordMembersResponse(
-    [property: JsonPropertyName("members")] IReadOnlyList<DiscordMember> Members);
-
 public sealed record RosterMember(
     string Name,
     string Realm,
@@ -285,111 +224,16 @@ public sealed record CatalogueRecipe(
     [property: JsonPropertyName("yellowTo"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? YellowTo = null,
     [property: JsonPropertyName("greenFrom"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? GreenFrom = null);
 
-public sealed record RecipeCatalogueResponse(
-    [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Catalogue);
+public sealed record DirectoryPerson(string Id, string Name, string? MainGuid);
 
-public sealed record DirectoryPerson(
-    [property: JsonPropertyName("id")] string Id,
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("main_guid")] string? MainGuid,
-    [property: JsonPropertyName("avatar_url")] string? AvatarUrl = null);
+public sealed record DirectoryCharacter(string CharacterGuid, string Name, int Level, int ClassId, string? LinkedUserId);
 
-public sealed record DirectoryCharacter(
-    [property: JsonPropertyName("guid")] string CharacterGuid,
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("level")] int Level,
-    [property: JsonPropertyName("class_id")] int ClassId,
-    [property: JsonPropertyName("linked_user_id")] string? LinkedUserId);
-
-public sealed record DirectorySkill(
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("rank")] int Rank,
-    [property: JsonPropertyName("max_rank")] int MaxRank,
-    [property: JsonPropertyName("secondary")] bool Secondary);
-
-public sealed record DirectoryReagent(
-    [property: JsonPropertyName("item_id")] int? ItemId,
-    [property: JsonPropertyName("name")] string? Name,
-    [property: JsonPropertyName("count")] int? Count);
-
-public sealed record DirectoryRecipe(
-    [property: JsonPropertyName("recipe_id")] int RecipeId,
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("difficulty")] string? Difficulty,
-    [property: JsonPropertyName("header")] string? Header,
-    [property: JsonPropertyName("item_id")] int? ItemId,
-    [property: JsonPropertyName("tools")] string? Tools,
-    [property: JsonPropertyName("reagents")] IReadOnlyList<DirectoryReagent>? Reagents,
-    [property: JsonPropertyName("order")] int? Order = null,
-    [property: JsonPropertyName("grey")] int? Grey = null,
-    [property: JsonPropertyName("orange_to")] int? OrangeTo = null,
-    [property: JsonPropertyName("yellow_from")] int? YellowFrom = null,
-    [property: JsonPropertyName("yellow_to")] int? YellowTo = null,
-    [property: JsonPropertyName("green_from")] int? GreenFrom = null);
-
-public sealed record DirectoryProfessions(
-    [property: JsonPropertyName("guid")] string CharacterGuid,
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("class_id")] int ClassId,
-    [property: JsonPropertyName("skills")] IReadOnlyList<DirectorySkill> Skills,
-    [property: JsonPropertyName("recipes")] IReadOnlyDictionary<string, IReadOnlyList<int>> Recipes);
-
-public sealed record MemberRoster(
-    [property: JsonPropertyName("people")] IReadOnlyList<DirectoryPerson> People,
-    [property: JsonPropertyName("characters")] IReadOnlyList<DirectoryCharacter> Characters);
-
-public sealed record GearSlotDto(
-    [property: JsonPropertyName("item")] long? Item,
-    [property: JsonPropertyName("enchant")] long? Enchant);
-
-public sealed record GearSetDto(
-    [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("class")] string? ClassName,
-    [property: JsonPropertyName("character")] string? Character,
-    [property: JsonPropertyName("slots")] IReadOnlyDictionary<string, GearSlotDto?>? Slots);
-
-public sealed record GearSetsResponse(
-    [property: JsonPropertyName("sets")] IReadOnlyList<GearSetDto> Sets);
-
-public sealed record MemberProfessions(
-    [property: JsonPropertyName("professions")] IReadOnlyList<DirectoryProfessions> Professions,
-    [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Catalogue);
-
-public sealed record MemberCatalogue(
-    [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Catalogue);
-
-// Composed from whichever of the roster/professions routes the selected guild's features allow; never itself sent or received as JSON.
 public sealed record SyncDirectory(
     IReadOnlyList<DirectoryPerson>? People,
     IReadOnlyList<DirectoryCharacter>? Characters,
-    IReadOnlyList<DirectoryProfessions>? Professions)
-{
-    public IReadOnlyDictionary<string, AvatarImage>? Avatars { get; init; }
-}
-
-public static class MemberCatalogueMapping
-{
-    public static IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> ToCatalogue(
-        IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> catalogue) =>
-        catalogue.ToDictionary(
-            kv => kv.Key,
-            kv => (IReadOnlyList<CatalogueRecipe>)[.. kv.Value.Select(ToCatalogueRecipe)],
-            StringComparer.Ordinal);
-
-    private static CatalogueRecipe ToCatalogueRecipe(DirectoryRecipe recipe) => new(
-        recipe.Name,
-        recipe.RecipeId,
-        recipe.Header,
-        recipe.ItemId,
-        recipe.Tools,
-        recipe.Reagents?.Select(r => new ProfessionReagent(r.Name, r.ItemId, r.Count)).ToList(),
-        recipe.Order,
-        recipe.Grey,
-        recipe.OrangeTo,
-        recipe.YellowFrom,
-        recipe.YellowTo,
-        recipe.GreenFrom);
-}
+    int? Professions,
+    int Members,
+    int Catalogue);
 
 public sealed record CharacterSyncRejection(
     [property: JsonPropertyName("guid")] string CharacterGuid,
@@ -768,38 +612,31 @@ public sealed record WowClientProcess(int ProcessId, DateTimeOffset StartTime);
 
 public sealed record AvatarImage(string SourceUrl, int Width, int Height, byte[] Bgra);
 
-public sealed record SyncMe(string Id, string? Role, IReadOnlyList<string> Features);
-
-public sealed record SyncPayload(
-    DateTimeOffset WrittenAt,
-    DateTimeOffset? ExportedAt,
-    IReadOnlyList<RosterMember> Roster,
-    IReadOnlyList<LootEvent> Loot,
-    IReadOnlyList<AttendanceRecord> Attendance,
-    IReadOnlyList<GuildRosterMember> Members,
-    IReadOnlyList<DiscordMember> Discord,
-    IReadOnlyList<string> Statuses)
+public enum SyncSignOut
 {
-    public AvatarImage? Avatar { get; init; }
+    Clear,
+    DropMe,
+}
 
-    public IReadOnlyDictionary<string, AvatarImage>? DiscordAvatars { get; init; }
+public sealed record SyncImages(string? Guild, IReadOnlyDictionary<string, string> People, IReadOnlyDictionary<string, string> Discord)
+{
+    public static SyncImages None { get; } = new(null, new Dictionary<string, string>(), new Dictionary<string, string>());
+}
 
-    public IReadOnlyList<OriginDef> Origins { get; init; } = [];
+public sealed record SyncPayload(DateTimeOffset WrittenAt, IReadOnlyList<LuaEntry> Entries)
+{
+    public SyncSignOut SignOut { get; init; }
 
-    public IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> Catalogue { get; init; } = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
-
-    public SyncMe? Me { get; init; }
+    public SyncImages Images { get; init; } = SyncImages.None;
 
     public SyncDirectory? Directory { get; init; }
 
-    public IReadOnlyDictionary<string, int>? RankTargets { get; init; }
+    public AvatarImage? Avatar { get; init; }
 
-    public IReadOnlyList<int>? RankLocked { get; init; }
+    public IReadOnlyDictionary<string, AvatarImage> Avatars { get; init; } = new Dictionary<string, AvatarImage>();
 
-    public KosList? Kos { get; init; }
-
-    public IReadOnlyDictionary<string, IReadOnlyList<string>>? Attunements { get; init; }
-
-    public IReadOnlyList<GearSetDto>? GearSets { get; init; }
+    public static SyncPayload SignedOut(SyncPayload? last, DateTimeOffset now) => last is { SignOut: SyncSignOut.DropMe }
+        ? last with { WrittenAt = now, Entries = [.. last.Entries.Where(entry => entry.Key is not { Kind: LuaKind.Text, Text: "me" })] }
+        : new SyncPayload(now, []);
 }
 

@@ -6,38 +6,18 @@ public sealed class StewardSyncFileTests : IDisposable
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
-    private static SyncPayload SamplePayload() => new(
-        DateTimeOffset.FromUnixTimeSeconds(1758270000),
-        DateTimeOffset.FromUnixTimeSeconds(1758260000),
-        [],
-        [
-            new LootEvent("loot-1", DateTimeOffset.FromUnixTimeSeconds(1758240000), "Hoobi", 19019, "Thunderfury", 5, "Ragnaros", "Molten Core"),
-            new LootEvent("loot-2", DateTimeOffset.FromUnixTimeSeconds(1758241000), "Grug", 17182, "Sulfuras", 5, null, null),
-        ],
-        [
-            new AttendanceRecord("raid-1", DateTimeOffset.FromUnixTimeSeconds(1758230000), "Molten Core", ["Hoobi", "Grug"]),
-        ],
-        [],
-        [],
-        []);
-
-    private static SyncPayload SamplePayloadWithGuildData() => SamplePayload() with
-    {
-        Members =
-        [
-            new GuildRosterMember(
-                "111", "Hoobi", null, "hoobi#0001", "Raider", ["EU"], ["core"], null,
-                "Reliable", false, 12, 1758200000,
-                new GuildBuild("WARRIOR", "Fury", "Melee"), null),
-        ],
-        Discord =
-        [
-            new DiscordMember("222", "Grug", null),
-        ],
-    };
+    private static SyncPayload SamplePayload() => SyncDocument.Parse(
+        """{"version":1,"signOut":"dropMe","payload":{"statuses":["Officer","Raider"],"me":{"id":"700"}},"images":{"guild":null,"people":{},"discord":{}}}""",
+        DateTimeOffset.FromUnixTimeSeconds(1758270000));
 
     private static AvatarImage SampleAvatar() =>
         new("https://cdn.discordapp.com/avatars/1/hash.png?size=64", 64, 64, new byte[64 * 64 * 4]);
+
+    private static LuaValue Parse(string rendered)
+    {
+        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
+        return LuaSavedVariables.Parse(asAssignment[..asAssignment.LastIndexOf(')')])["X"];
+    }
 
     private string InstallAddon(bool withToc = true)
     {
@@ -62,482 +42,51 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
-    public void Render_ProducesAParsableTable()
+    public void Render_WritesTheOverlayFirst_ThenThePayloadKeysInDocumentOrder()
     {
-        var rendered = StewardSyncFile.Render(SamplePayload());
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
+        var table = Parse(StewardSyncFile.Render(SamplePayload(), fingerprint: "ABC"));
 
-        var table = LuaSavedVariables.Parse(asAssignment)["X"];
-
+        Assert.Equal(["writtenAt", "fingerprint", "statuses", "me"], table.Table.Select(entry => entry.Key!.Text));
         Assert.Equal(1758270000d, table.GetNumber("writtenAt"));
-        Assert.Equal(1758260000d, table.GetNumber("exportedAt"));
-
-        var loot = table.GetTable("loot")!.Items;
-        Assert.Equal(2, loot.Count);
-        Assert.Equal("Thunderfury", loot[0].GetString("item"));
-        Assert.Equal("Ragnaros", loot[0].GetString("source"));
-        Assert.Null(loot[1].GetString("source"));
-
-        var attendance = Assert.Single(table.GetTable("attendance")!.Items);
-        Assert.Equal("Molten Core", attendance.GetString("instance"));
-        Assert.Equal(["Hoobi", "Grug"], attendance.GetTable("present")!.Items.Select(i => i.Text));
-
-        Assert.Empty(table.GetTable("members")!.Items);
-        Assert.Empty(table.GetTable("discord")!.Items);
-        Assert.Empty(table.GetTable("statuses")!.Items);
+        Assert.Equal(["Officer", "Raider"], table.GetTable("statuses")!.Items.Select(item => item.Text));
     }
 
     [Fact]
-    public void Render_ProducesTheStatusesInOrder()
+    public void Fingerprint_IsTheSha256OfThePayloadAndTheImageUrls()
     {
-        var payload = SamplePayload() with { Statuses = ["Officer", "Raider", "Approved", "Trial", "Declined"] };
-        var rendered = StewardSyncFile.Render(payload);
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var table = LuaSavedVariables.Parse(asAssignment)["X"];
-
-        Assert.Equal(
-            ["Officer", "Raider", "Approved", "Trial", "Declined"],
-            table.GetTable("statuses")!.Items.Select(i => i.Text));
-    }
-
-    [Fact]
-    public void Fingerprint_IsTheSha256OfTheRenderedUtf8Text()
-    {
-        var payload = SamplePayload() with { Statuses = [.. Enumerable.Range(0, 2000).Select(i => $"Raider\U0001F600é{i}")] };
+        var payload = SamplePayload();
         var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
-            StewardSyncFile.Render(payload with { WrittenAt = DateTimeOffset.UnixEpoch }) + payload.Avatar?.SourceUrl)));
+            LuaWriter.Serialize(LuaValue.FromTable(payload.Entries)))));
 
         Assert.Equal(expected, StewardSyncFile.Fingerprint(payload));
     }
 
     [Fact]
-    public void Fingerprint_Changes_WhenTheStatusesAreReordered()
+    public void Fingerprint_IgnoresTheWriteTime_AndChangesWithThePayloadOrAnImageUrl()
     {
-        var payload = SamplePayload() with { Statuses = ["Officer", "Raider"] };
-        var reordered = payload with { Statuses = ["Raider", "Officer"] };
+        var payload = SamplePayload();
+        var withImage = payload with { Images = SyncImages.None with { People = new Dictionary<string, string> { ["1"] = "https://cdn.example.com/1.png?size=64" } } };
 
-        Assert.NotEqual(StewardSyncFile.Fingerprint(payload), StewardSyncFile.Fingerprint(reordered));
+        Assert.Equal(StewardSyncFile.Fingerprint(payload), StewardSyncFile.Fingerprint(payload with { WrittenAt = DateTimeOffset.UnixEpoch }));
+        Assert.NotEqual(StewardSyncFile.Fingerprint(payload), StewardSyncFile.Fingerprint(payload with { Entries = [.. payload.Entries.Reverse()] }));
+        Assert.NotEqual(StewardSyncFile.Fingerprint(payload), StewardSyncFile.Fingerprint(withImage));
     }
 
     [Fact]
-    public void Render_ProducesMembersAndDiscordTables()
+    public void Write_KeepsTheFingerprintInsideTheFirst512Characters_ForALargeDocumentWithAnAvatar()
     {
-        var rendered = StewardSyncFile.Render(SamplePayloadWithGuildData());
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var table = LuaSavedVariables.Parse(asAssignment)["X"];
-
-        var member = Assert.Single(table.GetTable("members")!.Items);
-        Assert.Equal("111", member.GetString("userId"));
-        Assert.Equal("Hoobi", member.GetString("name"));
-        Assert.Null(member.GetString("displayName"));
-        Assert.Equal("hoobi#0001", member.GetString("discordTag"));
-        Assert.Equal(["EU"], member.GetTable("origin")!.Items.Select(i => i.Text));
-        Assert.Equal("WARRIOR", member.GetTable("primary")!.GetString("class"));
-        Assert.Null(member.GetTable("secondary"));
-        Assert.Null(member.GetTable("main"));
-
-        var discord = Assert.Single(table.GetTable("discord")!.Items);
-        Assert.Equal("222", discord.GetString("id"));
-        Assert.Equal("Grug", discord.GetString("name"));
-        Assert.Null(discord.GetString("nick"));
-    }
-
-    [Fact]
-    public void Render_ProducesTheMainTable_WhenTheMemberCarriesOne()
-    {
-        var payload = SamplePayloadWithGuildData() with
-        {
-            Members =
-            [
-                new GuildRosterMember(
-                    "111", "Hoobi", null, "hoobi#0001", "Raider", ["EU"], ["core"], null,
-                    "Reliable", false, 12, 1758200000,
-                    new GuildBuild("WARRIOR", "Fury", "Melee"), null,
-                    new GuildMain("Player-4619-00B33CCD", "Hoobi Furry", 60, 1)),
-            ],
-        };
-        var rendered = StewardSyncFile.Render(payload);
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var table = LuaSavedVariables.Parse(asAssignment)["X"];
-
-        var main = Assert.Single(table.GetTable("members")!.Items).GetTable("main")!;
-        Assert.Equal("Player-4619-00B33CCD", main.GetString("guid"));
-        Assert.Equal("Hoobi Furry", main.GetString("name"));
-        Assert.Equal(60d, main.GetNumber("level"));
-        Assert.Equal(1d, main.GetNumber("classID"));
-    }
-
-    [Fact]
-    public void Render_ProducesTheOriginsTable()
-    {
-        var payload = SamplePayload() with { Origins = [new OriginDef("EU", "#1d7fd6")] };
-        var rendered = StewardSyncFile.Render(payload);
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var table = LuaSavedVariables.Parse(asAssignment)["X"];
-
-        var origin = Assert.Single(table.GetTable("origins")!.Items);
-        Assert.Equal("EU", origin.GetString("name"));
-        Assert.Equal("#1d7fd6", origin.GetString("color"));
-    }
-
-    [Fact]
-    public void Render_WritesRankTargetsSortedByGuid_AndOmitsTheKeyWhenTheServerSentNone()
-    {
+        var addOnsPath = InstallAddon();
         var payload = SamplePayload() with
         {
-            RankTargets = new Dictionary<string, int> { ["Player-4619-019A5263"] = 6, ["Player-4619-019A5262"] = 4 },
+            Avatar = SampleAvatar(),
+            Entries = [.. Enumerable.Range(0, 2000).Select(i => new LuaEntry(LuaValue.FromString($"key{i}"), LuaValue.FromString(new string('x', 100))))],
         };
 
-        var rendered = StewardSyncFile.Render(payload);
+        StewardSyncFile.Write(addOnsPath, payload);
 
-        Assert.Contains("\t[\"rankTargets\"] = {\n\t\t[\"Player-4619-019A5262\"] = 4,\n\t\t[\"Player-4619-019A5263\"] = 6,\n\t},", rendered, StringComparison.Ordinal);
-        Assert.Contains("\t[\"rankTargets\"] = {\n\t},", StewardSyncFile.Render(SamplePayload() with { RankTargets = new Dictionary<string, int>() }), StringComparison.Ordinal);
-        Assert.DoesNotContain("rankTargets", StewardSyncFile.Render(SamplePayload()), StringComparison.Ordinal);
-        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
-    }
-
-    [Fact]
-    public void Render_WritesRankLockedAscending_AndOmitsTheKeyWhenTheServerSentNone()
-    {
-        var payload = SamplePayload() with { RankLocked = [7, 5] };
-
-        var rendered = StewardSyncFile.Render(payload);
-
-        Assert.Contains("\t[\"rankLocked\"] = {\n\t\t5,\n\t\t7,\n\t},", rendered, StringComparison.Ordinal);
-        Assert.Contains("\t[\"rankLocked\"] = {\n\t},", StewardSyncFile.Render(SamplePayload() with { RankLocked = [] }), StringComparison.Ordinal);
-        Assert.DoesNotContain("rankLocked", StewardSyncFile.Render(SamplePayload()), StringComparison.Ordinal);
-        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
-    }
-
-    [Fact]
-    public void Render_WritesGearSetsInServerOrder_WithSlotPositionsAndOmittedNulls()
-    {
-        var payload = SamplePayload() with
-        {
-            GearSets =
-            [
-                new GearSetDto(
-                    "a\"b]]c",
-                    "Druid",
-                    "Player-1-ABC",
-                    new Dictionary<string, GearSlotDto?>
-                    {
-                        ["Ranged"] = new(51, null),
-                        ["Head"] = new(123, 456),
-                        ["Chest"] = new(null, 9),
-                        ["Finger2"] = new(789, null),
-                    }),
-                new GearSetDto("Second", null, null, new Dictionary<string, GearSlotDto?>()),
-            ],
-        };
-
-        var rendered = StewardSyncFile.Render(payload);
-
-        Assert.Contains("\t[\"gearSets\"] = {\n\t\t{\n\t\t\t[\"name\"] = \"a\\\"b]]c\",\n\t\t\t[\"class\"] = \"Druid\",\n\t\t\t[\"character\"] = \"Player-1-ABC\",\n\t\t\t[\"items\"] = {\n", rendered, StringComparison.Ordinal);
-        Assert.Contains("\t\t\t\t[1] = {\n\t\t\t\t\t[\"id\"] = 123,\n\t\t\t\t\t[\"enchant\"] = 456,\n\t\t\t\t},\n\t\t\t\t[12] = {\n\t\t\t\t\t[\"id\"] = 789,\n\t\t\t\t},\n\t\t\t\t[17] = {\n\t\t\t\t\t[\"id\"] = 51,\n\t\t\t\t},\n\t\t\t},\n", rendered, StringComparison.Ordinal);
-        Assert.DoesNotContain("[5] =", rendered, StringComparison.Ordinal);
-        Assert.Contains("\t\t{\n\t\t\t[\"name\"] = \"Second\",\n\t\t\t[\"items\"] = {\n\t\t\t},\n\t\t},\n", rendered, StringComparison.Ordinal);
-        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
-    }
-
-    [Fact]
-    public void Render_WritesGearSetsAsAnEmptyTableWhenThereAreNone_AndOmitsTheKeyWhenNotFetched()
-    {
-        Assert.Contains("\t[\"gearSets\"] = {\n\t},", StewardSyncFile.Render(SamplePayload() with { GearSets = [] }), StringComparison.Ordinal);
-        Assert.DoesNotContain("gearSets", StewardSyncFile.Render(SamplePayload()), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Render_WritesKosSortedByName_WithTheNoteOmittedWhenEmpty_AndOmitsTheKeyWhenTheServerSentNone()
-    {
-        var payload = SamplePayload() with
-        {
-            Kos = new KosList(
-                [new("Zed", "last"), new("gankface", "camps the flight path"), new("Quiet", null)],
-                [new("Red Rage", "")]),
-        };
-
-        var rendered = StewardSyncFile.Render(payload);
-
-        const string Expected =
-            "\t[\"kos\"] = {\n"
-            + "\t\t[\"players\"] = {\n"
-            + "\t\t\t{\n\t\t\t\t[\"name\"] = \"gankface\",\n\t\t\t\t[\"note\"] = \"camps the flight path\",\n\t\t\t},\n"
-            + "\t\t\t{\n\t\t\t\t[\"name\"] = \"Quiet\",\n\t\t\t},\n"
-            + "\t\t\t{\n\t\t\t\t[\"name\"] = \"Zed\",\n\t\t\t\t[\"note\"] = \"last\",\n\t\t\t},\n"
-            + "\t\t},\n"
-            + "\t\t[\"guilds\"] = {\n"
-            + "\t\t\t{\n\t\t\t\t[\"name\"] = \"Red Rage\",\n\t\t\t},\n"
-            + "\t\t},\n"
-            + "\t},";
-        Assert.Contains(Expected, rendered, StringComparison.Ordinal);
-        Assert.Contains("\t},\n\t[\"kos\"]", StewardSyncFile.Render(payload with { RankLocked = [5] }), StringComparison.Ordinal);
-        Assert.DoesNotContain("kos", StewardSyncFile.Render(SamplePayload()), StringComparison.Ordinal);
-        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
-    }
-
-    [Fact]
-    public void Render_WritesAttunementsAfterKos_KeysSorted_GuidsInServerOrder_AndOmitsTheKeyWhenTheServerSentNone()
-    {
-        var payload = SamplePayload() with
-        {
-            Kos = new KosList([], []),
-            Attunements = new Dictionary<string, IReadOnlyList<string>>
-            {
-                ["onyxia"] = ["Player-1-0000000B", "Player-1-0000000A"],
-                ["blackwing"] = [],
-            },
-        };
-
-        var rendered = StewardSyncFile.Render(payload);
-
-        const string Expected =
-            "\t[\"attunements\"] = {\n"
-            + "\t\t[\"blackwing\"] = {\n\t\t},\n"
-            + "\t\t[\"onyxia\"] = {\n\t\t\t\"Player-1-0000000B\",\n\t\t\t\"Player-1-0000000A\",\n\t\t},\n"
-            + "\t},";
-        Assert.Contains("\t\t[\"guilds\"] = {\n\t\t},\n\t},\n" + Expected, rendered, StringComparison.Ordinal);
-        Assert.DoesNotContain("attunements", StewardSyncFile.Render(SamplePayload()), StringComparison.Ordinal);
-        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
-        Assert.NotEqual(
-            StewardSyncFile.Fingerprint(payload),
-            StewardSyncFile.Fingerprint(payload with { Attunements = new Dictionary<string, IReadOnlyList<string>> { ["onyxia"] = [] } }));
-    }
-
-    [Fact]
-    public void Render_WritesEmptyKosTables_SoAClearedListReachesTheAddon()
-    {
-        var payload = SamplePayload() with { Kos = new KosList([], []) };
-
-        var rendered = StewardSyncFile.Render(payload);
-
-        Assert.Contains("\t[\"kos\"] = {\n\t\t[\"players\"] = {\n\t\t},\n\t\t[\"guilds\"] = {\n\t\t},\n\t},", rendered, StringComparison.Ordinal);
-        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
-        Assert.NotEqual(
-            StewardSyncFile.Fingerprint(payload),
-            StewardSyncFile.Fingerprint(payload with { Kos = new KosList([new("Gankface")], []) }));
-    }
-
-    [Fact]
-    public void Render_ProducesAnEmptyOriginsTable_WhenThePayloadCarriesNone()
-    {
-        var rendered = StewardSyncFile.Render(SamplePayload());
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var table = LuaSavedVariables.Parse(asAssignment)["X"];
-
-        Assert.Empty(table.GetTable("origins")!.Items);
-    }
-
-    [Fact]
-    public void Render_OmitsTheCatalogueKey_WhenThePayloadCarriesNone()
-    {
-        var rendered = StewardSyncFile.Render(SamplePayload());
-
-        Assert.DoesNotContain("catalogue", rendered, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Render_ProducesTheCatalogueTable()
-    {
-        var payload = SamplePayload() with
-        {
-            Catalogue = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>
-            {
-                ["Alchemy"] =
-                [
-                    new CatalogueRecipe("Major Healing Potion", 11460, "Potions", 13446, string.Empty,
-                        [new ProfessionReagent("Golden Sansam", 13464, 2)], Order: 3, Grey: 320, YellowFrom: 290),
-                ],
-            },
-        };
-        var rendered = StewardSyncFile.Render(payload);
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var table = LuaSavedVariables.Parse(asAssignment)["X"];
-
-        var recipe = Assert.Single(table.GetTable("catalogue")!.GetTable("Alchemy")!.Items);
-        Assert.Equal(11460d, recipe.GetNumber("recipeId"));
-        Assert.Equal("Major Healing Potion", recipe.GetString("name"));
-        Assert.Equal("Potions", recipe.GetString("header"));
-        Assert.Equal(13446d, recipe.GetNumber("itemId"));
-        Assert.Equal(string.Empty, recipe.GetString("tools"));
-        Assert.Equal<(double?, double?, double?)>((3d, 320d, 290d), (recipe.GetNumber("order"), recipe.GetNumber("grey"), recipe.GetNumber("yellowFrom")));
-        Assert.Null(recipe.GetNumber("greenFrom"));
-
-        var reagent = Assert.Single(recipe.GetTable("reagents")!.Items);
-        Assert.Equal(13464d, reagent.GetNumber("itemId"));
-        Assert.Equal("Golden Sansam", reagent.GetString("name"));
-        Assert.Equal(2d, reagent.GetNumber("count"));
-    }
-
-    [Fact]
-    public void Render_OmitsTheMeKey_WhenThePayloadCarriesNone()
-    {
-        var rendered = StewardSyncFile.Render(SamplePayload());
-
-        Assert.DoesNotContain("\"me\"", rendered, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Render_ProducesTheMeTable()
-    {
-        var payload = SamplePayload() with { Me = new SyncMe("123456789012345678", "admin", ["steward", "sync"]) };
-        var rendered = StewardSyncFile.Render(payload);
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var table = LuaSavedVariables.Parse(asAssignment)["X"];
-
-        var me = table.GetTable("me")!;
-        Assert.Equal("123456789012345678", me.GetString("id"));
-        Assert.Equal("admin", me.GetString("role"));
-        Assert.Equal(["steward", "sync"], me.GetTable("features")!.Items.Select(i => i.Text));
-    }
-
-    [Fact]
-    public void Render_OmitsTheRoleKey_WhenMeCarriesNoRole()
-    {
-        var payload = SamplePayload() with { Me = new SyncMe("123456789012345678", null, ["sync"]) };
-        var rendered = StewardSyncFile.Render(payload);
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var table = LuaSavedVariables.Parse(asAssignment)["X"];
-
-        Assert.Null(table.GetTable("me")!.GetString("role"));
-    }
-
-    private static DirectoryProfessions SampleProfessions() => new(
-        "Player-4395-0A1B2C3D",
-        "Hoobi",
-        1,
-        [new DirectorySkill("Alchemy", 285, 300, false)],
-        new Dictionary<string, IReadOnlyList<int>> { ["Alchemy"] = [11460, 11461] });
-
-    [Fact]
-    public void Render_OmitsTheDirectoryKey_WhenThePayloadCarriesNone()
-    {
-        var rendered = StewardSyncFile.Render(SamplePayload());
-
-        Assert.DoesNotContain("directory", rendered, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Render_ProducesOnlyThePeopleAndCharactersSections_WhenOnlyRosterWasPulled()
-    {
-        var directory = new SyncDirectory(
-            [new DirectoryPerson("111", "Hoobi", "Player-4395-0A1B2C3D")],
-            [new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "111")],
-            null);
-        var payload = SamplePayload() with { Directory = directory };
-        var rendered = StewardSyncFile.Render(payload);
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var table = LuaSavedVariables.Parse(asAssignment)["X"].GetTable("directory")!;
-
-        var person = Assert.Single(table.GetTable("people")!.Items);
-        Assert.Equal("111", person.GetString("id"));
-        Assert.Equal("Hoobi", person.GetString("name"));
-        Assert.Equal("Player-4395-0A1B2C3D", person.GetString("mainGuid"));
-
-        var character = Assert.Single(table.GetTable("characters")!.Items);
-        Assert.Equal("Player-4395-0A1B2C3D", character.GetString("guid"));
-        Assert.Equal(60d, character.GetNumber("level"));
-        Assert.Equal(1d, character.GetNumber("classId"));
-        Assert.Equal("111", character.GetString("linkedUserId"));
-
-        Assert.Null(table.GetTable("professions"));
-        Assert.Null(table.GetTable("links"));
-
-        var links = LuaSavedVariables.Parse(asAssignment)["X"].GetTable("links")!;
-        Assert.Equal("111", links.GetString("Player-4395-0A1B2C3D"));
-    }
-
-    [Fact]
-    public void Render_OmitsAnUnlinkedCharacterFromLinks_ButStillWritesTheTable()
-    {
-        var directory = new SyncDirectory(
-            [new DirectoryPerson("111", "Hoobi", "Player-4395-0A1B2C3D")],
-            [
-                new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "111"),
-                new DirectoryCharacter("Player-9999-0A1B2C3D", "Grug", 60, 2, null),
-            ],
-            null);
-        var payload = SamplePayload() with { Directory = directory };
-        var rendered = StewardSyncFile.Render(payload);
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var parsed = LuaSavedVariables.Parse(asAssignment)["X"];
-        Assert.Null(parsed.GetTable("directory")!.GetTable("links"));
-
-        var links = parsed.GetTable("links")!;
-        Assert.Equal("111", links.GetString("Player-4395-0A1B2C3D"));
-        Assert.Null(links.GetString("Player-9999-0A1B2C3D"));
-    }
-
-    [Fact]
-    public void Render_OmitsTheLinksKey_WhenNoRosterWasPulled()
-    {
-        var directory = new SyncDirectory(null, null, [SampleProfessions()]);
-        var payload = SamplePayload() with { Directory = directory };
-        var rendered = StewardSyncFile.Render(payload);
-
-        Assert.DoesNotContain("links", rendered, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Fingerprint_Changes_WhenACharacterLinkChanges()
-    {
-        var linked = new SyncDirectory(
-            [new DirectoryPerson("111", "Hoobi", "Player-4395-0A1B2C3D")],
-            [new DirectoryCharacter("Player-4395-0A1B2C3D", "Hoobi", 60, 1, "111")],
-            null);
-        var unlinked = linked with { Characters = [linked.Characters![0] with { LinkedUserId = null }] };
-
-        var linkedFingerprint = StewardSyncFile.Fingerprint(SamplePayload() with { Directory = linked });
-        var unlinkedFingerprint = StewardSyncFile.Fingerprint(SamplePayload() with { Directory = unlinked });
-
-        Assert.NotEqual(linkedFingerprint, unlinkedFingerprint);
-    }
-
-    [Fact]
-    public void Render_ProducesOnlyTheProfessionsSection_WhenOnlyProfessionsWasPulled()
-    {
-        var directory = new SyncDirectory(null, null, [SampleProfessions()]);
-        var payload = SamplePayload() with { Directory = directory };
-        var rendered = StewardSyncFile.Render(payload);
-        var asAssignment = rendered.Replace("Steward.LoadSync(", "X = ", StringComparison.Ordinal);
-        asAssignment = asAssignment[..asAssignment.LastIndexOf(')')];
-
-        var table = LuaSavedVariables.Parse(asAssignment)["X"].GetTable("directory")!;
-
-        Assert.Null(table.GetTable("people"));
-        Assert.Null(table.GetTable("characters"));
-
-        var profession = Assert.Single(table.GetTable("professions")!.Items);
-        Assert.Equal("Player-4395-0A1B2C3D", profession.GetString("guid"));
-        Assert.Equal("Hoobi", profession.GetString("name"));
-        Assert.Equal(1d, profession.GetNumber("classId"));
-        var skill = Assert.Single(profession.GetTable("skills")!.Items);
-        Assert.Equal("Alchemy", skill.GetString("name"));
-        Assert.Equal(300d, skill.GetNumber("maxRank"));
-
-        var recipeIds = profession.GetTable("recipes")!.GetTable("Alchemy")!.Items.Select(i => i.Number);
-        Assert.Equal([11460d, 11461d], recipeIds);
+        var text = File.ReadAllText(StewardSyncFile.PathFor(addOnsPath));
+        Assert.InRange(text.IndexOf("[\"fingerprint\"]", StringComparison.Ordinal), 0, 400);
+        Assert.Equal(StewardSyncFile.Fingerprint(payload), StewardSyncFile.ReadFingerprint(addOnsPath));
     }
 
     [Fact]
@@ -586,10 +135,9 @@ public sealed class StewardSyncFileTests : IDisposable
         var avatar = Path.Combine(addOnsPath, "Steward", "Avatar.tga");
         Assert.True(File.Exists(avatar));
         Assert.Equal(18 + (64 * 64 * 4), new FileInfo(avatar).Length);
-        Assert.Contains(
-            @"[""avatar""] = ""Interface\\AddOns\\Steward\\Avatar.tga""",
-            File.ReadAllText(Path.Combine(addOnsPath, "Steward", "StewardSync.lua")),
-            StringComparison.Ordinal);
+        var table = Parse(File.ReadAllText(StewardSyncFile.PathFor(addOnsPath)));
+        Assert.Equal(["writtenAt", "fingerprint", "avatar"], table.Table.Take(3).Select(entry => entry.Key!.Text));
+        Assert.Equal(@"Interface\AddOns\Steward\Avatar.tga", table.GetString("avatar"));
     }
 
     [Fact]
@@ -644,5 +192,38 @@ public sealed class StewardSyncFileTests : IDisposable
         StewardSyncFile.Write(addOnsPath, SamplePayload());
 
         Assert.DoesNotContain("stale", File.ReadAllText(target), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SignedOut_DropMe_KeepsEveryKeyButMe()
+    {
+        var signedOut = SyncPayload.SignedOut(SamplePayload(), DateTimeOffset.FromUnixTimeSeconds(1758280000));
+
+        Assert.Equal(["writtenAt", "statuses"], Parse(StewardSyncFile.Render(signedOut)).Table.Select(entry => entry.Key!.Text));
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758280000), signedOut.WrittenAt);
+    }
+
+    [Fact]
+    public void SignedOut_Clear_WritesTheOverlayOnly()
+    {
+        var last = SamplePayload() with
+        {
+            SignOut = SyncSignOut.Clear,
+            Images = SyncImages.None with { People = new Dictionary<string, string> { ["1"] = "https://cdn.example.com/1.png?size=64" } },
+            Avatar = SampleAvatar(),
+        };
+
+        var signedOut = SyncPayload.SignedOut(last, DateTimeOffset.FromUnixTimeSeconds(1758280000));
+
+        Assert.Empty(signedOut.Entries);
+        Assert.Null(signedOut.Avatar);
+        Assert.Empty(signedOut.Images.People);
+        Assert.Equal(["writtenAt"], Parse(StewardSyncFile.Render(signedOut)).Table.Select(entry => entry.Key!.Text));
+    }
+
+    [Fact]
+    public void SignedOut_WithNoLastDocument_WritesTheOverlayOnly()
+    {
+        Assert.Empty(SyncPayload.SignedOut(null, DateTimeOffset.UnixEpoch).Entries);
     }
 }

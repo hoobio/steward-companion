@@ -372,29 +372,4 @@ public sealed class CharacterProfessionsTests
         Assert.NotEqual(before, after);
         Assert.NotEqual(ranksBefore, ranksAfter);
     }
-
-    [Fact]
-    public void MemberCatalogueMapping_ToCatalogue_MapsEachRecipeAndReagent()
-    {
-        var directoryCatalogue = new Dictionary<string, IReadOnlyList<DirectoryRecipe>>
-        {
-            ["Alchemy"] =
-            [
-                new DirectoryRecipe(11460, "Major Healing Potion", "optimal", "Potions", 13446, string.Empty,
-                    [new DirectoryReagent(13464, "Golden Sansam", 2)]),
-            ],
-        };
-
-        var catalogue = MemberCatalogueMapping.ToCatalogue(directoryCatalogue);
-
-        var recipe = Assert.Single(catalogue["Alchemy"]);
-        Assert.Equal("Major Healing Potion", recipe.Name);
-        Assert.Equal(11460, recipe.RecipeId);
-        Assert.Equal("Potions", recipe.Header);
-        Assert.Equal(13446, recipe.ItemId);
-        var reagent = Assert.Single(recipe.Reagents!);
-        Assert.Equal("Golden Sansam", reagent.Name);
-        Assert.Equal(13464, reagent.ItemId);
-        Assert.Equal(2, reagent.Count);
-    }
 }

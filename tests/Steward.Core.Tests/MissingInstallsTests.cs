@@ -34,7 +34,7 @@ public sealed class MissingInstallsTests : IDisposable
     public void WriteIfChanged_SkipsAMissingInstall()
     {
         var install = WowInstalls.MissingFromPath(Gone, new Dictionary<string, string>());
-        var payload = new SyncPayload(Now, null, [], [], [], [], [], []);
+        var payload = new SyncPayload(Now, []);
 
         Assert.False(GuildRosterSync.WriteIfChanged(install, payload, new AppStateStore([], Path.Combine(_root, "state.json"))));
     }

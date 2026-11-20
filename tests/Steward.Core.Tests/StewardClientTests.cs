@@ -36,137 +36,49 @@ public sealed class StewardClientTests
         return (new StewardClient(new HttpClient(handler), "https://api.example.com/guild", "Steward/1.0.0 (dev)"), handler);
     }
 
-    private const string RosterBody =
-        """
-        {"members":[{"user_id":"1","name":"Hoobi","display_name":null,"discord_tag":"hoobi#0001",
-        "status":"Raider","origin":["EU"],"flags":[],"rating":null,"notes":"Y\nGood raider",
-        "notes_warning":false,"signups":5,"last_signup_at":123,
-        "primary":{"class":"WARRIOR","spec":"Fury","role":"Melee"},"secondary":null}],
-        "statuses":[{"name":"Officer","color":"#ff0000","role_id":"9","position":0},
-        {"name":"Raider","color":"#00ff00","role_id":null,"position":1}],
-        "origins":[{"name":"EU","color":"#1d7fd6","position":0}],
-        "rank_targets":{"Player-4395-0A1B2C3D":4},"rank_locked":[5,7],
-        "kos":{"players":[{"name":"Gankface","note":"camps the flight path"},{"name":"Quiet","note":null}],"guilds":null},
-        "attunements":{"onyxia":["Player-4395-0A1B2C3D"]}}
-        """;
+    private const string SyncBody =
+        """{"version":1,"signOut":"clear","payload":{"me":{"id":"7"}},"images":{"guild":null,"people":{},"discord":{}}}""";
 
-    private const string MembersBody =
-        """{"members":[{"id":"1","name":"Grug","nick":"G","avatar_url":"https://example.com/a.png"}]}""";
-
-    [Fact]
-    public async Task GetGuildRosterAsync_Success_TrimsTheNoteAndDeserialises()
+    [Theory]
+    [InlineData("1", "https://api.example.com/guild/api/addons/sync/1")]
+    [InlineData(null, "https://api.example.com/guild/api/addons/sync")]
+    public async Task GetSyncDocumentAsync_CallsTheGuildOrTheGuildlessRoute(string? guildId, string url)
     {
-        var (client, handler) = ClientFor(HttpStatusCode.OK, RosterBody);
+        var (client, handler) = ClientFor(HttpStatusCode.OK, SyncBody);
 
-        var (members, statuses, origins, rankTargets, rankLocked, kos, attunements) = await client.GetGuildRosterAsync("1", CancellationToken.None);
+        var payload = await client.GetSyncDocumentAsync(guildId, CancellationToken.None);
 
-        Assert.Equal("https://api.example.com/guild/api/admin/1/roster", handler.RequestUrl);
-        var member = Assert.Single(members);
-        Assert.Equal("1", member.UserId);
-        Assert.Equal("Good raider", member.Notes);
-        Assert.Equal("WARRIOR", member.Primary?.Class);
-        Assert.Null(member.Secondary);
-        Assert.Null(member.Main);
-        Assert.Equal(["Officer", "Raider"], statuses);
-        var origin = Assert.Single(origins);
-        Assert.Equal("EU", origin.Name);
-        Assert.Equal("#1d7fd6", origin.Color);
-        Assert.Equal(4, Assert.Contains("Player-4395-0A1B2C3D", rankTargets!));
-        Assert.Equal([5, 7], rankLocked);
-        Assert.Equal(["Gankface", "Quiet"], kos!.Players!.Select(entry => entry.Name));
-        Assert.Equal("camps the flight path", kos.Players![0].Note);
-        Assert.Null(kos.Players[1].Note);
-        Assert.Empty(kos.Guilds ?? []);
-        Assert.Equal(["Player-4395-0A1B2C3D"], Assert.Contains("onyxia", attunements!));
+        Assert.Equal(url, handler.RequestUrl);
+        Assert.Equal("me", Assert.Single(payload.Entries).Key!.Text);
+        Assert.Equal(SyncSignOut.Clear, payload.SignOut);
     }
 
     [Fact]
-    public async Task GetGuildRosterAsync_Success_DeserialisesTheMain_WhenPresent()
-    {
-        const string body =
-            """
-            {"members":[{"user_id":"1","name":"Grug","display_name":null,"discord_tag":null,
-            "status":null,"origin":[],"flags":[],"rating":null,"notes":null,
-            "notes_warning":false,"signups":0,"last_signup_at":0,
-            "primary":null,"secondary":null,
-            "main":{"guid":"Player-4619-00B33CCD","name":"Hoobi Furry","level":60,"class_id":1}}]}
-            """;
-        var (client, _) = ClientFor(HttpStatusCode.OK, body);
-
-        var (members, _, _, _, _, _, _) = await client.GetGuildRosterAsync("1", CancellationToken.None);
-
-        var main = Assert.Single(members).Main;
-        Assert.Equal("Player-4619-00B33CCD", main?.CharacterGuid);
-        Assert.Equal("Hoobi Furry", main?.Name);
-        Assert.Equal(60, main?.Level);
-        Assert.Equal(1, main?.ClassId);
-    }
-
-    [Fact]
-    public async Task GetGuildRosterAsync_Success_GivesAnEmptyStatusesAndOriginsList_WhenTheFieldsAreAbsent()
-    {
-        var (client, _) = ClientFor(HttpStatusCode.OK, """{"members":[]}""");
-
-        var (_, statuses, origins, rankTargets, rankLocked, kos, attunements) = await client.GetGuildRosterAsync("1", CancellationToken.None);
-
-        Assert.Empty(statuses);
-        Assert.Empty(origins);
-        Assert.Null(rankTargets);
-        Assert.Null(rankLocked);
-        Assert.Null(kos);
-        Assert.Null(attunements);
-    }
-
-    [Fact]
-    public async Task GetGuildRosterAsync_Unauthorized_ThrowsSessionExpired()
+    public async Task GetSyncDocumentAsync_Unauthorized_ThrowsSessionExpired()
     {
         var (client, _) = ClientFor(HttpStatusCode.Unauthorized, "{}");
 
-        await Assert.ThrowsAsync<SessionExpiredException>(
-            () => client.GetGuildRosterAsync("1", CancellationToken.None));
+        await Assert.ThrowsAsync<SessionExpiredException>(() => client.GetSyncDocumentAsync("1", CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    public async Task GetSyncDocumentAsync_OtherFailure_ThrowsStewardRequestExceptionWithTheStatus(HttpStatusCode status)
+    {
+        var (client, _) = ClientFor(status, """{"error":"upstream_failed"}""");
+
+        var exception = await Assert.ThrowsAsync<StewardRequestException>(() => client.GetSyncDocumentAsync("1", CancellationToken.None));
+        Assert.Equal(status, exception.StatusCode);
     }
 
     [Fact]
-    public async Task GetGuildRosterAsync_ServerError_ThrowsHttpRequestException()
+    public async Task GetSyncDocumentAsync_ARejectedDocument_ThrowsFormatException()
     {
-        var (client, _) = ClientFor(HttpStatusCode.InternalServerError, "{}");
+        var (client, _) = ClientFor(HttpStatusCode.OK, """{"version":2,"signOut":"clear","payload":{}}""");
 
-        var exception = await Assert.ThrowsAsync<HttpRequestException>(
-            () => client.GetGuildRosterAsync("1", CancellationToken.None));
-        Assert.Contains("500", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task GetDiscordMembersAsync_Success_Deserialises()
-    {
-        var (client, handler) = ClientFor(HttpStatusCode.OK, MembersBody);
-
-        var members = await client.GetDiscordMembersAsync("1", CancellationToken.None);
-
-        Assert.Equal("https://api.example.com/guild/api/admin/1/members", handler.RequestUrl);
-        var member = Assert.Single(members);
-        Assert.Equal("1", member.Id);
-        Assert.Equal("Grug", member.Name);
-        Assert.Equal("G", member.Nick);
-    }
-
-    [Fact]
-    public async Task GetDiscordMembersAsync_Unauthorized_ThrowsSessionExpired()
-    {
-        var (client, _) = ClientFor(HttpStatusCode.Unauthorized, "{}");
-
-        await Assert.ThrowsAsync<SessionExpiredException>(
-            () => client.GetDiscordMembersAsync("1", CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task GetDiscordMembersAsync_ServerError_ThrowsHttpRequestException()
-    {
-        var (client, _) = ClientFor(HttpStatusCode.InternalServerError, "{}");
-
-        var exception = await Assert.ThrowsAsync<HttpRequestException>(
-            () => client.GetDiscordMembersAsync("1", CancellationToken.None));
-        Assert.Contains("500", exception.Message, StringComparison.Ordinal);
+        await Assert.ThrowsAsync<FormatException>(() => client.GetSyncDocumentAsync("1", CancellationToken.None));
     }
 
     [Fact]
@@ -319,91 +231,6 @@ public sealed class StewardClientTests
 
         Assert.NotNull(me.Addons);
         Assert.Empty(me.Addons);
-    }
-
-    private const string MemberRosterBody =
-        """
-        {"people":[{"id":"1","name":"Hoobi","main_guid":"Player-4395-0A1B2C3D"}],
-        "characters":[{"guid":"Player-4395-0A1B2C3D","name":"Hoobi","level":60,"class_id":1,"linked_user_id":"1"}]}
-        """;
-
-    [Fact]
-    public async Task GetMemberRosterAsync_Success_CallsTheGuildRouteAndDeserialises()
-    {
-        var (client, handler) = ClientFor(HttpStatusCode.OK, MemberRosterBody);
-
-        var roster = await client.GetMemberRosterAsync("1", CancellationToken.None);
-
-        Assert.Equal("https://api.example.com/guild/api/guild/1/roster", handler.RequestUrl);
-        var person = Assert.Single(roster.People);
-        Assert.Equal("Player-4395-0A1B2C3D", person.MainGuid);
-        var character = Assert.Single(roster.Characters);
-        Assert.Equal(60, character.Level);
-    }
-
-    [Fact]
-    public async Task GetMemberRosterAsync_Forbidden_ThrowsStewardRequestException()
-    {
-        var (client, _) = ClientFor(HttpStatusCode.Forbidden, "{}");
-
-        var exception = await Assert.ThrowsAsync<StewardRequestException>(
-            () => client.GetMemberRosterAsync("1", CancellationToken.None));
-        Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
-    }
-
-    private const string ProfessionsBody =
-        """
-        {"professions":[{"guid":"Player-4395-0A1B2C3D","name":"Hoobi","class_id":1,
-        "skills":[{"name":"Alchemy","rank":285,"max_rank":300,"secondary":false}],
-        "recipes":{"Alchemy":[11460,11461]}}],
-        "catalogue":{"Alchemy":[{"recipe_id":11460,"name":"Major Healing Potion","header":"Potions","item_id":13446,
-        "tools":"","reagents":[]}]}}
-        """;
-
-    [Fact]
-    public async Task GetMemberProfessionsAsync_Success_CallsTheGuildRouteAndDeserialises()
-    {
-        var (client, handler) = ClientFor(HttpStatusCode.OK, ProfessionsBody);
-
-        var response = await client.GetMemberProfessionsAsync("1", CancellationToken.None);
-
-        Assert.Equal("https://api.example.com/guild/api/guild/1/professions", handler.RequestUrl);
-        var profession = Assert.Single(response.Professions);
-        Assert.Equal("Hoobi", profession.Name);
-        Assert.Equal(1, profession.ClassId);
-        Assert.Equal([11460, 11461], profession.Recipes["Alchemy"]);
-        Assert.Null(Assert.Single(response.Catalogue["Alchemy"]).Difficulty);
-    }
-
-    [Fact]
-    public async Task GetMemberProfessionsAsync_Forbidden_ThrowsStewardRequestException()
-    {
-        var (client, _) = ClientFor(HttpStatusCode.Forbidden, "{}");
-
-        var exception = await Assert.ThrowsAsync<StewardRequestException>(
-            () => client.GetMemberProfessionsAsync("1", CancellationToken.None));
-        Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetMemberCatalogueAsync_Success_CallsTheGuildRouteAndDeserialises()
-    {
-        var (client, handler) = ClientFor(HttpStatusCode.OK, """{"catalogue":{"Alchemy":[]}}""");
-
-        var catalogue = await client.GetMemberCatalogueAsync("1", CancellationToken.None);
-
-        Assert.Equal("https://api.example.com/guild/api/guild/1/recipes/catalogue", handler.RequestUrl);
-        Assert.True(catalogue.ContainsKey("Alchemy"));
-    }
-
-    [Fact]
-    public async Task GetMemberCatalogueAsync_Forbidden_ThrowsStewardRequestException()
-    {
-        var (client, _) = ClientFor(HttpStatusCode.Forbidden, "{}");
-
-        var exception = await Assert.ThrowsAsync<StewardRequestException>(
-            () => client.GetMemberCatalogueAsync("1", CancellationToken.None));
-        Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
     }
 
     [Fact]

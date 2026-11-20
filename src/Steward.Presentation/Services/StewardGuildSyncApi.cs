@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Text.Json;
 using Steward.Core;
 using Steward.Core.Diagnostics;
 
@@ -9,103 +7,28 @@ namespace Steward.App.Services;
 
 public sealed class StewardGuildSyncApi(StewardClient client, AppStateStore stateStore, DiscordImage images, ILogger<StewardGuildSyncApi> logger)
 {
-    private static readonly IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>> NoCatalogue = new Dictionary<string, IReadOnlyList<CatalogueRecipe>>();
-
-    private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> _lastCatalogue = new();
-
-    private readonly ConcurrentDictionary<string, IReadOnlyList<GearSetDto>> _lastGearSets = new();
-
-    public async Task<SyncPayload> PullAsync(string? guildId, CancellationToken ct)
+    public async Task<SyncPayload> PullAsync(string? guildId, IReadOnlyCollection<WowInstall> installs, SyncPayload? previous, CancellationToken ct)
     {
-        var me = await client.GetMeAsync(ct).ConfigureAwait(false);
-        var guild = guildId is null
-            ? me.ResolveGuild(stateStore.Load().GuildId)
-            : me.Guilds.FirstOrDefault(candidate => candidate.Id == guildId);
-        guildId ??= guild?.Id
-            ?? throw new InvalidOperationException("The signed-in user has no guild to sync from.");
-
-        var (members, statuses, origins, rankTargets, rankLocked, kos, attunements) = await client.GetGuildRosterAsync(guildId, ct).ConfigureAwait(false);
-        var discord = await client.GetDiscordMembersAsync(guildId, ct).ConfigureAwait(false);
-        var icon = await images.LoadAsync(guild?.IconUrl, ct).ConfigureAwait(false);
-        var catalogue = await TryGetCatalogueAsync(me, guildId, ct).ConfigureAwait(false);
-        var gearSets = await TryGetGearSetsAsync(me.User.Id, guildId, ct).ConfigureAwait(false);
+        var payload = await client.GetSyncDocumentAsync(guildId, ct).ConfigureAwait(false);
         logger.Info(
-            $"Guild roster pulled for {guildId}: {members.Count} members, {discord.Count} Discord members, {catalogue.Count} catalogue recipe(s)");
-
-        var syncMe = new SyncMe(me.User.Id, me.User.Role, [.. StewardClient.EffectiveFeatures(me)]);
-        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue, Me = syncMe, RankTargets = rankTargets, RankLocked = rankLocked, Kos = kos, Attunements = attunements, GearSets = gearSets };
+            $"Sync document pulled for {guildId ?? "no guild"}: {payload.Entries.Count} key(s), {payload.Images.People.Count} person and {payload.Images.Discord.Count} Discord image(s)");
+        return await LoadImagesAsync(payload, installs, previous, ct).ConfigureAwait(false);
     }
 
-    private async Task<IReadOnlyList<GearSetDto>> TryGetGearSetsAsync(string userId, string guildId, CancellationToken ct)
+    public async Task<SyncPayload> LoadImagesAsync(SyncPayload payload, IReadOnlyCollection<WowInstall> installs, SyncPayload? previous, CancellationToken ct)
     {
-        var key = $"{userId}|{guildId}";
+        var icon = await images.LoadAsync(payload.Images.Guild, ct).ConfigureAwait(false);
+        IReadOnlyDictionary<string, AvatarImage> avatars;
         try
         {
-            var sets = await client.GetGearSetsAsync(guildId, ct).ConfigureAwait(false);
-            _lastGearSets[key] = sets;
-            return sets;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or SessionExpiredException or StewardRequestException or TaskCanceledException)
-        {
-            logger.Warn(ex, $"Gear sets pull failed for {guildId}, keeping the last known sets");
-            return _lastGearSets.GetValueOrDefault(key) ?? [];
-        }
-    }
-
-    public async Task<IReadOnlyDictionary<string, AvatarImage>> LoadPersonAvatarsAsync(
-        IReadOnlyList<DirectoryPerson> people,
-        IReadOnlyCollection<WowInstall> installs,
-        IReadOnlyDictionary<string, AvatarImage>? previous,
-        CancellationToken ct)
-    {
-        try
-        {
-            return await PersonAvatars.LoadAsync(people, installs, stateStore, previous, images.DownloadAsync, ct).ConfigureAwait(false);
+            avatars = await PersonAvatars.LoadAsync(payload.Images, installs, stateStore, previous?.Avatars, images.DownloadAsync, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.Warn(ex, "Person avatar download failed, keeping the avatars already loaded");
-            return previous ?? new Dictionary<string, AvatarImage>();
-        }
-    }
-
-    public async Task<IReadOnlyDictionary<string, AvatarImage>> LoadDiscordAvatarsAsync(
-        IReadOnlyList<DiscordMember> members,
-        IReadOnlyList<DirectoryPerson>? people,
-        IReadOnlyCollection<WowInstall> installs,
-        IReadOnlyDictionary<string, AvatarImage>? previous,
-        CancellationToken ct)
-    {
-        try
-        {
-            return await PersonAvatars.LoadDiscordAsync(members, people, installs, stateStore, previous, images.DownloadAsync, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.Warn(ex, "Discord avatar download failed, keeping the avatars already loaded");
-            return previous ?? new Dictionary<string, AvatarImage>();
-        }
-    }
-
-    private async Task<IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> TryGetCatalogueAsync(AdminMe me, string guildId, CancellationToken ct)
-    {
-        if (!StewardClient.EffectiveFeatures(me).Contains(StewardClient.SyncFeature))
-        {
-            return NoCatalogue;
+            logger.Warn(ex, "Avatar download failed, keeping the avatars already loaded");
+            avatars = previous?.Avatars ?? new Dictionary<string, AvatarImage>();
         }
 
-        var key = $"{me.User.Id}|{guildId}";
-        try
-        {
-            var catalogue = await client.GetRecipeCatalogueAsync(guildId, ct).ConfigureAwait(false);
-            _lastCatalogue[key] = catalogue;
-            return catalogue;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or SessionExpiredException or TaskCanceledException)
-        {
-            // a failed fetch (404 or timeout included) never blocks the roster write; that user's last catalogue for this guild is written instead.
-            logger.Warn(ex, $"Recipe catalogue pull failed for {guildId}, keeping the last known catalogue");
-            return _lastCatalogue.GetValueOrDefault(key) ?? NoCatalogue;
-        }
+        return payload with { Avatar = icon, Avatars = avatars };
     }
 }
