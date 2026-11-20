@@ -116,6 +116,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private SyncPayload? _lastSync;
     private string? _lastSyncGuild;
     private string? _lastSyncFailure;
+    private readonly SemaphoreSlim _syncFileGate = new(1, 1);
     private CancellationTokenSource? _eventsCts;
     private string? _eventsGuildId;
     private bool _eventsUnsupported;
@@ -1763,6 +1764,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task<string?> SyncFileAsync(bool force = false)
     {
+        await _syncFileGate.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            return await PullAndWriteSyncFileAsync(force).ConfigureAwait(true);
+        }
+        finally
+        {
+            _syncFileGate.Release();
+        }
+    }
+
+    private async Task<string?> PullAndWriteSyncFileAsync(bool force)
+    {
         if (!IsSignedIn || !IsApiReachable || _userId is not { } userId)
         {
             return null;
@@ -1782,6 +1796,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (StewardRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
         {
+            return null;
+        }
+        catch (ClientOutdatedException ex)
+        {
+            EnterClientOutdated(ex.Message);
             return null;
         }
         // The file on disk is kept and nothing is retried here: a wrong or partial document must never overwrite good data, and the next trigger asks again.
@@ -3316,9 +3335,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsSignedIn = false;
         Failure = failure;
         _ = EvaluateCurseForgeDefaultHandlerAsync();
-        foreach (var install in installs)
+        if (signedOut is not null)
         {
-            GuildRosterSync.WriteIfChanged(install, signedOut, _stateStore, logger: _logger);
+            foreach (var install in installs)
+            {
+                GuildRosterSync.WriteIfChanged(install, signedOut, _stateStore, logger: _logger);
+            }
         }
 
         PropagateAuthorized();

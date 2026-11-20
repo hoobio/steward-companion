@@ -635,8 +635,11 @@ public sealed record SyncPayload(DateTimeOffset WrittenAt, IReadOnlyList<LuaEntr
 
     public IReadOnlyDictionary<string, AvatarImage> Avatars { get; init; } = new Dictionary<string, AvatarImage>();
 
-    public static SyncPayload SignedOut(SyncPayload? last, DateTimeOffset now) => last is { SignOut: SyncSignOut.DropMe }
-        ? last with { WrittenAt = now, Entries = [.. last.Entries.Where(entry => entry.Key is not { Kind: LuaKind.Text, Text: "me" })] }
-        : new SyncPayload(now, []);
+    public static SyncPayload? SignedOut(SyncPayload? last, DateTimeOffset now) => last switch
+    {
+        null => null,
+        { SignOut: SyncSignOut.DropMe } => last with { WrittenAt = now, Entries = [.. last.Entries.Where(entry => entry.Key is not { Kind: LuaKind.Text, Text: "me" })] },
+        _ => new SyncPayload(now, []),
+    };
 }
 
