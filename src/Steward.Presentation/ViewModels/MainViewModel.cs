@@ -3446,6 +3446,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void WriteMe(IEnumerable<WowInstall> installs, SyncMe? me, bool force = false)
     {
         var catalogue = me is null ? null : _lastMemberCatalogue;
+        // ponytail: gear sets are fetched only in PullAsync, so a user without the steward feature gets none; add a gear-set fetch to the directory sync if that user needs them.
         var payload = new SyncPayload(DateTimeOffset.Now, null, [], [], [], [], [], [])
         {
             Me = me,

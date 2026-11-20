@@ -128,6 +128,29 @@ public sealed class StewardClient
         return roster ?? throw new HttpRequestException($"GET /api/guild/{guildId}/roster returned an empty body");
     }
 
+    public async Task<IReadOnlyList<GearSetDto>> GetGearSetsAsync(string guildId, CancellationToken cancellationToken)
+    {
+        using var response = await _httpClient
+            .GetAsync($"{_baseUrl}/api/guild/{guildId}/gear/sets", cancellationToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new SessionExpiredException();
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new StewardRequestException(response.StatusCode, null);
+        }
+
+        var sets = await response.Content
+            .ReadFromJsonAsync(CompanionJsonContext.Default.GearSetsResponse, cancellationToken)
+            .ConfigureAwait(false);
+
+        return sets?.Sets ?? throw new HttpRequestException($"GET /api/guild/{guildId}/gear/sets returned an empty body");
+    }
+
     public async Task<MemberProfessions> GetMemberProfessionsAsync(string guildId, CancellationToken cancellationToken)
     {
         using var response = await _httpClient

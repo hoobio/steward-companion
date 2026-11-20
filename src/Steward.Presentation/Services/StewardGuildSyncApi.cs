@@ -13,6 +13,8 @@ public sealed class StewardGuildSyncApi(StewardClient client, AppStateStore stat
 
     private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CatalogueRecipe>>> _lastCatalogue = new();
 
+    private readonly ConcurrentDictionary<string, IReadOnlyList<GearSetDto>> _lastGearSets = new();
+
     public async Task<SyncPayload> PullAsync(string? guildId, CancellationToken ct)
     {
         var me = await client.GetMeAsync(ct).ConfigureAwait(false);
@@ -26,11 +28,28 @@ public sealed class StewardGuildSyncApi(StewardClient client, AppStateStore stat
         var discord = await client.GetDiscordMembersAsync(guildId, ct).ConfigureAwait(false);
         var icon = await images.LoadAsync(guild?.IconUrl, ct).ConfigureAwait(false);
         var catalogue = await TryGetCatalogueAsync(me, guildId, ct).ConfigureAwait(false);
+        var gearSets = await TryGetGearSetsAsync(me.User.Id, guildId, ct).ConfigureAwait(false);
         logger.Info(
             $"Guild roster pulled for {guildId}: {members.Count} members, {discord.Count} Discord members, {catalogue.Count} catalogue recipe(s)");
 
         var syncMe = new SyncMe(me.User.Id, me.User.Role, [.. StewardClient.EffectiveFeatures(me)]);
-        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue, Me = syncMe, RankTargets = rankTargets, RankLocked = rankLocked, Kos = kos, Attunements = attunements };
+        return new SyncPayload(DateTimeOffset.Now, null, [], [], [], members, discord, statuses) { Avatar = icon, Origins = origins, Catalogue = catalogue, Me = syncMe, RankTargets = rankTargets, RankLocked = rankLocked, Kos = kos, Attunements = attunements, GearSets = gearSets };
+    }
+
+    private async Task<IReadOnlyList<GearSetDto>> TryGetGearSetsAsync(string userId, string guildId, CancellationToken ct)
+    {
+        var key = $"{userId}|{guildId}";
+        try
+        {
+            var sets = await client.GetGearSetsAsync(guildId, ct).ConfigureAwait(false);
+            _lastGearSets[key] = sets;
+            return sets;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or SessionExpiredException or StewardRequestException or TaskCanceledException)
+        {
+            logger.Warn(ex, $"Gear sets pull failed for {guildId}, keeping the last known sets");
+            return _lastGearSets.GetValueOrDefault(key) ?? [];
+        }
     }
 
     public async Task<IReadOnlyDictionary<string, AvatarImage>> LoadPersonAvatarsAsync(

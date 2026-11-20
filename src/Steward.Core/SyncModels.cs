@@ -338,6 +338,19 @@ public sealed record MemberRoster(
     [property: JsonPropertyName("people")] IReadOnlyList<DirectoryPerson> People,
     [property: JsonPropertyName("characters")] IReadOnlyList<DirectoryCharacter> Characters);
 
+public sealed record GearSlotDto(
+    [property: JsonPropertyName("item")] long? Item,
+    [property: JsonPropertyName("enchant")] long? Enchant);
+
+public sealed record GearSetDto(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("class")] string? ClassName,
+    [property: JsonPropertyName("character")] string? Character,
+    [property: JsonPropertyName("slots")] IReadOnlyDictionary<string, GearSlotDto?>? Slots);
+
+public sealed record GearSetsResponse(
+    [property: JsonPropertyName("sets")] IReadOnlyList<GearSetDto> Sets);
+
 public sealed record MemberProfessions(
     [property: JsonPropertyName("professions")] IReadOnlyList<DirectoryProfessions> Professions,
     [property: JsonPropertyName("catalogue")] IReadOnlyDictionary<string, IReadOnlyList<DirectoryRecipe>> Catalogue);
@@ -786,5 +799,7 @@ public sealed record SyncPayload(
     public KosList? Kos { get; init; }
 
     public IReadOnlyDictionary<string, IReadOnlyList<string>>? Attunements { get; init; }
+
+    public IReadOnlyList<GearSetDto>? GearSets { get; init; }
 }
 

@@ -274,6 +274,51 @@ public static class StewardSyncFile
                     .Select(kv => new LuaEntry(LuaValue.FromString(kv.Key), LuaValue.Array(kv.Value.Select(LuaValue.FromString))))])));
         }
 
+        if (payload.GearSets is { } gearSets)
+        {
+            entries.Add(new(LuaValue.FromString("gearSets"), LuaValue.Array(gearSets.Select(GearSetToLua))));
+        }
+
+        return LuaValue.FromTable(entries);
+    }
+
+    private static readonly string[] GearSlots =
+    [
+        "Head", "Neck", "Shoulder", "Back", "Chest", "Wrist", "Hands", "Waist", "Legs", "Feet",
+        "Finger1", "Finger2", "Trinket1", "Trinket2", "MainHand", "OffHand", "Ranged",
+    ];
+
+    private static LuaValue GearSetToLua(GearSetDto set)
+    {
+        var items = new List<LuaEntry>();
+        for (var i = 0; i < GearSlots.Length; i++)
+        {
+            if (set.Slots is null || !set.Slots.TryGetValue(GearSlots[i], out var pick) || pick?.Item is not { } item)
+            {
+                continue;
+            }
+
+            var fields = new List<LuaEntry> { new(LuaValue.FromString("id"), LuaValue.FromNumber(item)) };
+            if (pick.Enchant is { } enchant)
+            {
+                fields.Add(new(LuaValue.FromString("enchant"), LuaValue.FromNumber(enchant)));
+            }
+
+            items.Add(new(LuaValue.FromNumber(i + 1), LuaValue.FromTable(fields)));
+        }
+
+        var entries = new List<LuaEntry> { new(LuaValue.FromString("name"), LuaValue.FromString(set.Name)) };
+        if (set.ClassName is not null)
+        {
+            entries.Add(new(LuaValue.FromString("class"), LuaValue.FromString(set.ClassName)));
+        }
+
+        if (set.Character is not null)
+        {
+            entries.Add(new(LuaValue.FromString("character"), LuaValue.FromString(set.Character)));
+        }
+
+        entries.Add(new(LuaValue.FromString("items"), LuaValue.FromTable(items)));
         return LuaValue.FromTable(entries);
     }
 

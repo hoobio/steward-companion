@@ -450,6 +450,7 @@ public sealed record ProviderAddonsState(
 [JsonSerializable(typeof(DesktopExchangeRequest))]
 [JsonSerializable(typeof(DesktopToken))]
 [JsonSerializable(typeof(DiscordMembersResponse))]
+[JsonSerializable(typeof(GearSetsResponse))]
 [JsonSerializable(typeof(GuildRosterResponse))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(MemberCatalogue))]

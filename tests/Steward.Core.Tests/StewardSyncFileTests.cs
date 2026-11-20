@@ -219,6 +219,44 @@ public sealed class StewardSyncFileTests : IDisposable
     }
 
     [Fact]
+    public void Render_WritesGearSetsInServerOrder_WithSlotPositionsAndOmittedNulls()
+    {
+        var payload = SamplePayload() with
+        {
+            GearSets =
+            [
+                new GearSetDto(
+                    "a\"b]]c",
+                    "Druid",
+                    "Player-1-ABC",
+                    new Dictionary<string, GearSlotDto?>
+                    {
+                        ["Ranged"] = new(51, null),
+                        ["Head"] = new(123, 456),
+                        ["Chest"] = new(null, 9),
+                        ["Finger2"] = new(789, null),
+                    }),
+                new GearSetDto("Second", null, null, new Dictionary<string, GearSlotDto?>()),
+            ],
+        };
+
+        var rendered = StewardSyncFile.Render(payload);
+
+        Assert.Contains("\t[\"gearSets\"] = {\n\t\t{\n\t\t\t[\"name\"] = \"a\\\"b]]c\",\n\t\t\t[\"class\"] = \"Druid\",\n\t\t\t[\"character\"] = \"Player-1-ABC\",\n\t\t\t[\"items\"] = {\n", rendered, StringComparison.Ordinal);
+        Assert.Contains("\t\t\t\t[1] = {\n\t\t\t\t\t[\"id\"] = 123,\n\t\t\t\t\t[\"enchant\"] = 456,\n\t\t\t\t},\n\t\t\t\t[12] = {\n\t\t\t\t\t[\"id\"] = 789,\n\t\t\t\t},\n\t\t\t\t[17] = {\n\t\t\t\t\t[\"id\"] = 51,\n\t\t\t\t},\n\t\t\t},\n", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("[5] =", rendered, StringComparison.Ordinal);
+        Assert.Contains("\t\t{\n\t\t\t[\"name\"] = \"Second\",\n\t\t\t[\"items\"] = {\n\t\t\t},\n\t\t},\n", rendered, StringComparison.Ordinal);
+        Assert.NotEqual(StewardSyncFile.Fingerprint(SamplePayload()), StewardSyncFile.Fingerprint(payload));
+    }
+
+    [Fact]
+    public void Render_WritesGearSetsAsAnEmptyTableWhenThereAreNone_AndOmitsTheKeyWhenNotFetched()
+    {
+        Assert.Contains("\t[\"gearSets\"] = {\n\t},", StewardSyncFile.Render(SamplePayload() with { GearSets = [] }), StringComparison.Ordinal);
+        Assert.DoesNotContain("gearSets", StewardSyncFile.Render(SamplePayload()), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Render_WritesKosSortedByName_WithTheNoteOmittedWhenEmpty_AndOmitsTheKeyWhenTheServerSentNone()
     {
         var payload = SamplePayload() with
