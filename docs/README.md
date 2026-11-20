@@ -5,6 +5,7 @@
 ## Layout
 
 - `design/`: contracts and designs of built features, in more detail than `AGENTS.md` gives.
+- `adr/`: architecture decision records, `NNNN-<kebab-title>.md`. An accepted record is not edited except its Status; a later record supersedes it.
 - `upcoming.md`: plans for work that is not built. When part of a plan ships, that part is removed from the plan, and the facts that stay true move to `design/`.
 - `forever-release.md`: the Forever release checklist.
 - `screenshots/`: the Store listing screenshots, also shown in the root `README.md`.
@@ -41,5 +42,6 @@ When you add, move or empty a doc, update its line below in the same change.
 | [design/guides-page.md](design/guides-page.md) | Guides page design |
 | [design/home-and-settings.md](design/home-and-settings.md) | Home and settings design |
 | [design/restedxp-guides.md](design/restedxp-guides.md) | RestedXP paid guide API contract |
-| [design/roster-sync.md](design/roster-sync.md) | Roster sync contract between steward-server, the app and the addon |
+| [design/roster-sync.md](design/roster-sync.md) | Roster sync contract between steward-server, the app and the addon: the sync document route, the JSON to Lua converter, the file overlay, sign-out and freshness |
 | [design/sync.md](design/sync.md) | Sync page design |
+| [adr/0001-server-defined-sync-payload.md](adr/0001-server-defined-sync-payload.md) | The server defines the `StewardSync.lua` payload and the app converts it generically |

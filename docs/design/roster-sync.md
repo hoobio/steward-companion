@@ -1,6 +1,6 @@
 # Roster sync between steward-server, the desktop app and the addon
 
-How the three halves of Steward move guild data between Discord and the game. Written at the start of the first roster sprint, 20 Sep 2026, so later sprints do not have to re-derive the contract.
+How the three halves of Steward move guild data between Discord and the game.
 
 ## Participants
 
@@ -28,17 +28,104 @@ Two files, one direction each. The rule exists because the client rewrites its w
 
 `StewardSync.lua` is a plain Lua file listed in the TOC. It calls `Steward.LoadSync({...})` rather than assigning a global, so the addon owns the shape of what arrives. The addon updater replaces the whole addon folder, so the desktop app rewrites this file immediately after every addon update.
 
-`["origins"]` carries the roster's origin definitions, each `{ ["name"], ["color"] }`, straight through from the roster endpoint so the addon can colour a member's origin by name. It is always present, an empty array when the endpoint omits the field.
+## Sync document route
+
+steward-server defines the payload. The app does not compose it. The decision is `docs/adr/0001-server-defined-sync-payload.md`, and the server side is steward-server's `docs/design/addon-bundle.md`, section "Sync document route".
+
+`StewardClient.GetSyncDocumentAsync(guildId)` calls `GET /api/addons/sync/{guildId}` for the selected guild, or `GET /api/addons/sync` for a signed-in user with no guild. The answer is:
+
+```json
+{"version":1,"signOut":"dropMe"|"clear","payload":{...},"images":{"guild":url|null,"people":{id:url},"discord":{id:url}}}
+```
+
+`SyncDocument.Parse` turns it into a `SyncPayload`: the converted payload entries, the `signOut` value, the image URLs and the directory reader result. The server gates every key. The app applies no feature gate of its own to the file.
+
+A failed pull keeps the file on disk and writes nothing:
+
+| Answer | Result |
+| --- | --- |
+| 401 | Sign-out, the same as any other lost session. |
+| 403 | Quiet. Nothing is logged. |
+| 404, 502, a network failure | One log line. The same failure again is not logged again. The next trigger asks again. |
+| A document the converter rejects | The same as 502. |
+
+There is no fallback to the per-dataset routes.
+
+## Converter rules
+
+`SyncDocument.ToLua` converts JSON to Lua with no knowledge of the keys. `LuaWriter.Serialize` writes the result.
+
+| JSON | Lua |
+| --- | --- |
+| Object | A keyed table. Each member is written `["name"] = v` in document order. The name goes through the Lua string serialiser, so a key is always data. |
+| Object member with the value `null` | Left out. |
+| Array | Positional entries in order. A `null` element is written as a positional `nil`, so later entries keep their positions. |
+| String | The Lua string serialiser. |
+| Number | `double` with the `R` format, the same as every other number in the file. A number that is not finite rejects the document. |
+| `true`, `false` | `true`, `false`. |
+| `[]` and `{}` | `{}`. |
+| An object whose only member is `"$int"` with an object value | A table with integer keys: `{"$int":{"123":v}}` gives `{ [123] = v }`. A member name that is not a base-10 integer, or is outside plus or minus 2^53, rejects the document. |
+
+No rule turns a digit string into a number, so Discord ids and guids stay strings. A string the serialiser cannot write (an unpaired surrogate) rejects the document. A document is also rejected when it is not a JSON object, when `version` is not the number 1, or when `payload` is not an object. A `signOut` value other than `dropMe` is read as `clear`.
+
+## File layout
+
+The file starts with the overlay, then the payload keys in document order:
+
+1. `writtenAt`, the unix second of the write.
+2. `fingerprint`.
+3. `avatar`, only when `Avatar.tga` was written.
+
+`ReadFingerprint` reads only the first 512 characters, so the fingerprint stays inside them.
+
+`StewardSyncFile.Fingerprint` is SHA-256 over the rendered payload entries (no overlay), the downloaded guild icon's URL and the people and Discord image URLs sorted by id. `GuildRosterSync.WriteIfChanged` skips the write when the file's fingerprint matches, `Avatar.tga` exists when an icon was loaded, and no avatar file is still to write. `force` writes in every case.
 
 ## Images
 
-The sandbox has no network, so an image reaches the game the same way data does: the desktop app fetches it, converts it, and writes it into the addon folder. The signed-in user's Discord avatar is the first of these, drawn in the window portrait circles.
+The sandbox has no network, so an image reaches the game the same way data does: the desktop app fetches it, converts it, and writes it into the addon folder. The images are the guild icon (`Avatar.tga`) and the people and Discord member avatars (`Avatars\<id>.tga`).
 
-`cdn.discordapp.com` serves `?size=64` PNG directly, so no resampling is needed, only a format conversion. A texture in an addon folder must be TGA or BLP, with power-of-two edges, 32-bit for alpha, and the one combination confirmed working on this client is 64x64 32-bit uncompressed true-colour, bottom-up, which is what `Icon.tga` already is.
+`images` in the document gives the URLs. The guild icon and a person image are requested at 64 px and a Discord image at 32 px (`PersonAvatars.RequestUri`). A person image takes precedence over a Discord image for the same id. `cdn.discordapp.com` serves PNG at those sizes, so the app converts the format only. A texture in an addon folder must be TGA or BLP, with power-of-two edges, 32-bit for alpha, and the one combination confirmed working on this client is 32-bit uncompressed true-colour, bottom-up, which is what `AvatarTga.Encode` writes.
 
 The payload carries `["avatar"] = "Interface\\AddOns\\Steward\\Avatar.tga"` **only when the app actually wrote that file**, and omits the key otherwise. That rule is load-bearing rather than tidy: since patch 5.0.4 `GetTexture()` echoes back whatever string it was given whether or not the file loaded, and a bad path draws solid green instead of erroring, so **the addon has no way to detect a missing texture**. Presence of the key is the only signal it gets, which is why the app must never write the key optimistically.
 
-A texture file written while the client is running is picked up on `/reload`, not immediately, the same boundary the rest of this system already lives with. The addon folder is replaced wholesale on update, so every written image is rewritten after an update alongside `StewardSync.lua`.
+The same rule applies to each table in `payload.discord[]` and `payload.directory.people[]`: the app adds `avatar = "Interface\\AddOns\\Steward\\Avatars\\<id>.tga"` to a table whose `id` has a TGA on disk after the write. Only an all-digit id is downloaded or written, since the id becomes a file name. A failed download leaves the entry without `avatar` and never fails the sync. An avatar is downloaded again only when its URL changed or its file is gone: the URL last written per install and id is kept in `state.json` as `person_avatars`. Files for ids no longer in `images` are deleted on every write.
+
+A texture file written while the client is running is picked up on `/reload`, not immediately, the same boundary the rest of this system already lives with. The addon folder is replaced wholesale on update, so every written image is rewritten after an update alongside `StewardSync.lua` (`RestoreSyncFileAfterInstallAsync`, from the last document when it is for the selected guild).
+
+## Sign-out
+
+The app keeps the last document. On sign-out it rewrites the file from that document's `signOut` (`SyncPayload.SignedOut`):
+
+| `signOut` | File after sign-out |
+| --- | --- |
+| `dropMe` | The last payload without the top-level `me` key. The images stay. |
+| `clear` | The overlay only. The avatar files are deleted. |
+| No last document | The overlay only. |
+
+The server sends `dropMe` when the caller gets the officer parts, so an officer keeps the roster data in game after sign-out.
+
+## Keys the app reads
+
+The app reads a small part of the payload for its own screens (`SyncDocument` builds a `SyncDirectory`):
+
+| Payload key | Used for |
+| --- | --- |
+| `directory.people[]`: `id`, `name`, `mainGuid` | The not-linked rejection text. |
+| `directory.characters[]`: `guid`, `name`, `level`, `classId`, `linkedUserId` | Which characters are the user's own, the not-linked text and the professions push selection. An absent `characters` key is not the same as an empty one. |
+| `directory.professions` | The count on the Sync page. |
+| `members` | The count on the Sync page for an officer. |
+| `catalogue` | The profession count on the Sync page. |
+
+The reader never throws. A missing or wrongly typed field gives null, an empty string or 0.
+
+## Changes that need a companion release
+
+A new payload key, a removed key or a changed shape is a server deploy only. A companion release is needed for:
+
+- The overlay: `writtenAt`, `fingerprint`, `avatar` and the `avatar` key on `discord[]` and `directory.people[]` tables.
+- The `images` maps and the image sizes.
+- The directory keys in the table above.
+- A new `version` or a new `signOut` value.
 
 ## Saved variables do not load after a client restart
 
@@ -106,47 +193,43 @@ A Discord snowflake as the stored value was rejected: 18 to 19 of the 31 charact
 
 The app judges the freshness of what the addon wrote by the saved-variables file's mtime against the running client's process start time, plus the `exportedAt` the addon stamps into the payload. `WowClient` finds a running client by enumerating processes whose main module sits under that flavour's folder, because the sandbox gives the addon no way to signal that it is running.
 
-Data reaches a second officer's game client by the same route it reached the first: their desktop app pulls the same roster on the same steward-server change event, or on its fallback timer, and rewrites their own `StewardSync.lua`. There is no addon-to-addon gossip, and adding some would not help, because the only staleness window is between a rewrite and the next `/reload` and no addon message can make the client reload. If officers ask for it later, the cheap version is one number broadcast on `GUILD` saying a newer roster exists.
+`MainViewModel.SyncFileAsync` pulls the sync document and writes the file for every install. It runs on these triggers:
+
+- Startup and Refresh.
+- A guild change.
+- A character push that reached steward-server.
+- The Sync page's write and rewrite buttons, and the restore after a Steward addon install.
+- A changed user, role or feature set for a user without `steward` (through `QueueGuildPull`).
+- An event on the officer stream `/api/admin/{guild_id}/events` (through `QueueGuildPull`).
+- A `syncChanged` frame on `/api/events` (through `QueueGuildPull`). steward-server sends it to the one user whose gear set changed.
+- The background pass, at most every 15 minutes (`GuildSyncFallbackInterval`).
+
+`QueueGuildPull` debounces for 2 seconds and pulls the selected guild for every user, officer or not. The route is never polled on the one-minute pass. A result is dropped when the user or the selected guild changed while it was in flight.
+
+Data reaches a second officer's game client by the same route it reached the first: their desktop app pulls the same document on the same steward-server change event, or on its fallback timer, and rewrites their own `StewardSync.lua`. There is no addon-to-addon gossip, and adding some would not help, because the only staleness window is between a rewrite and the next `/reload` and no addon message can make the client reload.
 
 ## The `me` dataset
 
-`StewardSync.lua` carries a `me` table for every signed-in user whose install has the Steward addon, officer or not: `{ id, role, features }`, `role` omitted when null, matching `SyncMe` in `Steward.Core`. An officer's write is the same full payload described above, with `me` added; a non-officer gets a payload holding only `me` and the `directory` dataset below, no roster, members or discord, since they pull none of those. The file is rewritten whenever the signed-in user, their role or their feature set changes, and it is rewritten with `me` dropped on every sign-out, officer or not: a non-officer's write is the same roster-less payload with `me: null`, and an officer's write rewrites the last full payload the app cached from its own roster pull with only `Me` cleared, so the roster, members, discord and catalogue data survives sign-out instead of being wiped by a roster-less rewrite. This is a display gate only: the file is locally editable, so `Steward.IsOfficer()` uses `me.role` to hide officer-only windows and columns for a raider rather than to enforce anything; steward-server and the game's own permissions are the real enforcement, and a client with no `me` (signed out, or an older `StewardSync.lua`) falls back to the guild rank check it already had.
+The server's payload carries a `me` table for every signed-in user: `{ id, role, features }`, `role` left out when null. Sign-out removes it, as described under Sign-out. It is a display gate only: the file is locally editable, so `Steward.IsOfficer()` uses `me.role` to hide officer-only windows and columns for a raider rather than to enforce anything; steward-server and the game's own permissions are the real enforcement, and a client with no `me` (signed out, or an older `StewardSync.lua`) falls back to the guild rank check it already had.
 
-## The composed `directory` dataset
+## Payload keys
 
-Three per-flag member routes give what a single `directory` endpoint once did, each 403 to a guild member lacking that guild's flag: `GET /api/guild/{guild_id}/roster` (`roster`) gives `{people: [{id, name, main_guid}], characters: [{guid, name, level, class_id, linked_user_id}]}`; `GET /api/guild/{guild_id}/professions` (`professions`) gives `{professions: [{guid, name, class_id, skills: [{name, rank, max_rank, secondary}], recipes: {<profession>: [{recipe_id, name, difficulty, header, item_id, tools, reagents: [{item_id, name, count}]}]}}], catalogue: {<profession>: [recipe]}}`; `GET /api/guild/{guild_id}/recipes/catalogue` (`sync` or `professions`) gives `{catalogue: {<profession>: [recipe]}}` alone. Each is built by its own whitelisting serialiser rather than trimmed from an admin payload, and carries no roster notes, tags, ratings, sign-ups, history or batch ids.
-
-The app reads the SELECTED guild's own features (never the user's overall list, see Auth in `character-sync.md`) to decide which routes apply, and composes what came back into `StewardSync.lua`'s `["directory"]`: `people`/`characters` as a pair when the roster route was pulled, `professions` when the professions route was pulled, each Lua key camelCase to match the rest of the file (`mainGuid`, `classId`, `linkedUserId`, `maxRank`, `recipeId`, `itemId`, and a catalogue recipe's `order`, `grey`, `orangeTo`, `yellowFrom`, `yellowTo` and `greenFrom`, described under Recipe catalogue in `character-sync.md`), and each section left out entirely when its route was not called for that guild, rather than written as an empty table. A non-officer's `["catalogue"]` dataset comes from the professions response when pulled, else the standalone catalogue route; an officer keeps their catalogue from the officer-only admin route as before. The app fetches on startup, on Refresh, right after a character push actually reaches steward-server, and on the background pass at most every 15 minutes wall-clock, the same fallback interval as the roster pull; a 403 or 404 on any of the three is handled quietly, the same treatment as the events stream, with no error bar.
-
-Each `people` entry may carry `avatar_url` (string or null, absent from an older server), the person's Discord avatar. The app downloads it as a 64px PNG (`PersonAvatars.RequestUri`: the CDN path with a `.png` extension and `?size=64`, at most 4 downloads at once), encodes it with `AvatarTga.Encode` and writes `<AddOns>\Steward\Avatars\<userId>.tga` through the same guarded write path as `Avatar.tga`. The matching `directory.people` entry then carries `avatar = "Interface\\AddOns\\Steward\\Avatars\\<userId>.tga"`, set only when that file exists on disk after the write, since a missing texture draws solid green with no error. A failed download leaves the person without `avatar` and never fails the sync. An avatar is downloaded again only when its URL changed (Discord changes the hash with the image) or its file is gone: the URL last written per install and user id is kept in `state.json` as `person_avatars`, never in the addon folder. Files for user ids no longer in the directory, or whose entry lost its `avatar_url`, are deleted on every write, and an addon update that replaces the folder has its avatars rewritten by the post-install roster restore. Only all-digit user ids are written, since the id becomes a file name.
-
-steward-server pins a character link (guid to Discord user id) so an officer can re-map, unlink or reset it; every link-reading response reflects the pin, `characters[].linked_user_id` on this roster route included. `StewardSync.lua` carries that pin as a top-level `["links"] = { [guid] = discordUserId, ... }`, a sibling of `me`, `directory` and `catalogue` rather than nested under `directory`, since `hoobio/Steward` reads `payload.links` directly. One entry per character with a non-null `linked_user_id`, an unlinked guid absent, written whenever the roster route was pulled (the same roster pull that fills `directory`'s `people`/`characters`) and left out when it was not. `roster` is a default officer feature, so this route, and `links` with it, runs for an officer the same as for a raider holding `roster`, not only for a non-officer. `hoobio/Steward` reads `["links"]` in preference to note matching, so a pin now settles a link the addon trusts without depending on the guild note convention described under Identity and linking.
-
-An officer payload also carries `["rankTargets"] = { [guid] = rankOrder, ... }`, a sibling written after `links`: the guild rank steward-server wants each pinned character to hold, in the same index space as `guildRanks.ranks` and `rankIndex` (1 is Guild Master, which is never a target). steward-server computes it from the officers' Discord role to guild rank mapping and sends it as `rank_targets` on `GET /api/admin/{guild_id}/roster`; the app writes it sorted by guid, as an empty table when a mapping exists but nothing has a target, and leaves the key out when the server sends null (nothing mapped) or the roster route was not pulled. It is part of the rendered file, so it is part of the fingerprint.
-
-An officer payload also carries `["rankLocked"] = { 5, 7 }`, a sibling written after `rankTargets`: the guild rank orders, in the same index space as `rankTargets`, that Steward never changes, so the addon skips any character currently at one of them (for example a "Muted" rank). steward-server sends it as `rank_locked` on `GET /api/admin/{guild_id}/roster`; the app writes it as a Lua array in ascending order, as an empty table when a mapping exists but no rank is locked, and leaves the key out when the server sends null (nothing mapped) or the roster route was not pulled. It is part of the rendered file, so it is part of the fingerprint.
-
-An officer payload also carries `["kos"]`, written after `rankLocked`: the guild's kill on sight list. steward-server sends it as `kos` on `GET /api/admin/{guild_id}/roster` (officer view only) as `{"players":[{"name":"Gankface","note":"camps the flight path"}],"guilds":[{"name":"Red Rage","note":null}]}`. The app writes `["kos"] = { ["players"] = { { ["name"] = "Gankface", ["note"] = "camps the flight path" } }, ["guilds"] = { { ["name"] = "Red Rage" } } }`: `players` then `guilds`, each sorted by name ignoring case, with `note` left out when null or empty. An empty list is written as empty tables, so a cleared list reaches the addon, and the key is left out when the server sends null (an older server, or the member view) or the roster route was not pulled. It is part of the rendered file, so it is part of the fingerprint.
-
-An officer payload also carries `["attunements"]`, written after `kos`: for each attunement id, the guids of the characters that hold it. steward-server sends it as `attunements` on `GET /api/admin/{guild_id}/roster` (officer view only) as `{"onyxia":["Player-5826-0A1B2C3D"]}`. The app writes `["attunements"] = { ["onyxia"] = { "Player-5826-0A1B2C3D" } }` with the keys sorted ordinal and the guids in the server's order. An empty list is written as an empty table, and the key is left out when the server sends null (an older server, or the member view) or the roster route was not pulled. It is part of the rendered file, so it is part of the fingerprint.
-
-Every payload, officer or member, carries `["gearSets"]`, written last: the signed-in user's own gear builder sets, from `GET /api/guild/{guild_id}/gear/sets` (`{sets: [{name, class, character, slots, ...}]}`, member route, only the caller's sets). The app writes `["gearSets"] = { { ["name"] = "...", ["class"] = "Druid", ["character"] = "<guid>", ["items"] = { [1] = { ["id"] = 123, ["enchant"] = 456 }, [3] = { ["id"] = 789 } } } }` in the server's order. An item key is the 1-based position of the slot in the order Head, Neck, Shoulder, Back, Chest, Wrist, Hands, Waist, Legs, Feet, Finger1, Finger2, Trinket1, Trinket2, MainHand, OffHand, Ranged. A slot with no item, a null `class`, a null `character` and a null `enchant` are left out, and `enchant` is the stored enchant effect id as the server returns it. A user with no sets gets an empty table. An officer's sets are fetched inside the same pull as the roster, so they refresh on every roster trigger: the 15 minute fallback, a guild event, the manual rewrite and the restore after an install. A user without the `steward` feature fetches them in the directory sync (`SyncDirectoryAsync`), before the check for a roster, professions or sync flag, so a user holding only the `hoobiscripts` flag gets them: it runs after each check, after a posted character push and every 15 minutes (`GuildSyncFallbackInterval`), and a write follows it. A failed fetch is logged and the last fetched sets (else an empty table for an officer, no key for a member before the first fetch) are written, so neither sync fails on it. The member sets are cleared on sign-out and on a user or guild change. It is part of the rendered file, so it is part of the fingerprint.
+steward-server's `StewardSyncFile.ToJson` defines the keys and their order, and steward-server's `docs/design/addon-bundle.md` gives the gates. Today the keys are `roster`, `loot`, `attendance`, `members`, `discord`, `statuses`, `origins`, `catalogue`, `me`, `directory`, `links`, `rankTargets`, `rankLocked`, `kos`, `attunements` and `gearSets`. `links` maps a character guid to the linked Discord user id, from the link an officer pins in steward-server. `hoobio/Steward` reads `links` in preference to note matching, so a pin settles a link without the guild note convention described under Identity and linking. A gear set's `items` is an array by slot position (Head to Ranged), with `nil` in the empty slots.
 
 ## steward-server endpoints in use
 
-No server change was needed for the first sprint; `/api/me` and the `/api/guild/{guild_id}/...` namespace came later, for the professions-only sync and the directory above. All three sit behind `SessionAuthentication` (`src/Steward.Data/AdminAccess.cs`), the desktop client's own session cookie.
+Every route here sits behind `SessionAuthentication` (`src/Steward.Data/AdminAccess.cs`), the desktop client's own session cookie.
 
 | Endpoint | Gives |
 | --- | --- |
 | `GET /api/me` | `{user: {id, name, username, avatar_url, role, features}, guilds: [...]}`. `role` is `global`, `admin`, `raider` or null; `raider` means a seatless caller holding at least one member-view flag (`sync`, `roster`, `professions`, `signups`) in at least one guild. Each guild entry carries its own `features`, that guild's resolved flags, since an officer of one guild is a plain member of another. The guild list supplies the `guild_id` the other calls need. |
 
 **`guilds` does not mean "the user's guilds".** For a `global` role it is every guild in the `discord_guilds` mirror table, in guild id order with the last guild saved through `PUT /api/me/guild` moved to the front (`Mirror.Guilds`, `Me.Get`); only for an `admin` is it filtered to their seats (`CallerAccess.Scope` in `src/Steward.Data/CallerAccess.cs`); a seatless `raider` gets only the guilds where they are a live Discord member holding a member-view flag. Taking the first entry therefore picks an arbitrary server for exactly the people most likely to be running this, and the failure is quiet: `/members` answers with that server's real Discord members while `/roster` answers empty, so the sync looks like it worked. The guild is a persisted user setting (`guild_id` in `state.json`, chosen from a picker in the Sync page header showing each guild's Discord name and icon), never an index into that list. `icon_url` is null for a guild with no Discord icon, so the picker shows no icon rather than a broken image, and a null `name` (from an older server) falls back to the raw id.
-| `GET /api/admin/{guild_id}/roster` | `{members: [...], origins, specs, statuses, flags, roles, palette}`. A member carries `user_id`, `display_name`, `name`, `discord_tag`, `status`, `origin`, `flags`, `rating`, `notes` and derived primary and secondary builds. Officer-only. |
-| `GET /api/admin/{guild_id}/members` | The full live non-bot Discord member list, `{id, name, nick, avatar_url}`. This is what `ginv` matches against, so a person who has never signed up is still invitable by Discord name. Officer-only. |
-| `GET /api/admin/{guild_id}/events` | A `text/event-stream` of change notices, added after the first sprint. `event: ready` on connect, a `: ping` comment every 25 seconds, and `event: roster-changed`, `members-changed` or `characters-changed` with `data: {"guild":"<id>"}`. Events carry no data; the app re-pulls through the two endpoints above. Same `gg_session` auth: 401 is a lost session, 403 no access to that guild. Officer-only. |
-| `GET /api/guild/{guild_id}/roster` (`roster`), `/professions` (`professions`), `/recipes/catalogue` (`sync` or `professions`) | The per-flag member routes composed into the `directory` dataset above. |
+| `GET /api/addons/sync/{guild_id}`, `GET /api/addons/sync` | The sync document, described under Sync document route. |
+| `GET /api/admin/{guild_id}/events` | A `text/event-stream` of change notices. `event: ready` on connect, a `: ping` comment every 25 seconds, and `event: roster-changed`, `members-changed` or `characters-changed` with `data: {"guild":"<id>"}`. Events carry no data; the app pulls the sync document again. Same `gg_session` auth: 401 is a lost session, 403 no access to that guild. Officer-only. |
+| `GET /api/events` | The stream every signed-in app holds. A `syncChanged` frame queues a pull of the sync document. |
 
-The event stream is held open by the desktop app while the user holds `steward`, the same gate as the roster pull. Each event queues a roster pull, debounced 2 seconds. A dropped connection reconnects after 5 seconds, doubling to 5 minutes and reset by the next `ready`, and 60 seconds with no line, pings included, counts as dropped. A 404 is a server without the route: the app stops trying for that run and relies on its timer. The timer pull runs every minute while the stream is down and every 15 minutes while it is connected. The push direction is event-driven too: a write to `Steward.lua` under `WTF\Account` triggers the character push, debounced 1.5 seconds.
+The officer event stream is held open while the user holds `steward`. Each event queues a pull, debounced 2 seconds. A dropped connection reconnects after 5 seconds, doubling to 5 minutes and reset by the next `ready`, and 60 seconds with no line, pings included, counts as dropped. A 404 is a server without the route: the app stops trying for that run and relies on its timer. The character push runs on every one-minute pass while the stream is down and every 15 minutes while it is connected. The sync document is pulled on the background pass at most every 15 minutes. The push direction is event-driven too: a write to `Steward.lua` under `WTF\Account` triggers the character push, debounced 1.5 seconds.
 
 The origin is `https://api.hoobi.io/guild` (`Steward:BaseUrl`). Never `guild.hoobi.io`: the Static Web App's navigation fallback answers every `/api/*` path with `index.html` and a 200, so a client pointed there parses HTML as JSON instead of seeing a 401.
 
