@@ -355,7 +355,8 @@ public sealed record AppState(
     [property: JsonPropertyName("install_labels")] Dictionary<string, string> InstallLabels = null!,
     [property: JsonPropertyName("install_products")] Dictionary<string, string> InstallProducts = null!,
     [property: JsonPropertyName("selected_install")] string? SelectedInstall = null,
-    [property: JsonPropertyName("ignored_addons")] List<string> IgnoredAddons = null!)
+    [property: JsonPropertyName("ignored_addons")] List<string> IgnoredAddons = null!,
+    [property: JsonPropertyName("restedxp_forced_guides")] Dictionary<string, List<string>> RestedXpForcedGuides = null!)
 {
     [JsonPropertyName("channel")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

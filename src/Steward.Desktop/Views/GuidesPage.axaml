@@ -15,6 +15,15 @@
                 BorderBrush="{DynamicResource RowHairlineBrush}"
                 Padding="16,12"
                 ToolTip.Tip="{Binding RowTooltip}">
+                <Border.Resources>
+                    <MenuFlyout x:Key="RowMenu" Placement="BottomEdgeAlignedRight">
+                        <MenuItem Header="Force install" Command="{Binding ForceInstallCommand}" IsVisible="{Binding ForceVisibility}" />
+                        <MenuItem Header="Stop forcing" Command="{Binding StopForcingCommand}" IsVisible="{Binding StopForcingVisibility}" />
+                    </MenuFlyout>
+                </Border.Resources>
+                <Border.ContextFlyout>
+                    <StaticResource ResourceKey="RowMenu" />
+                </Border.ContextFlyout>
                 <Grid ColumnSpacing="14" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                     <CheckBox
                         Grid.Column="0"

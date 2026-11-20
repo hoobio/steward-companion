@@ -41,7 +41,7 @@ public sealed partial class GuideRowViewModel : ObservableObject
     private readonly DateTimeOffset? _updatedAt;
     private readonly Uri? _imageUri;
 
-    public GuideRowViewModel(RestedXpInstallViewModel card, string productName, Uri? imageUri, DateTimeOffset? updatedAt, bool isAllowed, IUiPlatform platform)
+    public GuideRowViewModel(RestedXpInstallViewModel card, string productName, Uri? imageUri, DateTimeOffset? updatedAt, bool isAllowed, IUiPlatform platform, bool isForced = false)
     {
         _card = card;
         _updatedAt = updatedAt;
@@ -49,6 +49,7 @@ public sealed partial class GuideRowViewModel : ObservableObject
         ProductName = productName;
         Image = imageUri is null ? null : ManifestIcon.For(platform, $"restedxp-{productName}", imageUri);
         IsAllowed = isAllowed;
+        IsForced = isForced;
     }
 
     public string ProductName { get; }
@@ -59,12 +60,20 @@ public sealed partial class GuideRowViewModel : ObservableObject
 
     public bool IsAllowed { get; }
 
-    public bool Matches(string productName, Uri? imageUri, DateTimeOffset? updatedAt, bool isAllowed) =>
-        ProductName == productName && _imageUri == imageUri && _updatedAt == updatedAt && IsAllowed == isAllowed;
+    public bool IsForced { get; }
+
+    public bool ForceVisibility => !IsAllowed;
+
+    public bool StopForcingVisibility => IsForced;
+
+    public bool Matches(string productName, Uri? imageUri, DateTimeOffset? updatedAt, bool isAllowed, bool isForced = false) =>
+        ProductName == productName && _imageUri == imageUri && _updatedAt == updatedAt && IsAllowed == isAllowed && IsForced == isForced;
 
     public string? RowTooltip => IsAllowed ? null : $"{ProductName} is for another client. This install is {_card.DisplayName}.";
 
-    public string UpdatedText => !IsAllowed
+    public string UpdatedText => IsForced
+        ? "Forced for this client"
+        : !IsAllowed
         ? "Not for this client"
         : _updatedAt is { } at
             ? $"Updated {RelativeTime.Describe(at, DateTimeOffset.Now)}"
@@ -139,6 +148,12 @@ public sealed partial class GuideRowViewModel : ObservableObject
     [RelayCommand]
     private Task RetryAsync() => _card.ResyncAsync();
 
+    [RelayCommand]
+    private Task ForceInstallAsync() => _card.SetForcedAsync(ProductName, true);
+
+    [RelayCommand]
+    private Task StopForcingAsync() => _card.SetForcedAsync(ProductName, false);
+
     partial void OnIsSelectedChanged(bool value)
     {
         NotifyDerived();
@@ -164,16 +179,24 @@ public sealed partial class GuideRowViewModel : ObservableObject
 public sealed partial class RestedXpInstallViewModel : ObservableObject
 {
     private readonly Func<RestedXpInstallViewModel, Task> _choiceChanged;
+    private readonly Func<RestedXpInstallViewModel, string, bool, Task>? _forcedChanged;
     private readonly IUiPlatform _platform;
     private bool _isLoading;
 
-    public RestedXpInstallViewModel(WowInstall install, Func<RestedXpInstallViewModel, Task> choiceChanged, IUiPlatform platform)
+    public RestedXpInstallViewModel(
+        WowInstall install,
+        Func<RestedXpInstallViewModel, Task> choiceChanged,
+        IUiPlatform platform,
+        Func<RestedXpInstallViewModel, string, bool, Task>? forcedChanged = null)
     {
         Install = install;
         DisplayName = install.DisplayName;
         _choiceChanged = choiceChanged;
+        _forcedChanged = forcedChanged;
         _platform = platform;
     }
+
+    public Task SetForcedAsync(string productName, bool forced) => _forcedChanged?.Invoke(this, productName, forced) ?? Task.CompletedTask;
 
     public WowInstall Install { get; }
 
@@ -237,7 +260,8 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
         IReadOnlyCollection<string> selected,
         IReadOnlyDictionary<string, long> timestamps,
         IReadOnlyDictionary<string, Uri> images,
-        Func<string, bool> isAllowed)
+        Func<string, bool> isAllowed,
+        Func<string, bool>? isForced = null)
     {
         ArgumentNullException.ThrowIfNull(products);
         ArgumentNullException.ThrowIfNull(selected);
@@ -253,15 +277,16 @@ public sealed partial class RestedXpInstallViewModel : ObservableObject
                 ? DateTimeOffset.FromUnixTimeMilliseconds(timestamp)
                 : (DateTimeOffset?)null;
             var allowed = isAllowed(product);
+            var forced = isForced?.Invoke(product) ?? false;
             var image = images.GetValueOrDefault(product);
             var isSelected = allowed && selected.Contains(product, StringComparer.Ordinal);
-            if (i < Rows.Count && Rows[i].Matches(product, image, updatedAt, allowed))
+            if (i < Rows.Count && Rows[i].Matches(product, image, updatedAt, allowed, forced))
             {
                 Rows[i].IsSelected = isSelected;
                 continue;
             }
 
-            var row = new GuideRowViewModel(this, product, image, updatedAt, allowed, _platform) { IsSelected = isSelected };
+            var row = new GuideRowViewModel(this, product, image, updatedAt, allowed, _platform, forced) { IsSelected = isSelected };
             if (i < Rows.Count)
             {
                 Rows[i] = row;
@@ -418,7 +443,7 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
             var card = Guides.FirstOrDefault(g => string.Equals(g.FlavourPath, install.FlavourPath, StringComparison.OrdinalIgnoreCase));
             if (card is null)
             {
-                card = new RestedXpInstallViewModel(install.Install, OnChoiceChangedAsync, _platform);
+                card = new RestedXpInstallViewModel(install.Install, OnChoiceChangedAsync, _platform, OnForcedChangedAsync);
                 LoadProducts(card);
                 Guides.Add(card);
             }
@@ -540,7 +565,8 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
             [.. _service.GuideChoices(card.Install)],
             _service.Timestamps,
             _service.ProductImages,
-            product => _service.IsAllowed(card.Install, product));
+            product => _service.IsAllowed(card.Install, product),
+            product => _service.IsForced(card.Install, product));
         card.WrittenAt = _service.WrittenAt(card.Install);
         ApplyCatalogueState(card);
     }
@@ -696,6 +722,20 @@ public sealed partial class RestedXpViewModel : ObservableObject, IDisposable
     private async Task OnChoiceChangedAsync(RestedXpInstallViewModel card)
     {
         _service.SetGuideChoices(card.FlavourPath, card.SelectedProducts);
+        await SyncAsync(card).ConfigureAwait(true);
+    }
+
+    private async Task OnForcedChangedAsync(RestedXpInstallViewModel card, string product, bool forced)
+    {
+        var selected = card.SelectedProducts.Where(selectedProduct => selectedProduct != product).ToList();
+        if (forced)
+        {
+            selected.Add(product);
+        }
+
+        _service.SetForced(card.FlavourPath, product, forced);
+        _service.SetGuideChoices(card.FlavourPath, selected);
+        LoadProducts(card);
         await SyncAsync(card).ConfigureAwait(true);
     }
 

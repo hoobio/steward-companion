@@ -189,6 +189,9 @@ public sealed class AppStateStore
             LostAccess = (state.LostAccess ?? [])
                 .Where(entry => !entry.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
+            RestedXpForcedGuides = (state.RestedXpForcedGuides ?? [])
+                .Where(entry => !string.Equals(entry.Key, flavourPath, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase),
             SelectedInstall = string.Equals(state.SelectedInstall, flavourPath, StringComparison.OrdinalIgnoreCase)
                 ? null
                 : state.SelectedInstall,
@@ -203,6 +206,7 @@ public sealed class AppStateStore
         HiddenAddons = [.. state.HiddenAddons ?? []],
         RestedXpGuides = new Dictionary<string, RestedXpGuideRecord>(state.RestedXpGuides ?? [], StringComparer.OrdinalIgnoreCase),
         RestedXpGuideChoices = MergeGuideChoices(state),
+        RestedXpForcedGuides = new Dictionary<string, List<string>>(state.RestedXpForcedGuides ?? [], StringComparer.OrdinalIgnoreCase),
         RestedXpGuidesGeneration = new Dictionary<string, long>(state.RestedXpGuidesGeneration ?? [], StringComparer.OrdinalIgnoreCase),
         GuildRosterSync = new Dictionary<string, string>(state.GuildRosterSync ?? [], StringComparer.OrdinalIgnoreCase),
         PersonAvatars = new Dictionary<string, Dictionary<string, string>>(state.PersonAvatars ?? [], StringComparer.OrdinalIgnoreCase),

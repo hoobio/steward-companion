@@ -116,6 +116,10 @@ The write follows `StewardSyncFile`: temp-then-move, the folder is only replaced
 
 The API carries no expansion field; `productName` is the only handle. `appsettings.json` maps product-name prefixes to a client flavour: "Forever" to the Forever client, "Mists of Pandaria" to mists, "Cataclysm" to cata, "Classic Era", "Season of Mastery" and "Hardcore" to vanilla, "The Burning Crusade" to tbc, anything else to mainline. `RestedXpService.ClientOverrides` is a small allow list of exact product name to client product codes that applies before the prefix map: "RestedXP Trailblazer Classic Era Beta Build" is valid on `wowf` and `wow_classic_beta`, since its name carries no Forever prefix. A product whose flavour is not the install's is listed on the Guides page but disabled with "Not for this client" and is never written to that install. Importing a Mists string on the Forever client parses every guide with "Invalid" zone errors in chat, which is what the gate prevents.
 
+### Force install
+
+Right-click, Shift+F10 or the context key on a "Not for this client" row opens a `MenuFlyout` (the pattern of the Addons page row menu) with "Force install". It stores the product name in `AppState.RestedXpForcedGuides` (`restedxp_forced_guides` in `state.json`, flavour path to product names, defaulted to empty on load and dropped with the install by `RemoveInstall`), ticks the row and writes it like any ticked row. `RestedXpService.IsAllowed` is true for a natural match or a forced product, so the row is enabled and no later filter drops it. A forced row reads "Forced for this client" and its menu item is "Stop forcing", which removes the entry and unticks the row. A natural match is never shown as forced. A row that matches its client has no menu items.
+
 ## What Steward needs
 
 - A RestedXP sign-in card: username and password prompt, MFA code prompt, tokens persisted in `state.json` as the Discord session is, "Signed in as <BattleTag>" from `/user`.

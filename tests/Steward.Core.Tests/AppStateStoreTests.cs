@@ -310,6 +310,23 @@ public sealed class AppStateStoreTests : IDisposable
     }
 
     [Fact]
+    public void ForcedGuides_DefaultToEmpty_SurviveASaveAndLoad_AndAreDroppedWithTheirInstall()
+    {
+        File.WriteAllText(StatePath, """{"channels":{},"installs":{}}""");
+        var store = new AppStateStore([], StatePath);
+        var state = store.Load();
+        Assert.Empty(state.RestedXpForcedGuides);
+
+        state.RestedXpForcedGuides[@"C:\wow\_retail_"] = ["Guide"];
+        state.RestedXpForcedGuides[@"C:\wow\_classic_era_"] = ["Guide"];
+        store.Save(state);
+
+        var reloaded = new AppStateStore([], StatePath).Load();
+        Assert.Equal(["Guide"], reloaded.RestedXpForcedGuides[@"C:\wow\_retail_"]);
+        Assert.Equal([@"C:\wow\_classic_era_"], AppStateStore.RemoveInstall(reloaded, @"C:\wow\_retail_").RestedXpForcedGuides.Keys);
+    }
+
+    [Fact]
     public void Load_MigratesTheSingleGuideChoiceIntoAOneItemList()
     {
         File.WriteAllText(

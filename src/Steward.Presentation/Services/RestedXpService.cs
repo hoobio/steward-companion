@@ -224,7 +224,29 @@ public sealed class RestedXpService : IDisposable
     {
         ArgumentNullException.ThrowIfNull(install);
 
-        return Allows(_productPrefixes, install.ProductCode, productName);
+        return Allows(_productPrefixes, install.ProductCode, productName) || IsForced(install, productName);
+    }
+
+    public bool IsForced(WowInstall install, string productName)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+
+        return !Allows(_productPrefixes, install.ProductCode, productName)
+            && _stateStore.Load().RestedXpForcedGuides.GetValueOrDefault(install.FlavourPath)?.Contains(productName, StringComparer.Ordinal) == true;
+    }
+
+    public void SetForced(string flavourPath, string productName, bool forced)
+    {
+        var state = _stateStore.Load();
+        var products = state.RestedXpForcedGuides.GetValueOrDefault(flavourPath) ?? [];
+        products.RemoveAll(product => string.Equals(product, productName, StringComparison.Ordinal));
+        if (forced)
+        {
+            products.Add(productName);
+        }
+
+        state.RestedXpForcedGuides[flavourPath] = products;
+        _stateStore.Save(state);
     }
 
     private static readonly Dictionary<string, string[]> ClientOverrides = new(StringComparer.OrdinalIgnoreCase)
