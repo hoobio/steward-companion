@@ -101,6 +101,25 @@ public sealed class ClientFlavourTests(AvaloniaSession session)
         Assert.Equal(allowed, Steward.App.Services.RestedXpService.Allows(prefixes, product, guide));
     }
 
+    [Theory]
+    [InlineData("wowf", "RestedXP Trailblazer Classic Era Beta Build", true)]
+    [InlineData("wow_classic_beta", "RestedXP Trailblazer Classic Era Beta Build", true)]
+    [InlineData("wowf", "RestedXP Trailblazer Retail Beta Build", false)]
+    [InlineData("wowf", "RestedXP Trailblazer The Burning Crusade", false)]
+    [InlineData("wowf", "RestedXP Trailblazer Wrath Beta Build", false)]
+    [InlineData("wowf", "RestedXP Trailblazer Mists of Pandaria Beta", false)]
+    public void Only_the_Classic_Era_Trailblazer_build_is_valid_on_the_Forever_client(string product, string guide, bool allowed)
+    {
+        var prefixes = new Dictionary<string, string[]>
+        {
+            ["wowf"] = ["Forever"],
+            ["wow_classic_beta"] = ["Forever"],
+            ["wow"] = [""],
+        };
+
+        Assert.Equal(allowed, Steward.App.Services.RestedXpService.Allows(prefixes, product, guide));
+    }
+
     private static WowInstallViewModel AddInstall(MainViewModel main, string temp, string flavour, string product, string client, string name, params string[] folders)
     {
         var path = Path.Combine(temp, flavour);

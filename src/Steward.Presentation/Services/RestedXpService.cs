@@ -227,9 +227,18 @@ public sealed class RestedXpService : IDisposable
         return Allows(_productPrefixes, install.ProductCode, productName);
     }
 
+    private static readonly Dictionary<string, string[]> ClientOverrides = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["RestedXP Trailblazer Classic Era Beta Build"] = ["wowf", "wow_classic_beta"],
+    };
+
     internal static bool Allows(IReadOnlyDictionary<string, string[]> productPrefixes, string? productCode, string productName) =>
         productCode is { } code
-        && productPrefixes.TryGetValue(code, out var prefixes)
+        && (ClientOverrides.TryGetValue(productName, out var overrideCodes) && overrideCodes.Contains(code, StringComparer.OrdinalIgnoreCase)
+            || AllowsByPrefix(productPrefixes, code, productName));
+
+    private static bool AllowsByPrefix(IReadOnlyDictionary<string, string[]> productPrefixes, string code, string productName) =>
+        productPrefixes.TryGetValue(code, out var prefixes)
         && prefixes.Any(prefix => prefix.Length == 0 ? !IsClaimed(productPrefixes, productName) : productName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 
     // RestedXP names retail guides with no client prefix, so an empty prefix takes every product no other client's prefix claims.

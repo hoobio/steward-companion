@@ -114,7 +114,7 @@ The write follows `StewardSyncFile`: temp-then-move, the folder is only replaced
 
 ## Client gating
 
-The API carries no expansion field; `productName` is the only handle. `appsettings.json` maps product-name prefixes to a client flavour: "Forever" to the Forever client, "Mists of Pandaria" to mists, "Cataclysm" to cata, "Classic Era", "Season of Mastery" and "Hardcore" to vanilla, "The Burning Crusade" to tbc, anything else to mainline. A product whose flavour is not the install's is listed on the Guides page but disabled with "Not for this client" and is never written to that install. Importing a Mists string on the Forever client parses every guide with "Invalid" zone errors in chat, which is what the gate prevents.
+The API carries no expansion field; `productName` is the only handle. `appsettings.json` maps product-name prefixes to a client flavour: "Forever" to the Forever client, "Mists of Pandaria" to mists, "Cataclysm" to cata, "Classic Era", "Season of Mastery" and "Hardcore" to vanilla, "The Burning Crusade" to tbc, anything else to mainline. `RestedXpService.ClientOverrides` is a small allow list of exact product name to client product codes that applies before the prefix map: "RestedXP Trailblazer Classic Era Beta Build" is valid on `wowf` and `wow_classic_beta`, since its name carries no Forever prefix. A product whose flavour is not the install's is listed on the Guides page but disabled with "Not for this client" and is never written to that install. Importing a Mists string on the Forever client parses every guide with "Invalid" zone errors in chat, which is what the gate prevents.
 
 ## What Steward needs
 
