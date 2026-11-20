@@ -16,7 +16,7 @@
                 Padding="16,12"
                 ToolTip.Tip="{Binding RowTooltip}">
                 <Border.Resources>
-                    <MenuFlyout x:Key="RowMenu" Placement="BottomEdgeAlignedRight">
+                    <MenuFlyout x:Key="RowMenu" Placement="BottomEdgeAlignedRight" Opening="OnRowMenuOpening">
                         <MenuItem Header="Force install" Command="{Binding ForceInstallCommand}" IsVisible="{Binding ForceVisibility}" />
                         <MenuItem Header="Stop forcing" Command="{Binding StopForcingCommand}" IsVisible="{Binding StopForcingVisibility}" />
                     </MenuFlyout>

@@ -1,4 +1,7 @@
+using System.ComponentModel;
+
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Data.Converters;
 using Avalonia.Interactivity;
 
@@ -26,6 +29,14 @@ public sealed partial class GuidesPage : UserControl
     }
 
     public MainViewModel ViewModel { get; }
+
+    private static void OnRowMenuOpening(object? sender, EventArgs e)
+    {
+        if (sender is FlyoutBase { Target.DataContext: GuideRowViewModel { ForceVisibility: false, StopForcingVisibility: false } } && e is CancelEventArgs cancel)
+        {
+            cancel.Cancel = true;
+        }
+    }
 
     private void OnSignInClick(object? sender, RoutedEventArgs e) => ViewModel?.ShowRestedXpSignIn?.Invoke();
 
