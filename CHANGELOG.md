@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.35.1](https://github.com/hoobio/steward-companion/compare/v0.35.0...v0.35.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* 🐛 addon settings read HoobiScripts GUID character keys beside the old Name-Realm keys ([0e68b77](https://github.com/hoobio/steward-companion/commit/0e68b77f4f2db501a2395eb982af336f529db5b9))
+
 ## [0.35.0](https://github.com/hoobio/steward-companion/compare/v0.34.0...v0.35.0) (2026-11-20)
 
 
