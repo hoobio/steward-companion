@@ -30,6 +30,8 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
          "plans":{"talents":[{"class":"DRUID","group":1,"from":null,"to":[1,2,3]}],"actionBars":[]}}
         """;
 
+    private const string ZugGuid = "Player-6801-00000001";
+
     private static string Fixture(string name) => Path.Combine(AppContext.BaseDirectory, "Fixtures", name);
 
     private static UiPathWorld World(AvaloniaSession session, string area)
@@ -37,6 +39,11 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
         var world = new UiPathWorld(session, area);
         File.Copy(Fixture("HoobiScripts.lua"), AddonSettings.FilePath(world.Beta, "1#1", "HoobiScripts"));
         Directory.CreateDirectory(Path.Combine(world.Beta, "WTF", "Account", "1#1", "91", "Hoobi-Spellbook"));
+        var zugSaved = Directory.CreateDirectory(Path.Combine(world.Beta, "WTF", "Account", "1#1", "91", "Zug-Zug", "SavedVariables")).FullName;
+        File.WriteAllText(Path.Combine(zugSaved, "StewardJourney.lua"), $$"""StewardJourneyDB = { ["route"] = { { ["ev"] = "login", ["guid"] = "{{ZugGuid}}", ["t"] = 1 } } }""");
+        File.WriteAllText(
+            Path.Combine(Directory.CreateDirectory(Path.Combine(world.Beta, "Logs")).FullName, "Connection.log"),
+            """realmEntry="{"wowRealmAddress":1527316482,"cfgRealmsID":6801,"name":"Classic Beta PvP"}" """);
         var schema = SettingsSchema.Parse(File.ReadAllText(Fixture("hoobiscripts-settings-schema.json")));
         world.Main.AddonSettings.FetchSchema = (addon, _, _) => Task.FromResult(addon.Id == "hoobiscripts" ? schema : null);
         world.Main.AddonSettings.IsRunning = _ => false;
@@ -129,7 +136,7 @@ public sealed class AddonSettingsPaths(AvaloniaSession session)
             Assert.Null(settings.Get("hideErrors"));
             Assert.Equal("all", settings.GetString("autoRepair"));
             Assert.Equal("blizzard", settings.GetString("skin"));
-            var zug = globals["HoobiScriptsDB"].GetTable("chars")!.GetTable("Zug Zug-Classic Beta PvP")!;
+            var zug = globals["HoobiScriptsDB"].GetTable("chars")!.GetTable(ZugGuid)!;
             Assert.Equal("WARRIOR", zug.GetString("class"));
             Assert.False(zug.Get("vendorPlainWater")!.Boolean);
             Assert.True(Directory.Exists(Path.Combine(world.Beta, "WTF", "Account", "1#1", "91", "Zug-Zug")));

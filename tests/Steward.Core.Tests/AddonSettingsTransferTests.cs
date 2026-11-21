@@ -244,26 +244,71 @@ public sealed class AddonSettingsTransferTests : IDisposable
         Assert.Equal(expected, AddonSettingsPayload.Decode(File.ReadAllText(Fixture("addon-settings-export-vector.txt")).Trim()));
     }
 
+    private const string HooBiGuid = "Player-6801-0006CB84";
+
+    private void Logged(string log, uint address, string name) =>
+        File.WriteAllText(Path.Combine(Directory.CreateDirectory(Path.Combine(Flavour, "Logs")).FullName, log), $$"""
+            10/29 14:47:54.446  [N][Connection] Battle.net last played character received code="ERROR_OK (0)" realmEntry="{"wowRealmAddress":{{address}},"cfgRealmsID":6801,"name":"{{name}}"}"
+            """);
+
+    private void JourneyLogin(string realmId, string folder, string guid) =>
+        File.WriteAllText(
+            Path.Combine(Directory.CreateDirectory(Path.Combine(AccountFolder, realmId, folder, "SavedVariables")).FullName, "StewardJourney.lua"),
+            $$"""StewardJourneyDB = { ["route"] = { { ["ev"] = "login", ["guid"] = "{{guid}}", ["t"] = 1 } } }""");
+
+    private static LuaValue Chars(string file) => AddonSettings.Load(file)["HoobiScriptsDB"].GetTable("chars")!;
+
     [Fact]
-    public void Export_ListsUnrecordedCharactersThatImportAsNewCharacters()
+    public void Export_ListsUnrecordedCharactersThatImportUnderTheirGuid()
     {
         Directory.CreateDirectory(Path.Combine(AccountFolder, "89", "Hoo-Bi"));
-        Directory.CreateDirectory(Path.Combine(Flavour, "Logs"));
-        File.WriteAllText(Path.Combine(Flavour, "Logs", "Connection.log"), """
-            10/29 14:47:54.446  [N][Connection] Battle.net last played character received code="ERROR_OK (0)" realmEntry="{"wowRealmAddress":1493172226,"name":"CAMWOW AU1 Realm 2 PvP"}"
-            """);
-
-        var export = JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "World of Warcraft: Forever", 1761550000))!;
-        var import = Preview("""
+        Logged("General.log", 1493172226, "CAMWOW AU1 Realm 2 PvP");
+        var newHooBi = """
             "newCharacters":[{"first":"Hoo","last":"Bi","class":"MAGE","realm":"CAMWOW AU1 Realm 2 PvP"}],
             "changes":[]
-            """);
+            """;
 
+        var export = JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "World of Warcraft: Forever", 1761550000))!;
         Assert.Equal("""[{"first":"Hoo","last":"Bi","realm":"CAMWOW AU1 Realm 2 PvP"}]""", export["unrecorded"]!.ToJsonString());
+        Assert.Equal("Log in to this character once first", Assert.Single(Preview(newHooBi).Items).Reason);
+
+        JourneyLogin("89", "Hoo-Bi", HooBiGuid);
+        var import = Preview(newHooBi);
         Assert.Equal(SettingsImportStatus.Ready, Assert.Single(import.Items).Status);
         Assert.Equal(1, Apply(import));
-        Assert.Equal("MAGE", AddonSettings.Load(CoreFile)["HoobiScriptsDB"].GetTable("chars")!.GetTable("Hoo Bi-CAMWOW AU1 Realm 2 PvP")!.GetString("class"));
+
+        var entry = Chars(CoreFile).GetTable(HooBiGuid)!;
+        Assert.Equal(("MAGE", "Hoo Bi"), (entry.GetString("class"), entry.GetString("name")));
+        Assert.Null(Chars(CoreFile).GetTable("Hoo Bi-CAMWOW AU1 Realm 2 PvP"));
         Assert.Null(JsonNode.Parse(AddonSettingsExport.Build(Account(), Sources(), "World of Warcraft: Forever", 1761550000))!["unrecorded"]);
+    }
+
+    [Fact]
+    public void Import_WritesToTheGuidEntryAndNeverAddsADuplicateLegacyKey()
+    {
+        File.WriteAllText(CoreFile, CoreLua.Replace(
+            "[\"Mage Ling-Nightslayer\"] = {",
+            $"[\"{HooBiGuid}\"] = {{\n[\"name\"] = \"Mage Ling\",\n[\"class\"] = \"MAGE\",\n}},\n[\"Old Entry-Nightslayer\"] = {{",
+            StringComparison.Ordinal));
+
+        var account = Account();
+        var export = JsonNode.Parse(AddonSettingsExport.Build(account, Sources(), "Forever", 1))!;
+        var import = Preview($$"""
+            "newCharacters":[{"first":"Mage","last":"Ling","class":"MAGE","realm":"Nightslayer"}],
+            "changes":[{{Change("vendorPlainWater", "null", "true", scope: "character", extra: ",\"character\":\"Mage Ling-Nightslayer\"")}}]
+            """);
+
+        Assert.Contains(HooBiGuid, account.Characters);
+        Assert.Equal("91", account.KnownRealms["6801"]);
+        Assert.Equal("Mage Ling", export["characters"]!.AsArray().Single(c => (string?)c!["key"] == HooBiGuid)!["name"]!.GetValue<string>());
+        Assert.DoesNotContain(export["unrecorded"]?.AsArray() ?? [], entry => (string?)entry!["first"] == "Mage");
+        Assert.Equal(["This character already has settings", null], import.Items.Select(item => item.Reason));
+        Assert.Equal("Plain water, Mage Ling", import.Items[1].Label);
+        Assert.Equal(1, Apply(import));
+
+        var chars = Chars(CoreFile);
+        Assert.True(chars.GetTable(HooBiGuid)!.Get("vendorPlainWater")!.Boolean);
+        Assert.Null(chars.GetTable("Mage Ling-Nightslayer"));
     }
 
     [Fact]
@@ -424,6 +469,8 @@ public sealed class AddonSettingsTransferTests : IDisposable
     [Fact]
     public void Import_AddsANewCharacterOnAKnownRealmWithItsSettings()
     {
+        Logged("Connection.log", 1527316482, "Nightslayer");
+        JourneyLogin("91", "Zug-O'zug", HooBiGuid);
         var import = Preview($$"""
             "newCharacters":[{"first":"zug","last":"o'zug","class":"WARRIOR","realm":"nightslayer"}],
             "changes":[{{Change("vendorPlainWater", "null", "false", scope: "character", extra: ",\"character\":\"Zug O'zug-Nightslayer\"")}}]
@@ -433,10 +480,24 @@ public sealed class AddonSettingsTransferTests : IDisposable
         Assert.Equal("Zug O'zug (Nightslayer)", import.Items[0].Label);
         Assert.Equal(2, Apply(import));
 
-        Assert.True(Directory.Exists(Path.Combine(AccountFolder, "91", "Zug-O'zug")));
-        var entry = AddonSettings.Load(CoreFile)["HoobiScriptsDB"].GetTable("chars")!.GetTable("Zug O'zug-Nightslayer")!;
-        Assert.Equal("WARRIOR", entry.GetString("class"));
+        var entry = Chars(CoreFile).GetTable(HooBiGuid)!;
+        Assert.Equal(("WARRIOR", "Zug O'zug"), (entry.GetString("class"), entry.GetString("name")));
         Assert.False(entry.Get("vendorPlainWater")!.Boolean);
+        Assert.Null(Chars(CoreFile).GetTable("Zug O'zug-Nightslayer"));
+    }
+
+    [Fact]
+    public void Import_RefusesANewCharacterWhoseJourneyGuidIsOnAnotherRealm()
+    {
+        Logged("Connection.log", 1527316482, "Nightslayer");
+        JourneyLogin("91", "Zug-Zug", "Player-5826-0A1B2C3D");
+
+        var import = Preview("""
+            "newCharacters":[{"first":"Zug","last":"Zug","class":"WARRIOR","realm":"Nightslayer"}],
+            "changes":[]
+            """);
+
+        Assert.Equal("Log in to this character once first", Assert.Single(import.Items).Reason);
     }
 
     [Fact]

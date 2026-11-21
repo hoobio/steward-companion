@@ -213,7 +213,7 @@ public static class StewardSavedVariables
         string.Equals(realmA, realmB, StringComparison.OrdinalIgnoreCase)
         || (realmNameA is not null && string.Equals(realmNameA, realmNameB, StringComparison.OrdinalIgnoreCase));
 
-    private static string? RealmId(string guid)
+    internal static string? RealmId(string guid)
     {
         var parts = guid.Split('-');
         return parts.Length >= 3 && parts[0] == "Player" && parts[1].Length > 0 && parts[1].All(char.IsAsciiDigit) ? parts[1] : null;

@@ -128,6 +128,7 @@ public sealed class SettingsAccount
 
     private readonly Dictionary<string, IReadOnlyDictionary<string, LuaValue>?> _files = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _unreadable = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CharacterRef> _refs;
 
     public SettingsAccount(string flavourPath, string addOnsPath, string account, string? productCode, IReadOnlyDictionary<string, SavedVariableOwner?> owners)
     {
@@ -139,9 +140,18 @@ public sealed class SettingsAccount
         AccountFolder = AddonSettings.AccountFolder(flavourPath, account);
         CoreFile = AccountFileOf(CoreGlobal);
         Core = (CoreFile is null ? null : Read(CoreFile)) ?? new Dictionary<string, LuaValue>(StringComparer.Ordinal);
-        Characters = AddonSettings.CharactersOn(AddonSettings.Characters(Core, CoreGlobal), productCode);
-        KnownRealms = AddonSettings.KnownRealms(AccountFolder, Characters, Path.Combine(flavourPath, "Logs", "Connection.log"));
+        var refs = AddonSettings.CharacterRefs(Core, CoreGlobal);
+        Characters = AddonSettings.CharactersOn([.. refs.Select(character => character.Key)], productCode);
+        _refs = refs.Where(character => Characters.Contains(character.Key)).ToDictionary(character => character.Key, StringComparer.Ordinal);
+        KnownRealms = AddonSettings.KnownRealms(
+            AccountFolder, _refs.Values, Path.Combine(flavourPath, "Logs", "Connection.log"), Path.Combine(flavourPath, "Logs", "General.log"));
     }
+
+    public CharacterRef CharacterOf(string key) => _refs.GetValueOrDefault(key) ?? AddonSettings.ParseCharacter(key);
+
+    public IEnumerable<CharacterRef> CharacterRefs => _refs.Values;
+
+    public string Resolve(string key) => AddonSettings.ResolveKey(Core, key, CoreGlobal);
 
     public string FlavourPath { get; }
 
@@ -201,7 +211,7 @@ public sealed class SettingsAccount
         string file;
         if (row.IsCharacterFile)
         {
-            var folder = character is null ? null : AddonSettings.CharacterFolder(AccountFolder, character, KnownRealms);
+            var folder = character is null ? null : AddonSettings.CharacterFolder(AccountFolder, CharacterOf(character), KnownRealms);
             if (folder is null)
             {
                 return (null, "Log in to this character once first");
@@ -282,11 +292,12 @@ public static class AddonSettingsExport
                 return (JsonNode)entry;
             })]),
             ["installed"] = new JsonArray([.. installed.Select(folder => (JsonNode)folder)]),
-            ["realms"] = new JsonArray([.. account.KnownRealms.OrderBy(realm => realm.Key, StringComparer.OrdinalIgnoreCase)
+            ["realms"] = new JsonArray([.. AddonSettings.RealmNames(account.KnownRealms).OrderBy(realm => realm.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(realm => (JsonNode)new JsonObject { ["name"] = realm.Key, ["id"] = realm.Value })]),
             ["characters"] = new JsonArray([.. account.Characters.Select(character => (JsonNode)new JsonObject
             {
                 ["key"] = character,
+                ["name"] = account.CharacterOf(character).Name,
                 ["class"] = account.ClassOf(character) ?? "",
             })]),
             ["values"] = values,
@@ -298,7 +309,7 @@ public static class AddonSettingsExport
                 ["spells"] = SettingsPlans.ExportSpells(account),
             },
         };
-        if (AddonSettings.UnrecordedCharacters(account.AccountFolder, account.KnownRealms, account.Characters) is { Count: > 0 } unrecorded)
+        if (AddonSettings.UnrecordedCharacters(account.AccountFolder, account.KnownRealms, account.CharacterRefs) is { Count: > 0 } unrecorded)
         {
             payload["unrecorded"] = new JsonArray([.. unrecorded.Select(entry => (JsonNode)new JsonObject
             {

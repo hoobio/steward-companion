@@ -230,25 +230,62 @@ public static partial class AddonSettings
             _ => false,
         };
 
+    public static CharacterRef ParseCharacter(string key, string? storedName = null)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        if (StewardSavedVariables.RealmId(key) is { } realmNumber)
+        {
+            return new CharacterRef(key, storedName is { Length: > 0 } ? storedName : key, realmNumber, true);
+        }
+
+        var split = key.IndexOf('-', StringComparison.Ordinal);
+        return split > 0 ? new CharacterRef(key, key[..split], key[(split + 1)..], false) : new CharacterRef(key, key, "", false);
+    }
+
+    // The addon never reads a Name-Realm entry again once that character has a GUID entry, so the old one is left out.
+    public static IReadOnlyList<CharacterRef> CharacterRefs(IReadOnlyDictionary<string, LuaValue> globals, string global = "HoobiScriptsDB")
+    {
+        ArgumentNullException.ThrowIfNull(globals);
+        if (globals.GetValueOrDefault(global)?.GetTable("chars") is not { } chars)
+        {
+            return [];
+        }
+
+        var all = chars.Table.Where(entry => entry.Key is { Kind: LuaKind.Text } && entry.Value.Kind == LuaKind.Table)
+            .Select(entry => ParseCharacter(FromFile(entry.Key!.Text!), entry.Value.GetString("name") is { } name ? FromFile(name) : null))
+            .ToList();
+        var guidNames = all.Where(character => character.IsGuid).Select(character => character.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return [.. all.Where(character => character.IsGuid || !guidNames.Contains(character.Name))
+            .OrderBy(character => character.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(character => character.Key, StringComparer.OrdinalIgnoreCase)];
+    }
+
     public static IReadOnlyList<string> Characters(IReadOnlyDictionary<string, LuaValue> globals, string global = "HoobiScriptsDB") =>
-        globals.GetValueOrDefault(global)?.GetTable("chars") is { } chars
-            ? [.. chars.Table.Where(entry => entry.Key is { Kind: LuaKind.Text } && entry.Value.Kind == LuaKind.Table)
-                .Select(entry => FromFile(entry.Key!.Text!))
-                .Order(StringComparer.OrdinalIgnoreCase)]
-            : [];
+        [.. CharacterRefs(globals, global).Select(character => character.Key)];
+
+    public static string ResolveKey(IReadOnlyDictionary<string, LuaValue> globals, string key, string global = "HoobiScriptsDB")
+    {
+        var target = ParseCharacter(key);
+        return !target.IsGuid
+            && CharacterRefs(globals, global).Where(character => character.IsGuid && string.Equals(character.Name, target.Name, StringComparison.OrdinalIgnoreCase)).ToList() is [var match]
+            ? match.Key
+            : key;
+    }
 
     // The live client's file can carry entries the Forever copy wizard brought over from the beta realm.
     public static IReadOnlyList<string> CharactersOn(IReadOnlyList<string> characters, string? productCode) =>
         productCode == ForeverLaunch.LiveProduct
-            ? [.. characters.Where(key => !(key.IndexOf('-', StringComparison.Ordinal) is var split and > 0
-                && string.Equals(key[(split + 1)..], ForeverLaunch.BetaRealm, StringComparison.OrdinalIgnoreCase)))]
+            ? [.. characters.Where(key => !string.Equals(ParseCharacter(key).Realm, ForeverLaunch.BetaRealm, StringComparison.OrdinalIgnoreCase))]
             : characters;
 
     public static string? ClassOf(IReadOnlyDictionary<string, LuaValue> globals, string? character, string global = "HoobiScriptsDB") =>
         character is null ? null : globals.GetValueOrDefault(global)?.GetTable("chars")?.GetTable(ToFile(character))?.GetString("class");
 
-    public static string CharacterLabel(string character) =>
-        character.IndexOf('-', StringComparison.Ordinal) is var split and > 0 ? $"{character[..split]} ({character[(split + 1)..]})" : character;
+    public static string CharacterLabel(CharacterRef character)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        return character.IsGuid || character.Realm.Length == 0 ? character.Name : $"{character.Name} ({character.Realm})";
+    }
 
     public static LuaValue? Stored(IReadOnlyDictionary<string, LuaValue> globals, SettingsRow row, string? character, string? classToken = null)
     {
@@ -312,13 +349,19 @@ public static partial class AddonSettings
         classToken.Length == 0 ? classToken : classToken[0] + classToken[1..].ToLower(CultureInfo.InvariantCulture);
 
     public static IReadOnlyDictionary<string, LuaValue> AddCharacter(
-        IReadOnlyDictionary<string, LuaValue> globals, string character, string? classToken, IEnumerable<SettingsRow> seededRows, string global = "HoobiScriptsDB")
+        IReadOnlyDictionary<string, LuaValue> globals, string character, string? classToken, IEnumerable<SettingsRow> seededRows, string global = "HoobiScriptsDB", string? name = null)
     {
         ArgumentNullException.ThrowIfNull(globals);
         var result = new Dictionary<string, LuaValue>(globals, StringComparer.Ordinal);
+        character = ResolveKey(result, character, global);
         if (result.GetValueOrDefault(global)?.GetTable("chars")?.GetTable(ToFile(character)) is null)
         {
             result[global] = SetIn(result.GetValueOrDefault(global), [global, "chars"], 1, ToFile(character), LuaValue.FromTable());
+        }
+
+        if (name is not null && ParseCharacter(character).IsGuid)
+        {
+            result[global] = SetIn(result[global], [global, "chars", ToFile(character)], 1, "name", LuaValue.FromString(ToFile(name)));
         }
 
         if (classToken is not null)
@@ -343,17 +386,17 @@ public static partial class AddonSettings
             : installed.Any(name => string.Equals(name, folder, StringComparison.OrdinalIgnoreCase)));
     }
 
-    public static string? CharacterFolder(string accountFolder, string character, IReadOnlyDictionary<string, string> knownRealms)
+    public static string? CharacterFolder(string accountFolder, CharacterRef character, IReadOnlyDictionary<string, string> knownRealms)
     {
         ArgumentNullException.ThrowIfNull(character);
         ArgumentNullException.ThrowIfNull(knownRealms);
-        if (character.IndexOf('-', StringComparison.Ordinal) is not (> 0 and var split) || !knownRealms.TryGetValue(character[(split + 1)..], out var realmId))
+        if (!knownRealms.TryGetValue(character.Realm, out var realmId))
         {
             return null;
         }
 
         var realmFolder = Path.Combine(accountFolder, realmId);
-        var name = character[..split].Replace(' ', '-');
+        var name = character.Name.Replace(' ', '-');
         return Directory.Exists(realmFolder)
             ? Directory.EnumerateDirectories(realmFolder).FirstOrDefault(folder => string.Equals(Path.GetFileName(folder), name, StringComparison.OrdinalIgnoreCase))
             : null;
@@ -527,13 +570,19 @@ public static partial class AddonSettings
         return total;
     }
 
-    public static IReadOnlyDictionary<string, string> KnownRealms(string accountFolder, IEnumerable<string> characters, string? connectionLog = null)
+    public static bool IsRealmNumber(string realm) => realm.Length > 0 && realm.All(char.IsAsciiDigit);
+
+    public static IReadOnlyDictionary<string, string> RealmNames(IReadOnlyDictionary<string, string> knownRealms) =>
+        knownRealms.GroupBy(realm => realm.Value, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderBy(realm => IsRealmNumber(realm.Key)).ThenBy(realm => realm.Key, StringComparer.OrdinalIgnoreCase).First())
+            .ToDictionary(realm => realm.Key, realm => realm.Value, StringComparer.OrdinalIgnoreCase);
+
+    public static IReadOnlyDictionary<string, string> KnownRealms(string accountFolder, IEnumerable<CharacterRef> characters, params string?[] logs)
     {
         var realmsByName = characters
-            .Select(key => key.IndexOf('-', StringComparison.Ordinal) is var split and > 0 ? (Name: key[..split], Realm: key[(split + 1)..]) : default)
-            .Where(entry => entry.Name is not null)
-            .GroupBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.Select(entry => entry.Realm).Distinct(StringComparer.OrdinalIgnoreCase).ToList(), StringComparer.OrdinalIgnoreCase);
+            .Where(character => character.Realm.Length > 0)
+            .GroupBy(character => character.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Select(character => character.Realm).Distinct(StringComparer.OrdinalIgnoreCase).ToList(), StringComparer.OrdinalIgnoreCase);
         var ids = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         if (!Directory.Exists(accountFolder))
         {
@@ -559,55 +608,72 @@ public static partial class AddonSettings
             }
         }
 
-        var named = ids.Values.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var (name, id) in LoggedRealms(connectionLog))
+        var named = ids.Where(entry => !IsRealmNumber(entry.Key)).Select(entry => entry.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, (number, id)) in LoggedRealms(logs))
         {
-            if (!ids.ContainsKey(name) && !named.Contains(id) && Directory.Exists(Path.Combine(accountFolder, id)))
+            if (!Directory.Exists(Path.Combine(accountFolder, id)))
+            {
+                continue;
+            }
+
+            if (!ids.ContainsKey(name) && !named.Contains(id))
             {
                 ids[name] = id;
+            }
+
+            if (number is not null)
+            {
+                ids.TryAdd(number, id);
             }
         }
 
         return ids.Where(entry => entry.Value is not null).ToDictionary(entry => entry.Key, entry => entry.Value!, StringComparer.OrdinalIgnoreCase);
     }
 
-    private static Dictionary<string, string> LoggedRealms(string? connectionLog)
+    // cfgRealmsID is the realm number in a player GUID; wowRealmAddress >> 24 is the WTF realm folder.
+    private static Dictionary<string, (string? Number, string Id)> LoggedRealms(IEnumerable<string?> logs)
     {
         const string Marker = "realmEntry=\"";
-        var realms = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (connectionLog is null || !File.Exists(connectionLog))
+        var realms = new Dictionary<string, (string? Number, string Id)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var log in logs)
         {
-            return realms;
-        }
-
-        try
-        {
-            using var reader = new StreamReader(new FileStream(connectionLog, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete));
-            while (reader.ReadLine() is { } line)
+            if (log is null || !File.Exists(log))
             {
-                var start = line.IndexOf(Marker, StringComparison.Ordinal);
-                var end = line.LastIndexOf('}');
-                if (start < 0 || end < start)
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                try
+            try
+            {
+                using var reader = new StreamReader(new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete));
+                while (reader.ReadLine() is { } line)
                 {
-                    using var entry = JsonDocument.Parse(line.AsMemory(start + Marker.Length, end - start - Marker.Length + 1));
-                    if (entry.RootElement.TryGetProperty("wowRealmAddress", out var address) && address.TryGetUInt32(out var realmAddress)
-                        && entry.RootElement.TryGetProperty("name", out var name) && name.GetString() is { Length: > 0 } realmName)
+                    var start = line.IndexOf(Marker, StringComparison.Ordinal);
+                    var end = line.LastIndexOf('}');
+                    if (start < 0 || end < start)
                     {
-                        realms[realmName] = (realmAddress >> 24).ToString(CultureInfo.InvariantCulture);
+                        continue;
+                    }
+
+                    try
+                    {
+                        using var entry = JsonDocument.Parse(line.AsMemory(start + Marker.Length, end - start - Marker.Length + 1));
+                        if (entry.RootElement.TryGetProperty("wowRealmAddress", out var address) && address.TryGetUInt32(out var realmAddress)
+                            && entry.RootElement.TryGetProperty("name", out var name) && name.GetString() is { Length: > 0 } realmName)
+                        {
+                            var number = entry.RootElement.TryGetProperty("cfgRealmsID", out var cfg) && cfg.TryGetUInt32(out var realmNumber)
+                                ? realmNumber.ToString(CultureInfo.InvariantCulture)
+                                : null;
+                            realms[realmName] = (number, (realmAddress >> 24).ToString(CultureInfo.InvariantCulture));
+                        }
+                    }
+                    catch (JsonException)
+                    {
                     }
                 }
-                catch (JsonException)
-                {
-                }
             }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+            }
         }
 
         return realms;
@@ -633,21 +699,19 @@ public static partial class AddonSettings
     public static string CharacterKey(string first, string last, string realm) => $"{NamePart(first.Trim())} {NamePart(last.Trim())}-{realm}";
 
     public static IReadOnlyList<(string First, string Last, string Realm)> UnrecordedCharacters(
-        string accountFolder, IReadOnlyDictionary<string, string> knownRealms, IReadOnlyList<string> characters) =>
-        [.. knownRealms.OrderBy(realm => realm.Key, StringComparer.OrdinalIgnoreCase)
+        string accountFolder, IReadOnlyDictionary<string, string> knownRealms, IEnumerable<CharacterRef> characters)
+    {
+        var recorded = characters.Select(character => CharacterFolder(accountFolder, character, knownRealms)).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return [.. RealmNames(knownRealms).OrderBy(realm => realm.Key, StringComparer.OrdinalIgnoreCase)
             .Where(realm => Directory.Exists(Path.Combine(accountFolder, realm.Value)))
             .SelectMany(realm => Directory.EnumerateDirectories(Path.Combine(accountFolder, realm.Value))
+                .Where(folder => !recorded.Contains(folder))
                 .Select(Path.GetFileName).OfType<string>()
                 .Order(StringComparer.OrdinalIgnoreCase)
                 .Select(folder => folder.Split('-'))
                 .Where(parts => parts is [var first, var last] && CheckNamePart(first) is null && CheckNamePart(last) is null)
-                .Select(parts => (First: parts[0], Last: parts[1], Realm: realm.Key)))
-            .Where(entry => !characters.Contains(CharacterKey(entry.First, entry.Last, entry.Realm), StringComparer.OrdinalIgnoreCase))];
-
-    public static string CreateCharacterFolder(string accountFolder, string realmId, string first, string last)
-    {
-        var folder = Path.Combine(accountFolder, realmId, $"{NamePart(first.Trim())}-{NamePart(last.Trim())}");
-        Directory.CreateDirectory(folder);
-        return folder;
+                .Select(parts => (First: parts[0], Last: parts[1], Realm: realm.Key)))];
     }
 }
+
+public sealed record CharacterRef(string Key, string Name, string Realm, bool IsGuid);

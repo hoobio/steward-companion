@@ -38,8 +38,6 @@ public sealed class SettingsImportItem
 
     internal Func<IReadOnlyDictionary<string, LuaValue>, IReadOnlyDictionary<string, LuaValue>>? Edit { get; init; }
 
-    internal Action? Prepare { get; init; }
-
     public const string AlreadySameHeading = "Already the same in the game";
 
     internal SettingsImportItem Unless(bool same) => !same ? this : new()
@@ -167,8 +165,9 @@ public static class AddonSettingsImport
         else
         {
             var newCharacters = new Dictionary<string, string>(StringComparer.Ordinal);
-            items.AddRange(Elements(payload.Root, "newCharacters").Select(entry => NewCharacter(entry, account, newCharacters)));
-            items.AddRange(Elements(payload.Root, "changes").Select(change => Change(change, account, addons, newCharacters)));
+            var newKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            items.AddRange(Elements(payload.Root, "newCharacters").Select(entry => NewCharacter(entry, account, newCharacters, newKeys)));
+            items.AddRange(Elements(payload.Root, "changes").Select(change => Change(change, account, addons, newCharacters, newKeys)));
         }
 
         var plans = Prop(payload.Root, "plans");
@@ -189,11 +188,6 @@ public static class AddonSettingsImport
         if (clientRunning())
         {
             throw new InvalidOperationException(AddonSettings.RunningMessage);
-        }
-
-        foreach (var item in items)
-        {
-            item.Prepare?.Invoke();
         }
 
         foreach (var group in items.GroupBy(item => item.File!, StringComparer.OrdinalIgnoreCase))
@@ -229,7 +223,7 @@ public static class AddonSettingsImport
             .SelectMany(source => (source.Schema!.Pages ?? []).SelectMany(page => (page.Sections ?? []).SelectMany(section => section.Rows ?? [])
                 .Select(row => (source.Schema!, page, row))));
 
-    private static SettingsImportItem NewCharacter(JsonElement entry, SettingsAccount account, Dictionary<string, string> newCharacters)
+    private static SettingsImportItem NewCharacter(JsonElement entry, SettingsAccount account, Dictionary<string, string> newCharacters, Dictionary<string, string> newKeys)
     {
         var first = Str(entry, "first")?.Trim() ?? "";
         var last = Str(entry, "last")?.Trim() ?? "";
@@ -263,7 +257,7 @@ public static class AddonSettingsImport
         }
 
         var key = AddonSettings.CharacterKey(first, last, realmName);
-        if (account.Characters.Concat(newCharacters.Keys).Any(character => string.Equals(character, key, StringComparison.OrdinalIgnoreCase)))
+        if (newKeys.ContainsKey(key) || account.Characters.Contains(account.Resolve(key), StringComparer.OrdinalIgnoreCase))
         {
             return item.Refuse("This character already has settings");
         }
@@ -273,27 +267,58 @@ public static class AddonSettingsImport
             return item.Refuse(account.CoreFile is null ? SettingsAccount.NoOwnerNotice : AddonSettings.NotLoggedInNotice(account.TitleOf(SettingsAccount.CoreGlobal)));
         }
 
-        newCharacters[key] = classToken;
+        var character = AddonSettings.ParseCharacter(key);
         var realmId = account.KnownRealms[realmName];
+        var journey = JourneyGuid(AddonSettings.CharacterFolder(account.AccountFolder, character, account.KnownRealms));
+        // A Journey file can hold a beta character's login, so the GUID counts only when its realm number pairs with this folder's realm.
+        if (journey is not { } guid || StewardSavedVariables.RealmId(guid) is not { } realmNumber || account.KnownRealms.GetValueOrDefault(realmNumber) != realmId)
+        {
+            return item.Refuse("Log in to this character once first");
+        }
+
+        if (account.Characters.Contains(guid, StringComparer.Ordinal) || newCharacters.ContainsKey(guid))
+        {
+            return item.Refuse("This character already has settings");
+        }
+
+        newCharacters[guid] = classToken;
+        newKeys[key] = guid;
         return new SettingsImportItem
         {
             Addon = item.Addon,
             Page = item.Page,
-            Label = AddonSettings.CharacterLabel(key),
+            Label = AddonSettings.CharacterLabel(character),
             New = item.New,
             File = file,
-            Character = key,
-            Edit = globals => AddonSettings.AddCharacter(globals, key, classToken, [], SettingsAccount.CoreGlobal),
-            Prepare = () => AddonSettings.CreateCharacterFolder(account.AccountFolder, realmId, first, last),
+            Character = guid,
+            Edit = globals => AddonSettings.AddCharacter(globals, guid, classToken, [], SettingsAccount.CoreGlobal, character.Name),
         };
     }
 
-    private static SettingsImportItem Change(JsonElement change, SettingsAccount account, IReadOnlyList<SettingsSource> addons, Dictionary<string, string> newCharacters)
+    private static string? JourneyGuid(string? characterFolder)
+    {
+        if (characterFolder is null || AddonSettings.CharacterFilePath(characterFolder, "StewardJourney") is not { } file || !File.Exists(file))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JourneyFile.Summarise(File.ReadAllBytes(file)).CharacterGuid;
+        }
+        catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static SettingsImportItem Change(
+        JsonElement change, SettingsAccount account, IReadOnlyList<SettingsSource> addons, Dictionary<string, string> newCharacters, Dictionary<string, string> newKeys)
     {
         var folder = Str(change, "addon");
         var scope = Str(change, "scope") ?? "account";
         var key = Str(change, "key");
-        var character = Str(change, "character");
+        var character = Str(change, "character") is { } named ? newKeys.GetValueOrDefault(named) ?? account.Resolve(named) : null;
         var to = Prop(change, "to");
         var refused = new SettingsImportItem { Addon = folder ?? "Unknown addon", Page = "", Label = key ?? "Unknown setting", New = Raw(to) };
         if (folder is null || key is null)
@@ -342,7 +367,7 @@ public static class AddonSettingsImport
 
             known = account.Characters.Contains(character, StringComparer.Ordinal) || newCharacters.ContainsKey(character);
             classToken = newCharacters.GetValueOrDefault(character) ?? account.ClassOf(character);
-            refused = new SettingsImportItem { Addon = title, Page = refused.Page, Label = $"{refused.Label}, {AddonSettings.CharacterLabel(character)}", New = refused.New };
+            refused = new SettingsImportItem { Addon = title, Page = refused.Page, Label = $"{refused.Label}, {AddonSettings.CharacterLabel(account.Characters.Contains(character) ? account.CharacterOf(character) : AddonSettings.ParseCharacter(Str(change, "character")!))}", New = refused.New };
         }
         else
         {
