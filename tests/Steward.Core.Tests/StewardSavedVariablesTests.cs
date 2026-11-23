@@ -645,6 +645,47 @@ public sealed class StewardSavedVariablesTests : IDisposable
     }
 
     [Fact]
+    public void Read_MapsGuildEvents_AsGuildInvites_SkippingIncompleteEntries()
+    {
+        var snapshot = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["guildEvents"] = {
+                { ["inviter"] = "Alice", ["invitee"] = "Bob", ["at"] = 1758260000 },
+                { ["inviter"] = "Alice", ["invitee"] = "Bob", ["at"] = 1758260000 },
+                { ["inviter"] = "Carol", ["invitee"] = "Dan", ["at"] = 1758250000 },
+                { ["inviter"] = "Eve", ["at"] = 1758260000 },
+            },
+            }
+            """));
+
+        Assert.Equal(1, snapshot.Skipped);
+        Assert.Equal(
+            [new GuildInvite("Carol", "Dan", 1758250000), new GuildInvite("Alice", "Bob", 1758260000)],
+            snapshot.GuildInvites);
+    }
+
+    [Fact]
+    public void Read_HasNoGuildInvites_WhenGuildEventsAbsent()
+    {
+        var snapshot = ReadFiles(("account.lua", "StewardDB = {\n}\n"));
+
+        Assert.Empty(snapshot.GuildInvites);
+    }
+
+    [Fact]
+    public void Read_ChangesTheCharactersFingerprint_WhenAGuildInviteIsAdded()
+    {
+        var without = ReadFiles(("account.lua", "StewardDB = {\n}\n"));
+        var with = ReadFiles(("account.lua", """
+            StewardDB = {
+            ["guildEvents"] = { { ["inviter"] = "Alice", ["invitee"] = "Bob", ["at"] = 1758260000 } },
+            }
+            """));
+
+        Assert.NotEqual(without.CharactersFingerprint, with.CharactersFingerprint);
+    }
+
+    [Fact]
     public void Read_MapsRealmName_OnCharactersAndGuildRanks_WhenPresent()
     {
         var snapshot = ReadFiles(("account.lua", """

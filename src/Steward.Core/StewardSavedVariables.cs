@@ -79,6 +79,7 @@ public static class StewardSavedVariables
         var gear = new List<(string Id, DateTimeOffset Rank, CharacterGear Item)>();
         var forwarded = ForwardedKeys.ToDictionary(key => key, _ => new List<(string Id, DateTimeOffset Rank, JsonObject Item)>(), StringComparer.Ordinal);
         var scans = new List<FileScan>();
+        var guildInvites = new HashSet<GuildInvite>();
         GuildRanks? guildRanks = null;
         var hasAccount = false;
         var skipped = 0;
@@ -121,6 +122,7 @@ public static class StewardSavedVariables
                     fileCharacters,
                     [.. fileProfessions.Select(p => p.Guid), .. fileGear.Select(g => g.Guid), .. fileForwarded.Values.SelectMany(records => records.Select(r => r.Id))],
                     MapGuildRanks(account.GetTable("guildRanks"), ref skipped)));
+                guildInvites.UnionWith(MapAll(account.GetTable("guildEvents"), MapGuildInvite, ref skipped));
                 catalogue.AddRange(MapCatalogueByProfession(account.GetTable("catalogue"), ref skipped)
                     .Select(c => (c.Profession, ToTimestamp(c.Catalogue.ScannedAt) ?? DateTimeOffset.MinValue, c.Catalogue)));
                 if (scans[^1].Ranks is { } ranks
@@ -156,6 +158,8 @@ public static class StewardSavedVariables
             }
         }
 
+        IReadOnlyList<GuildInvite> orderedInvites = [.. guildInvites.OrderBy(i => i.At).ThenBy(i => i.Invitee, StringComparer.Ordinal).ThenBy(i => i.Inviter, StringComparer.Ordinal)];
+
         return new SavedVariablesSnapshot(
             descriptors,
             descriptors.Select(f => f.ExportedAt).Max(),
@@ -164,7 +168,7 @@ public static class StewardSavedVariables
             Dedupe(attendance),
             skipped,
             dedupedCharacters,
-            hasAccount ? CharacterSyncMapping.Fingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue, guildRanks, dedupedGear, forwardedByGuid) : null,
+            hasAccount ? CharacterSyncMapping.Fingerprint(dedupedCharacters, dedupedProfessions, dedupedCatalogue, guildRanks, dedupedGear, forwardedByGuid, orderedInvites) : null,
             dedupedProfessions,
             dedupedCatalogue,
             guildRanks,
@@ -173,8 +177,16 @@ public static class StewardSavedVariables
         {
             Gear = dedupedGear,
             Forwarded = forwardedByGuid,
+            GuildInvites = orderedInvites,
         };
     }
+
+    private static GuildInvite? MapGuildInvite(LuaValue value) =>
+        value.GetString("inviter") is { Length: > 0 } inviter
+        && value.GetString("invitee") is { Length: > 0 } invitee
+        && ToTimestamp(value.GetNumber("at")) is { } at
+            ? new GuildInvite(inviter, invitee, at.ToUnixTimeSeconds())
+            : null;
 
     private static readonly TimeSpan StaleGuildScan = TimeSpan.FromHours(24);
 

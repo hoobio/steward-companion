@@ -213,6 +213,10 @@ Data reaches a second officer's game client by the same route it reached the fir
 
 The server's payload carries a `me` table for every signed-in user: `{ id, role, features }`, `role` left out when null. Sign-out removes it, as described under Sign-out. It is a display gate only: the file is locally editable, so `Steward.IsOfficer()` uses `me.role` to hide officer-only windows and columns for a raider rather than to enforce anything; steward-server and the game's own permissions are the real enforcement, and a client with no `me` (signed out, or an older `StewardSync.lua`) falls back to the guild rank check it already had.
 
+## Guild invites
+
+The addon writes `StewardDB.guildEvents = { { inviter = "Name", invitee = "Name", at = <unix seconds> }, ... }`; the table is optional and may be absent or empty. The app maps it to `guildInvites: [{ inviter, invitee, at }]` on the characters push body, on the officer push only and only on a route that also carries `guildRanks`, omitted when empty. steward-server returns the officer-only `invites` field (invitee to `{ by, at }`) in the sync document payload, rendered by the server into `StewardSync.lua`; the app writes the payload entries verbatim and does not validate them.
+
 ## Payload keys
 
 steward-server's `StewardSyncFile.ToJson` defines the keys and their order, and steward-server's `docs/design/addon-bundle.md` gives the gates. Today the keys are `roster`, `loot`, `attendance`, `members`, `discord`, `statuses`, `origins`, `catalogue`, `me`, `directory`, `links`, `rankTargets`, `rankLocked`, `kos`, `attunements` and `gearSets`. `links` maps a character guid to the linked Discord user id, from the link an officer pins in steward-server. `hoobio/Steward` reads `links` in preference to note matching, so a pin settles a link without the guild note convention described under Identity and linking. A gear set's `items` is an array by slot position (Head to Ranged), with `nil` in the empty slots.

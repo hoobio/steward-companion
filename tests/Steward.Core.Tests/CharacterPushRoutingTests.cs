@@ -111,6 +111,21 @@ public sealed class CharacterPushRoutingTests
     }
 
     [Fact]
+    public void Route_SendsGuildInvitesOnlyWithGuildRanks()
+    {
+        var invites = new[] { new GuildInvite("Alice", "Bob", 1758260000) };
+        var snapshot = Snapshot(Ranks("Stormrage"), Character(HomeGuid, "Stormrage"), Character(AltGuid, "Other")) with { GuildInvites = invites };
+
+        var routes = CharacterPushRouting.Route(
+            snapshot,
+            [new("home", false, ["Stormrage"]), new("other", false, ["Other"])],
+            "home");
+
+        Assert.Equal(invites, routes.Single(r => r.GuildId == "home").Scope.GuildInvites);
+        Assert.Null(routes.Single(r => r.GuildId == "other").Scope.GuildInvites);
+    }
+
+    [Fact]
     public void StateOf_TreatsGuildNotAllowedAsSkipped()
     {
         var outcome = new CharacterPushOutcome(false, CharacterSyncRejectionCopy.GuildNotAllowedReason, "fp");

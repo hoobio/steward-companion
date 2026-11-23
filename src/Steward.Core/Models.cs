@@ -436,6 +436,7 @@ public sealed record ProviderAddonsState(
 [JsonSerializable(typeof(ChangelogBlock))]
 [JsonSerializable(typeof(CharacterPushRecord))]
 [JsonSerializable(typeof(CharacterSyncRequest))]
+[JsonSerializable(typeof(GuildInvite))]
 [JsonSerializable(typeof(CharacterSyncResponse))]
 [JsonSerializable(typeof(CharacterSyncState))]
 [JsonSerializable(typeof(ProviderAddonsState))]

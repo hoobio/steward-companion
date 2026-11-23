@@ -59,6 +59,8 @@ public sealed record SavedVariablesSnapshot(
 
     public IReadOnlyDictionary<string, JsonObject> Forwarded { get; init; } = new Dictionary<string, JsonObject>();
 
+    public IReadOnlyList<GuildInvite> GuildInvites { get; init; } = [];
+
     public bool HasExportedData => Characters.Count > 0 || Professions.Count > 0 || Catalogue.Count > 0 || GuildRanks is not null;
 
     public SyncExportState ExportState => true switch
@@ -86,6 +88,11 @@ public sealed record GuildRanks(
     string? RealmName = null,
     string? Fp = null,
     string? AddonVersion = null);
+
+public sealed record GuildInvite(
+    [property: JsonPropertyName("inviter")] string Inviter,
+    [property: JsonPropertyName("invitee")] string Invitee,
+    [property: JsonPropertyName("at")] long At);
 
 public sealed record CharacterObservation(
     string CharacterGuid,
@@ -193,7 +200,8 @@ public sealed record CharacterSyncRequest(
     [property: JsonPropertyName("appVersion")] string AppVersion,
     [property: JsonPropertyName("characters")] IReadOnlyList<CharacterSyncEntry> Characters,
     [property: JsonPropertyName("catalogue"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, ProfessionCatalogue>? Catalogue = null,
-    [property: JsonPropertyName("guildRanks"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GuildRanksSync? GuildRanks = null);
+    [property: JsonPropertyName("guildRanks"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GuildRanksSync? GuildRanks = null,
+    [property: JsonPropertyName("guildInvites"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<GuildInvite>? GuildInvites = null);
 
 public sealed record GuildRanksSync(
     [property: JsonPropertyName("realm")] string Realm,
@@ -317,7 +325,8 @@ public sealed record CharacterSyncBatch(
 public sealed record CharacterPushScope(
     IReadOnlyList<CharacterObservation> Characters,
     GuildRanks? GuildRanks,
-    string? Fingerprint);
+    string? Fingerprint,
+    IReadOnlyList<GuildInvite>? GuildInvites = null);
 
 public sealed record CharacterPushTarget(string GuildId, bool ProfessionsOnly, IReadOnlyList<string>? SyncGuildNames);
 
@@ -417,10 +426,11 @@ public static class CharacterSyncMapping
         var guildRanks = professionsOnly || snapshot.GuildRanks is null || !IsAllowedGuild(snapshot.GuildRanks.Guild, allowedGuilds)
             ? null
             : snapshot.GuildRanks;
+        var guildInvites = guildRanks is null || snapshot.GuildInvites.Count == 0 ? null : snapshot.GuildInvites;
         var fingerprint = !snapshot.HasAccountData || (allowedGuilds is not null && characters.Count == 0) ? null
             : allowedGuilds is null && !professionsOnly ? snapshot.CharactersFingerprint
-            : Fingerprint(characters, snapshot.Professions, snapshot.Catalogue, guildRanks, snapshot.Gear, snapshot.Forwarded);
-        return new CharacterPushScope(characters, guildRanks, fingerprint);
+            : Fingerprint(characters, snapshot.Professions, snapshot.Catalogue, guildRanks, snapshot.Gear, snapshot.Forwarded, guildInvites);
+        return new CharacterPushScope(characters, guildRanks, fingerprint, guildInvites);
     }
 
     public static string? EffectiveLinkedUserId(CharacterObservation observation, IReadOnlyList<DirectoryCharacter>? rosterCharacters)
@@ -440,7 +450,8 @@ public static class CharacterSyncMapping
         IReadOnlyDictionary<string, ProfessionCatalogue>? catalogue = null,
         GuildRanks? guildRanks = null,
         IReadOnlyDictionary<string, CharacterGear>? gear = null,
-        IReadOnlyDictionary<string, JsonObject>? forwarded = null)
+        IReadOnlyDictionary<string, JsonObject>? forwarded = null,
+        IReadOnlyList<GuildInvite>? guildInvites = null)
     {
         var canonicalProfessions = professions.ToDictionary(entry => entry.Key, entry => Canonical(entry.Value), StringComparer.Ordinal);
         var canonicalGear = gear?.ToDictionary(entry => entry.Key, entry => Canonical(entry.Value), StringComparer.Ordinal);
@@ -451,7 +462,8 @@ public static class CharacterSyncMapping
             [.. characters.OrderBy(c => c.CharacterGuid, StringComparer.Ordinal)
                 .Select(c => ToEntry(c with { ObservedAt = null, Fp = null, AddonVersion = null }, canonicalProfessions, canonicalGear, canonicalForwarded))],
             catalogue is null or { Count: 0 } ? null : Sorted(catalogue, entry => entry with { ScannedAt = null, Fp = null, AddonVersion = null }),
-            guildRanks is null ? null : ToSync(guildRanks) with { ObservedAt = null, Fp = null, AddonVersion = null });
+            guildRanks is null ? null : ToSync(guildRanks) with { ObservedAt = null, Fp = null, AddonVersion = null },
+            guildInvites is null or { Count: 0 } ? null : guildInvites);
         return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonical, CompanionJsonContext.Default.CharacterSyncRequest)));
     }
 

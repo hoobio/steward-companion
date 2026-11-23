@@ -199,6 +199,21 @@ public sealed class CharacterProfessionsTests
     }
 
     [Fact]
+    public void CharacterSyncRequest_SerialisesGuildInvites_AndOmitsThemWhenAbsent()
+    {
+        var with = new CharacterSyncRequest("batch-1", "1.0.0", [], GuildInvites: [new GuildInvite("Alice", "Bob", 1758260000)]);
+        var without = new CharacterSyncRequest("batch-1", "1.0.0", []);
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(with, CompanionJsonContext.Default.CharacterSyncRequest));
+        var invite = doc.RootElement.GetProperty("guildInvites")[0];
+
+        Assert.Equal("Alice", invite.GetProperty("inviter").GetString());
+        Assert.Equal("Bob", invite.GetProperty("invitee").GetString());
+        Assert.Equal(1758260000, invite.GetProperty("at").GetInt64());
+        Assert.DoesNotContain("guildInvites", JsonSerializer.Serialize(without, CompanionJsonContext.Default.CharacterSyncRequest), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CharacterSyncRequest_OmitsGuildRanks_WhenAbsent()
     {
         var request = new CharacterSyncRequest("batch-1", "1.0.0", []);

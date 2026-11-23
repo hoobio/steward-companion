@@ -2616,7 +2616,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             InstalledVersion,
             [.. sentCharacters.Select(c => CharacterSyncMapping.ToEntry(c, snapshot.Professions, snapshot.Gear, snapshot.Forwarded))],
             sentCatalogue,
-            route.Scope.GuildRanks is null ? null : CharacterSyncMapping.ToSync(route.Scope.GuildRanks));
+            route.Scope.GuildRanks is null ? null : CharacterSyncMapping.ToSync(route.Scope.GuildRanks),
+            route.Scope.GuildInvites);
 
         try
         {
