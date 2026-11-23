@@ -107,8 +107,8 @@ public sealed class SyncDocumentTests
 
         var table = RenderedTable(payload);
 
-        Assert.Equal(["writtenAt", "k\"]] = 1, [[\n\\"], table.Table.Select(entry => entry.Key!.Text));
-        Assert.Equal("v\"]]\n\\ } os.exit() --", table.Table[1].Value.Text);
+        Assert.Equal(["writtenAt", "companion", "k\"]] = 1, [[\n\\"], table.Table.Select(entry => entry.Key!.Text));
+        Assert.Equal("v\"]]\n\\ } os.exit() --", table.Table[2].Value.Text);
         Assert.Equal(hostile, Value(Parse($$"""{"h":{{System.Text.Json.JsonSerializer.Serialize(hostile)}}}"""), "h").Text);
     }
 

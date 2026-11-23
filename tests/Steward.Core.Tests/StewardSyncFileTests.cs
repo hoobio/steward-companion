@@ -46,17 +46,39 @@ public sealed class StewardSyncFileTests : IDisposable
     {
         var table = Parse(StewardSyncFile.Render(SamplePayload(), fingerprint: "ABC"));
 
-        Assert.Equal(["writtenAt", "fingerprint", "statuses", "me"], table.Table.Select(entry => entry.Key!.Text));
+        Assert.Equal(["writtenAt", "companion", "fingerprint", "statuses", "me"], table.Table.Select(entry => entry.Key!.Text));
         Assert.Equal(1758270000d, table.GetNumber("writtenAt"));
         Assert.Equal(["Officer", "Raider"], table.GetTable("statuses")!.Items.Select(item => item.Text));
     }
 
     [Fact]
-    public void Fingerprint_IsTheSha256OfThePayloadAndTheImageUrls()
+    public void Render_WritesTheCompanionMarkerListingEveryForwardedRecord()
+    {
+        var companion = Parse(StewardSyncFile.Render(SamplePayload())).GetTable("companion")!;
+
+        Assert.Equal(["talents", "notes", "linkSet"], companion.GetTable("forwards")!.Items.Select(item => item.Text));
+    }
+
+    [Fact]
+    public void Render_KeepsTheOfficerLinkSetAtAndTheDiscordUsernameUnchanged()
+    {
+        var payload = SyncDocument.Parse(
+            """{"version":1,"signOut":"dropMe","payload":{"linkSetAt":{"Player-1234-0000ABCD":1795000000},"discord":[{"id":"300000000000000003","username":"peer"}]}}""",
+            DateTimeOffset.FromUnixTimeSeconds(1758270000));
+
+        var table = Parse(StewardSyncFile.Render(payload));
+
+        Assert.Equal(1795000000d, table.GetTable("linkSetAt")!.GetNumber("Player-1234-0000ABCD"));
+        Assert.Equal("peer", table.GetTable("discord")!.Items[0].GetString("username"));
+    }
+
+    [Fact]
+    public void Fingerprint_IsTheSha256OfThePayloadTheImageUrlsAndTheCompanionMarker()
     {
         var payload = SamplePayload();
         var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
-            LuaWriter.Serialize(LuaValue.FromTable(payload.Entries)))));
+            LuaWriter.Serialize(LuaValue.FromTable(payload.Entries))
+            + LuaWriter.Serialize(Parse(StewardSyncFile.Render(payload)).GetTable("companion")!))));
 
         Assert.Equal(expected, StewardSyncFile.Fingerprint(payload));
     }
@@ -136,7 +158,7 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.True(File.Exists(avatar));
         Assert.Equal(18 + (64 * 64 * 4), new FileInfo(avatar).Length);
         var table = Parse(File.ReadAllText(StewardSyncFile.PathFor(addOnsPath)));
-        Assert.Equal(["writtenAt", "fingerprint", "avatar"], table.Table.Take(3).Select(entry => entry.Key!.Text));
+        Assert.Equal(["writtenAt", "companion", "fingerprint", "avatar"], table.Table.Take(4).Select(entry => entry.Key!.Text));
         Assert.Equal(@"Interface\AddOns\Steward\Avatar.tga", table.GetString("avatar"));
     }
 
@@ -199,7 +221,7 @@ public sealed class StewardSyncFileTests : IDisposable
     {
         var signedOut = SyncPayload.SignedOut(SamplePayload(), DateTimeOffset.FromUnixTimeSeconds(1758280000), heldStewardFeature: true)!;
 
-        Assert.Equal(["writtenAt", "statuses"], Parse(StewardSyncFile.Render(signedOut)).Table.Select(entry => entry.Key!.Text));
+        Assert.Equal(["writtenAt", "companion", "statuses"], Parse(StewardSyncFile.Render(signedOut)).Table.Select(entry => entry.Key!.Text));
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1758280000), signedOut.WrittenAt);
     }
 
@@ -218,7 +240,7 @@ public sealed class StewardSyncFileTests : IDisposable
         Assert.Empty(signedOut.Entries);
         Assert.Null(signedOut.Avatar);
         Assert.Empty(signedOut.Images.People);
-        Assert.Equal(["writtenAt"], Parse(StewardSyncFile.Render(signedOut)).Table.Select(entry => entry.Key!.Text));
+        Assert.Equal(["writtenAt", "companion"], Parse(StewardSyncFile.Render(signedOut)).Table.Select(entry => entry.Key!.Text));
     }
 
     [Fact]
@@ -233,6 +255,6 @@ public sealed class StewardSyncFileTests : IDisposable
         var signedOut = SyncPayload.SignedOut(null, DateTimeOffset.UnixEpoch, heldStewardFeature: false)!;
 
         Assert.Empty(signedOut.Entries);
-        Assert.Equal(["writtenAt"], Parse(StewardSyncFile.Render(signedOut)).Table.Select(entry => entry.Key!.Text));
+        Assert.Equal(["writtenAt", "companion"], Parse(StewardSyncFile.Render(signedOut)).Table.Select(entry => entry.Key!.Text));
     }
 }

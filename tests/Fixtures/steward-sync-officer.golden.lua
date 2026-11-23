@@ -1,5 +1,12 @@
 Steward.LoadSync({
 	["writtenAt"] = 1760000000,
+	["companion"] = {
+		["forwards"] = {
+			"talents",
+			"notes",
+			"linkSet",
+		},
+	},
 	["roster"] = {
 	},
 	["loot"] = {

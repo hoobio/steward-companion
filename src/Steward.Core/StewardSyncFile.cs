@@ -19,13 +19,17 @@ public static class StewardSyncFile
     public static string AvatarPathFor(string addOnsPath) =>
         Path.Combine(addOnsPath, StewardSavedVariables.AddonName, AvatarFileName);
 
-    private const string FingerprintKey = "[\"fingerprint\"] = \"";
+    private static readonly LuaValue CapabilityMarker = LuaValue.FromTable(new LuaEntry(
+        LuaValue.FromString("forwards"),
+        LuaValue.Array(StewardSavedVariables.ForwardedKeys.Select(LuaValue.FromString))));
+
+    private const string FingerprintKey ="[\"fingerprint\"] = \"";
 
     public static string Render(SyncPayload payload, bool withAvatar = false, string? fingerprint = null, IReadOnlySet<string>? avatarIds = null) =>
         "Steward.LoadSync(" + LuaWriter.Serialize(ToLua(payload, withAvatar, fingerprint, avatarIds)) + ")" + Environment.NewLine;
 
     public static string Fingerprint(SyncPayload payload) =>
-        HashUtf8(LuaWriter.Serialize(LuaValue.FromTable(payload.Entries)), payload.Avatar?.SourceUrl, ImageUrls(payload.Images.People), ImageUrls(payload.Images.Discord));
+        HashUtf8(LuaWriter.Serialize(LuaValue.FromTable(payload.Entries)), payload.Avatar?.SourceUrl, ImageUrls(payload.Images.People), ImageUrls(payload.Images.Discord), LuaWriter.Serialize(CapabilityMarker));
 
     private static string ImageUrls(IReadOnlyDictionary<string, string> urls) => string.Concat(
         urls.Where(PersonAvatars.IsSafe)
@@ -195,6 +199,8 @@ public static class StewardSyncFile
         {
             new(LuaValue.FromString("writtenAt"), LuaValue.FromNumber(payload.WrittenAt.ToUnixTimeSeconds())),
         };
+
+        entries.Add(new(LuaValue.FromString("companion"), CapabilityMarker));
 
         if (fingerprint is not null)
         {

@@ -11,7 +11,7 @@ public static class StewardSavedVariables
     private const string AccountGlobal = "StewardDB";
     private const string CharacterGlobal = "StewardCharDB";
 
-    private static readonly string[] ForwardedKeys = ["talents"];
+    internal static readonly string[] ForwardedKeys = ["talents", "notes", "linkSet"];
 
     public static IReadOnlyList<string> FindFiles(string flavourPath)
     {

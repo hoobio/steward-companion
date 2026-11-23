@@ -73,12 +73,15 @@ No rule turns a digit string into a number, so Discord ids and guids stay string
 The file starts with the overlay, then the payload keys in document order:
 
 1. `writtenAt`, the unix second of the write.
-2. `fingerprint`.
-3. `avatar`, only when `Avatar.tga` was written.
+2. `companion`, `{ forwards = { "talents", "notes", "linkSet" } }`: the character sub-records this build forwards to the server (`StewardSavedVariables.ForwardedKeys`). It is written in every state, signed out included.
+3. `fingerprint`.
+4. `avatar`, only when `Avatar.tga` was written.
 
 `ReadFingerprint` reads only the first 512 characters, so the fingerprint stays inside them.
 
-`StewardSyncFile.Fingerprint` is SHA-256 over the rendered payload entries (no overlay), the downloaded guild icon's URL and the people and Discord image URLs sorted by id. `GuildRosterSync.WriteIfChanged` skips the write when the file's fingerprint matches, `Avatar.tga` exists when an icon was loaded, and no avatar file is still to write. `force` writes in every case.
+The converter passes the officer keys `linkSetAt` (`{ [guid] = set_at }`) and `username` on each `discord` entry through unchanged, like every other key.
+
+`StewardSyncFile.Fingerprint` is SHA-256 over the rendered payload entries (no overlay), the downloaded guild icon's URL, the people and Discord image URLs sorted by id and the rendered `companion` table, so an install written before a marker change is rewritten. `GuildRosterSync.WriteIfChanged` skips the write when the file's fingerprint matches, `Avatar.tga` exists when an icon was loaded, and no avatar file is still to write. `force` writes in every case.
 
 ## Images
 
@@ -123,7 +126,7 @@ The reader never throws. A missing or wrongly typed field gives null, an empty s
 
 A new payload key, a removed key or a changed shape is a server deploy only. A companion release is needed for:
 
-- The overlay: `writtenAt`, `fingerprint`, `avatar` and the `avatar` key on `discord[]` and `directory.people[]` tables.
+- The overlay: `writtenAt`, `companion`, `fingerprint`, `avatar` and the `avatar` key on `discord[]` and `directory.people[]` tables.
 - The `images` maps and the image sizes.
 - The directory keys in the table above.
 - A new `version` or a new `signOut` value.
