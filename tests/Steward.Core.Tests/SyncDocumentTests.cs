@@ -15,6 +15,27 @@ public sealed class SyncDocumentTests
     }
 
     [Fact]
+    public void SpecDps_ReachesTheRenderedTableWithServerKeysAndUnroundedNumbers()
+    {
+        var payload = Parse("""{"specDps":{"DRUID":{"Balance":850.64,"Feral":951.3647},"DEATHKNIGHT":{"Frost":1000}},"specDpsAt":1760000000,"guildId":"1"}""");
+        var rendered = RenderedTable(payload);
+
+        var druid = rendered.Table.Single(entry => entry.Key?.Text == "specDps").Value.Table.Single(entry => entry.Key?.Text == "DRUID").Value;
+        Assert.Equal(850.64, druid.Table.Single(entry => entry.Key?.Text == "Balance").Value.Number);
+        Assert.Equal(951.3647, druid.Table.Single(entry => entry.Key?.Text == "Feral").Value.Number);
+        Assert.Contains(rendered.Table.Single(entry => entry.Key?.Text == "specDps").Value.Table, entry => entry.Key?.Text == "DEATHKNIGHT");
+        Assert.Equal(1760000000d, rendered.Table.Single(entry => entry.Key?.Text == "specDpsAt").Value.Number);
+    }
+
+    [Fact]
+    public void ADocumentWithoutSpecDps_RendersNoSpecDpsKeys()
+    {
+        var rendered = StewardSyncFile.Render(Parse("""{"guildId":"1"}"""));
+
+        Assert.DoesNotContain("specDps", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AnArray_KeepsANullElementAsAPositionalNil()
     {
         var items = Value(Parse("""{"a":[1,null,3,null]}"""), "a");
