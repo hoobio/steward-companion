@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.36.0](https://github.com/hoobio/steward-companion/compare/v0.35.1...v0.36.0) (2026-11-24)
+
+
+### Features
+
+* ✨ The companion forwards each character's guild roster notes and an officer's in-game Discord link edits, and tells the addon it does ([6085ce1](https://github.com/hoobio/steward-companion/commit/6085ce1867ae4f723c36b33afac9a2a39720f87f))
+* ✨ the officer push carries the addon's guild invite log as guildInvites ([ce0e329](https://github.com/hoobio/steward-companion/commit/ce0e329bb1e285d4b791bece214bc69d309ef62c))
+
 ## [0.35.1](https://github.com/hoobio/steward-companion/compare/v0.35.0...v0.35.1) (2026-11-21)
 
 
