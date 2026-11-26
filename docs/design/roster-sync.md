@@ -224,6 +224,10 @@ The addon writes `StewardDB.guildEvents = { { inviter = "Name", invitee = "Name"
 
 Each `discord[]` entry and each `directory.people[]` entry may carry `colour = "#rrggbb"`: the colour of the person's highest-position Discord role that has a non-zero colour, as Discord shows the name. The key is absent when the person has no coloured role. steward-server builds it from its Discord mirror; the app writes it verbatim and does not read it.
 
+## Talent groups
+
+Each `directory.characters[]` entry may carry `primary` and `secondary`, each `{ class, spec, role }`: the spec of talent group 1 and group 2 (or an officer's manual spec), with the role the roster uses. A group with no spec is absent. steward-server builds them; the app writes them verbatim and does not read them.
+
 ## Payload keys
 
 steward-server's `StewardSyncFile.ToJson` defines the keys and their order, and steward-server's `docs/design/addon-bundle.md` gives the gates. Today the keys are `roster`, `loot`, `attendance`, `members`, `discord`, `statuses`, `origins`, `catalogue`, `me`, `directory`, `links`, `rankTargets`, `rankLocked`, `kos`, `attunements` and `gearSets`. `links` maps a character guid to the linked Discord user id, from the link an officer pins in steward-server. `hoobio/Steward` reads `links` in preference to note matching, so a pin settles a link without the guild note convention described under Identity and linking. A gear set's `items` is an array by slot position (Head to Ranged), with `nil` in the empty slots.
