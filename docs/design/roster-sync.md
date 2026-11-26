@@ -218,7 +218,11 @@ The server's payload carries a `me` table for every signed-in user: `{ id, role,
 
 ## Guild invites
 
-The addon writes `StewardDB.guildEvents = { { inviter = "Name", invitee = "Name", at = <unix seconds> }, ... }`; the table is optional and may be absent or empty. The app maps it to `guildInvites: [{ inviter, invitee, at }]` on the characters push body, on the officer push only and only on a route that also carries `guildRanks`, omitted when empty. steward-server returns the officer-only `invites` field (invitee to `{ by, at }`) in the sync document payload, rendered by the server into `StewardSync.lua`; the app writes the payload entries verbatim and does not validate them.
+The addon writes `StewardDB.guildEvents = { { inviter = "Name", invitee = "Name", at = <unix seconds> }, ... }`; the table is optional and may be absent or empty. The app maps it to `guildInvites: [{ inviter, invitee, at }]` on the characters push body, on the officer push only and only on a route that also carries `guildRanks`, omitted when empty. steward-server returns the `invites` field (invitee to `{ by, at }`) in the sync document payload of every member whose guild has the `roster` feature, officers included; only the officer push writes invites, so a member cannot put an invite record into the server. The app writes the payload entries verbatim, whatever the caller's role, and does not validate them.
+
+## Discord role colours
+
+Each `discord[]` entry and each `directory.people[]` entry may carry `colour = "#rrggbb"`: the colour of the person's highest-position Discord role that has a non-zero colour, as Discord shows the name. The key is absent when the person has no coloured role. steward-server builds it from its Discord mirror; the app writes it verbatim and does not read it.
 
 ## Payload keys
 
